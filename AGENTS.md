@@ -19,8 +19,12 @@ This is a clean rebuild of `../snagentic` (v1). v1 is a **reference for algorith
 fixtures and ServiceNow behavior, not code to copy**. v1 failed through scope creep and
 mixed layers; don't repeat that.
 
-**Status:** pre-scaffold. Phase 0 must create the commands below. Until then, they
-describe the target.
+**Status:** phase 0 (see `specs/001-phase-0-foundation/design.md`). The commands below
+work; most of the layout is still to come.
+
+**Toolchain note:** TypeScript is pinned to 6.x on purpose. TypeScript 7 (the native
+compiler) doesn't yet publish the compiler API that dependency-cruiser needs, so the
+architecture checks would silently find nothing. Revisit when dependency-cruiser supports 7.
 
 ## Read before changing anything
 

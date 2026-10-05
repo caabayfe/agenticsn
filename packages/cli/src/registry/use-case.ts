@@ -1,6 +1,11 @@
 // A use case is the single definition of one operation (ADR-0003). The CLI command, the MCP
 // tool and the JSON output are all generated from it; nothing is defined twice by hand.
-import type { EnvironmentProbe, WorkspaceStore } from "@snagentic/core";
+import type {
+  CredentialStore,
+  EnvironmentProbe,
+  ProfileStore,
+  WorkspaceStore,
+} from "@snagentic/core";
 import type { z } from "zod";
 
 export const OUTPUT_FORMATS = ["agent", "json", "text"] as const;
@@ -16,10 +21,18 @@ export interface HostEnvironment {
   readonly workspaceOverride?: string;
 }
 
+// Asks the person at the terminal for a secret; never used for agents (MCP).
+export interface SecretReader {
+  read(prompt: string): Promise<string>;
+}
+
 // The ports use cases need, wired by the composition root (main.ts).
 export interface UseCaseContext {
   readonly environmentProbes: readonly EnvironmentProbe[];
   readonly workspaces: WorkspaceStore;
+  readonly profiles: ProfileStore;
+  readonly credentials: CredentialStore;
+  readonly secrets: SecretReader;
   readonly host: HostEnvironment;
 }
 
@@ -46,8 +59,10 @@ export interface UseCase<
   Input extends z.ZodObject = z.ZodObject,
   Output extends z.ZodObject = z.ZodObject,
 > {
-  // kebab-case; the MCP tool name is the same with "_" instead of "-".
+  // kebab-case. With a group, the CLI command is `<group> <name>` and the MCP tool
+  // `<group>_<name>`; "-" becomes "_" in MCP names.
   readonly name: string;
+  readonly group?: string;
   // Written for a model: what the operation is for and when to use it.
   readonly description: string;
   readonly input: Input;
@@ -71,14 +86,20 @@ const USE_CASE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 export function defineUseCase<Input extends z.ZodObject, Output extends z.ZodObject>(
   useCase: UseCase<Input, Output>,
 ): UseCase<Input, Output> {
-  if (!USE_CASE_NAME.test(useCase.name)) {
-    throw new Error(`use case name must be kebab-case: ${JSON.stringify(useCase.name)}`);
+  for (const part of [useCase.name, ...(useCase.group === undefined ? [] : [useCase.group])]) {
+    if (!USE_CASE_NAME.test(part)) {
+      throw new Error(`use case name must be kebab-case: ${JSON.stringify(part)}`);
+    }
   }
   return useCase;
 }
 
+export function qualifiedName(useCase: UseCase): string {
+  return useCase.group === undefined ? useCase.name : `${useCase.group} ${useCase.name}`;
+}
+
 export function mcpToolName(useCase: UseCase): string {
-  return useCase.name.replaceAll("-", "_");
+  return qualifiedName(useCase).replaceAll(/[- ]/g, "_");
 }
 
 export function isOutputFormat(value: unknown): value is OutputFormat {

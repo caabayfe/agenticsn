@@ -8,6 +8,36 @@ export {
   summarizeChecks,
 } from "./environment/domain/check";
 export type { EnvironmentProbe } from "./environment/ports";
+export { login, logout, resolveSecret } from "./instance/application/credentials";
+export {
+  addInstance,
+  getInstance,
+  listInstances,
+  removeInstance,
+} from "./instance/application/manage-instances";
+export {
+  CredentialsMissingError,
+  InstanceExistsError,
+  InstanceNotFoundError,
+  InstanceUrlExistsError,
+  InvalidInstanceUrlError,
+  ReadOnlyAcknowledgementRequiredError,
+} from "./instance/domain/errors";
+export { normalizeInstanceUrl } from "./instance/domain/instance-url";
+export {
+  type AuthSettings,
+  type BasicAuth,
+  canWrite,
+  createProfile,
+  credentialAccount,
+  credentialVariable,
+  INSTANCE_KINDS,
+  type InstanceKind,
+  type InstanceProfile,
+  instanceHost,
+  type NewProfile,
+} from "./instance/domain/profile";
+export type { CredentialStore, ProfileStore } from "./instance/ports";
 export { canonicalJson, type JsonValue } from "./kernel/canonical-json";
 export { canonicalText } from "./kernel/canonical-text";
 export {

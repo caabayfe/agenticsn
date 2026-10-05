@@ -1,4 +1,10 @@
-import { type EnvironmentProbe, SnagenticError, type WorkspaceStore } from "@snagentic/core";
+import {
+  type CredentialStore,
+  type EnvironmentProbe,
+  type ProfileStore,
+  SnagenticError,
+  type WorkspaceStore,
+} from "@snagentic/core";
 import { z } from "zod";
 import type { CliIo } from "../../src/cli/run-cli";
 import { defineUseCase, type UseCase, type UseCaseContext } from "../../src/registry/use-case";
@@ -24,9 +30,25 @@ const NO_WORKSPACES: WorkspaceStore = {
   create: async () => {},
 };
 
+const NO_PROFILES: ProfileStore = {
+  list: async () => [],
+  read: async () => null,
+  write: async () => {},
+  remove: async () => {},
+};
+
+const NO_CREDENTIALS: CredentialStore = {
+  read: async () => null,
+  write: async () => {},
+  remove: async () => false,
+};
+
 export const FAKE_CONTEXT: UseCaseContext = {
   environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
   workspaces: NO_WORKSPACES,
+  profiles: NO_PROFILES,
+  credentials: NO_CREDENTIALS,
+  secrets: { read: async () => "" },
   host: { cwd: "/work", home: "/home/me", version: "snagentic test" },
 };
 

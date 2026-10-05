@@ -78,6 +78,25 @@ function inputFrom(
   return input;
 }
 
+// Use cases with a group become subcommands: `snagentic <group> <name>`.
+function parentFor(program: Command, group: string | undefined): Command {
+  if (group === undefined) {
+    return program;
+  }
+  const existing = program.commands.find((command) => command.name() === group);
+  return existing ?? program.command(group).description(`${group} commands`);
+}
+
+function withWorkspaceOverride(
+  context: UseCaseContext,
+  globalOptions: Record<string, unknown>,
+): UseCaseContext {
+  const workspace = globalOptions["workspace"];
+  return typeof workspace === "string"
+    ? { ...context, host: { ...context.host, workspaceOverride: workspace } }
+    : context;
+}
+
 // Builds the CLI from the registry. Contains no knowledge of any specific use case.
 export async function runCli(
   argv: readonly string[],
@@ -99,9 +118,14 @@ export async function runCli(
     .description("Serve snagentic's MCP tools over stdio. Agent hosts start this themselves.")
     .action(options.serveMcp);
 
+  program.option("--workspace <path>", "workspace folder (default: found from the current folder)");
+  const contextFor = (): UseCaseContext => withWorkspaceOverride(context, program.opts());
+
   for (const useCase of useCases) {
     const positional = useCase.arguments ?? [];
-    const command = program.command(useCase.name).description(useCase.description);
+    const command = parentFor(program, useCase.group)
+      .command(useCase.name)
+      .description(useCase.description);
     for (const key of positional) {
       command.argument(argumentSyntax(useCase.input, key));
     }
@@ -112,7 +136,8 @@ export async function runCli(
       new Option("--format <format>", "output format").choices(OUTPUT_FORMATS).default("text"),
     );
     command.action(async (...values: unknown[]) => {
-      exitCode = await runUseCase(useCase, inputFrom(positional, values), context, io, signal);
+      const input = inputFrom(positional, values);
+      exitCode = await runUseCase(useCase, input, contextFor(), io, signal);
     });
   }
 

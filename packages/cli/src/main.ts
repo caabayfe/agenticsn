@@ -1,9 +1,14 @@
 // Composition root: the only place where adapters are wired to use cases.
 import { homedir } from "node:os";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
+import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
+import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
 import { gitProbe } from "./adapters/git-probe";
 import { keychainProbe } from "./adapters/keychain-probe";
+import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
+import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
 import { FsWorkspaceStore } from "./adapters/workspace/fs-workspace-store";
 import { runCli } from "./cli/run-cli";
 import { createMcpServer } from "./mcp/create-mcp-server";
@@ -24,6 +29,12 @@ const workspaceOverride = process.env["SNAGENTIC_WORKSPACE"];
 const context: UseCaseContext = {
   environmentProbes: [gitProbe(), keychainProbe(), searchIndexProbe()],
   workspaces: new FsWorkspaceStore(),
+  profiles: new YamlProfileStore(),
+  credentials: new LayeredCredentialStore(
+    new EnvironmentCredentialStore(process.env),
+    new KeychainCredentialStore(),
+  ),
+  secrets: new TerminalSecretReader(),
   host: {
     cwd: process.cwd(),
     home: homedir(),

@@ -1,0 +1,120 @@
+import { describe, expect, it } from "bun:test";
+import { createProfile, InstanceName } from "@snagentic/core";
+import { EnvironmentCredentialStore } from "../../../src/adapters/credentials/environment-credential-store";
+import {
+  KeychainCredentialStore,
+  type KeychainEntry,
+} from "../../../src/adapters/credentials/keychain-credential-store";
+import { LayeredCredentialStore } from "../../../src/adapters/credentials/layered-credential-store";
+
+const profile = createProfile({
+  name: InstanceName.parse("acme-prod"),
+  url: "acme",
+  username: "integration",
+  kind: "production",
+  acknowledgeReadOnly: true,
+});
+
+function memoryKeychain() {
+  const entries = new Map<string, string>();
+  const opened: string[] = [];
+  const factory = (service: string, account: string): KeychainEntry => {
+    opened.push(`${service}/${account}`);
+    const key = `${service}/${account}`;
+    return {
+      getPassword: async () => entries.get(key),
+      setPassword: async (password) => {
+        entries.set(key, password);
+      },
+      deletePassword: async () => entries.delete(key),
+    };
+  };
+  return { entries, opened, factory };
+}
+
+describe("KeychainCredentialStore", () => {
+  it("stores the secret under service snagentic, account <user>@<host>", async () => {
+    const keychain = memoryKeychain();
+    const store = new KeychainCredentialStore(keychain.factory);
+    await store.write(profile, "pw");
+    expect(keychain.opened).toEqual(["snagentic/integration@acme.service-now.com"]);
+    expect(await store.read(profile)).toBe("pw");
+    expect(await store.remove(profile)).toBe(true);
+    expect(await store.read(profile)).toBeNull();
+  });
+
+  it("reads nothing when the keychain is unavailable, so CI can fall back to variables", async () => {
+    const store = new KeychainCredentialStore(() => {
+      throw new Error("no Secret Service");
+    });
+    expect(await store.read(profile)).toBeNull();
+  });
+
+  it("explains how to proceed when the keychain cannot store a secret", async () => {
+    const store = new KeychainCredentialStore(() => {
+      throw new Error("no Secret Service");
+    });
+    await expect(store.write(profile, "pw")).rejects.toMatchObject({
+      code: "keychain-unavailable",
+      hint: expect.stringContaining("SNAGENTIC_ACME_PROD_PASSWORD"),
+    });
+  });
+
+  it("uses the real OS keychain: works on macOS and Windows, may be unavailable on Linux", async () => {
+    const store = new KeychainCredentialStore();
+    const probe = createProfile({
+      ...profile,
+      name: InstanceName.parse("probe"),
+      url: "probe-test",
+      username: `test-${crypto.randomUUID()}`,
+      kind: "development",
+      acknowledgeReadOnly: false,
+    });
+    const stored = await store.write(probe, "probe-secret").then(
+      () => true,
+      () => false,
+    );
+    if (stored) {
+      expect(await store.read(probe)).toBe("probe-secret");
+      expect(await store.remove(probe)).toBe(true);
+    } else {
+      expect(process.platform).toBe("linux");
+    }
+  });
+});
+
+describe("EnvironmentCredentialStore", () => {
+  it("reads SNAGENTIC_<NAME>_PASSWORD", async () => {
+    const store = new EnvironmentCredentialStore({ SNAGENTIC_ACME_PROD_PASSWORD: "from-ci" });
+    expect(await store.read(profile)).toBe("from-ci");
+    expect(await new EnvironmentCredentialStore({}).read(profile)).toBeNull();
+  });
+});
+
+describe("EnvironmentCredentialStore is read-only", () => {
+  it("refuses to store a secret and never removes one", async () => {
+    const store = new EnvironmentCredentialStore({ SNAGENTIC_ACME_PROD_PASSWORD: "from-ci" });
+    await expect(store.write()).rejects.toThrow(/read-only/);
+    expect(await store.remove()).toBe(false);
+    expect(await store.read(profile)).toBe("from-ci");
+  });
+});
+
+describe("LayeredCredentialStore", () => {
+  it("prefers the environment variable, then the keychain, and writes to the keychain", async () => {
+    const keychain = memoryKeychain();
+    const persistent = new KeychainCredentialStore(keychain.factory);
+    const withVariable = new LayeredCredentialStore(
+      new EnvironmentCredentialStore({ SNAGENTIC_ACME_PROD_PASSWORD: "from-ci" }),
+      persistent,
+    );
+    await withVariable.write(profile, "from-keychain");
+    expect(await withVariable.read(profile)).toBe("from-ci");
+    const withoutVariable = new LayeredCredentialStore(
+      new EnvironmentCredentialStore({}),
+      persistent,
+    );
+    expect(await withoutVariable.read(profile)).toBe("from-keychain");
+    expect(await withoutVariable.remove(profile)).toBe(true);
+  });
+});

@@ -6,7 +6,7 @@ import { createMcpServer } from "../../src/mcp/create-mcp-server";
 import { executeUseCase } from "../../src/registry/execute";
 import { MCP_TOOL_BUDGET } from "../../src/registry/mcp-budget";
 import { USE_CASES } from "../../src/registry/registry";
-import { defineUseCase } from "../../src/registry/use-case";
+import { defineUseCase, qualifiedName } from "../../src/registry/use-case";
 import { captureIo, echoUseCase, FAKE_CONTEXT } from "../support/fakes";
 
 describe("use-case registry", () => {
@@ -45,7 +45,7 @@ describe("use-case registry", () => {
   });
 
   it("has unique use-case names", () => {
-    const names = USE_CASES.map((useCase) => useCase.name);
+    const names = USE_CASES.map(qualifiedName);
     expect(new Set(names).size).toBe(names.length);
   });
 

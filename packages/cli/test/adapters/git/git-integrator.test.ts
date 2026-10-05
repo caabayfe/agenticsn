@@ -56,8 +56,19 @@ const git = (root: string, ...args: string[]) =>
 const integrator = gitIntegrator;
 
 describe("GitIntegrator", () => {
-  it("starts a brand-new workspace's history from the pull and checks the files out", async () => {
+  it("merges the first pull into a new workspace and checks the files out", async () => {
     const root = await workspace();
+    await pullScript(root, "one();");
+    const result = await integrator.integrate(root, "pdi");
+    expect(result.changedFiles).toBe(2);
+    expect(await readFile(join(root, SCRIPT_PATH), "utf8")).toBe("one();\n");
+    expect((await git(root, "log", "-1", "--format=%s")).trim()).toBe("snagentic integrate pdi");
+  });
+
+  it("starts the history from the pull in a repository without any commit", async () => {
+    const root = await workspace();
+    await rm(join(root, ".git"), { recursive: true, force: true });
+    await runGitOrThrow(["init", "-q", "-b", "main"], root);
     await pullScript(root, "one();");
     const result = await integrator.integrate(root, "pdi");
     expect(result.changedFiles).toBe(2);
@@ -66,8 +77,9 @@ describe("GitIntegrator", () => {
 
   it("merges a new pull into a branch that has its own commits", async () => {
     const root = await workspace();
-    await git(root, "add", "-A");
-    await git(root, "commit", "-q", "-m", "workspace setup");
+    await writeFile(join(root, "README.md"), "team notes\n");
+    await git(root, "add", "README.md");
+    await git(root, "commit", "-q", "-m", "team notes");
     await pullScript(root, "one();");
     const result = await integrator.integrate(root, "pdi");
     expect(result.commit).not.toBeNull();
@@ -84,8 +96,6 @@ describe("GitIntegrator", () => {
 
   it("still merges on a machine with no git identity configured", async () => {
     const root = await workspace();
-    await git(root, "add", "-A");
-    await git(root, "commit", "-q", "-m", "workspace setup");
     await pullScript(root, "one();");
     const saved = {
       global: process.env["GIT_CONFIG_GLOBAL"],

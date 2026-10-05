@@ -22,7 +22,10 @@ export class FastImport {
   }
 
   static start(repository: string): FastImport {
-    const child = Bun.spawn(["git", "fast-import", "--quiet", "--done"], {
+    // Keep every batch packed: by default small batches become loose objects, which stay
+    // behind as garbage once the progress ref is dropped (repack -a -d keeps them).
+    const command = ["git", "-c", "fastimport.unpackLimit=1", "fast-import", "--quiet", "--done"];
+    const child = Bun.spawn(command, {
       cwd: repository,
       stdin: "pipe",
       stdout: "pipe",
@@ -79,8 +82,17 @@ export class FastImport {
     }
   }
 
-  kill(): void {
+  // Stops git and discards whatever was still buffered for it: an aborted pull keeps only
+  // what earlier checkpoints made durable. Closing the pipe of a killed process fails with
+  // EPIPE, which is expected here.
+  async stop(): Promise<void> {
     this.child.kill();
+    try {
+      await this.child.stdin.end();
+    } catch {
+      // The process is gone; its unsent input is intentionally dropped.
+    }
+    await this.child.exited;
   }
 
   private async send(bytes: Uint8Array): Promise<void> {

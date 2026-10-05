@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -130,6 +130,47 @@ describe("GitMirror", () => {
     expect(await files(repo, commit)).toEqual([
       "instances/pdi/metadata/global/sys_ui_view/default-view--Default view.yaml",
     ]);
+  });
+});
+
+describe("GitMirror repository hygiene", () => {
+  it("leaves one pack and no unreachable progress objects after a finished pull", async () => {
+    const repo = await repository();
+    const mirror = await GitMirror.open(repo, PDI, false);
+    for (let index = 1; index <= 3; index += 1) {
+      await mirror.write(ROOT, record(index, `Rule ${index}`));
+      await mirror.checkpoint();
+    }
+    await mirror.finish("pull");
+    const counts = await runGitOrThrow(["count-objects", "-v"], repo);
+    expect(counts).toContain("packs: 1\n");
+    expect(counts).toContain("count: 0\n");
+    const unreachable = await runGitOrThrow(
+      ["fsck", "--unreachable", "--no-reflogs", "--no-progress"],
+      repo,
+    );
+    expect(unreachable.trim()).toBe("");
+  });
+
+  it("removes its own temporary pack files when a pull is aborted", async () => {
+    const repo = await repository();
+    const mirror = await GitMirror.open(repo, PDI, false);
+    const big = "x".repeat(400_000);
+    // More than the 8 MB write buffer, so git really receives data and starts a pack.
+    for (let index = 1; index <= 40; index += 1) {
+      await mirror.writeDocument(ROOT, `big-${index}.yaml`, { content: `${big}${index}` });
+    }
+    // The pack folder only appears once git writes its first pack.
+    const tmpPacks = async () =>
+      (await readdir(join(repo, ".git/objects/pack")).catch(() => [] as string[])).filter((name) =>
+        name.startsWith("tmp_pack_"),
+      );
+    for (let wait = 0; wait < 50 && (await tmpPacks()).length === 0; wait += 1) {
+      await Bun.sleep(20);
+    }
+    expect((await tmpPacks()).length).toBeGreaterThan(0);
+    await mirror.abort();
+    expect(await tmpPacks()).toEqual([]);
   });
 });
 

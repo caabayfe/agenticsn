@@ -34,6 +34,13 @@ describe("FsWorkspaceStore", () => {
     expect(branch.stdout.trim()).toBe("main");
   });
 
+  it("records the workspace files in a first commit, so git status starts clean", async () => {
+    const root = join(await scratch(), "acme");
+    await store.create(root, manifestFor("snagentic test"));
+    expect((await runGit(["log", "--format=%s", "-1"], root)).stdout.trim()).toBe("snagentic init");
+    expect((await runGit(["status", "--porcelain"], root)).stdout).toBe("");
+  });
+
   it("reads back the manifest it wrote", async () => {
     const root = join(await scratch(), "acme");
     await store.create(root, manifestFor("snagentic test"));

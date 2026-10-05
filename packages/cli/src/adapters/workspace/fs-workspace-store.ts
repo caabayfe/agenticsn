@@ -69,5 +69,11 @@ export class FsWorkspaceStore implements WorkspaceStore {
     if (process.platform === "darwin" || process.platform === "win32") {
       await runGitOrThrow(["config", "core.fsmonitor", "true"], directory);
     }
+    await runGitOrThrow(["add", MANIFEST_FILE, ".gitignore"], directory);
+    const configured = (await runGit(["config", "user.email"], directory)).stdout.trim() !== "";
+    const identity = configured
+      ? []
+      : ["-c", "user.name=snagentic", "-c", "user.email=snagentic@localhost"];
+    await runGitOrThrow([...identity, "commit", "-q", "-m", "snagentic init"], directory);
   }
 }

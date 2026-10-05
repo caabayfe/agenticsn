@@ -104,3 +104,17 @@ negligible for incremental pulls. Most time is per-record overhead plus SHA-256 
 JavaScript (`@noble/hashes`); a native digest is about 9× faster but would break kernel
 purity (ADR-0001). An escaping fast path was tried and gave no measurable gain, so it was
 not kept. Revisit only if a full-pull profile shows hashing above 10% of wall time.
+
+## Appendix: first measurements against the PDI (2026-10-05)
+
+Instance `dev312411` (PDI, US data center), measured from Europe; round trip about 0.5 s.
+
+| Question | Finding | Consequence |
+|---|---|---|
+| How are literal timestamps in encoded queries interpreted? | As **raw UTC**: `sys_updated_on=<raw value>` matches; the display-zone value does not; `>`/`>=` are exact to the second. Only `javascript:gs.dateGenerate()` uses the user's zone. | The overlap window only needs to cover in-flight transactions and clock skew. `doctor --instance` re-checks this per instance. |
+| Does the instance report its own pressure? | Yes: `Server-Timing: sem_wait;dur=…, sesh_wait;dur=…` on every response (time spent waiting for a worker semaphore and for the session). `X-Transaction-ID` identifies each request. | The scheduler slows down when `sem_wait` rises, not only on 429/503. The transaction id ties requests to the server cost report. |
+| Change feed on `sys_metadata` (parent), 100 rows | 2.6 s | Too expensive for every pull. |
+| Change feed on `sys_update_xml`, 100 rows | 0.59 s | Suitable for the fast feed. |
+| "Anything changed?" probe, `limit=1`, empty result | 0.62 s (mostly round trip) | Five probes ≈ 3 s: ASR-16 is reachable. |
+| Aggregate count + max by `sys_class_name` over `sys_metadata` | **Denied** after 11.8 s (field ACLs across the hierarchy) | Fingerprints run **per hierarchy root**. |
+| Aggregate per hierarchy (`sys_script`, grouped by class) | 0.85–0.93 s | Fingerprint reconciliation cost ≈ number of hierarchy roots; measured in M4. |

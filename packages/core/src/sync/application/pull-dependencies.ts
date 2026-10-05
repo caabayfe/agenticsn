@@ -1,3 +1,4 @@
+import type { TableStatistics } from "../../connection/ports";
 import type { RedactionPolicy } from "../../metadata/domain/redaction";
 import type { MirrorWriter, SyncStateStore } from "../ports";
 import type { KeysetPager } from "./keyset-pager";
@@ -10,6 +11,7 @@ export interface PullProgress {
 
 export interface PullDependencies {
   readonly pager: KeysetPager;
+  readonly statistics: TableStatistics;
   readonly records: MirrorWriter;
   readonly state: SyncStateStore;
   // Prefixes inside the mirror: instances/<name>/metadata and instances/<name>/operational.

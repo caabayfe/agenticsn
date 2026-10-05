@@ -46,6 +46,7 @@ async function setup() {
           String(query.table) === "sys_user_has_role"
             ? [{ "role.name": "admin" }]
             : [{ sys_id: "u1", sys_updated_on: "2026-09-23 20:12:26" }],
+        fingerprint: async () => ({ count: 0, maxUpdatedOn: null }),
         stats: () => ({
           requests: 3,
           retries: 0,

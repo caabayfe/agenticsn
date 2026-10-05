@@ -55,12 +55,12 @@ async function files(repo: string, ref: string): Promise<string[]> {
 describe("GitMirror", () => {
   it("commits a pull as one commit on servicenow-remote/<name> with every file", async () => {
     const repo = await repository();
-    const mirror = await GitMirror.open(repo, PDI, false);
+    const mirror = await GitMirror.open(repo, PDI, "fresh");
     await mirror.write(ROOT, record(1, "One"));
     await mirror.checkpoint();
     await mirror.write(ROOT, record(2, "Two"));
     await mirror.writeDocument("instances/pdi/operational", "v_plugin.yaml", [{ id: "com.a" }]);
-    const commit = await mirror.finish("snagentic pull pdi: full");
+    const commit = (await mirror.finish("snagentic pull pdi: full")).commit;
     expect(await files(repo, "servicenow-remote/pdi")).toEqual([
       "instances/pdi/metadata/global/sys_script/one--00000000000000000000000000000001.script.js",
       "instances/pdi/metadata/global/sys_script/one--00000000000000000000000000000001.yaml",
@@ -80,31 +80,31 @@ describe("GitMirror", () => {
 
   it("replaces the tree on the next full pull and keeps the previous pull as parent", async () => {
     const repo = await repository();
-    const first = await GitMirror.open(repo, PDI, false);
+    const first = await GitMirror.open(repo, PDI, "fresh");
     await first.write(ROOT, record(1, "One"));
-    const before = await first.finish("pull 1");
-    const second = await GitMirror.open(repo, PDI, false);
+    const before = (await first.finish("pull 1")).commit;
+    const second = await GitMirror.open(repo, PDI, "fresh");
     await second.write(ROOT, record(2, "Two"));
-    const after = await second.finish("pull 2");
+    const after = (await second.finish("pull 2")).commit;
     expect((await files(repo, after)).some((path) => path.includes("one--"))).toBe(false);
     expect((await runGitOrThrow(["rev-parse", `${after}^`], repo)).trim()).toBe(before);
   });
 
   it("resumes an interrupted pull from what git durably holds", async () => {
     const repo = await repository();
-    const interrupted = await GitMirror.open(repo, PDI, false);
+    const interrupted = await GitMirror.open(repo, PDI, "fresh");
     await interrupted.write(ROOT, record(1, "One"));
     await interrupted.checkpoint();
     await interrupted.write(ROOT, record(9, "Lost")); // never checkpointed
     await interrupted.abort();
-    const resumed = await GitMirror.open(repo, PDI, true);
+    const resumed = await GitMirror.open(repo, PDI, "resume");
     const known = [];
     for await (const base of resumed.bases(ROOT)) {
       known.push(base);
     }
     expect(known).toEqual(["global/sys_script/one--00000000000000000000000000000001"]);
     await resumed.write(ROOT, record(2, "Two"));
-    const commit = await resumed.finish("resumed");
+    const commit = (await resumed.finish("resumed")).commit;
     const names = (await files(repo, commit)).map((path) => path.split("/").at(-1));
     expect(names).toEqual([
       "one--00000000000000000000000000000001.script.js",
@@ -116,17 +116,17 @@ describe("GitMirror", () => {
 
   it("commits an empty tree when a pull wrote nothing", async () => {
     const repo = await repository();
-    const commit = await (await GitMirror.open(repo, PDI, false)).finish("empty");
+    const commit = (await (await GitMirror.open(repo, PDI, "fresh")).finish("empty")).commit;
     expect(await files(repo, commit)).toEqual([]);
   });
 
   it("stores paths with spaces, as legacy sys_ids have", async () => {
     const repo = await repository();
-    const mirror = await GitMirror.open(repo, PDI, false);
+    const mirror = await GitMirror.open(repo, PDI, "fresh");
     await mirror.writeDocument(ROOT, "global/sys_ui_view/default-view--Default view.yaml", {
       _meta: { sys_id: "Default view" },
     });
-    const commit = await mirror.finish("legacy id");
+    const commit = (await mirror.finish("legacy id")).commit;
     expect(await files(repo, commit)).toEqual([
       "instances/pdi/metadata/global/sys_ui_view/default-view--Default view.yaml",
     ]);
@@ -136,7 +136,7 @@ describe("GitMirror", () => {
 describe("GitMirror repository hygiene", () => {
   it("leaves one pack and no unreachable progress objects after a finished pull", async () => {
     const repo = await repository();
-    const mirror = await GitMirror.open(repo, PDI, false);
+    const mirror = await GitMirror.open(repo, PDI, "fresh");
     for (let index = 1; index <= 3; index += 1) {
       await mirror.write(ROOT, record(index, `Rule ${index}`));
       await mirror.checkpoint();
@@ -154,7 +154,7 @@ describe("GitMirror repository hygiene", () => {
 
   it("removes its own temporary pack files when a pull is aborted", async () => {
     const repo = await repository();
-    const mirror = await GitMirror.open(repo, PDI, false);
+    const mirror = await GitMirror.open(repo, PDI, "fresh");
     const big = "x".repeat(400_000);
     // More than the 8 MB write buffer, so git really receives data and starts a pack.
     for (let index = 1; index <= 40; index += 1) {
@@ -177,14 +177,14 @@ describe("GitMirror repository hygiene", () => {
 describe("GitMirror under concurrency", () => {
   it("keeps the stream intact when several classes write and checkpoint at once", async () => {
     const repo = await repository();
-    const mirror = await GitMirror.open(repo, PDI, false);
+    const mirror = await GitMirror.open(repo, PDI, "fresh");
     await Promise.all(
       Array.from({ length: 30 }, async (_, index) => {
         await mirror.write(ROOT, record(index + 1, `Rule ${index}`));
         await mirror.checkpoint();
       }),
     );
-    const commit = await mirror.finish("concurrent");
+    const commit = (await mirror.finish("concurrent")).commit;
     expect((await files(repo, commit)).length).toBe(60);
   });
 });

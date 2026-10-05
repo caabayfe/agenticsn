@@ -134,3 +134,50 @@ describe("ServiceNowClient", () => {
     await expect(client.query(QUERY, LIVE)).rejects.toMatchObject({ code: "instance-error" });
   });
 });
+
+describe("ServiceNowClient.fingerprint", () => {
+  const TABLE = TableName.parse("sys_metadata");
+
+  it("asks the aggregate API for the row count and the latest raw update", async () => {
+    const { client, sent } = clientWith(async () =>
+      response(
+        200,
+        '{"result":{"stats":{"max":{"sys_updated_on":"2026-10-05 17:30:04"},"count":"655259"}}}',
+      ),
+    );
+    expect(await client.fingerprint(TABLE, LIVE)).toEqual({
+      count: 655259,
+      maxUpdatedOn: "2026-10-05 17:30:04",
+    });
+    const url = new URL(sent[0]?.url ?? "");
+    expect(url.pathname).toBe("/api/now/stats/sys_metadata");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      sysparm_count: "true",
+      sysparm_max_fields: "sys_updated_on",
+    });
+  });
+
+  it("reads an empty table as no latest update", async () => {
+    const { client } = clientWith(async () =>
+      response(200, '{"result":{"stats":{"max":{"sys_updated_on":""},"count":"0"}}}'),
+    );
+    expect(await client.fingerprint(TABLE, LIVE)).toEqual({ count: 0, maxUpdatedOn: null });
+  });
+
+  it.each(['{"result":{"stats":{}}}', '{"result":[]}', "<html>hibernating</html>"])(
+    "reports an unexpected answer (%p)",
+    async (body) => {
+      const { client } = clientWith(async () => response(200, body));
+      await expect(client.fingerprint(TABLE, LIVE)).rejects.toMatchObject({
+        code: "instance-error",
+      });
+    },
+  );
+
+  it("reports a table the user may not aggregate as not permitted", async () => {
+    const { client } = clientWith(async () => response(403, '{"error":{"message":"no"}}'));
+    await expect(client.fingerprint(TABLE, LIVE)).rejects.toMatchObject({
+      code: "access-denied",
+    });
+  });
+});

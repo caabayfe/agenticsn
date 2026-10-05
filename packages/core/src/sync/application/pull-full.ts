@@ -1,6 +1,8 @@
 import { Catalog } from "../../metadata/domain/catalog";
 import { classesToPull } from "../domain/pull-scope";
+import type { SyncState, SyncStateStore } from "../ports";
 import { fetchCatalog } from "./fetch-catalog";
+import { fetchFingerprints } from "./fetch-fingerprints";
 import { pullChildren } from "./pull-children";
 import { type PullDependencies, type PullProgress, rawTimestamp } from "./pull-dependencies";
 import { pullOperational } from "./pull-operational";
@@ -17,6 +19,8 @@ export interface PullSummary {
   // Classes and tables the integration user may not read.
   readonly unreadable: readonly string[];
   readonly watermark: string;
+  // The sync state to store once the mirror commit is durable (see completePull).
+  readonly next: SyncState;
   // Wall-clock seconds per phase, to see where time goes.
   readonly phaseSeconds: {
     readonly catalog: number;
@@ -28,7 +32,8 @@ export interface PullSummary {
 
 // The first, complete pull of an instance (ADR-0016, ADR-0017). Interrupted pulls resume
 // from their checkpoint; the watermark is the pull's start, so changes made while it ran
-// are picked up by the next incremental pull.
+// are picked up by the next incremental pull. The caller commits the mirror, then calls
+// completePull: until then the checkpoint stands and a new run resumes.
 export async function pullFull(
   deps: PullDependencies,
   signal: AbortSignal,
@@ -43,6 +48,7 @@ export async function pullFull(
     startedAt: rawTimestamp(deps.now()),
     completedClasses: [],
     records: 0,
+    fingerprints: (await fetchFingerprints(deps.statistics, signal)).fingerprints,
   };
   await deps.state.writeCheckpoint(checkpoint);
   const classes = classesToPull(catalog);
@@ -54,12 +60,12 @@ export async function pullFull(
   progress({ message: "operational inventory" });
   const operational = await pullOperational(deps, signal);
   const operationalSeconds = clock.lap();
-  await deps.state.writeState({
-    watermark: checkpoint.startedAt,
-    lastFullPull: checkpoint.startedAt,
-  });
-  await deps.state.clearCheckpoint();
   return {
+    next: {
+      watermark: checkpoint.startedAt,
+      lastFullPull: checkpoint.startedAt,
+      fingerprints: checkpoint.fingerprints ?? {},
+    },
     classes: classes.length,
     resumedClasses: checkpoint.completedClasses.length,
     records: records.records,
@@ -89,4 +95,10 @@ function phaseClock(now: () => Date): { lap(): number } {
       return seconds;
     },
   };
+}
+
+// Stores the state a pull reached, once its mirror commit is durable.
+export async function completePull(state: SyncStateStore, next: SyncState): Promise<void> {
+  await state.writeState(next);
+  await state.clearCheckpoint();
 }

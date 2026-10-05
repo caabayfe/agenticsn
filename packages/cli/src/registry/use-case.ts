@@ -3,13 +3,15 @@
 import type {
   CredentialStore,
   EnvironmentProbe,
+  IncrementalMirror,
   InstanceName,
   InstanceProfile,
   InstanceReader,
   MirrorIntegrator,
-  MirrorSession,
+  MirrorMode,
   ProfileStore,
   SyncStateStore,
+  TableStatistics,
   WorkspaceStore,
 } from "@snagentic/core";
 import type { z } from "zod";
@@ -34,7 +36,7 @@ export interface SecretReader {
 
 // Opens a connection to an instance; every connection has its own request scheduler.
 export interface ConnectionFactory {
-  open(profile: InstanceProfile, secret: string): InstanceReader;
+  open(profile: InstanceProfile, secret: string): InstanceReader & TableStatistics;
 }
 
 // The ports use cases need, wired by the composition root (main.ts).
@@ -48,7 +50,7 @@ export interface UseCaseContext {
   // Per-instance local sync state (.snagentic/<name>/) and the git mirror of a workspace.
   readonly syncState: (root: string, instance: InstanceName) => SyncStateStore;
   readonly mirrors: {
-    open(root: string, instance: InstanceName, resume: boolean): Promise<MirrorSession>;
+    open(root: string, instance: InstanceName, mode: MirrorMode): Promise<IncrementalMirror>;
   };
   readonly integrator: MirrorIntegrator;
   readonly clock: () => Date;

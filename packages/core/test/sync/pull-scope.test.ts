@@ -3,6 +3,7 @@ import {
   attachChildren,
   Catalog,
   CHILD_TABLES,
+  childFamily,
   childGrouper,
   classesToPull,
   OPERATIONAL_TABLES,
@@ -114,5 +115,27 @@ describe("ownerOfBase", () => {
       "0123456789abcdef0123456789abcdef",
     );
     expect(ownerOfBase("global/sys_ui_view/default-view--Default view")).toBe("Default view");
+  });
+});
+
+describe("childFamily", () => {
+  it("is the table alone when nothing is nested under it", () => {
+    expect(childFamily("sys_ui_element").map((child) => child.table)).toEqual(["sys_ui_element"]);
+  });
+
+  it("is the whole workflow family from any of its tables, parents first", () => {
+    const family = [
+      "wf_workflow_version",
+      "wf_stage",
+      "wf_activity",
+      "wf_condition",
+      "wf_transition",
+    ];
+    expect(childFamily("wf_condition").map((child) => child.table)).toEqual(family);
+    expect(childFamily("wf_workflow_version").map((child) => child.table)).toEqual(family);
+  });
+
+  it("is empty for a table that is not a child table", () => {
+    expect(childFamily("sys_script")).toEqual([]);
   });
 });

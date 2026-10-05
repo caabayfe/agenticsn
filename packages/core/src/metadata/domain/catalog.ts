@@ -41,6 +41,10 @@ export class Catalog {
     return ScopeName.fromInstance(this.data.scopes[scopeSysId] ?? scopeSysId);
   }
 
+  knowsScope(scopeSysId: string): boolean {
+    return scopeSysId === "" || scopeSysId === "global" || scopeSysId in this.data.scopes;
+  }
+
   // Fields declared on this table only (not inherited), with their internal types.
   declaredFields(table: string): Readonly<Record<string, string>> {
     return this.data.typedFields[table] ?? {};

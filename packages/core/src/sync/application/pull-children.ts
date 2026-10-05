@@ -19,7 +19,7 @@ export interface ChildrenOutcome {
   readonly unreadable: readonly string[];
 }
 
-function cleaned(row: Row, redact: ReadonlySet<string>): Row {
+export function cleaned(row: Row, redact: ReadonlySet<string>): Row {
   return Object.fromEntries(
     Object.entries(row)
       .filter(([field]) => !redact.has(field.toLowerCase()))
@@ -27,7 +27,7 @@ function cleaned(row: Row, redact: ReadonlySet<string>): Row {
   );
 }
 
-async function owners(deps: PullDependencies): Promise<Map<string, string>> {
+export async function owners(deps: PullDependencies): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   for await (const base of deps.records.bases(deps.metadataRoot)) {
     map.set(ownerOfBase(base), base);
@@ -37,7 +37,7 @@ async function owners(deps: PullDependencies): Promise<Map<string, string>> {
 
 // Streams one child table straight into its groups: rows are cleaned as they arrive and the
 // table is never held twice. Returns null when the user may not read the table.
-async function groupTable(
+export async function groupTable(
   deps: PullDependencies,
   catalog: Catalog,
   child: ChildTable,

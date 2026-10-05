@@ -6,7 +6,10 @@ import {
   type InstanceProfile,
   type InstanceReader,
   type Row,
+  type TableFingerprint,
+  type TableName,
   type TableQuery,
+  type TableStatistics,
 } from "@snagentic/core";
 import type { HttpResponse } from "./http-types";
 import type { RequestScheduler } from "./request-scheduler";
@@ -22,9 +25,13 @@ function errorMessage(body: string): string {
   }
 }
 
-// The only place that builds Table API requests, so ADR-0016's rules hold everywhere:
-// explicit fields, raw values, no reference links, no row counts.
-export class ServiceNowClient implements InstanceReader {
+interface StatsResult {
+  stats?: { count?: string; max?: { sys_updated_on?: string } };
+}
+
+// The only place that builds Table API and Aggregate API requests, so ADR-0016's rules hold
+// everywhere: explicit fields, raw values, no reference links, no row counts on listings.
+export class ServiceNowClient implements InstanceReader, TableStatistics {
   private readonly headers: Readonly<Record<string, string>>;
 
   constructor(
@@ -61,14 +68,39 @@ export class ServiceNowClient implements InstanceReader {
       { method: "GET", url: url.href, headers: this.headers },
       signal,
     );
-    return this.rows(response, `table ${query.table}`);
+    const result = await this.result(response, `table ${query.table}`);
+    if (!Array.isArray(result)) {
+      throw this.unexpected(response, `table ${query.table}`);
+    }
+    return result as Row[];
+  }
+
+  // Count and latest raw sys_updated_on in one aggregate request.
+  async fingerprint(table: TableName, signal: AbortSignal): Promise<TableFingerprint> {
+    const url = new URL(`/api/now/stats/${table}`, this.profile.url);
+    url.search = new URLSearchParams({
+      sysparm_count: "true",
+      sysparm_max_fields: "sys_updated_on",
+    }).toString();
+    const response = await this.scheduler.send(
+      { method: "GET", url: url.href, headers: this.headers },
+      signal,
+    );
+    const { stats } = ((await this.result(response, `statistics of ${table}`)) ??
+      {}) as StatsResult;
+    const count = Number(stats?.count);
+    if (!Number.isInteger(count) || count < 0) {
+      throw this.unexpected(response, `statistics of ${table}`);
+    }
+    return { count, maxUpdatedOn: stats?.max?.sys_updated_on || null };
   }
 
   stats(): ConnectionStats {
     return this.scheduler.stats();
   }
 
-  private async rows(response: HttpResponse, what: string): Promise<readonly Row[]> {
+  // The parsed `result` of a successful response; undefined when the body is not JSON.
+  private async result(response: HttpResponse, what: string): Promise<unknown> {
     const body = await response.text();
     if (response.status === 401) {
       throw new AuthenticationFailedError(this.profile.name);
@@ -84,13 +116,16 @@ export class ServiceNowClient implements InstanceReader {
     }
     try {
       const parsed: { result?: unknown } = JSON.parse(body);
-      if (Array.isArray(parsed.result)) {
-        return parsed.result as Row[];
-      }
+      return parsed.result;
     } catch {
-      // Falls through: hibernating instances answer with an HTML page.
+      // Hibernating instances answer with an HTML page.
+      throw this.unexpected(response, what);
     }
-    throw new InstanceError(
+  }
+
+  private unexpected(response: HttpResponse, what: string): InstanceError {
+    const transaction = response.headers.get("x-transaction-id") ?? "unknown";
+    return new InstanceError(
       `${what}: the response was not the expected JSON (transaction ${transaction})`,
     );
   }

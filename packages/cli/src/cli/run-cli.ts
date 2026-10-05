@@ -1,6 +1,6 @@
 import { EXIT_CODES } from "@snagentic/core";
 import { Command, CommanderError, Option } from "commander";
-import { describeError, executeUseCase } from "../registry/execute";
+import { describeError, executeUseCase, type ProgressEvent } from "../registry/execute";
 import {
   isOutputFormat,
   OUTPUT_FORMATS,
@@ -18,6 +18,17 @@ export interface CliIo {
 export interface CliOptions {
   readonly version: string;
   readonly serveMcp: () => Promise<void>;
+  // Aborted on Ctrl-C by the composition root.
+  readonly signal?: AbortSignal;
+}
+
+// Progress goes to stderr in every format, so stdout carries only the result.
+function progressLine(event: ProgressEvent): string {
+  const count =
+    event.completed === undefined
+      ? ""
+      : ` (${event.completed}${event.total === undefined ? "" : `/${event.total}`})`;
+  return `… ${event.message}${count}\n`;
 }
 
 function printError(error: unknown, format: OutputFormat, io: CliIo): number {
@@ -36,11 +47,13 @@ async function runUseCase(
   options: Record<string, unknown>,
   context: UseCaseContext,
   io: CliIo,
+  signal: AbortSignal,
 ): Promise<number> {
   const { format: requestedFormat, ...input } = options;
   const format = isOutputFormat(requestedFormat) ? requestedFormat : "text";
+  const run = { signal, progress: (event: ProgressEvent) => io.stderr(progressLine(event)) };
   try {
-    const { output, exitCode } = await executeUseCase(useCase, input, context);
+    const { output, exitCode } = await executeUseCase(useCase, input, context, run);
     const rendered =
       format === "json" ? JSON.stringify(output, null, 2) : useCase.render(output, format);
     io.stdout(`${rendered}\n`);
@@ -59,6 +72,7 @@ export async function runCli(
   options: CliOptions,
 ): Promise<number> {
   let exitCode = 0;
+  const signal = options.signal ?? new AbortController().signal;
   const program = new Command("snagentic")
     .description("Develop, audit and validate ServiceNow with any coding agent.")
     .version(options.version)
@@ -79,7 +93,7 @@ export async function runCli(
       new Option("--format <format>", "output format").choices(OUTPUT_FORMATS).default("text"),
     );
     command.action(async (commandOptions: Record<string, unknown>) => {
-      exitCode = await runUseCase(useCase, commandOptions, context, io);
+      exitCode = await runUseCase(useCase, commandOptions, context, io, signal);
     });
   }
 

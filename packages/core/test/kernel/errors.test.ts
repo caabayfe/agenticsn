@@ -23,7 +23,7 @@ describe("errors and exit codes", () => {
   });
 
   it("maps every error category to exactly one exit code", () => {
-    expect(ERROR_CATEGORIES.map((category) => EXIT_CODES[category])).toEqual([1, 2, 3, 4, 5]);
+    expect(ERROR_CATEGORIES.map((category) => EXIT_CODES[category])).toEqual([1, 2, 3, 4, 5, 130]);
   });
 
   it("uses the category's exit code for a known error", () => {

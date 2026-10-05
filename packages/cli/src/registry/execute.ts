@@ -1,11 +1,36 @@
 import {
   EXIT_CODES,
   InvalidInputError,
+  OperationCancelledError,
   SnagenticError,
   UNEXPECTED_ERROR_EXIT_CODE,
 } from "@snagentic/core";
 import { z } from "zod";
-import type { UseCase, UseCaseContext } from "./use-case";
+import type { RunControl, UseCase, UseCaseContext } from "./use-case";
+
+export type { ProgressEvent, RunControl } from "./use-case";
+
+const UNCONTROLLED: RunControl = { signal: new AbortController().signal, progress: () => {} };
+
+function isAbort(error: unknown, signal: AbortSignal): boolean {
+  return signal.aborted || (error instanceof DOMException && error.name === "AbortError");
+}
+
+async function handle(
+  useCase: UseCase,
+  input: Record<string, unknown>,
+  context: UseCaseContext,
+  run: RunControl,
+): Promise<unknown> {
+  if (run.signal.aborted) {
+    throw new OperationCancelledError();
+  }
+  try {
+    return await useCase.handle(input, context, run);
+  } catch (error) {
+    throw isAbort(error, run.signal) ? new OperationCancelledError() : error;
+  }
+}
 
 export interface Execution {
   readonly output: Record<string, unknown>;
@@ -17,12 +42,13 @@ export async function executeUseCase(
   useCase: UseCase,
   rawInput: unknown,
   context: UseCaseContext,
+  run: RunControl = UNCONTROLLED,
 ): Promise<Execution> {
   const input = useCase.input.safeParse(rawInput);
   if (!input.success) {
     throw new InvalidInputError(z.prettifyError(input.error));
   }
-  const output = useCase.output.safeParse(await useCase.handle(input.data, context));
+  const output = useCase.output.safeParse(await handle(useCase, input.data, context, run));
   if (!output.success) {
     throw new Error(
       `${useCase.name} returned output that does not match its schema: ${z.prettifyError(output.error)}`,

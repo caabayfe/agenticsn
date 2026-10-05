@@ -18,6 +18,7 @@ export {
   type InvalidIdentifierCode,
   InvalidIdentifierError,
   InvalidInputError,
+  OperationCancelledError,
   SnagenticError,
   UNEXPECTED_ERROR_EXIT_CODE,
 } from "./kernel/errors";

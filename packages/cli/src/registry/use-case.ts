@@ -12,6 +12,19 @@ export interface UseCaseContext {
   readonly environmentProbes: readonly EnvironmentProbe[];
 }
 
+export interface ProgressEvent {
+  readonly message: string;
+  readonly completed?: number;
+  readonly total?: number;
+}
+
+// Per-run controls. Cancelling the signal must stop all further work, including requests
+// to an instance (ADR-0016).
+export interface RunControl {
+  readonly signal: AbortSignal;
+  progress(event: ProgressEvent): void;
+}
+
 export interface UseCaseFlags {
   readonly readOnly: boolean;
   readonly destructive: boolean;
@@ -31,7 +44,11 @@ export interface UseCase<
   readonly flags: UseCaseFlags;
   // Whether the operation earns a place in the MCP tool budget (ADR-0002).
   readonly mcp: boolean;
-  handle(input: z.output<Input>, context: UseCaseContext): Promise<z.output<Output>>;
+  handle(
+    input: z.output<Input>,
+    context: UseCaseContext,
+    run: RunControl,
+  ): Promise<z.output<Output>>;
   render(output: z.output<Output>, format: RenderFormat): string;
   exitCode(output: z.output<Output>): number;
 }

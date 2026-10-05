@@ -80,3 +80,34 @@ export function captureIo(): CapturedIo {
     err: () => err,
   };
 }
+
+// Reports two progress steps, then finishes.
+export function progressUseCase(): UseCase {
+  return echoUseCase({
+    name: "progress-steps",
+    handle: async (_input, _context, run) => {
+      run.progress({ message: "reading catalog", completed: 1, total: 2 });
+      run.progress({ message: "writing records", completed: 2, total: 2 });
+      return { echoed: "done" };
+    },
+  });
+}
+
+// Waits until its run is cancelled, then stops the way an aborted fetch does.
+export function waitForCancelUseCase(
+  started: () => void = () => {},
+  aborted: () => void = () => {},
+): UseCase {
+  return echoUseCase({
+    name: "wait-for-cancel",
+    handle: (_input, _context, run) =>
+      new Promise((_resolve, reject) => {
+        const stop = () => {
+          aborted();
+          reject(new DOMException("The operation was aborted.", "AbortError"));
+        };
+        run.signal.addEventListener("abort", stop, { once: true });
+        started();
+      }),
+  });
+}

@@ -2,7 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 import { runCli } from "../../src/cli/run-cli";
 import { defineUseCase, type UseCase } from "../../src/registry/use-case";
-import { captureIo, echoUseCase, FAKE_CONTEXT } from "../support/fakes";
+import {
+  captureIo,
+  echoUseCase,
+  FAKE_CONTEXT,
+  progressUseCase,
+  waitForCancelUseCase,
+} from "../support/fakes";
 
 const OPTIONS = { version: "snagentic test", serveMcp: async () => {} };
 
@@ -103,6 +109,29 @@ describe("generated CLI", () => {
     expect((await run(["--help"])).exitCode).toBe(0);
     const version = await run(["--version"]);
     expect(version).toMatchObject({ exitCode: 0, out: "snagentic test\n" });
+  });
+
+  it("reports progress on stderr and keeps stdout for the result", async () => {
+    const { out, err } = await run(
+      ["progress-steps", "--message", "x", "--format", "json"],
+      [progressUseCase()],
+    );
+    expect(JSON.parse(out)).toEqual({ echoed: "done" });
+    expect(err).toBe("… reading catalog (1/2)\n… writing records (2/2)\n");
+  });
+
+  it("exits with 130 when the run is cancelled", async () => {
+    const controller = new AbortController();
+    const io = captureIo();
+    const exitCode = await runCli(
+      ["wait-for-cancel", "--message", "x"],
+      [waitForCancelUseCase(() => controller.abort())],
+      FAKE_CONTEXT,
+      io,
+      { ...OPTIONS, signal: controller.signal },
+    );
+    expect(exitCode).toBe(130);
+    expect(io.err()).toContain("error[cancelled]");
   });
 
   it("starts the MCP server for the mcp command", async () => {

@@ -7,6 +7,7 @@ export const ERROR_CATEGORIES = [
   "precondition",
   "remote",
   "not-permitted",
+  "cancelled",
 ] as const;
 
 export type ErrorCategory = (typeof ERROR_CATEGORIES)[number];
@@ -17,6 +18,8 @@ export const EXIT_CODES: Readonly<Record<ErrorCategory, number>> = {
   precondition: 3,
   remote: 4,
   "not-permitted": 5,
+  // 130 is the shell convention for a process stopped by Ctrl-C (SIGINT).
+  cancelled: 130,
 };
 
 export const UNEXPECTED_ERROR_EXIT_CODE = 70;
@@ -60,6 +63,17 @@ export class InvalidInputError extends SnagenticError {
       "usage",
       message,
       "run the command with --help to see the expected input",
+    );
+  }
+}
+
+export class OperationCancelledError extends SnagenticError {
+  constructor() {
+    super(
+      "cancelled",
+      "cancelled",
+      "the operation was cancelled before it finished",
+      "run it again when ready; completed work is kept",
     );
   }
 }

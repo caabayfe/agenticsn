@@ -127,6 +127,10 @@ what v1's 1,400-line `InstanceSync` could not do.
 
 ## 4. Efficient sync design
 
+> Section 4 is governed by **ADR-0016** (instance load and pagination policy), which
+> supersedes it where they differ: keyset paging only, two-tier change detection, a
+> 10-minute overlap instead of 15 hours, default concurrency 2, and a server cost report.
+
 ### 4.1 Full pull
 
 1. **Catalog.** Read `sys_db_object` and the needed `sys_dictionary` rows (classes,
@@ -168,7 +172,7 @@ what v1's 1,400-line `InstanceSync` could not do.
 | Measure | Target | How it is checked |
 |---|---|---|
 | Full pull of the PDI (≈ 280k records) | Baseline in M3, then ≤ v1's time | Live run against the PDI, recorded in a report |
-| Incremental pull, nothing changed | < 30 s | Live PDI run |
+| Incremental pull, nothing changed | ≤ 5 requests and < 10 s (ASR-16) | Live PDI run plus the server cost report |
 | Incremental pull, 100 changed records | < 60 s | Live PDI run |
 | Peak memory during a full pull | < 1 GB | Measured in the same run |
 | Requests per changed record (incremental) | ≤ 2 amortized | Counted by the scheduler; asserted in benchmarks |
@@ -222,10 +226,10 @@ Each milestone is a series of small pull requests (each one merged when `verify`
 | # | Milestone | You can… | Exit criteria |
 |---|---|---|---|
 | M0 | Quality gates (done) | See CI reject an oversized file or function | Size, function and complexity checks active, each proven by a test |
-| M1 | Workspace, instances and connection | `init ~/snagentic/pdi`, `instance add`, `auth login`, `doctor --instance pdi` from any folder in the workspace | Workspace discovery and layout version check; `init` refuses nested repositories; OAuth and basic auth; credentials only in the keychain or env; HTTP client with retry, back-off and rate limit; contract tests |
+| M1 | Workspace, instances and connection | `init ~/snagentic/pdi`, `instance add`, `auth login`, `doctor --instance pdi` from any folder in the workspace | Workspace discovery and layout version check; `init` refuses nested repositories; OAuth and basic auth; credentials only in the keychain or env; per-instance request scheduler (ADR-0016); secret redaction in all errors; timestamp-semantics probe; contract tests |
 | M2 | Metadata model and disk format | Read any v1 mirror; write records in the new style | `ArtifactType` registry from the catalog; S2 parity test as a permanent regression test; redaction and quarantine |
-| M3 | Full pull | `pull --full` of the PDI into a fresh repo | Resumable; baseline performance report; git commit strategy chosen by measurement |
-| M4 | Incremental pull, integrate, status | Change a record in the PDI, `pull`, `integrate` | Deletes detected; overlap window; `status` shows freshness and pending changes |
+| M3 | Full pull | `pull --full` of the PDI into a fresh repo | `KeysetPager` with property tests (no gaps, no duplicates, stall detection); resumable; baseline performance report; git commit strategy chosen by measurement |
+| M4 | Incremental pull, integrate, status | Change a record in the PDI, `pull`, `integrate` | Fast feed (≤ 5 requests when nothing changed); fingerprint reconciliation (`pull --verify`); deletes detected; server cost report; `status` shows freshness and pending changes |
 | M5 | Update sets | `update-sets list / show / collisions / export` | Export matches ServiceNow's XML format (checked against a real export) |
 | M6 | Plugins | `plugins list`, `plugins activate` on the PDI | Development only; progress reporting; no automatic retry of ambiguous failures |
 | M7 | MCP and documentation | Use every v1.0 tool from Claude Code and Copilot | Command reference generated from the registry; getting-started guide |

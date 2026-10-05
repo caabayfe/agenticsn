@@ -4,7 +4,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createMcpServer } from "../../src/mcp/create-mcp-server";
 import { MCP_TOOL_BUDGET } from "../../src/registry/mcp-budget";
 import type { UseCase } from "../../src/registry/use-case";
-import { echoUseCase, FAKE_CONTEXT } from "../support/fakes";
+import { echoUseCase, FAKE_CONTEXT, progressUseCase, waitForCancelUseCase } from "../support/fakes";
 
 async function connect(useCases: UseCase[]): Promise<Client> {
   const server = createMcpServer(useCases, FAKE_CONTEXT, "test");
@@ -47,6 +47,45 @@ describe("generated MCP server", () => {
     expect(result.content).toEqual([
       { type: "text", text: "error[stale-mirror]: mirror is stale\nhint: run: snagentic pull" },
     ]);
+  });
+
+  it("sends progress notifications when the client asks for progress", async () => {
+    const client = await connect([progressUseCase()]);
+    const received: unknown[] = [];
+    await client.callTool({ name: "progress_steps", arguments: { message: "x" } }, undefined, {
+      onprogress: (progress) => received.push(progress),
+    });
+    expect(received).toEqual([
+      { progress: 1, total: 2, message: "reading catalog" },
+      { progress: 2, total: 2, message: "writing records" },
+    ]);
+  });
+
+  it("aborts the handler when the client cancels the call", async () => {
+    let started: () => void = () => {};
+    const handlerStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let sawAbort: () => void = () => {};
+    const handlerAborted = new Promise<void>((resolve) => {
+      sawAbort = resolve;
+    });
+    const client = await connect([
+      waitForCancelUseCase(
+        () => started(),
+        () => sawAbort(),
+      ),
+    ]);
+    const controller = new AbortController();
+    const call = client
+      .callTool({ name: "wait_for_cancel", arguments: { message: "x" } }, undefined, {
+        signal: controller.signal,
+      })
+      .catch((error: unknown) => error);
+    await handlerStarted;
+    controller.abort();
+    expect(await call).toBeInstanceOf(Error);
+    await handlerAborted;
   });
 
   it(`refuses to start with more than ${MCP_TOOL_BUDGET} MCP tools`, () => {

@@ -21,6 +21,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted |
 | [0014](0014-workspace-layout.md) | Synced data lives in a workspace with a standard layout | Accepted |
 | [0015](0015-yaml-writing-style.md) | YAML writing style | Accepted |
+| [0016](0016-instance-load-and-pagination.md) | Instance load and pagination policy | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

@@ -9,6 +9,15 @@ import { USE_CASES } from "./registry/registry";
 import type { UseCaseContext } from "./registry/use-case";
 import { versionLine } from "./version-line";
 
+// First Ctrl-C cancels the running operation cleanly; a second one exits immediately.
+const cancellation = new AbortController();
+process.on("SIGINT", () => {
+  if (cancellation.signal.aborted) {
+    process.exit(130);
+  }
+  cancellation.abort();
+});
+
 const context: UseCaseContext = {
   environmentProbes: [gitProbe(), keychainProbe(), searchIndexProbe()],
 };
@@ -23,6 +32,7 @@ process.exitCode = await runCli(
   },
   {
     version: versionLine(),
+    signal: cancellation.signal,
     serveMcp: async () => {
       await createMcpServer(USE_CASES, context, versionLine()).connect(new StdioServerTransport());
     },

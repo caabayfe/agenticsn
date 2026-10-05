@@ -163,6 +163,21 @@ Choosing the test:
 - Serialization is deterministic and matches `tests/fixtures/hash-vectors.json` byte
   for byte.
 
+## Talking to a ServiceNow instance (ADR-0016)
+
+Instance load is a product requirement (ASR-16), not an optimization.
+
+- Every listing goes through the shared `KeysetPager`. **Never** use `sysparm_offset`,
+  never ask for a row count (`sysparm_no_count=true`), and end a listing only on an empty
+  page (ACLs shorten pages).
+- Every request names its fields, asks for raw values, excludes reference links, and
+  filters only on indexed fields. No `LIKE` or `CONTAINS` on large tables.
+- Every request goes through the instance's request scheduler (concurrency, rate limit,
+  `Retry-After`, budget). Never call `fetch` around it.
+- Honor the use case's cancellation signal in every loop and request.
+- Prefer the fast change feed and fingerprints over listing records. A change that adds
+  requests to an incremental pull with no changes needs a measured reason.
+
 ## Don't
 
 - Add features, MCP tools, skills or commands outside `docs/adr/0010-v1-scope.md`

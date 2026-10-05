@@ -27,7 +27,11 @@ const result = {
 await Bun.write(argument("out"), `${JSON.stringify(result, null, 2)}\n`);
 console.log(JSON.stringify(result, null, 2));
 
-const checks = doctor.checks.map((check) => `${check.name} ${check.status}`).join(", ");
+const checks = doctor.checks
+  .map((check) =>
+    check.status === "ok" ? `${check.name} ok` : `${check.name} ${check.status}: ${check.detail}`,
+  )
+  .join(", ");
 annotate(
   `S3 ${target}`,
   `size ${result.sizeMegabytes} MB; start p50 ${startup.p50} ms p95 ${startup.p95} ms; ` +

@@ -207,7 +207,7 @@ what v1's 1,400-line `InstanceSync` could not do.
 | Architecture boundaries | ADR-0001 rules | dependency-cruiser (done) |
 | Coverage | ≥ 90% per file | `bun test --coverage` (done) |
 | Test-first | Every behavior has a spec-named test | Code review against the use-case specs |
-| Domain test strength | Mutation score ≥ 80% on `domain/` | Stryker, nightly |
+| Domain test strength | Mutation score ≥ 80% on `domain/` | Tool to be chosen in M2: Stryker has no `bun test` runner (status recorded in M0) |
 | Adapter correctness | Contract suite per port: fake and recorded-HTTP implementations must pass the same tests | `bun test` |
 | Performance | Benchmarks in section 4.4 that run in CI | Nightly workflow, fails on > 20% regression |
 
@@ -221,7 +221,7 @@ Each milestone is a series of small pull requests (each one merged when `verify`
 
 | # | Milestone | You can… | Exit criteria |
 |---|---|---|---|
-| M0 | Quality gates | See CI reject an oversized file or function | Size, function and complexity checks active |
+| M0 | Quality gates (done) | See CI reject an oversized file or function | Size, function and complexity checks active, each proven by a test |
 | M1 | Workspace, instances and connection | `init ~/snagentic/pdi`, `instance add`, `auth login`, `doctor --instance pdi` from any folder in the workspace | Workspace discovery and layout version check; `init` refuses nested repositories; OAuth and basic auth; credentials only in the keychain or env; HTTP client with retry, back-off and rate limit; contract tests |
 | M2 | Metadata model and disk format | Read any v1 mirror; write records in the new style | `ArtifactType` registry from the catalog; S2 parity test as a permanent regression test; redaction and quarantine |
 | M3 | Full pull | `pull --full` of the PDI into a fresh repo | Resumable; baseline performance report; git commit strategy chosen by measurement |

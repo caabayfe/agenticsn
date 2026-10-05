@@ -11,8 +11,9 @@
     "format": "biome format --write .",
     "arch": "bun scripts/arch.ts",
     "test": "bun test",
-    "verify": "bun run typecheck && bun run lint && bun run arch && bun test --coverage",
-    "build": "bun build packages/cli/src/main.ts --compile --minify --outfile dist/snagentic"
+    "verify": "bun run typecheck && bun run lint && bun run arch && bun run size && bun test --coverage",
+    "build": "bun build packages/cli/src/main.ts --compile --minify --outfile dist/snagentic",
+    "size": "bun scripts/check-size.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

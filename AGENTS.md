@@ -44,7 +44,8 @@ bun run typecheck          # tsc --noEmit, strict
 bun run lint               # biome check
 bun run format             # biome format --write
 bun run arch               # dependency-cruiser boundary rules
-bun run verify             # typecheck + lint + arch + test: run before every commit
+bun run size               # no product file over 300 lines
+bun run verify             # typecheck + lint + arch + size + test: run before every commit
 bun run build              # compile the snagentic binary for this platform
 SNAGENTIC_LIVE_INSTANCE=pdi bun test tests/live   # opt-in, real instance
 ```
@@ -120,7 +121,9 @@ Choosing the test:
   - named exports only, no default exports.
 - Each package exposes its public API through `src/index.ts`. Don't import another
   package's internals.
-- Keep files under ~300 lines and functions under ~40. Past that, split.
+- Size limits are enforced, not advisory: product files ≤ 300 lines (`bun run size`),
+  function bodies ≤ 50 lines and cognitive complexity ≤ 15 (Biome). Test files are
+  exempt from the function-length limit. Split by responsibility, not by line count.
 - Comments explain **why**, not what. No commented-out code.
 
 ## Adding things

@@ -1,0 +1,63 @@
+# Builds the snagentic binary natively on every supported platform and runs it there
+# (spec 001, deliverable D5, spikes S3 and S5). Results are published as annotations.
+name: build
+
+on:
+  push:
+    paths:
+      - "packages/**"
+      - "scripts/**"
+      - "tools/spikes/**"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  binary:
+    name: binary (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: macos-arm64, runner: macos-15 }
+          - { target: macos-x64, runner: macos-15-intel }
+          - { target: windows-x64, runner: windows-latest }
+          - { target: linux-x64, runner: ubuntu-24.04 }
+          - { target: linux-arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: compile snagentic
+        run: bun run build
+      - name: "S3: run doctor from the binary and measure start-up"
+        run: >
+          bun scripts/measure-s3.ts --binary dist/snagentic --target ${{ matrix.target }}
+          --out dist/s3-${{ matrix.target }}.json
+      - name: "S5: lint one file from a compiled binary"
+        run: |
+          bun build tools/spikes/s5-lint-latency/lint-once.ts --compile --minify --outfile dist/s5-lint
+          bun scripts/measure-s5.ts --binary dist/s5-lint \
+            --sample tools/spikes/s5-lint-latency/sample-business-rule.js \
+            --target ${{ matrix.target }} --out dist/s5-${{ matrix.target }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snagentic-${{ matrix.target }}
+          path: dist/
+          retention-days: 14

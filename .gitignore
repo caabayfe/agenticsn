@@ -17,3 +17,6 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Bun compile temporaries
+*.bun-build

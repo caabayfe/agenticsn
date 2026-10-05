@@ -102,6 +102,22 @@ export {
   type RedactionPolicy,
 } from "./metadata/domain/redaction";
 export type { RecordStore, StoredRecord } from "./metadata/ports";
+export {
+  type KeysetListing,
+  KeysetPager,
+  type PagerSettings,
+} from "./sync/application/keyset-pager";
+export { PaginationStalledError } from "./sync/domain/errors";
+export {
+  type Cursor,
+  cursorOf,
+  type KeysetFilter,
+  type KeysetKind,
+  keysetQuery,
+  nextPageSize,
+  PAGE_SIZE,
+  type PageTiming,
+} from "./sync/domain/keyset";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";

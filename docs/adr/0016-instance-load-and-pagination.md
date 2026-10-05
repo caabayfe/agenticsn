@@ -118,3 +118,34 @@ Instance `dev312411` (PDI, US data center), measured from Europe; round trip abo
 | "Anything changed?" probe, `limit=1`, empty result | 0.62 s (mostly round trip) | Five probes ≈ 3 s: ASR-16 is reachable. |
 | Aggregate count + max by `sys_class_name` over `sys_metadata` | **Denied** after 11.8 s (field ACLs across the hierarchy) | Fingerprints run **per hierarchy root**. |
 | Aggregate per hierarchy (`sys_script`, grouped by class) | 0.85–0.93 s | Fingerprint reconciliation cost ≈ number of hierarchy roots; measured in M4. |
+
+## Appendix: guarantees and limits of keyset paging (M3a property tests)
+
+Proven by property tests against a fake Table API that applies ACLs after the limit, has
+many rows per second, and changes data while paging:
+
+- **Guaranteed:** every visible row is returned exactly once by a snapshot or change-feed
+  listing, however pages are cut; a cursor that stops advancing raises
+  `PaginationStalledError`.
+- **Within one run, not guaranteed:** a row updated *during* the run into the cursor's own
+  second with a smaller `sys_id`. The next pull's overlap window returns its latest version;
+  the tests assert this two-run guarantee.
+- **Known Table API limit:** ACLs remove rows after `sysparm_limit` is applied, so a page made
+  only of rows the user cannot read comes back empty and looks like the end. An admin
+  integration user is not affected (`doctor` warns otherwise). Fingerprint reconciliation
+  (per-class counts, M4) detects any resulting gap.
+
+## Appendix: first live run of the pager (PDI, 2026-10-05)
+
+- Snapshot of `sys_script`: 6,404 rows, no duplicates, **9 requests, 5.8 s** (pages grew
+  500 → 750 → 1,000), concurrency 2, 1 ms semaphore wait. Change feed on `sys_update_xml`
+  since 2026-09-01: 474 rows, 2 requests, 0.7 s.
+- **Coverage gap found by the count cross-check:** the aggregate count is 6,471, but 67
+  business rules are never returned by any Table API read, even for `admin`, and even
+  without paging (one unordered 10,000-row request returns the same 6,404). They belong to
+  two private applications with scoped administration: `sn_kmf` (Key Management Framework,
+  50) and `sn_secrets` (Secrets Management, 17). Reading them needs the applications' own
+  administrator roles.
+- **Consequence:** the sync never assumes it saw everything. The coverage report compares
+  listed rows with aggregate counts per scope and names unreadable scopes explicitly
+  (milestone M4).

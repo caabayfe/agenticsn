@@ -39,13 +39,35 @@
    configuration. They are listed in the pull summary. `v_plugin` is readable, so the plugin
    inventory is available.
 
+## After the hardening pass (same PDI, `pull pdi --full`)
+
+| Measure | Baseline | After hardening |
+|---|---|---|
+| Duration | 1,728 s | 1,751 s |
+| Phases | not measured | catalog 15.8 s, **records 1,530.8 s**, child rows 197.2 s, inventory 4.5 s, commit 2.7 s |
+| Requests / retries | 4,995 / 0 | 5,180 / 0 |
+| Semaphore wait, total | 4.2 s | 4.3 s |
+| Peak concurrency reached | not measured | 4 (the scheduler's maximum) |
+| Time spent in requests | not measured | 3,143.5 s (requests overlap) |
+| Peak memory, physical footprint | 920 MB | **457 MB** |
+| Peak memory, resident size (sampled) | 1.1 GB | 1,048 MB |
+| Repository after a second full pull | 230 MB after manual gc | 291 MB → 291 MB, no garbage left |
+
+**Where the time goes.** The pull is latency-bound: requests average 0.61 s
+(3,143.5 s / 5,180), mostly the round trip between Europe and a US-hosted PDI, with about
+two requests in flight on average. That accounts for the records phase almost exactly;
+rendering, YAML and git take a few seconds. Options to go faster all add requests in
+flight or skip requests, so they belong with M4's measurements: skipping classes that
+aggregate counts show to be empty (~740 of 2,224 classes, one request each), and
+letting the controller reach its maximum sooner.
+
 ## Follow-ups
 
 | # | Item | Plan |
 |---|---|---|
-| 1 | Peak memory 1.1 GB, over the 1 GB target | Profile the child-row phase and the mirror's path bookkeeping; stream instead of holding whole tables |
-| 2 | The repository needs a repack after a full pull (585 → 230 MB) | Repack after a full pull; `repack -a -d` keeps reflog-reachable objects, so local history is safe |
-| 3 | An interrupted `fast-import` leaves temporary pack files | Removed by the repack in item 2; also clean them up on abort |
-| 4 | `init` leaves the workspace's own files untracked, so `git status` lists them | `init` makes an initial commit |
-| 5 | Where the 29 minutes went is not broken down | Record per-phase timings and the concurrency reached; check whether concurrency grew past 2 |
+| 1 | Peak memory 1.1 GB, over the 1 GB target | **Done:** child tables stream into their groups; the mirror tracks record bases only. Physical footprint 920 → 457 MB; sampled resident size 1,048 MB (includes memory the runtime has reserved but not returned) |
+| 2 | The repository needs a repack after a full pull (585 → 230 MB) | **Done:** a finished pull repacks; fast-import keeps every batch packed |
+| 3 | An interrupted `fast-import` leaves temporary pack files | **Done:** abort stops git cleanly and removes the session's temporary packs |
+| 4 | `init` leaves the workspace's own files untracked, so `git status` lists them | **Done:** `init` makes an initial commit |
+| 5 | Where the 29 minutes went is not broken down | **Done:** per-phase timings, peak concurrency and request time are reported (see above) |
 | 6 | `sys_store_app` is unreadable for admin | Plugins list (M6) relies on `v_plugin`; store applications from `sys_scope` |

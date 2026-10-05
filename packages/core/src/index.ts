@@ -1,4 +1,25 @@
 // Public API of @snagentic/core. Other packages import only from here.
+export {
+  ConcurrencyController,
+  type ConcurrencySettings,
+  type ResponseSignal,
+} from "./connection/domain/concurrency-controller";
+export {
+  AccessDeniedError,
+  AuthenticationFailedError,
+  InstanceError,
+  InstanceUnreachableError,
+  RequestBudgetExhaustedError,
+} from "./connection/domain/errors";
+export {
+  type HttpMethod,
+  type RequestOutcome,
+  type RetryDecision,
+  type RetryInput,
+  retryDecision,
+} from "./connection/domain/retry-policy";
+export { parseServerTiming } from "./connection/domain/server-timing";
+export type { ConnectionStats, InstanceReader, Row, TableQuery } from "./connection/ports";
 export { runDoctor } from "./environment/application/run-doctor";
 export {
   CHECK_STATUSES,
@@ -54,6 +75,7 @@ export {
 } from "./kernel/errors";
 export { InstanceName } from "./kernel/instance-name";
 export { HASH_EXCLUDED_FIELDS, recordHash } from "./kernel/record-hash";
+export { redactSecrets } from "./kernel/redact";
 export { ScopeName } from "./kernel/scope-name";
 export { slug } from "./kernel/slug";
 export { SysId } from "./kernel/sys-id";

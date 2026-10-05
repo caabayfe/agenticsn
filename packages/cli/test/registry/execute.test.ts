@@ -43,4 +43,13 @@ describe("executeUseCase run control", () => {
     ).catch((caught: unknown) => caught);
     expect(describeError(await pending)).toMatchObject({ code: "cancelled", exitCode: 130 });
   });
+
+  it("removes credentials from every error message shown to people or agents", () => {
+    const leaked = new Error(
+      "request failed: Authorization: Basic YWRtaW46cGFzcw== to https://a:b@x",
+    );
+    expect(describeError(leaked).message).toBe(
+      "request failed: Authorization: Basic [redacted] to https://[redacted]@x",
+    );
+  });
 });

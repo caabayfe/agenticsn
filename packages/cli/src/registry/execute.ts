@@ -2,6 +2,7 @@ import {
   EXIT_CODES,
   InvalidInputError,
   OperationCancelledError,
+  redactSecrets,
   SnagenticError,
   UNEXPECTED_ERROR_EXIT_CODE,
 } from "@snagentic/core";
@@ -65,19 +66,19 @@ export interface DescribedError {
 }
 
 // Errors as users and agents see them: a stable code, the message and the next action.
-// Stack traces are never included.
+// Stack traces are never included, and credentials are always redacted.
 export function describeError(error: unknown): DescribedError {
   if (error instanceof SnagenticError) {
     return {
       code: error.code,
-      message: error.message,
-      hint: error.hint,
+      message: redactSecrets(error.message),
+      hint: redactSecrets(error.hint),
       exitCode: EXIT_CODES[error.category],
     };
   }
   return {
     code: "unexpected",
-    message: error instanceof Error ? error.message : String(error),
+    message: redactSecrets(error instanceof Error ? error.message : String(error)),
     hint: "this is a bug in snagentic; please report it with the command you ran",
     exitCode: UNEXPECTED_ERROR_EXIT_CODE,
   };

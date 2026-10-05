@@ -258,8 +258,9 @@ verdict (**go** / **no-go**), and the ADR it confirms or reopens.
 - **Linux note:** a desktop keychain (Secret Service) often isn't available on servers.
   CI uses environment variables for credentials there anyway (ADR-0004), so on Linux the
   keychain check may report `unavailable` with a hint rather than fail.
-- **Go if:** all targets pass git and FTS5; keychain passes on macOS and Windows; cold
-  start < 100 ms.
+- **Go if:** all targets pass git and FTS5; keychain passes on macOS and Windows.
+  (The original cold-start < 100 ms criterion was retired on 2026-10-05; start-up is
+  part of ASR-04. See `docs/spikes/S3-single-binary.md`.)
 - **No-go fallback:** Node single-executable apps, or OS credential command-line tools in
   place of the native add-on.
 

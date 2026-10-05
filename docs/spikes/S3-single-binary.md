@@ -3,7 +3,7 @@
 - Date: 2026-10-05
 - Confirms: ADR-0005 (TypeScript compiled with Bun), ASR-05
 - Verdict: **go for macOS arm64, Windows x64, Linux x64 and Linux arm64.
-  Open issue on macOS x64 (Intel).** Start-up criterion: see "Decision needed".
+  macOS x64 (Intel) unsupported** (see decisions).
 
 ## Question
 
@@ -50,10 +50,12 @@ starts in p95 31 ms. Shared CI machines are 2–4× slower.
    - Context: macOS 26 is the last release Apple ships for Intel Macs, so this platform
      will shrink.
 
-## Decision needed
+## Decisions (product owner, 2026-10-05)
 
-The spec's start-up criterion (< 100 ms) is met on Linux, mostly met on Windows and
-macOS arm64 CI runners, and missed on the Intel runner. On real developer hardware it is
-far below (31 ms). The requirement that matters to users is ASR-04 (a post-edit check in
-< 300 ms end to end), measured in S5. **Proposal:** retire the separate start-up target
-and track start-up as part of ASR-04.
+1. **macOS x64 (Intel) is unsupported.** No Intel Mac is available to tell a CI-image
+   problem from a product problem. The CI job keeps running, allowed to fail, so a fix in
+   the image or the add-on becomes visible. Support can be added later by anyone who
+   verifies `snagentic doctor` on real Intel hardware.
+2. **No separate start-up target.** The spec's < 100 ms start-up criterion is retired.
+   Start-up is measured as part of ASR-04 (post-edit check < 300 ms p95 end to end),
+   which is what users experience. On developer hardware start-up is about 31 ms.

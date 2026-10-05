@@ -9,10 +9,14 @@ module.exports = {
       name: "kernel-and-domain-are-pure",
       comment:
         "kernel, metadata and domain code may only import kernel, metadata or domain code: " +
-        "no Node or Bun built-ins, no npm packages, no adapters.",
+        "no Node or Bun built-ins, no npm packages, no adapters. The single exception is " +
+        "@noble/hashes: pure, audited, dependency-free SHA-256 for the hash contract " +
+        "(node:crypto would break purity).",
       severity: "error",
       from: { path: "(^|/)packages/core/src/(kernel|metadata|[^/]+/domain)/" },
-      to: { pathNot: "(^|/)packages/core/src/(kernel|metadata|[^/]+/domain)/" },
+      to: {
+        pathNot: ["(^|/)packages/core/src/(kernel|metadata|[^/]+/domain)/", "/@noble/hashes/"],
+      },
     },
     {
       name: "core-does-not-depend-on-cli",

@@ -25,6 +25,12 @@ describe("architecture boundaries", () => {
     );
   });
 
+  it("forbids kernel code from importing npm packages other than @noble/hashes", async () => {
+    expect(await rulesBrokenBy("core/src/kernel/uses-npm.ts")).toContain(
+      "kernel-and-domain-are-pure",
+    );
+  });
+
   it("forbids the core package from depending on the cli package", async () => {
     expect(await rulesBrokenBy("core/src/kernel/uses-cli.ts")).toContain(
       "core-does-not-depend-on-cli",

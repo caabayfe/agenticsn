@@ -3,6 +3,8 @@
 import type {
   CredentialStore,
   EnvironmentProbe,
+  InstanceProfile,
+  InstanceReader,
   ProfileStore,
   WorkspaceStore,
 } from "@snagentic/core";
@@ -26,6 +28,11 @@ export interface SecretReader {
   read(prompt: string): Promise<string>;
 }
 
+// Opens a connection to an instance; every connection has its own request scheduler.
+export interface ConnectionFactory {
+  open(profile: InstanceProfile, secret: string): InstanceReader;
+}
+
 // The ports use cases need, wired by the composition root (main.ts).
 export interface UseCaseContext {
   readonly environmentProbes: readonly EnvironmentProbe[];
@@ -33,6 +40,7 @@ export interface UseCaseContext {
   readonly profiles: ProfileStore;
   readonly credentials: CredentialStore;
   readonly secrets: SecretReader;
+  readonly connections: ConnectionFactory;
   readonly host: HostEnvironment;
 }
 

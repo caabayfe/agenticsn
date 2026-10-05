@@ -58,6 +58,15 @@ describe("createProfile", () => {
     },
   );
 
+  it.each(["admin^ORuser_name=x", "a,b", "line\nbreak"])(
+    "rejects the username %p, which could alter encoded queries",
+    (username) => {
+      expect(() =>
+        createProfile({ ...base, username, kind: "development", acknowledgeReadOnly: false }),
+      ).toThrow(expect.objectContaining({ code: "invalid-input" }));
+    },
+  );
+
   it("rejects an empty username", () => {
     expect(() =>
       createProfile({ ...base, username: " ", kind: "development", acknowledgeReadOnly: false }),

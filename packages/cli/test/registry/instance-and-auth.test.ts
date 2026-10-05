@@ -40,6 +40,21 @@ async function setup() {
     profiles: new YamlProfileStore(),
     credentials,
     secrets: { read: async () => "typed-secret" },
+    connections: {
+      open: () => ({
+        query: async (query) =>
+          String(query.table) === "sys_user_has_role"
+            ? [{ "role.name": "admin" }]
+            : [{ sys_id: "u1", sys_updated_on: "2026-09-23 20:12:26" }],
+        stats: () => ({
+          requests: 3,
+          retries: 0,
+          semaphoreWaitMs: 0,
+          transactionIds: [],
+          concurrencyLimit: 2,
+        }),
+      }),
+    },
     host: { cwd: join(root, "instances"), home: base, version: "test" },
   };
   const run = async (...argv: string[]) => {
@@ -183,5 +198,25 @@ describe("auth commands", () => {
   it("is not offered to agents over MCP", () => {
     const exposed = USE_CASES.filter((useCase) => useCase.mcp).map((useCase) => useCase.group);
     expect(exposed).not.toContain("auth");
+  });
+});
+
+describe("doctor --instance", () => {
+  it("checks credentials, connection, roles, timestamps and load of a workspace instance", async () => {
+    const { run } = await setup();
+    await run("instance", "add", "pdi", "--url", "dev312411", "--username", "admin");
+    await run("auth", "login", "pdi");
+    const result = await run("doctor", "--instance", "pdi", "--format", "json");
+    const report: { ok: boolean; checks: { name: string; status: string }[] } = JSON.parse(
+      result.out,
+    );
+    expect(report.ok).toBe(true);
+    expect(report.checks.slice(-5).map((check) => `${check.name}:${check.status}`)).toEqual([
+      "credentials:ok",
+      "connection:ok",
+      "roles:ok",
+      "timestamps:ok",
+      "load:ok",
+    ]);
   });
 });

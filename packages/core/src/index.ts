@@ -21,6 +21,7 @@ export {
 export { parseServerTiming } from "./connection/domain/server-timing";
 export type { ConnectionStats, InstanceReader, Row, TableQuery } from "./connection/ports";
 export { runDoctor } from "./environment/application/run-doctor";
+export { runInstanceChecks } from "./environment/application/run-instance-checks";
 export {
   CHECK_STATUSES,
   type Check,

@@ -34,6 +34,10 @@ export function createProfile(input: NewProfile): InstanceProfile {
   if (username === "") {
     throw new InvalidInputError("username must not be empty");
   }
+  // The username is used inside encoded queries, where ^ , and line breaks are syntax.
+  if (/[\^,\r\n]/.test(username)) {
+    throw new InvalidInputError("username must not contain ^ , or line breaks");
+  }
   // ADR-0013: until the read-only credential check exists (spike S6), the user must
   // confirm that test and production credentials cannot write.
   if (input.kind !== "development" && !input.acknowledgeReadOnly) {

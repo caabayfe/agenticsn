@@ -36,10 +36,24 @@ describe("doctor use case", () => {
     ]);
   });
 
-  it("refuses instance checks until instance profiles exist", async () => {
-    const context = { ...FAKE_CONTEXT, environmentProbes: [] };
-    await expect(executeUseCase(doctor, { local: false }, context)).rejects.toMatchObject({
-      code: "invalid-input",
+  it("explains how to find the workspace when --instance is used outside one", async () => {
+    await expect(executeUseCase(doctor, { instance: "pdi" }, FAKE_CONTEXT)).rejects.toMatchObject({
+      code: "workspace-not-found",
     });
+  });
+
+  it("renders warnings with their hint and does not count them as failures", () => {
+    const text = doctor.render(
+      {
+        ok: true,
+        checks: [{ name: "roles", status: "warn", detail: "roles: itil", hint: "grant admin" }],
+      },
+      "text",
+    );
+    expect(text.split("\n")).toEqual([
+      "warn        roles  roles: itil",
+      "             hint: grant admin",
+      "doctor: ready (1 warning)",
+    ]);
   });
 });

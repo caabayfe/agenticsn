@@ -8,6 +8,9 @@ import { gitProbe } from "./adapters/git-probe";
 import { keychainProbe } from "./adapters/keychain-probe";
 import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
+import { fetchTransport } from "./adapters/servicenow/fetch-transport";
+import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
+import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
 import { FsWorkspaceStore } from "./adapters/workspace/fs-workspace-store";
 import { runCli } from "./cli/run-cli";
@@ -35,6 +38,10 @@ const context: UseCaseContext = {
     new KeychainCredentialStore(),
   ),
   secrets: new TerminalSecretReader(),
+  connections: {
+    open: (profile, secret) =>
+      new ServiceNowClient(profile, secret, new RequestScheduler(fetchTransport()), versionLine()),
+  },
   host: {
     cwd: process.cwd(),
     home: homedir(),

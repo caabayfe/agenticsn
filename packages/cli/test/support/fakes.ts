@@ -49,6 +49,11 @@ export const FAKE_CONTEXT: UseCaseContext = {
   profiles: NO_PROFILES,
   credentials: NO_CREDENTIALS,
   secrets: { read: async () => "" },
+  connections: {
+    open: () => {
+      throw new Error("tests that need an instance provide their own connections");
+    },
+  },
   host: { cwd: "/work", home: "/home/me", version: "snagentic test" },
 };
 

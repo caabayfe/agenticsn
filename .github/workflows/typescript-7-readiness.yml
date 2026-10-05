@@ -1,0 +1,29 @@
+# Tells us when we can move from TypeScript 6 to 7 (see AGENTS.md, toolchain note).
+# Expected to fail until dependency-cruiser can read sources with TypeScript 7.
+# When it passes, upgrade the pinned version in package.json.
+name: typescript-7-readiness
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: switch to TypeScript 7 (this run only)
+        run: bun add -d typescript@^7
+      - name: type check with TypeScript 7
+        run: bun run typecheck
+      - name: architecture rules with TypeScript 7 (fails if 0 modules are analysed)
+        run: bun run arch

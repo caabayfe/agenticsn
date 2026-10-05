@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "arch": "depcruise packages --config .dependency-cruiser.cjs",
+    "arch": "bun scripts/arch.ts",
     "test": "bun test",
     "verify": "bun run typecheck && bun run lint && bun run arch && bun test --coverage",
     "build": "bun build packages/cli/src/main.ts --compile --minify --outfile dist/snagentic"

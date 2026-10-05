@@ -1,3 +1,6 @@
 [test]
 coverageSkipTestFiles = true
+# Coverage measures product code. Repository tooling (scripts/, config) is exercised by
+# its own tests but is not held to the product threshold.
+coveragePathIgnorePatterns = ["scripts/**", "*.cjs"]
 coverageThreshold = 0.9

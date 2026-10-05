@@ -1,0 +1,82 @@
+import { type EnvironmentProbe, SnagenticError } from "@snagentic/core";
+import { z } from "zod";
+import type { CliIo } from "../../src/cli/run-cli";
+import { defineUseCase, type UseCase, type UseCaseContext } from "../../src/registry/use-case";
+
+export function fakeProbe(name: string, status: "ok" | "fail" | "unavailable"): EnvironmentProbe {
+  return {
+    name,
+    run: async () => ({
+      name,
+      status,
+      detail: `${name} detail`,
+      hint: status === "ok" ? null : `fix ${name}`,
+    }),
+  };
+}
+
+export const FAKE_CONTEXT: UseCaseContext = {
+  environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
+};
+
+export class FakeStaleError extends SnagenticError {
+  constructor() {
+    super("stale-mirror", "precondition", "mirror is stale", "run: snagentic pull");
+  }
+}
+
+// A use case unknown to the generators, to prove they need no per-use-case code.
+export function echoUseCase(overrides: Partial<UseCase> = {}): UseCase {
+  const base = defineUseCase({
+    name: "echo-text",
+    description: "Echo text back.",
+    input: z.object({
+      message: z.string().describe("text to echo"),
+      times: z.number().int().min(1).default(1),
+      shout: z.boolean().default(false),
+      style: z.enum(["plain", "quoted"]).default("plain"),
+      label: z.string().optional(),
+    }),
+    output: z.object({ echoed: z.string() }),
+    flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
+    mcp: true,
+    async handle(input) {
+      if (input.message === "stale") {
+        throw new FakeStaleError();
+      }
+      if (input.message === "crash") {
+        throw new Error("internal detail");
+      }
+      const text = input.shout ? input.message.toUpperCase() : input.message;
+      const styled = input.style === "quoted" ? `"${text}"` : text;
+      return { echoed: Array.from({ length: input.times }, () => styled).join(" ") };
+    },
+    render(output) {
+      return `echo: ${output.echoed}`;
+    },
+    exitCode() {
+      return 0;
+    },
+  });
+  return { ...base, ...overrides };
+}
+
+export interface CapturedIo extends CliIo {
+  readonly out: () => string;
+  readonly err: () => string;
+}
+
+export function captureIo(): CapturedIo {
+  let out = "";
+  let err = "";
+  return {
+    stdout: (text) => {
+      out += text;
+    },
+    stderr: (text) => {
+      err += text;
+    },
+    out: () => out,
+    err: () => err,
+  };
+}

@@ -52,3 +52,14 @@ export class InvalidIdentifierError extends SnagenticError {
     );
   }
 }
+
+export class InvalidInputError extends SnagenticError {
+  constructor(message: string) {
+    super(
+      "invalid-input",
+      "usage",
+      message,
+      "run the command with --help to see the expected input",
+    );
+  }
+}

@@ -61,6 +61,8 @@ packages/
     src/kernel/              sys-id.ts, table-name.ts, scope-name.ts,
                              canonical-text.ts, canonical-json.ts, record-hash.ts,
                              errors.ts
+    src/environment/         local environment checks used by doctor: domain (check
+                             model), ports (EnvironmentProbe), application (runDoctor)
     src/index.ts             public API of the package
     test/kernel/             spec tests (section 6)
   cli/

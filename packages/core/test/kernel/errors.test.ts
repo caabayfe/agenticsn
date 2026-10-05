@@ -4,6 +4,7 @@ import {
   EXIT_CODES,
   exitCodeFor,
   InvalidIdentifierError,
+  InvalidInputError,
   SnagenticError,
 } from "@snagentic/core";
 
@@ -28,6 +29,13 @@ describe("errors and exit codes", () => {
   it("uses the category's exit code for a known error", () => {
     expect(exitCodeFor(new StaleMirrorError())).toBe(3);
     expect(exitCodeFor(new InvalidIdentifierError("invalid-sys-id", "a/b"))).toBe(2);
+  });
+
+  it("reports invalid input as a usage error pointing to --help", () => {
+    const error = new InvalidInputError("local: expected boolean");
+    expect(exitCodeFor(error)).toBe(2);
+    expect(error.code).toBe("invalid-input");
+    expect(error.hint).toContain("--help");
   });
 
   it("exits with 70 for an unexpected error", () => {

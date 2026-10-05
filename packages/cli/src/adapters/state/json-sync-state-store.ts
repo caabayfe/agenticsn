@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CatalogData, PullCheckpoint, SyncState, SyncStateStore } from "@snagentic/core";
+import { serialQueue } from "../serial-queue";
 
 const FILES = {
   catalog: "catalog.json",
@@ -12,6 +13,10 @@ const FILES = {
 // JSON files in the instance's local state folder (.snagentic/<name>/). Written through a
 // temporary file and a rename, so an interrupted write never leaves half a checkpoint.
 export class JsonSyncStateStore implements SyncStateStore {
+  // Pull workers checkpoint concurrently; writes are applied one at a time, in order.
+  private readonly writes = serialQueue();
+  private sequence = 0;
+
   constructor(private readonly directory: string) {}
 
   readCatalog(): Promise<CatalogData | null> {
@@ -30,8 +35,8 @@ export class JsonSyncStateStore implements SyncStateStore {
     return this.write(FILES.checkpoint, checkpoint);
   }
 
-  async clearCheckpoint(): Promise<void> {
-    await rm(join(this.directory, FILES.checkpoint), { force: true });
+  clearCheckpoint(): Promise<void> {
+    return this.writes.run(() => rm(join(this.directory, FILES.checkpoint), { force: true }));
   }
 
   readState(): Promise<SyncState | null> {
@@ -47,10 +52,15 @@ export class JsonSyncStateStore implements SyncStateStore {
     return existsSync(path) ? (JSON.parse(await readFile(path, "utf8")) as T) : null;
   }
 
-  private async write(name: string, value: unknown): Promise<void> {
-    await mkdir(this.directory, { recursive: true });
-    const path = join(this.directory, name);
-    await writeFile(`${path}.tmp`, `${JSON.stringify(value)}\n`);
-    await rename(`${path}.tmp`, path);
+  private write(name: string, value: unknown): Promise<void> {
+    const content = `${JSON.stringify(value)}\n`;
+    return this.writes.run(async () => {
+      await mkdir(this.directory, { recursive: true });
+      const path = join(this.directory, name);
+      this.sequence += 1;
+      const temporary = `${path}.${process.pid}.${this.sequence}.tmp`;
+      await writeFile(temporary, content);
+      await rename(temporary, path);
+    });
   }
 }

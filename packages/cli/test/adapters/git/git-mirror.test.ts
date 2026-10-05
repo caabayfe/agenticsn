@@ -133,6 +133,21 @@ describe("GitMirror", () => {
   });
 });
 
+describe("GitMirror under concurrency", () => {
+  it("keeps the stream intact when several classes write and checkpoint at once", async () => {
+    const repo = await repository();
+    const mirror = await GitMirror.open(repo, PDI, false);
+    await Promise.all(
+      Array.from({ length: 30 }, async (_, index) => {
+        await mirror.write(ROOT, record(index + 1, `Rule ${index}`));
+        await mirror.checkpoint();
+      }),
+    );
+    const commit = await mirror.finish("concurrent");
+    expect((await files(repo, commit)).length).toBe(60);
+  });
+});
+
 describe("FastImport failures", () => {
   it("fails instead of hanging when git stops on a malformed stream", async () => {
     const { FastImport } = await import("../../../src/adapters/git/fast-import");

@@ -1,5 +1,6 @@
 import type { InstanceName, MirrorSession, RenderedRecord } from "@snagentic/core";
 import { instancePaths } from "@snagentic/core";
+import { serialQueue } from "../serial-queue";
 import { toYaml } from "../yaml/own-style";
 import { FastImport, fastImportPath } from "./fast-import";
 import { runGit, runGitOrThrow } from "./run-git";
@@ -22,6 +23,9 @@ async function revParse(repository: string, ref: string): Promise<string | null>
 export class GitMirror implements MirrorSession {
   private readonly pending: string[] = [];
   private readonly written = new Set<string>();
+  // One fast-import stream is shared by concurrent pull workers: every operation on it runs
+  // alone, so blobs and commits are never interleaved.
+  private readonly serial = serialQueue();
   // Set once this session has committed: fast-import then continues the ref by itself.
   private committedThisSession = false;
 
@@ -56,15 +60,19 @@ export class GitMirror implements MirrorSession {
     return `refs/snagentic/pull/${instance}`;
   }
 
-  async write(root: string, rendered: RenderedRecord): Promise<void> {
-    await this.add(`${root}/${rendered.base}.yaml`, toYaml(rendered.document));
-    for (const file of rendered.files) {
-      await this.add(`${root}/${file.path}`, file.content);
-    }
+  write(root: string, rendered: RenderedRecord): Promise<void> {
+    const yaml = toYaml(rendered.document);
+    return this.serial.run(async () => {
+      await this.add(`${root}/${rendered.base}.yaml`, yaml);
+      for (const file of rendered.files) {
+        await this.add(`${root}/${file.path}`, file.content);
+      }
+    });
   }
 
-  async writeDocument(root: string, path: string, document: unknown): Promise<void> {
-    await this.add(`${root}/${path}`, toYaml(document));
+  writeDocument(root: string, path: string, document: unknown): Promise<void> {
+    const yaml = toYaml(document);
+    return this.serial.run(() => this.add(`${root}/${path}`, yaml));
   }
 
   async *bases(root: string): AsyncIterable<string> {
@@ -81,7 +89,11 @@ export class GitMirror implements MirrorSession {
     }
   }
 
-  async checkpoint(): Promise<void> {
+  checkpoint(): Promise<void> {
+    return this.serial.run(() => this.commitProgress());
+  }
+
+  private async commitProgress(): Promise<void> {
     if (this.pending.length === 0) {
       return;
     }
@@ -106,8 +118,10 @@ export class GitMirror implements MirrorSession {
   }
 
   async finish(message: string): Promise<string> {
-    await this.checkpoint();
-    await this.stream.finish();
+    await this.serial.run(async () => {
+      await this.commitProgress();
+      await this.stream.finish();
+    });
     const ref = GitMirror.progressRef(this.instance);
     const progress = await revParse(this.repository, ref);
     const tree =

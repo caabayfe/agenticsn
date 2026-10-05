@@ -52,4 +52,15 @@ describe("JsonSyncStateStore", () => {
     expect(await state.readCheckpoint()).toBeNull();
     expect((await readdir(directory)).filter((name) => name.endsWith(".tmp"))).toEqual([]);
   });
+
+  it("handles many concurrent checkpoint writes, keeping the last one", async () => {
+    const { store: state, directory } = await store();
+    await Promise.all(
+      Array.from({ length: 25 }, (_, index) =>
+        state.writeCheckpoint({ startedAt: "x", completedClasses: [`c${index}`], records: index }),
+      ),
+    );
+    expect((await state.readCheckpoint())?.records).toBe(24);
+    expect((await readdir(directory)).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+  });
 });

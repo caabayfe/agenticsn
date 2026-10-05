@@ -102,12 +102,19 @@ export {
   type RedactionPolicy,
 } from "./metadata/domain/redaction";
 export type { RecordStore, StoredRecord } from "./metadata/ports";
+export { forEachConcurrently } from "./sync/application/concurrently";
 export { type CatalogProgress, fetchCatalog } from "./sync/application/fetch-catalog";
 export {
   type KeysetListing,
   KeysetPager,
   type PagerSettings,
 } from "./sync/application/keyset-pager";
+export {
+  type PullDependencies,
+  type PullProgress,
+  rawTimestamp,
+} from "./sync/application/pull-dependencies";
+export { type PullSummary, pullFull } from "./sync/application/pull-full";
 export { PaginationStalledError } from "./sync/domain/errors";
 export {
   type Cursor,
@@ -119,6 +126,17 @@ export {
   PAGE_SIZE,
   type PageTiming,
 } from "./sync/domain/keyset";
+export {
+  type AttachedChildren,
+  attachChildren,
+  CHILD_TABLES,
+  type ChildTable,
+  classesToPull,
+  OPERATIONAL_TABLES,
+  type OperationalTable,
+  ownerOfBase,
+} from "./sync/domain/pull-scope";
+export type { PullCheckpoint, SyncState, SyncStateStore } from "./sync/ports";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";

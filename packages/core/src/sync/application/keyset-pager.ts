@@ -15,7 +15,7 @@ import {
 
 export interface KeysetListing extends KeysetFilter {
   readonly table: TableName;
-  readonly fields: readonly string[];
+  readonly fields: readonly string[] | "all";
 }
 
 export interface PagerSettings {
@@ -49,7 +49,11 @@ export class KeysetPager {
   }
 
   async *rows(listing: KeysetListing, signal: AbortSignal): AsyncGenerator<Row> {
-    const missing = CURSOR_FIELDS[listing.kind].filter((field) => !listing.fields.includes(field));
+    const fields = listing.fields;
+    const missing =
+      fields === "all"
+        ? []
+        : CURSOR_FIELDS[listing.kind].filter((field) => !fields.includes(field));
     if (missing.length > 0) {
       throw new Error(`a ${listing.kind} listing must request ${missing.join(", ")}`);
     }

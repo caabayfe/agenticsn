@@ -36,6 +36,27 @@ export class FlatRecordStore implements RecordStore {
     ]);
   }
 
+  async writeDocument(root: string, path: string, document: unknown): Promise<void> {
+    const target = join(root, path);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, toYaml(document));
+  }
+
+  async *bases(root: string): AsyncIterable<string> {
+    if (!existsSync(root)) {
+      return;
+    }
+    for await (const directory of directories(root)) {
+      const names = (await readdir(directory, { withFileTypes: true }))
+        .filter((e) => e.isFile())
+        .map((e) => e.name);
+      const relative = directory === root ? "" : `${directory.slice(root.length + 1)}/`;
+      for (const leaf of groupRecordFiles(names).keys()) {
+        yield `${relative}${leaf}`;
+      }
+    }
+  }
+
   async remove(root: string, base: string): Promise<void> {
     const directory = dirname(join(root, base));
     const prefix = `${basename(base)}.`;

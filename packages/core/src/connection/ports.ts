@@ -7,8 +7,9 @@ export interface TableQuery {
   readonly table: TableName;
   // Encoded query; filter on indexed fields only (ADR-0016).
   readonly query: string;
-  // Always explicit: never "all fields".
-  readonly fields: readonly string[];
+  // Listings and inventories always name their fields. "all" is only for downloading
+  // records that are about to be written, which need every field (ADR-0016).
+  readonly fields: readonly string[] | "all";
   readonly limit: number;
 }
 

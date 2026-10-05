@@ -14,8 +14,12 @@ export interface RecordStore {
   // `previousPaths` are the field files of the record's previous version; those no longer
   // produced are removed.
   write(root: string, rendered: RenderedRecord, previousPaths?: readonly string[]): Promise<void>;
+  // Writes any YAML document at a path relative to `root` (child rows, operational tables).
+  writeDocument(root: string, path: string, document: unknown): Promise<void>;
   remove(root: string, base: string): Promise<void>;
   read(root: string, base: string): Promise<StoredRecord | null>;
   // Streams every record; files of one class folder are read once.
   list(root: string): AsyncIterable<StoredRecord>;
+  // Every record base, from file names only (no content is read).
+  bases(root: string): AsyncIterable<string>;
 }

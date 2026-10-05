@@ -157,6 +157,39 @@ describe("FlatRecordStore", () => {
     expect(stored?.files.map((file) => file.field)).toEqual(["script"]);
   });
 
+  it("writes any YAML document at a relative path, creating folders", async () => {
+    const root = await scratch();
+    await store.writeDocument(root, "a/b/v_plugin.yaml", [{ id: "com.a", active: "true" }]);
+    expect(await readFile(join(root, "a/b/v_plugin.yaml"), "utf8")).toBe(
+      "- active: 'true'\n  id: com.a\n",
+    );
+  });
+
+  it("lists record bases from file names alone", async () => {
+    const root = await scratch();
+    await store.write(root, renderRecord(artifact(), catalog));
+    await store.write(
+      root,
+      renderRecord(
+        artifact({ sys_id: "11111111111111111111111111111111", name: "Other", sys_scope: "x1" }),
+        catalog,
+      ),
+    );
+    const bases = [];
+    for await (const base of store.bases(root)) {
+      bases.push(base);
+    }
+    expect(bases.sort()).toEqual([
+      "global/sys_script/raise-priority--0123456789abcdef0123456789abcdef",
+      "x1/sys_script/other--11111111111111111111111111111111",
+    ]);
+    const none = [];
+    for await (const base of store.bases(join(root, "missing"))) {
+      none.push(base);
+    }
+    expect(none).toEqual([]);
+  });
+
   it("lists nothing for a missing metadata folder", async () => {
     const listed = [];
     for await (const record of store.list(join(await scratch(), "missing"))) {

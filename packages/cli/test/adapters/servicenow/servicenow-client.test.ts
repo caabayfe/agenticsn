@@ -65,6 +65,12 @@ describe("ServiceNowClient", () => {
     });
   });
 
+  it("downloads whole records without a field list when asked for all fields", async () => {
+    const { client, sent } = clientWith(async () => response(200, '{"result":[]}'));
+    await client.query({ ...QUERY, fields: "all" }, LIVE);
+    expect(new URL(sent[0]?.url ?? "").searchParams.has("sysparm_fields")).toBe(false);
+  });
+
   it("authenticates with basic auth and identifies itself", async () => {
     const { client, sent } = clientWith(async () => response(200, '{"result":[]}'));
     await client.query(QUERY, LIVE);

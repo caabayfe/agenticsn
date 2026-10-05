@@ -41,8 +41,9 @@ export class ServiceNowClient implements InstanceReader {
   }
 
   async query(query: TableQuery, signal: AbortSignal): Promise<readonly Row[]> {
-    if (query.fields.length === 0 || query.fields.some((field) => field === "")) {
-      throw new Error("a table query must name its fields explicitly");
+    const fields = query.fields;
+    if (fields !== "all" && (fields.length === 0 || fields.some((field) => field === ""))) {
+      throw new Error("a table query must name its fields explicitly, or ask for all of them");
     }
     if (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > MAX_PAGE_SIZE) {
       throw new Error(`limit must be between 1 and ${MAX_PAGE_SIZE}`);
@@ -50,7 +51,7 @@ export class ServiceNowClient implements InstanceReader {
     const url = new URL(`/api/now/table/${query.table}`, this.profile.url);
     url.search = new URLSearchParams({
       sysparm_query: query.query,
-      sysparm_fields: query.fields.join(","),
+      ...(fields === "all" ? {} : { sysparm_fields: fields.join(",") }),
       sysparm_limit: String(query.limit),
       sysparm_display_value: "false",
       sysparm_exclude_reference_link: "true",

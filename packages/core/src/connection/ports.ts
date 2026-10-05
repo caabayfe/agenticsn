@@ -1,7 +1,7 @@
+import type { Row } from "../kernel/row";
 import type { TableName } from "../kernel/table-name";
 
-// With raw values and no reference links, every field arrives as a string.
-export type Row = Readonly<Record<string, string>>;
+export type { Row } from "../kernel/row";
 
 export interface TableQuery {
   readonly table: TableName;

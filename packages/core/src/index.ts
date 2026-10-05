@@ -81,6 +81,26 @@ export { ScopeName } from "./kernel/scope-name";
 export { slug } from "./kernel/slug";
 export { SysId } from "./kernel/sys-id";
 export { TableName } from "./kernel/table-name";
+export { type Artifact, type ArtifactIdentity, artifactFromRow } from "./metadata/domain/artifact";
+export { Catalog, type CatalogData } from "./metadata/domain/catalog";
+export {
+  fileFields,
+  isDeniedClass,
+  secretFields,
+  TEXT_TYPE_EXTENSIONS,
+} from "./metadata/domain/field-rules";
+export {
+  InvalidRecordError,
+  parseRecord,
+  type RenderedRecord,
+  recordBase,
+  renderRecord,
+} from "./metadata/domain/record-layout";
+export {
+  DEFAULT_REDACTION,
+  fieldsToRedact,
+  type RedactionPolicy,
+} from "./metadata/domain/redaction";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";

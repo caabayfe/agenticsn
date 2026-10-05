@@ -1,6 +1,6 @@
 # 0012. Production access is read-only by construction
 
-- Status: Accepted, pending the read-only role spike
+- Status: Accepted, pending the read-only role spike (amended by 0013)
 - Date: 2026-10-05
 - Requirements: ASR-02, ASR-08, ASR-15
 - Amends: 0002, 0003, 0004, 0010

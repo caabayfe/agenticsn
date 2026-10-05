@@ -1,6 +1,6 @@
 # snagentic v1.0: release plan
 
-- Status: Draft for review
+- Status: Approved (decisions recorded in ADR-0013, ADR-0014, ADR-0015)
 - Date: 2026-10-05
 - Builds on: phase 0 (spec 001), ADR-0001 to ADR-0012, spikes S1–S5
 - Replaces: the phase order in ADR-0010 for the v1.0 release (an ADR amendment follows
@@ -25,6 +25,7 @@ v1.0.
 
 | Capability | Commands (CLI) | MCP tool | Writes to ServiceNow? |
 |---|---|---|---|
+| **Workspace**: a dedicated data repository with a standard layout (ADR-0014) | `init [path]`, found automatically from any folder inside it | – | No |
 | Instance profiles and credentials | `instance add / list / remove`, `auth login / logout` | – | No |
 | Environment and connection check | `doctor`, `doctor --instance <name>` | `doctor` | No |
 | **Full and incremental sync** of every `sys_metadata` class, child rows (flows, layouts, workflow activities), operational inventory (plugins, store apps, domains) | `pull [--full]` | `pull` | No |
@@ -46,19 +47,15 @@ That is 6 MCP tools, within the budget of 12.
 | Production troubleshooting, read gateway, read-only role verification (S6) | later |
 | Intel macOS | unsupported (S3 decision) |
 
-### Decisions needed before work starts
+### Decisions (product owner, 2026-10-05)
 
-1. **Plan and push in v1.0?** You listed sync, plugins and update sets as the core
-   actions, so push is in v1.1 here. That makes v1.0 strictly "read, sync and operate".
-   *Recommendation: keep push in v1.1.* It needs the governance gate (ADR-0003, ADR-0006)
-   to ship safely, and that is a release of its own.
-2. **Test and production profiles in v1.0.** Pulling from them is read-only in our code
-   (write use cases are not registered for those kinds). Without spike S6, we cannot yet
-   verify that the *credential* is read-only. *Recommendation: allow test and production
-   profiles for `pull` only, and require an explicit `--i-understand-read-only` on
-   `instance add` until S6 is done.*
-3. **YAML writing style (S2).** *Recommendation: our own documented style.* This plan
-   assumes it.
+1. **Plan and push move to v1.1**, with the governance gate (ADR-0013).
+2. **Test and production profiles are pull-only**, with an explicit acknowledgement at
+   `instance add` until spike S6 is done (ADR-0013).
+3. **YAML writing style:** the project's own style (ADR-0015).
+4. **Synced data lives in its own workspace repository** with a layout snagentic creates
+   and versions, independent of how users organize folders (ADR-0014).
+5. Still open before M8: code signing.
 
 ## 3. Architecture for v1.0
 
@@ -70,6 +67,11 @@ under the size budget in section 6.
 ```
 packages/core/src/
   kernel/                  (done) identifiers, canonical forms, hash, errors
+  workspace/
+    domain/                manifest, layout version, paths of every artifact relative to
+                           the workspace root
+    application/           init, locate (walk up to snagentic.yaml), layout check
+    ports.ts               WorkspaceStore
   instance/
     domain/                InstanceProfile, InstanceKind, write policy by kind
     application/           add / list / remove profiles
@@ -104,7 +106,8 @@ packages/cli/src/
                            merge for integrate
     fs/                    atomic writes, record directory store
     credentials/           OS keychain + environment variables
-    profiles/              instances/<name>/instance.yaml
+    profiles/              <workspace>/instances/<name>/instance.yaml
+    workspace/             manifest file, git init and large-repository tuning
   registry/                one use case per file (≈ 15 files)
   cli/ mcp/                (done) generators
 ```
@@ -219,7 +222,7 @@ Each milestone is a series of small pull requests (each one merged when `verify`
 | # | Milestone | You can… | Exit criteria |
 |---|---|---|---|
 | M0 | Quality gates | See CI reject an oversized file or function | Size, function and complexity checks active |
-| M1 | Instances and connection | `instance add`, `auth login`, `doctor --instance pdi` | OAuth and basic auth; credentials only in the keychain or env; HTTP client with retry, back-off and rate limit; contract tests |
+| M1 | Workspace, instances and connection | `init ~/snagentic/pdi`, `instance add`, `auth login`, `doctor --instance pdi` from any folder in the workspace | Workspace discovery and layout version check; `init` refuses nested repositories; OAuth and basic auth; credentials only in the keychain or env; HTTP client with retry, back-off and rate limit; contract tests |
 | M2 | Metadata model and disk format | Read any v1 mirror; write records in the new style | `ArtifactType` registry from the catalog; S2 parity test as a permanent regression test; redaction and quarantine |
 | M3 | Full pull | `pull --full` of the PDI into a fresh repo | Resumable; baseline performance report; git commit strategy chosen by measurement |
 | M4 | Incremental pull, integrate, status | Change a record in the PDI, `pull`, `integrate` | Deletes detected; overlap window; `status` shows freshness and pending changes |
@@ -245,5 +248,6 @@ Each milestone is a series of small pull requests (each one merged when `verify`
 | Full-pull performance is dominated by ServiceNow API limits | Measure early (M3); adaptive concurrency; resumable pulls |
 | Writing ≈ 280k small files is slow on some file systems (3.1 GB for the v1 PDI working tree) | Skip unchanged files by hash; batched git blob writes; measured in M3 |
 | Plugin activation is long and can end in an unknown state | Durable progress id; never auto-retry; `status` shows it |
+| Instance data committed to the wrong repository | Workspaces are separate repositories; `init` refuses nesting; the snagentic source repository ignores `instances/` and `snagentic.yaml` |
 | Scope creep (the v1 failure mode) | Section 2 is the contract; anything else needs an ADR |
-| Credentials for test and production without S6 | Decision 2 above |
+| Credentials for test and production without S6 | Pull-only kinds plus explicit acknowledgement (decision 2) |

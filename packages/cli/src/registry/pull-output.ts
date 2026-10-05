@@ -42,6 +42,7 @@ export const PullOutput = z.object({
       skippedRows: z.number(),
       childFiles: z.number(),
       removedChildFiles: z.number(),
+      lostRecords: z.number(),
     })
     .optional(),
 });
@@ -109,6 +110,7 @@ export function incrementalOutput(facts: RunFacts, summary: IncrementalSummary):
       skippedRows: summary.skippedRows,
       childFiles: summary.childFiles,
       removedChildFiles: summary.removedChildFiles,
+      lostRecords: summary.lostRecords,
     },
   };
 }
@@ -127,18 +129,32 @@ function renderFull(output: PullOutput, full: NonNullable<PullOutput["full"]>): 
   ];
 }
 
+// Records deleted on the instance without a deletion record stay in the mirror; say so
+// rather than report the mirror as current.
+function lostWarning(output: PullOutput, lost: number): string[] {
+  return lost === 0
+    ? []
+    : [
+        `  warning: ${lost} records left the instance without a deletion record and are still in the mirror`,
+        `  to remove them: snagentic pull ${output.instance} --full`,
+      ];
+}
+
 function renderIncremental(
   output: PullOutput,
   changes: NonNullable<PullOutput["incremental"]>,
 ): string[] {
+  const warning = lostWarning(output, changes.lostRecords);
   if (!output.changed) {
-    return [`${output.instance} is up to date (${output.seconds} s)`, load(output)];
+    const status = warning.length === 0 ? "is up to date" : "has no new changes to mirror";
+    return [`${output.instance} ${status} (${output.seconds} s)`, ...warning, load(output)];
   }
   return [
     `pulled ${output.instance} changes in ${output.seconds} s -> ${output.commit.slice(0, 10)} on servicenow-remote/${output.instance}`,
     `  records: ${output.records} written, ${changes.renamed} renamed, ${changes.deleted} deleted, ${changes.skippedRows} skipped${changes.catalogRefreshed ? "; catalog read again" : ""}`,
     `  child rows: ${changes.childFiles} files refreshed, ${changes.removedChildFiles} removed`,
     `  changed on the instance: ${changes.changedSources.join(", ") || "nothing"}`,
+    ...warning,
     load(output),
   ];
 }

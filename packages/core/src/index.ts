@@ -163,6 +163,7 @@ export {
   isChildRowFile,
   needsNewCatalog,
   type RecordChanges,
+  unexplainedLoss,
 } from "./sync/domain/record-changes";
 export type {
   Fingerprints,

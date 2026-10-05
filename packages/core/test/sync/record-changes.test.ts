@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Catalog, chunks, isChildRowFile, needsNewCatalog } from "@snagentic/core";
+import { Catalog, chunks, isChildRowFile, needsNewCatalog, unexplainedLoss } from "@snagentic/core";
 
 const catalog = new Catalog({
   parents: { sys_metadata: null, sys_script: "sys_metadata", sys_db_object: "sys_metadata" },
@@ -10,6 +10,8 @@ const changes = (classes: string[], scopes: string[] = ["global"]) => ({
   changed: new Map(classes.map((table) => [table, ["id"]])),
   scopes: new Set(scopes),
   deleted: [],
+  createdBetween: 0,
+  deletedBetween: 0,
 });
 
 describe("needsNewCatalog", () => {
@@ -39,5 +41,28 @@ describe("chunks", () => {
   it("splits a list into batches of at most the given size", () => {
     expect(chunks([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
     expect(chunks([], 2)).toEqual([]);
+  });
+});
+
+describe("unexplainedLoss", () => {
+  const feeds = (createdBetween: number, deletedBetween: number) => ({
+    ...changes([]),
+    createdBetween,
+    deletedBetween,
+  });
+
+  it("is zero when creations and deletion records explain the count", () => {
+    // One record deleted: its deletion record is itself a new sys_metadata row.
+    expect(unexplainedLoss(100, 100, feeds(1, 1))).toBe(0);
+    expect(unexplainedLoss(100, 103, feeds(3, 0))).toBe(0);
+  });
+
+  it("counts records that vanished without a deletion record", () => {
+    expect(unexplainedLoss(100, 99, feeds(0, 0))).toBe(1);
+    expect(unexplainedLoss(100, 100, feeds(2, 0))).toBe(2);
+  });
+
+  it("is never negative", () => {
+    expect(unexplainedLoss(100, 100, feeds(0, 1))).toBe(0);
   });
 });

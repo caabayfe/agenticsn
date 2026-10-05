@@ -179,6 +179,7 @@ describe("pull and integrate", () => {
       skippedRows: 0,
       childFiles: 3,
       removedChildFiles: 0,
+      lostRecords: 0,
     };
     const changed = pull.render({ ...base, changed: true, incremental }, "text");
     expect(changed).toContain("pulled pdi changes in 3.2 s -> abcdef1234");
@@ -188,5 +189,12 @@ describe("pull and integrate", () => {
     const idle = pull.render({ ...base, changed: false, incremental }, "text");
     expect(idle).toStartWith("pdi is up to date (3.2 s)");
     expect(idle).not.toContain("next:");
+    const lost = pull.render(
+      { ...base, changed: false, incremental: { ...incremental, lostRecords: 2 } },
+      "text",
+    );
+    expect(lost).toStartWith("pdi has no new changes to mirror");
+    expect(lost).toContain("warning: 2 records left the instance without a deletion record");
+    expect(lost).toContain("snagentic pull pdi --full");
   });
 });

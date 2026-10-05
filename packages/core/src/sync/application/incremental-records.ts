@@ -23,36 +23,53 @@ export interface RecordOutcome {
 const SYS_METADATA = TableName.parse("sys_metadata");
 const SYS_METADATA_DELETE = TableName.parse("sys_metadata_delete");
 
-// The change feed and the delete feed since `since` (ADR-0016): identities only, no content.
+export interface ChangeWindow {
+  // Start of the change feeds: the previous watermark minus the overlap.
+  readonly since: string;
+  // When the previous and this pull took their fingerprints (raw UTC).
+  readonly previous: string;
+  readonly current: string;
+}
+
+const between = (window: ChangeWindow, created: string | undefined) =>
+  created !== undefined && created >= window.previous && created < window.current;
+
+// The change feed and the delete feed (ADR-0016): identities only, no content.
 export async function readRecordChanges(
   deps: IncrementalDependencies,
-  since: string,
+  window: ChangeWindow,
   signal: AbortSignal,
 ): Promise<RecordChanges> {
   const changed = new Map<string, string[]>();
   const scopes = new Set<string>();
+  let createdBetween = 0;
   const feed = {
     table: SYS_METADATA,
-    fields: ["sys_id", "sys_updated_on", "sys_class_name", "sys_scope"],
+    fields: ["sys_id", "sys_updated_on", "sys_created_on", "sys_class_name", "sys_scope"],
     kind: "change-feed" as const,
     base: "",
-    since,
+    since: window.since,
   };
   for await (const row of deps.pager.rows(feed, signal)) {
     const table = row["sys_class_name"] ?? "";
-    changed.set(table, [...(changed.get(table) ?? []), row["sys_id"] ?? ""]);
+    const ids = changed.get(table) ?? [];
+    ids.push(row["sys_id"] ?? "");
+    changed.set(table, ids);
     scopes.add(row["sys_scope"] ?? "");
+    createdBetween += between(window, row["sys_created_on"]) ? 1 : 0;
   }
   const deletions = {
     ...feed,
     table: SYS_METADATA_DELETE,
-    fields: ["sys_id", "sys_updated_on", "sys_metadata"],
+    fields: ["sys_id", "sys_updated_on", "sys_created_on", "sys_metadata"],
   };
   const deleted: string[] = [];
+  let deletedBetween = 0;
   for await (const row of deps.pager.rows(deletions, signal)) {
     deleted.push(row["sys_metadata"] ?? "");
+    deletedBetween += between(window, row["sys_created_on"]) ? 1 : 0;
   }
-  return { changed, scopes, deleted };
+  return { changed, scopes, deleted, createdBetween, deletedBetween };
 }
 
 // Writes a changed record over its previous version: its own files are replaced and its

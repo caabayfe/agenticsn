@@ -90,14 +90,26 @@ describe("pullIncremental: records", () => {
   it("removes a deleted record with all its files", async () => {
     const { incremental, tables, files } = await pulledInstance();
     tables["sys_hub_flow"] = [];
+    // Deletion records are sys_metadata rows too, as on the instance.
     tables["sys_metadata_delete"]?.push({
       sys_id: "x1",
+      sys_class_name: "sys_metadata_delete",
       sys_metadata: sid(3),
+      sys_created_on: CHANGED,
       sys_updated_on: CHANGED,
     });
     const { summary } = await incremental();
     expect(summary.deleted).toBe(1);
+    expect(summary.lostRecords).toBe(0);
     expect([...files.keys()].filter((path) => path.startsWith(FLOW))).toEqual([]);
+  });
+
+  it("reports records that vanished without a deletion record", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    tables["sys_script"] = tables["sys_script"]?.slice(0, 1) ?? [];
+    const { summary } = await incremental();
+    expect(summary.lostRecords).toBe(1);
+    expect(files.has(`global/sys_script/two--${sid(2)}.yaml`)).toBe(true);
   });
 
   it("ignores classes a pull never mirrors, such as credentials", async () => {

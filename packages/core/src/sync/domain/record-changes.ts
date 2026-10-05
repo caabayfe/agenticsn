@@ -8,6 +8,24 @@ export interface RecordChanges {
   readonly scopes: ReadonlySet<string>;
   // sys_ids of deleted records.
   readonly deleted: readonly string[];
+  // Records created, and deletions recorded, between the previous pull's fingerprints and
+  // this pull's: what moved the sys_metadata row count.
+  readonly createdBetween: number;
+  readonly deletedBetween: number;
+}
+
+// Records that left sys_metadata without a deletion record (a script deleting with workflow
+// off, or a deleted deletion record): the count dropped by more than the feeds explain.
+// Deletion records are sys_metadata rows too, so a normal deletion leaves the count as is.
+export function unexplainedLoss(
+  previousCount: number,
+  currentCount: number,
+  changes: RecordChanges,
+): number {
+  return Math.max(
+    0,
+    previousCount + changes.createdBetween - changes.deletedBetween - currentCount,
+  );
 }
 
 // Classes whose records describe the catalog itself: tables and field types.

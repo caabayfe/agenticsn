@@ -62,6 +62,8 @@ function fakeInstance(): InstanceReader {
       semaphoreWaitMs: 3,
       transactionIds: [],
       concurrencyLimit: 2,
+      peakConcurrency: 2,
+      requestMs: 0,
     }),
   };
 }
@@ -145,11 +147,20 @@ describe("pull and integrate", () => {
         retries: 1,
         semaphoreWaitMs: 5,
         seconds: 1.5,
+        phaseSeconds: { catalog: 0.1, records: 1, children: 0.2, operational: 0.1, commit: 0.1 },
+        peakConcurrency: 3,
+        requestSeconds: 2.4,
+        peakMemoryMb: 120,
       },
       "text",
     );
     expect(text).toContain("pulled pdi (resumed) in 1.5 s -> abcdef1234 on servicenow-remote/pdi");
-    expect(text).toContain("instance load: 9 requests, 1 retries, semaphore wait 5 ms");
+    expect(text).toContain(
+      "instance load: 9 requests, 1 retries, semaphore wait 5 ms, peak concurrency 3",
+    );
+    expect(text).toContain(
+      "time: catalog 0.1 s, records 1 s, child rows 0.2 s, inventory 0.1 s, commit 0.1 s; 2.4 s in requests; peak memory 120 MB",
+    );
     expect(text).toContain("not readable by this user: sys_x");
     expect(integrate.render({ instance: "pdi", commit: null, changedFiles: 0 }, "text")).toBe(
       "pdi: already up to date",

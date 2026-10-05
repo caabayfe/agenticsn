@@ -22,6 +22,8 @@ const STATS: ConnectionStats = {
   semaphoreWaitMs: 0,
   transactionIds: [],
   concurrencyLimit: 2,
+  peakConcurrency: 2,
+  requestMs: 0,
 };
 const sid = (n: number) => n.toString(16).padStart(32, "0");
 

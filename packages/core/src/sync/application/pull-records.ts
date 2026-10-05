@@ -58,7 +58,7 @@ export async function pullRecords(
   let records = checkpoint.records;
   let skippedRows = 0;
   const pending = classes.filter((table) => !completed.includes(table));
-  await forEachConcurrently(pending, deps.classConcurrency ?? 3, async (table) => {
+  await forEachConcurrently(pending, deps.classConcurrency ?? 4, async (table) => {
     try {
       const outcome = await pullClass(table, deps, catalog, signal);
       records += outcome.records;

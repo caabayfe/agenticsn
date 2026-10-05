@@ -164,6 +164,23 @@ describe("RequestScheduler", () => {
     expect(transport.calls).toBe(1);
   });
 
+  it("records the highest concurrency reached and the time spent in requests", async () => {
+    let now = 0;
+    const clock = { ...fakeClock(), now: () => now };
+    const transport: Transport = async () => {
+      now += 250;
+      return response(200);
+    };
+    const scheduler = new RequestScheduler(transport, {
+      clock,
+      controller: new ConcurrencyController({ healthyStreak: 1 }),
+    });
+    for (let index = 0; index < 3; index += 1) {
+      await scheduler.send(GET, LIVE);
+    }
+    expect(scheduler.stats()).toMatchObject({ peakConcurrency: 4, requestMs: 750 });
+  });
+
   it("counts requests, retries, semaphore wait and transaction ids", async () => {
     const transport = sequence(
       response(503, "{}", { "X-Transaction-ID": "a1", "Server-Timing": "sem_wait;dur=3" }),
@@ -177,6 +194,8 @@ describe("RequestScheduler", () => {
       semaphoreWaitMs: 7,
       transactionIds: ["a1", "b2"],
       concurrencyLimit: 1,
+      peakConcurrency: 2,
+      requestMs: 0,
     });
   });
 });

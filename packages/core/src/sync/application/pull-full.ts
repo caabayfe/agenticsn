@@ -17,6 +17,13 @@ export interface PullSummary {
   // Classes and tables the integration user may not read.
   readonly unreadable: readonly string[];
   readonly watermark: string;
+  // Wall-clock seconds per phase, to see where time goes.
+  readonly phaseSeconds: {
+    readonly catalog: number;
+    readonly records: number;
+    readonly children: number;
+    readonly operational: number;
+  };
 }
 
 // The first, complete pull of an instance (ADR-0016, ADR-0017). Interrupted pulls resume
@@ -27,7 +34,9 @@ export async function pullFull(
   signal: AbortSignal,
   progress: (event: PullProgress) => void = () => {},
 ): Promise<PullSummary> {
+  const clock = phaseClock(deps.now);
   const data = await fetchCatalog(deps.pager, signal, progress);
+  const catalogSeconds = clock.lap();
   await deps.state.writeCatalog(data);
   const catalog = new Catalog(data);
   const checkpoint = (await deps.state.readCheckpoint()) ?? {
@@ -38,10 +47,13 @@ export async function pullFull(
   await deps.state.writeCheckpoint(checkpoint);
   const classes = classesToPull(catalog);
   const records = await pullRecords(deps, catalog, classes, checkpoint, signal, progress);
+  const recordsSeconds = clock.lap();
   progress({ message: "child rows" });
   const children = await pullChildren(deps, catalog, signal);
+  const childrenSeconds = clock.lap();
   progress({ message: "operational inventory" });
   const operational = await pullOperational(deps, signal);
+  const operationalSeconds = clock.lap();
   await deps.state.writeState({
     watermark: checkpoint.startedAt,
     lastFullPull: checkpoint.startedAt,
@@ -57,5 +69,24 @@ export async function pullFull(
     operationalRows: operational.operationalRows,
     unreadable: [...records.unreadable, ...children.unreadable, ...operational.unreadable],
     watermark: checkpoint.startedAt,
+    phaseSeconds: {
+      catalog: catalogSeconds,
+      records: recordsSeconds,
+      children: childrenSeconds,
+      operational: operationalSeconds,
+    },
+  };
+}
+
+// Seconds since the previous lap, to one decimal.
+function phaseClock(now: () => Date): { lap(): number } {
+  let last = now().getTime();
+  return {
+    lap() {
+      const current = now().getTime();
+      const seconds = Math.round((current - last) / 100) / 10;
+      last = current;
+      return seconds;
+    },
   };
 }

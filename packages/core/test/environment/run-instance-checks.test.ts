@@ -19,6 +19,8 @@ const STATS: ConnectionStats = {
   semaphoreWaitMs: 4,
   transactionIds: [],
   concurrencyLimit: 2,
+  peakConcurrency: 2,
+  requestMs: 0,
 };
 
 function profile(kind: "development" | "production" = "development") {

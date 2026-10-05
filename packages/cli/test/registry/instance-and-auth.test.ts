@@ -52,6 +52,8 @@ async function setup() {
           semaphoreWaitMs: 0,
           transactionIds: [],
           concurrencyLimit: 2,
+          peakConcurrency: 2,
+          requestMs: 0,
         }),
       }),
     },

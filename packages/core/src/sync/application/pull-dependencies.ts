@@ -17,7 +17,8 @@ export interface PullDependencies {
   readonly operationalRoot: string;
   readonly policy: RedactionPolicy;
   readonly now: () => Date;
-  // Classes listed at the same time; the request scheduler still limits HTTP concurrency.
+  // Classes listed at the same time (default 4, the scheduler's maximum, so the scheduler
+  // and not this number governs how many requests run at once).
   readonly classConcurrency?: number;
 }
 

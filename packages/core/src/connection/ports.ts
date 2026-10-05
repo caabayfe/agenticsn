@@ -19,6 +19,10 @@ export interface ConnectionStats {
   readonly semaphoreWaitMs: number;
   readonly transactionIds: readonly string[];
   readonly concurrencyLimit: number;
+  // The highest concurrency the adaptive controller allowed during the run.
+  readonly peakConcurrency: number;
+  // Total time spent waiting for responses (requests overlap, so this exceeds wall time).
+  readonly requestMs: number;
 }
 
 // Read access to one instance. Every implementation goes through the request scheduler.

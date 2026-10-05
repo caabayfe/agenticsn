@@ -17,6 +17,8 @@ const STATS: ConnectionStats = {
   semaphoreWaitMs: 0,
   transactionIds: [],
   concurrencyLimit: 2,
+  peakConcurrency: 2,
+  requestMs: 0,
 };
 const TABLE = TableName.parse("sys_metadata");
 

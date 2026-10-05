@@ -1,15 +1,17 @@
 import {
+  type ConnectionStats,
   DEFAULT_REDACTION,
   getInstance,
   InstanceName,
   instancePaths,
   KeysetPager,
+  type PullSummary,
   pullFull,
   resolveSecret,
   SnagenticError,
 } from "@snagentic/core";
 import { z } from "zod";
-import { defineUseCase } from "./use-case";
+import { defineUseCase, type ProgressEvent, type RunControl } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
 class IncrementalNotYetError extends SnagenticError {
@@ -23,7 +25,7 @@ class IncrementalNotYetError extends SnagenticError {
   }
 }
 
-const Summary = z.object({
+const Output = z.object({
   instance: z.string(),
   mode: z.literal("full"),
   resumed: z.boolean(),
@@ -39,7 +41,79 @@ const Summary = z.object({
   retries: z.number(),
   semaphoreWaitMs: z.number(),
   seconds: z.number(),
+  phaseSeconds: z.object({
+    catalog: z.number(),
+    records: z.number(),
+    children: z.number(),
+    operational: z.number(),
+    commit: z.number(),
+  }),
+  peakConcurrency: z.number(),
+  requestSeconds: z.number(),
+  peakMemoryMb: z.number(),
 });
+type Output = z.output<typeof Output>;
+
+const tenths = (milliseconds: number) => Math.round(milliseconds / 100) / 10;
+
+// Resident memory, sampled whenever the pull reports progress (at least once per class).
+function memorySampler(run: RunControl) {
+  let peak = 0;
+  const sample = () => {
+    peak = Math.max(peak, process.memoryUsage().rss);
+  };
+  const progress = (event: ProgressEvent) => {
+    sample();
+    run.progress(event);
+  };
+  return { sample, progress, peakMb: () => Math.round(peak / 1024 / 1024) };
+}
+
+interface Timings {
+  readonly started: number;
+  readonly committing: number;
+}
+
+function report(
+  name: string,
+  resumed: boolean,
+  commit: string,
+  summary: PullSummary,
+  stats: ConnectionStats,
+  timings: Timings,
+  peakMemoryMb: number,
+): Output {
+  const now = performance.now();
+  return {
+    instance: name,
+    mode: "full",
+    resumed,
+    commit,
+    ...summary,
+    unreadable: [...summary.unreadable],
+    requests: stats.requests,
+    retries: stats.retries,
+    semaphoreWaitMs: stats.semaphoreWaitMs,
+    seconds: tenths(now - timings.started),
+    phaseSeconds: { ...summary.phaseSeconds, commit: tenths(now - timings.committing) },
+    peakConcurrency: stats.peakConcurrency,
+    requestSeconds: tenths(stats.requestMs),
+    peakMemoryMb,
+  };
+}
+
+function render(output: Output): string {
+  const unreadable = output.unreadable.length === 0 ? "none" : output.unreadable.join(", ");
+  const phases = output.phaseSeconds;
+  return [
+    `pulled ${output.instance}${output.resumed ? " (resumed)" : ""} in ${output.seconds} s -> ${output.commit.slice(0, 10)} on servicenow-remote/${output.instance}`,
+    `  ${output.records} records in ${output.classes} classes, ${output.childRows} child rows, ${output.operationalRows} inventory rows, ${output.skippedRows} skipped`,
+    `  instance load: ${output.requests} requests, ${output.retries} retries, semaphore wait ${output.semaphoreWaitMs} ms, peak concurrency ${output.peakConcurrency}`,
+    `  time: catalog ${phases.catalog} s, records ${phases.records} s, child rows ${phases.children} s, inventory ${phases.operational} s, commit ${phases.commit} s; ${output.requestSeconds} s in requests; peak memory ${output.peakMemoryMb} MB`,
+    `  not readable by this user: ${unreadable}`,
+    `next: snagentic integrate ${output.instance}`,
+  ].join("\n");
+}
 
 export const pull = defineUseCase({
   name: "pull",
@@ -50,7 +124,7 @@ export const pull = defineUseCase({
     instance: z.string(),
     full: z.boolean().default(false).describe("pull everything again"),
   }),
-  output: Summary,
+  output: Output,
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
   arguments: ["instance"],
@@ -70,50 +144,37 @@ export const pull = defineUseCase({
     );
     const mirror = await context.mirrors.open(root, name, resumed);
     const paths = instancePaths(name);
+    const memory = memorySampler(run);
+    const deps = {
+      pager: new KeysetPager(reader),
+      records: mirror,
+      state,
+      metadataRoot: paths.metadata,
+      operationalRoot: paths.operational,
+      policy: DEFAULT_REDACTION,
+      now: context.clock,
+    };
     try {
-      const summary = await pullFull(
-        {
-          pager: new KeysetPager(reader),
-          records: mirror,
-          state,
-          metadataRoot: paths.metadata,
-          operationalRoot: paths.operational,
-          policy: DEFAULT_REDACTION,
-          now: context.clock,
-        },
-        run.signal,
-        run.progress,
-      );
+      const summary = await pullFull(deps, run.signal, memory.progress);
+      const committing = performance.now();
       const commit = await mirror.finish(
         `snagentic pull ${name}: full (${summary.records} records, ${summary.childRows} child rows)`,
       );
-      const stats = reader.stats();
-      return {
-        instance: name,
-        mode: "full" as const,
+      memory.sample();
+      return report(
+        name,
         resumed,
         commit,
-        ...summary,
-        unreadable: [...summary.unreadable],
-        requests: stats.requests,
-        retries: stats.retries,
-        semaphoreWaitMs: stats.semaphoreWaitMs,
-        seconds: Math.round((performance.now() - started) / 100) / 10,
-      };
+        summary,
+        reader.stats(),
+        { started, committing },
+        memory.peakMb(),
+      );
     } catch (error) {
       await mirror.abort();
       throw error;
     }
   },
-  render(output) {
-    const unreadable = output.unreadable.length === 0 ? "none" : output.unreadable.join(", ");
-    return [
-      `pulled ${output.instance}${output.resumed ? " (resumed)" : ""} in ${output.seconds} s -> ${output.commit.slice(0, 10)} on servicenow-remote/${output.instance}`,
-      `  ${output.records} records in ${output.classes} classes, ${output.childRows} child rows, ${output.operationalRows} inventory rows, ${output.skippedRows} skipped`,
-      `  instance load: ${output.requests} requests, ${output.retries} retries, semaphore wait ${output.semaphoreWaitMs} ms`,
-      `  not readable by this user: ${unreadable}`,
-      `next: snagentic integrate ${output.instance}`,
-    ].join("\n");
-  },
+  render,
   exitCode: () => 0,
 });

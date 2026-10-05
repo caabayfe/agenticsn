@@ -34,6 +34,8 @@ export class RequestScheduler {
   private requests = 0;
   private retries = 0;
   private semaphoreWaitMs = 0;
+  private requestMs = 0;
+  private peakConcurrency: number;
   private readonly transactionIds: string[] = [];
 
   constructor(
@@ -43,6 +45,7 @@ export class RequestScheduler {
     this.controller = settings.controller ?? new ConcurrencyController();
     this.clock = settings.clock ?? SYSTEM_CLOCK;
     this.slots = new SlotQueue(() => this.controller.limit);
+    this.peakConcurrency = this.controller.limit;
   }
 
   async send(request: HttpRequest, signal: AbortSignal): Promise<HttpResponse> {
@@ -76,6 +79,8 @@ export class RequestScheduler {
       semaphoreWaitMs: this.semaphoreWaitMs,
       transactionIds: [...this.transactionIds],
       concurrencyLimit: this.controller.limit,
+      peakConcurrency: this.peakConcurrency,
+      requestMs: Math.round(this.requestMs),
     };
   }
 
@@ -90,9 +95,14 @@ export class RequestScheduler {
         throw new OperationCancelledError();
       }
       this.requests += 1;
-      const response = await this.transport(request, signal);
-      this.record(response);
-      return { response };
+      const started = this.clock.now();
+      try {
+        const response = await this.transport(request, signal);
+        this.record(response);
+        return { response };
+      } finally {
+        this.requestMs += this.clock.now() - started;
+      }
     } catch (error) {
       if (signal.aborted) {
         throw new OperationCancelledError();
@@ -112,6 +122,7 @@ export class RequestScheduler {
       this.transactionIds.push(transactionId);
     }
     this.controller.observe({ status: response.status, semaphoreWaitMs });
+    this.peakConcurrency = Math.max(this.peakConcurrency, this.controller.limit);
   }
 
   private outcomeOf(result: Attempt): RequestOutcome {

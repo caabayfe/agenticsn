@@ -149,3 +149,32 @@ many rows per second, and changes data while paging:
 - **Consequence:** the sync never assumes it saw everything. The coverage report compares
   listed rows with aggregate counts per scope and names unreadable scopes explicitly
   (milestone M4).
+
+## Appendix: incremental change detection, measured (M4, 2026-10-05)
+
+Measurements and one controlled experiment on the PDI changed the fast-feed design.
+
+| Finding | Evidence |
+|---|---|
+| A layout change touches neither the parent record nor update sets | Inserting a form field (`sys_ui_element`) into Incident's default section through the Table API left the section's `sys_updated_on` and `sys_mod_count` unchanged and created no `sys_update_xml` entry (row removed afterwards) |
+| One aggregate request per table returns count and latest update time | `sys_metadata`: 655,259 rows, 1.6 s; child tables 0.5–0.8 s each |
+| Per-class aggregates across the `sys_metadata` hierarchy are denied | `group_by=sys_class_name` on `sys_metadata` returns "insufficient rights"; ungrouped counts and filtered counts are allowed |
+| Deletions are recorded directly | `sys_metadata_delete` holds the deleted record's id (`sys_metadata`) and class (`sys_db_object`) |
+| Ordered change feed on `sys_metadata` | 2.7–2.9 s per page, including an empty one |
+
+**Decision: fingerprints first.**
+
+1. Every incremental pull reads one fingerprint (count and latest `sys_updated_on`) for
+   `sys_metadata` and for each child table: **15 aggregate requests**. If all equal the last
+   pull's fingerprints, nothing changed and the pull ends.
+2. A changed `sys_metadata` fingerprint triggers its change feed (since the watermark minus
+   the overlap) and the `sys_metadata_delete` feed; only changed records are downloaded.
+3. A changed child-table fingerprint triggers that table's change feed; affected owners have
+   their child rows re-read. A lower count means rows were deleted, so the table is re-listed.
+4. Known blind spot: a change written with system fields disabled (no new `sys_updated_on`)
+   and without a count change is invisible to fingerprints; `pull --full` remains the safety
+   net.
+
+ASR-16 is revised from "at most 5 requests" (set before these measurements, and unable to see
+layout changes) to **one aggregate request per change source (15 on the PDI) and under 10 s
+when nothing changed**.

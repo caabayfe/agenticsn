@@ -1,6 +1,6 @@
 # 0014. Synced data lives in a workspace with a standard layout
 
-- Status: Accepted
+- Status: Accepted (amended by 0017)
 - Date: 2026-10-05
 - Requirements: ASR-01, ASR-06, ASR-08, ASR-13
 - Amends: 0007 (paths become relative to a workspace root)

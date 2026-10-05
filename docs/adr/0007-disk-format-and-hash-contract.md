@@ -1,6 +1,6 @@
 # 0007. Keep the v1 disk format, mirror branch and hash contract
 
-- Status: Accepted (amended by 0014, 0015)
+- Status: Accepted (amended by 0014, 0015, 0017)
 - Date: 2026-10-05
 - Requirements: ASR-01, ASR-02, ASR-07, ASR-13
 

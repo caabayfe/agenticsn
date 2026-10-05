@@ -5,6 +5,8 @@ import { init } from "./init";
 import { instanceAdd } from "./instance-add";
 import { instanceList } from "./instance-list";
 import { instanceRemove } from "./instance-remove";
+import { integrate } from "./integrate";
+import { pull } from "./pull";
 import type { UseCase } from "./use-case";
 
 // Every operation snagentic offers. Adding one here adds its CLI command and, when marked
@@ -16,5 +18,7 @@ export const USE_CASES: readonly UseCase[] = [
   instanceRemove,
   authLogin,
   authLogout,
+  pull,
+  integrate,
   doctor,
 ];

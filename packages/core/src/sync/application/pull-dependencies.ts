@@ -1,6 +1,5 @@
 import type { RedactionPolicy } from "../../metadata/domain/redaction";
-import type { RecordStore } from "../../metadata/ports";
-import type { SyncStateStore } from "../ports";
+import type { MirrorWriter, SyncStateStore } from "../ports";
 import type { KeysetPager } from "./keyset-pager";
 
 export interface PullProgress {
@@ -11,9 +10,9 @@ export interface PullProgress {
 
 export interface PullDependencies {
   readonly pager: KeysetPager;
-  readonly records: RecordStore;
+  readonly records: MirrorWriter;
   readonly state: SyncStateStore;
-  // The mirror's metadata folder and operational folder.
+  // Prefixes inside the mirror: instances/<name>/metadata and instances/<name>/operational.
   readonly metadataRoot: string;
   readonly operationalRoot: string;
   readonly policy: RedactionPolicy;

@@ -1,9 +1,13 @@
 // Composition root: the only place where adapters are wired to use cases.
 import { homedir } from "node:os";
+import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { instancePaths } from "@snagentic/core";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
+import { gitIntegrator } from "./adapters/git/git-integrator";
+import { GitMirror } from "./adapters/git/git-mirror";
 import { gitProbe } from "./adapters/git-probe";
 import { keychainProbe } from "./adapters/keychain-probe";
 import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
@@ -11,6 +15,7 @@ import { searchIndexProbe } from "./adapters/search-index-probe";
 import { fetchTransport } from "./adapters/servicenow/fetch-transport";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
+import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
 import { FsWorkspaceStore } from "./adapters/workspace/fs-workspace-store";
 import { runCli } from "./cli/run-cli";
@@ -42,6 +47,11 @@ const context: UseCaseContext = {
     open: (profile, secret) =>
       new ServiceNowClient(profile, secret, new RequestScheduler(fetchTransport()), versionLine()),
   },
+  syncState: (root, instance) =>
+    new JsonSyncStateStore(join(root, instancePaths(instance).localState)),
+  mirrors: { open: (root, instance, resume) => GitMirror.open(root, instance, resume) },
+  integrator: gitIntegrator,
+  clock: () => new Date(),
   host: {
     cwd: process.cwd(),
     home: homedir(),

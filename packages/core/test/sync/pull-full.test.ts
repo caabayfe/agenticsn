@@ -5,12 +5,11 @@ import {
   DEFAULT_REDACTION,
   type InstanceReader,
   KeysetPager,
+  type MirrorWriter,
   type PullCheckpoint,
   pullFull,
-  type RecordStore,
   type RenderedRecord,
   type Row,
-  type StoredRecord,
   type SyncState,
   type SyncStateStore,
   type TableQuery,
@@ -95,27 +94,28 @@ function instance(extra: Record<string, Row[]> = {}, denied: string[] = []) {
   return { reader, queries };
 }
 
-function memoryRecords() {
+// Both fakes append to one timeline, so tests can check the order of durable steps.
+function memoryRecords(timeline: string[] = []) {
   const written = new Map<string, RenderedRecord>();
   const documents = new Map<string, unknown>();
-  const store: RecordStore = {
+  const store: MirrorWriter = {
     write: async (_root, rendered) => {
       written.set(rendered.base, rendered);
     },
     writeDocument: async (root, path, document) => {
       documents.set(`${root}|${path}`, document);
     },
-    remove: async () => {},
-    read: async () => null,
-    list: async function* (): AsyncGenerator<StoredRecord> {},
     bases: async function* () {
       yield* written.keys();
+    },
+    checkpoint: async () => {
+      timeline.push("mirror");
     },
   };
   return { store, written, documents };
 }
 
-function memoryState(checkpoint: PullCheckpoint | null = null) {
+function memoryState(checkpoint: PullCheckpoint | null = null, timeline: string[] = []) {
   const saved: { state: SyncState | null; checkpoint: PullCheckpoint | null; catalog: unknown } = {
     state: null,
     checkpoint,
@@ -129,6 +129,7 @@ function memoryState(checkpoint: PullCheckpoint | null = null) {
     readCheckpoint: async () => saved.checkpoint,
     writeCheckpoint: async (value) => {
       saved.checkpoint = value;
+      timeline.push(`state:${value.completedClasses.length}`);
     },
     clearCheckpoint: async () => {
       saved.checkpoint = null;
@@ -227,6 +228,21 @@ describe("pullFull", () => {
     const summary = await run(instance({}, ["wf_activity", "sys_store_app"]).reader).result;
     expect(summary.unreadable).toEqual(["wf_activity", "sys_store_app"]);
     expect(summary.operationalRows).toBe(2);
+  });
+
+  it("makes the mirror durable before recording each class as done", async () => {
+    const timeline: string[] = [];
+    await run(instance().reader, memoryState(null, timeline), memoryRecords(timeline)).result;
+    // Initial checkpoint, then for each of the 3 classes: mirror first, then state.
+    expect(timeline).toEqual([
+      "state:0",
+      "mirror",
+      "state:1",
+      "mirror",
+      "state:2",
+      "mirror",
+      "state:3",
+    ]);
   });
 
   it("stores the catalog for later incremental pulls", async () => {

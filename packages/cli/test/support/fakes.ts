@@ -54,6 +54,16 @@ export const FAKE_CONTEXT: UseCaseContext = {
       throw new Error("tests that need an instance provide their own connections");
     },
   },
+  syncState: () => {
+    throw new Error("tests that pull provide their own sync state");
+  },
+  mirrors: {
+    open: async () => {
+      throw new Error("tests that pull provide their own mirror");
+    },
+  },
+  integrator: { integrate: async () => ({ commit: null, changedFiles: 0 }) },
+  clock: () => new Date("2026-10-05T12:00:00Z"),
   host: { cwd: "/work", home: "/home/me", version: "snagentic test" },
 };
 

@@ -3,9 +3,13 @@
 import type {
   CredentialStore,
   EnvironmentProbe,
+  InstanceName,
   InstanceProfile,
   InstanceReader,
+  MirrorIntegrator,
+  MirrorSession,
   ProfileStore,
+  SyncStateStore,
   WorkspaceStore,
 } from "@snagentic/core";
 import type { z } from "zod";
@@ -41,6 +45,13 @@ export interface UseCaseContext {
   readonly credentials: CredentialStore;
   readonly secrets: SecretReader;
   readonly connections: ConnectionFactory;
+  // Per-instance local sync state (.snagentic/<name>/) and the git mirror of a workspace.
+  readonly syncState: (root: string, instance: InstanceName) => SyncStateStore;
+  readonly mirrors: {
+    open(root: string, instance: InstanceName, resume: boolean): Promise<MirrorSession>;
+  };
+  readonly integrator: MirrorIntegrator;
+  readonly clock: () => Date;
   readonly host: HostEnvironment;
 }
 

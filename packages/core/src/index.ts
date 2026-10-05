@@ -136,7 +136,15 @@ export {
   type OperationalTable,
   ownerOfBase,
 } from "./sync/domain/pull-scope";
-export type { PullCheckpoint, SyncState, SyncStateStore } from "./sync/ports";
+export type {
+  IntegrationResult,
+  MirrorIntegrator,
+  MirrorSession,
+  MirrorWriter,
+  PullCheckpoint,
+  SyncState,
+  SyncStateStore,
+} from "./sync/ports";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";

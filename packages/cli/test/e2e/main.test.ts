@@ -38,7 +38,7 @@ describe("snagentic entry point (real adapters)", () => {
     await client.connect(new StdioClientTransport({ command: "bun", args: [MAIN, "mcp"] }));
     try {
       const { tools } = await client.listTools();
-      expect(tools.map((tool) => tool.name)).toEqual(["doctor"]);
+      expect(tools.map((tool) => tool.name).sort()).toEqual(["doctor", "pull"]);
       const result = await client.callTool({ name: "doctor", arguments: {} });
       expect(result.structuredContent).toHaveProperty("checks");
     } finally {

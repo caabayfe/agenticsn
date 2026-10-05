@@ -70,6 +70,8 @@ export async function pullRecords(
       unreadable.push(table);
     }
     completed.push(table);
+    // Git first: the checkpoint must never claim a class the mirror does not hold yet.
+    await deps.records.checkpoint();
     await deps.state.writeCheckpoint({ ...checkpoint, completedClasses: completed, records });
     progress({ message: `records: ${table}`, completed: completed.length, total: classes.length });
   });

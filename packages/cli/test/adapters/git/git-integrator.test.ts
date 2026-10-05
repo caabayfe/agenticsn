@@ -37,7 +37,7 @@ async function workspace(): Promise<string> {
 }
 
 async function pullScript(root: string, script: string): Promise<void> {
-  const mirror = await GitMirror.open(root, PDI, false);
+  const mirror = await GitMirror.open(root, PDI, "fresh");
   const row = {
     sys_id: "00000000000000000000000000000001",
     sys_class_name: "sys_script",

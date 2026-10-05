@@ -18,8 +18,10 @@ export function classesToPull(catalog: Catalog): string[] {
 
 export interface ChildTable {
   readonly table: string;
-  // References the owning record, or a row of a child table listed earlier.
+  // References the owning record, or a row of `parentTable`.
   readonly parentField: string;
+  // Set when the parent is another child table, listed earlier.
+  readonly parentTable?: string;
 }
 
 const FLOW_CHILDREN = [
@@ -42,12 +44,28 @@ export const CHILD_TABLES: readonly ChildTable[] = [
   { table: "sys_ui_related_list_entry", parentField: "list_id" },
   { table: "sys_ui_form_section", parentField: "sys_ui_form" },
   { table: "wf_workflow_version", parentField: "workflow" },
-  { table: "wf_stage", parentField: "workflow_version" },
-  { table: "wf_activity", parentField: "workflow_version" },
-  { table: "wf_condition", parentField: "activity" },
-  { table: "wf_transition", parentField: "from" },
+  { table: "wf_stage", parentField: "workflow_version", parentTable: "wf_workflow_version" },
+  { table: "wf_activity", parentField: "workflow_version", parentTable: "wf_workflow_version" },
+  { table: "wf_condition", parentField: "activity", parentTable: "wf_activity" },
+  { table: "wf_transition", parentField: "from", parentTable: "wf_activity" },
   { table: "sys_variable_value", parentField: "document_key" },
 ];
+
+function rootOf(child: ChildTable): string {
+  const parent = CHILD_TABLES.find((other) => other.table === child.parentTable);
+  return parent === undefined ? child.table : rootOf(parent);
+}
+
+// A child table together with the tables nested under it: nested rows find their owner only
+// through their parent rows, so the family is listed together.
+export function childFamily(table: string): ChildTable[] {
+  const child = CHILD_TABLES.find((candidate) => candidate.table === table);
+  if (child === undefined) {
+    return [];
+  }
+  const root = rootOf(child);
+  return CHILD_TABLES.filter((candidate) => rootOf(candidate) === root);
+}
 
 export interface OperationalTable {
   readonly table: string;

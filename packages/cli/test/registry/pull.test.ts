@@ -2,13 +2,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  createProfile,
-  InstanceName,
-  type InstanceReader,
-  instancePaths,
-  type Row,
-} from "@snagentic/core";
+import { createProfile, InstanceName, instancePaths, type Row } from "@snagentic/core";
+import { fakeInstance } from "../../../core/test/support/fake-instance";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
@@ -46,29 +41,8 @@ const DATA: Record<string, Row[]> = {
   ],
 };
 
-function fakeInstance(): InstanceReader {
-  return {
-    query: async (query) => {
-      const after = /sys_id>([^^]+)/.exec(query.query)?.[1] ?? "";
-      const cls = /sys_class_name=([^^]+)/.exec(query.query)?.[1];
-      return (DATA[query.table] ?? []).filter(
-        (row) =>
-          (cls === undefined || row["sys_class_name"] === cls) && (row["sys_id"] ?? "") > after,
-      );
-    },
-    stats: () => ({
-      requests: 7,
-      retries: 0,
-      semaphoreWaitMs: 3,
-      transactionIds: [],
-      concurrencyLimit: 2,
-      peakConcurrency: 2,
-      requestMs: 0,
-    }),
-  };
-}
-
-async function setup(): Promise<{ root: string; context: UseCaseContext }> {
+async function setup(data: Record<string, Row[]> = structuredClone(DATA)) {
+  const instance = fakeInstance(data);
   const base = await mkdtemp(join(tmpdir(), "snagentic-pull-"));
   temporary.push(base);
   const root = join(base, "w");
@@ -89,13 +63,13 @@ async function setup(): Promise<{ root: string; context: UseCaseContext }> {
     workspaces: new FsWorkspaceStore(),
     profiles,
     credentials: { read: async () => "pw", write: async () => {}, remove: async () => false },
-    connections: { open: () => fakeInstance() },
+    connections: { open: () => instance.reader },
     syncState: (r, instance) => new JsonSyncStateStore(join(r, instancePaths(instance).localState)),
-    mirrors: { open: (r, instance, resume) => GitMirror.open(r, instance, resume) },
+    mirrors: { open: (r, instance, mode) => GitMirror.open(r, instance, mode) },
     integrator: gitIntegrator,
     host: { cwd: root, home: base, version: "test" },
   };
-  return { root, context };
+  return { root, context, instance };
 }
 
 describe("pull and integrate", () => {
@@ -107,8 +81,6 @@ describe("pull and integrate", () => {
       mode: "full",
       resumed: false,
       records: 1,
-      requests: 7,
-      semaphoreWaitMs: 3,
       watermark: "2026-10-05 12:00:00",
     });
     expect(
@@ -119,14 +91,25 @@ describe("pull and integrate", () => {
     expect(integrated.output["changedFiles"]).toBe(6);
   });
 
-  it("asks for --full on a second pull until incremental pulls exist", async () => {
-    const { context } = await setup();
+  it("pulls only what changed after the first pull, and reports when nothing did", async () => {
+    const { root, context, instance } = await setup();
     await executeUseCase(pull, { instance: "pdi" }, context);
-    await expect(executeUseCase(pull, { instance: "pdi" }, context)).rejects.toMatchObject({
-      code: "incremental-not-available",
-    });
+    const idle = await executeUseCase(pull, { instance: "pdi" }, context);
+    expect(idle.output).toMatchObject({ mode: "incremental", changed: false, records: 0 });
+    const rule = instance.tables["sys_script"]?.[0];
+    Object.assign(rule ?? {}, { script: "changed();", sys_updated_on: "2026-10-05 12:30:00" });
+    const changed = await executeUseCase(pull, { instance: "pdi" }, context);
+    expect(changed.output).toMatchObject({ mode: "incremental", changed: true, records: 1 });
+    const script = await runGitOrThrow(
+      [
+        "show",
+        `servicenow-remote/pdi:${instancePaths(InstanceName.parse("pdi")).metadata}/global/sys_script/rule--00000000000000000000000000000001.script.js`,
+      ],
+      root,
+    );
+    expect(script).toBe("changed();\n");
     const again = await executeUseCase(pull, { instance: "pdi", full: true }, context);
-    expect(again.output["records"]).toBe(1);
+    expect(again.output).toMatchObject({ mode: "full", records: 1 });
   });
 
   it("renders the summary with the instance load and the next step", () => {
@@ -136,18 +119,21 @@ describe("pull and integrate", () => {
         mode: "full",
         resumed: true,
         commit: "abcdef1234567",
-        classes: 3,
+        changed: true,
         records: 10,
-        childRows: 2,
-        operationalRows: 4,
-        skippedRows: 0,
+        full: {
+          classes: 3,
+          childRows: 2,
+          operationalRows: 4,
+          skippedRows: 0,
+          phaseSeconds: { catalog: 0.1, records: 1, children: 0.2, operational: 0.1, commit: 0.1 },
+        },
         unreadable: ["sys_x"],
         watermark: "w",
         requests: 9,
         retries: 1,
         semaphoreWaitMs: 5,
         seconds: 1.5,
-        phaseSeconds: { catalog: 0.1, records: 1, children: 0.2, operational: 0.1, commit: 0.1 },
         peakConcurrency: 3,
         requestSeconds: 2.4,
         peakMemoryMb: 120,
@@ -162,8 +148,53 @@ describe("pull and integrate", () => {
       "time: catalog 0.1 s, records 1 s, child rows 0.2 s, inventory 0.1 s, commit 0.1 s; 2.4 s in requests; peak memory 120 MB",
     );
     expect(text).toContain("not readable by this user: sys_x");
+    expect(text).toContain("next: snagentic integrate pdi");
     expect(integrate.render({ instance: "pdi", commit: null, changedFiles: 0 }, "text")).toBe(
       "pdi: already up to date",
     );
+  });
+
+  it("renders an incremental pull's changes, or that the instance is up to date", () => {
+    const base = {
+      instance: "pdi",
+      mode: "incremental" as const,
+      resumed: false,
+      commit: "abcdef1234567",
+      records: 2,
+      unreadable: [],
+      watermark: "w",
+      requests: 24,
+      retries: 0,
+      semaphoreWaitMs: 0,
+      seconds: 3.2,
+      peakConcurrency: 4,
+      requestSeconds: 9,
+      peakMemoryMb: 80,
+    };
+    const incremental = {
+      changedSources: ["sys_metadata", "sys_ui_element"],
+      catalogRefreshed: false,
+      renamed: 1,
+      deleted: 1,
+      skippedRows: 0,
+      childFiles: 3,
+      removedChildFiles: 0,
+      lostRecords: 0,
+    };
+    const changed = pull.render({ ...base, changed: true, incremental }, "text");
+    expect(changed).toContain("pulled pdi changes in 3.2 s -> abcdef1234");
+    expect(changed).toContain("records: 2 written, 1 renamed, 1 deleted, 0 skipped");
+    expect(changed).toContain("child rows: 3 files refreshed, 0 removed");
+    expect(changed).toContain("next: snagentic integrate pdi");
+    const idle = pull.render({ ...base, changed: false, incremental }, "text");
+    expect(idle).toStartWith("pdi is up to date (3.2 s)");
+    expect(idle).not.toContain("next:");
+    const lost = pull.render(
+      { ...base, changed: false, incremental: { ...incremental, lostRecords: 2 } },
+      "text",
+    );
+    expect(lost).toStartWith("pdi has no new changes to mirror");
+    expect(lost).toContain("warning: 2 records left the instance without a deletion record");
+    expect(lost).toContain("snagentic pull pdi --full");
   });
 });

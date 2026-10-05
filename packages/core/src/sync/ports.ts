@@ -1,17 +1,25 @@
 import type { CatalogData } from "../metadata/domain/catalog";
 import type { RenderedRecord } from "../metadata/domain/record-layout";
+import type { TableFingerprint } from "./domain/fingerprint";
+
+// Fingerprints of the change sources a pull has mirrored, by table.
+export type Fingerprints = Readonly<Record<string, TableFingerprint>>;
 
 export interface PullCheckpoint {
   // Raw UTC timestamp at which the interrupted full pull started (its future watermark).
   readonly startedAt: string;
   readonly completedClasses: readonly string[];
   readonly records: number;
+  // Taken when the pull started, so changes made while it ran are seen by the next pull.
+  readonly fingerprints?: Fingerprints;
 }
 
 export interface SyncState {
   // Changes at or after this raw UTC timestamp (minus the overlap) are not yet mirrored.
   readonly watermark: string;
   readonly lastFullPull: string;
+  // Absent sources (older state, unreadable tables) count as changed.
+  readonly fingerprints?: Fingerprints;
 }
 
 // Local, per-instance sync state (.snagentic/<name>/, never committed).
@@ -36,11 +44,41 @@ export interface MirrorWriter {
   checkpoint(): Promise<void>;
 }
 
+export interface FinishedPull {
+  // The tip of the instance's remote branch.
+  readonly commit: string;
+  // False when the pull changed nothing and the branch stayed where it was.
+  readonly created: boolean;
+}
+
 export interface MirrorSession extends MirrorWriter {
-  // Commits the finished pull to the instance's remote branch and returns the commit id.
-  finish(message: string): Promise<string>;
+  // Commits the finished pull to the instance's remote branch.
+  finish(message: string): Promise<FinishedPull>;
   // Stops writing; durable progress is kept for a resumed pull.
   abort(): Promise<void>;
+}
+
+// Where a mirror session starts: an empty tree, an interrupted pull's progress, or the
+// instance's remote branch.
+export type MirrorMode = "fresh" | "resume" | "incremental";
+
+// The mirrored tree an incremental pull starts from, kept current as the pull changes it.
+// Paths and bases are relative to `root`.
+export interface MirrorTree {
+  // Base of the mirrored record with this sys_id.
+  baseOf(root: string, sysId: string): string | undefined;
+  // Every file of a record: its YAML, field files and child-row files.
+  filesOf(root: string, base: string): readonly string[];
+  // Record base -> number of child rows of `table` mirrored for it, including changes made
+  // earlier in this pull.
+  countChildRows(root: string, table: string): Promise<ReadonlyMap<string, number>>;
+}
+
+export interface IncrementalMirror extends MirrorSession, MirrorTree {
+  // Reads the mirrored tree; an incremental pull calls it only once something changed.
+  prepare(): Promise<void>;
+  remove(root: string, path: string): Promise<void>;
+  move(root: string, from: string, to: string): Promise<void>;
 }
 
 export interface IntegrationResult {

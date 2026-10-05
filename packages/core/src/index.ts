@@ -19,7 +19,13 @@ export {
   retryDecision,
 } from "./connection/domain/retry-policy";
 export { parseServerTiming } from "./connection/domain/server-timing";
-export type { ConnectionStats, InstanceReader, Row, TableQuery } from "./connection/ports";
+export type {
+  ConnectionStats,
+  InstanceReader,
+  Row,
+  TableQuery,
+  TableStatistics,
+} from "./connection/ports";
 export { runDoctor } from "./environment/application/run-doctor";
 export { runInstanceChecks } from "./environment/application/run-instance-checks";
 export {
@@ -104,6 +110,8 @@ export {
 export type { RecordStore, StoredRecord } from "./metadata/ports";
 export { forEachConcurrently } from "./sync/application/concurrently";
 export { type CatalogProgress, fetchCatalog } from "./sync/application/fetch-catalog";
+export { type FingerprintOutcome, fetchFingerprints } from "./sync/application/fetch-fingerprints";
+export type { IncrementalDependencies } from "./sync/application/incremental-dependencies";
 export {
   type KeysetListing,
   KeysetPager,
@@ -114,8 +122,20 @@ export {
   type PullProgress,
   rawTimestamp,
 } from "./sync/application/pull-dependencies";
-export { type PullSummary, pullFull } from "./sync/application/pull-full";
+export { completePull, type PullSummary, pullFull } from "./sync/application/pull-full";
+export {
+  FullPullRequiredError,
+  type IncrementalSummary,
+  pullIncremental,
+} from "./sync/application/pull-incremental";
 export { PaginationStalledError } from "./sync/domain/errors";
+export {
+  changesSince,
+  compareFingerprint,
+  FINGERPRINT_SOURCES,
+  type FingerprintChange,
+  type TableFingerprint,
+} from "./sync/domain/fingerprint";
 export {
   type Cursor,
   cursorOf,
@@ -131,16 +151,29 @@ export {
   attachChildren,
   CHILD_TABLES,
   type ChildTable,
+  childFamily,
   childGrouper,
   classesToPull,
   OPERATIONAL_TABLES,
   type OperationalTable,
   ownerOfBase,
 } from "./sync/domain/pull-scope";
+export {
+  chunks,
+  isChildRowFile,
+  needsNewCatalog,
+  type RecordChanges,
+  unexplainedLoss,
+} from "./sync/domain/record-changes";
 export type {
+  Fingerprints,
+  FinishedPull,
+  IncrementalMirror,
   IntegrationResult,
   MirrorIntegrator,
+  MirrorMode,
   MirrorSession,
+  MirrorTree,
   MirrorWriter,
   PullCheckpoint,
   SyncState,

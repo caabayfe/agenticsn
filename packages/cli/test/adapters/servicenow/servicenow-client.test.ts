@@ -134,3 +134,88 @@ describe("ServiceNowClient", () => {
     await expect(client.query(QUERY, LIVE)).rejects.toMatchObject({ code: "instance-error" });
   });
 });
+
+describe("ServiceNowClient.fingerprint", () => {
+  const TABLE = TableName.parse("sys_metadata");
+
+  it("asks the aggregate API for the row count and the latest raw update", async () => {
+    const { client, sent } = clientWith(async () =>
+      response(
+        200,
+        '{"result":{"stats":{"max":{"sys_updated_on":"2026-10-05 17:30:04"},"count":"655259"}}}',
+      ),
+    );
+    expect(await client.fingerprint(TABLE, LIVE)).toEqual({
+      count: 655259,
+      maxUpdatedOn: "2026-10-05 17:30:04",
+    });
+    const url = new URL(sent[0]?.url ?? "");
+    expect(url.pathname).toBe("/api/now/stats/sys_metadata");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      sysparm_count: "true",
+      sysparm_max_fields: "sys_updated_on",
+    });
+  });
+
+  it("reads an empty table as no latest update", async () => {
+    const { client } = clientWith(async () =>
+      response(200, '{"result":{"stats":{"max":{"sys_updated_on":""},"count":"0"}}}'),
+    );
+    expect(await client.fingerprint(TABLE, LIVE)).toEqual({ count: 0, maxUpdatedOn: null });
+  });
+
+  it.each(['{"result":{"stats":{}}}', '{"result":[]}', "<html>hibernating</html>"])(
+    "reports an unexpected answer (%p)",
+    async (body) => {
+      const { client } = clientWith(async () => response(200, body));
+      await expect(client.fingerprint(TABLE, LIVE)).rejects.toMatchObject({
+        code: "instance-error",
+      });
+    },
+  );
+
+  it("reports a table the user may not aggregate as not permitted", async () => {
+    const { client } = clientWith(async () => response(403, '{"error":{"message":"no"}}'));
+    await expect(client.fingerprint(TABLE, LIVE)).rejects.toMatchObject({
+      code: "access-denied",
+    });
+  });
+});
+
+describe("ServiceNowClient.countBy", () => {
+  const TABLE = TableName.parse("sys_ui_element");
+
+  it("asks the aggregate API for a count per owner in one request", async () => {
+    const { client, sent } = clientWith(async () =>
+      response(
+        200,
+        '{"result":[{"stats":{"count":"8"},"groupby_fields":[{"field":"sys_ui_section","value":"s1"}]},' +
+          '{"stats":{"count":"2"},"groupby_fields":[{"field":"sys_ui_section","value":"s2"}]}]}',
+      ),
+    );
+    expect([...(await client.countBy(TABLE, "sys_ui_section", LIVE))]).toEqual([
+      ["s1", 8],
+      ["s2", 2],
+    ]);
+    expect(Object.fromEntries(new URL(sent[0]?.url ?? "").searchParams)).toEqual({
+      sysparm_count: "true",
+      sysparm_group_by: "sys_ui_section",
+    });
+  });
+
+  it("reads an empty table as no owners", async () => {
+    const { client } = clientWith(async () => response(200, '{"result":[]}'));
+    expect((await client.countBy(TABLE, "sys_ui_section", LIVE)).size).toBe(0);
+  });
+
+  it.each([
+    '{"result":{"stats":{"count":"1"}}}',
+    '{"result":[{"stats":{"count":"x"},"groupby_fields":[{"field":"sys_ui_section","value":"s1"}]}]}',
+    '{"result":[{"stats":{"count":"1"},"groupby_fields":[]}]}',
+  ])("reports an unexpected answer (%p)", async (body) => {
+    const { client } = clientWith(async () => response(200, body));
+    await expect(client.countBy(TABLE, "sys_ui_section", LIVE)).rejects.toMatchObject({
+      code: "instance-error",
+    });
+  });
+});

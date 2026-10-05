@@ -49,7 +49,7 @@ const context: UseCaseContext = {
   },
   syncState: (root, instance) =>
     new JsonSyncStateStore(join(root, instancePaths(instance).localState)),
-  mirrors: { open: (root, instance, resume) => GitMirror.open(root, instance, resume) },
+  mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
   integrator: gitIntegrator,
   clock: () => new Date(),
   host: {

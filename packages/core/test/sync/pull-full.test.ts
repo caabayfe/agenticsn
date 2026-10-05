@@ -2,7 +2,9 @@ import { describe, expect, it } from "bun:test";
 import {
   AccessDeniedError,
   type ConnectionStats,
+  completePull,
   DEFAULT_REDACTION,
+  FINGERPRINT_SOURCES,
   type InstanceReader,
   KeysetPager,
   type MirrorWriter,
@@ -147,6 +149,10 @@ function memoryState(checkpoint: PullCheckpoint | null = null, timeline: string[
 function run(reader: InstanceReader, state = memoryState(), records = memoryRecords()) {
   const deps = {
     pager: new KeysetPager(reader),
+    statistics: {
+      fingerprint: async () => ({ count: 1, maxUpdatedOn: "2026-10-05 11:00:00" }),
+      countBy: async () => new Map(),
+    },
     records: records.store,
     state: state.store,
     metadataRoot: "meta",
@@ -200,11 +206,22 @@ describe("pullFull", () => {
     const summary = await run(reader, state).result;
     expect(queries.some((query) => query.table === "sys_script")).toBe(false);
     expect(summary).toMatchObject({ resumedClasses: 1, watermark: "2026-10-05 11:00:00" });
-    expect(state.saved.checkpoint).toBeNull();
-    expect(state.saved.state).toEqual({
+    // The checkpoint stands until the caller has committed the mirror.
+    expect(state.saved.checkpoint).not.toBeNull();
+    expect(state.saved.state).toBeNull();
+    // A checkpoint from before fingerprints existed: the next pull treats everything as changed.
+    expect(summary.next).toEqual({
       watermark: "2026-10-05 11:00:00",
       lastFullPull: "2026-10-05 11:00:00",
+      fingerprints: {},
     });
+  });
+
+  it("stores the fingerprint of every change source, taken before listing anything", async () => {
+    const { result } = run(instance().reader);
+    const fingerprints = (await result).next.fingerprints ?? {};
+    expect(Object.keys(fingerprints)).toEqual(expect.arrayContaining(FINGERPRINT_SOURCES));
+    expect(fingerprints["sys_metadata"]).toEqual({ count: 1, maxUpdatedOn: "2026-10-05 11:00:00" });
   });
 
   it("attaches nested child rows to their owning record, without secret fields", async () => {
@@ -251,5 +268,18 @@ describe("pullFull", () => {
     const { result, state } = run(instance().reader);
     await result;
     expect(state.saved.catalog).toMatchObject({ parents: { sys_script: "sys_metadata" } });
+  });
+});
+
+describe("completePull", () => {
+  it("stores the reached state and drops the checkpoint", async () => {
+    const state = memoryState({
+      startedAt: "2026-10-05 11:00:00",
+      completedClasses: [],
+      records: 0,
+    });
+    const next = { watermark: "2026-10-05 11:00:00", lastFullPull: "2026-10-05 11:00:00" };
+    await completePull(state.store, next);
+    expect(state.saved).toMatchObject({ state: next, checkpoint: null });
   });
 });

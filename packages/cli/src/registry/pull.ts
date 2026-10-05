@@ -1,60 +1,32 @@
 import {
-  type ConnectionStats,
+  completePull,
   DEFAULT_REDACTION,
+  type FinishedPull,
   getInstance,
+  type IncrementalDependencies,
   InstanceName,
   instancePaths,
   KeysetPager,
-  type PullSummary,
+  type MirrorMode,
   pullFull,
+  pullIncremental,
   resolveSecret,
-  SnagenticError,
 } from "@snagentic/core";
 import { z } from "zod";
-import { defineUseCase, type ProgressEvent, type RunControl } from "./use-case";
+import {
+  fullOutput,
+  incrementalOutput,
+  PullOutput,
+  type RunFacts,
+  renderPull,
+} from "./pull-output";
+import {
+  defineUseCase,
+  type ProgressEvent,
+  type RunControl,
+  type UseCaseContext,
+} from "./use-case";
 import { workspaceRoot } from "./workspace-root";
-
-class IncrementalNotYetError extends SnagenticError {
-  constructor(instance: string) {
-    super(
-      "incremental-not-available",
-      "usage",
-      `${instance} has been pulled already; incremental pulls arrive in milestone M4`,
-      `run: snagentic pull ${instance} --full`,
-    );
-  }
-}
-
-const Output = z.object({
-  instance: z.string(),
-  mode: z.literal("full"),
-  resumed: z.boolean(),
-  commit: z.string(),
-  classes: z.number(),
-  records: z.number(),
-  childRows: z.number(),
-  operationalRows: z.number(),
-  skippedRows: z.number(),
-  unreadable: z.array(z.string()),
-  watermark: z.string(),
-  requests: z.number(),
-  retries: z.number(),
-  semaphoreWaitMs: z.number(),
-  seconds: z.number(),
-  phaseSeconds: z.object({
-    catalog: z.number(),
-    records: z.number(),
-    children: z.number(),
-    operational: z.number(),
-    commit: z.number(),
-  }),
-  peakConcurrency: z.number(),
-  requestSeconds: z.number(),
-  peakMemoryMb: z.number(),
-});
-type Output = z.output<typeof Output>;
-
-const tenths = (milliseconds: number) => Math.round(milliseconds / 100) / 10;
 
 // Resident memory, sampled whenever the pull reports progress (at least once per class).
 function memorySampler(run: RunControl) {
@@ -69,112 +41,89 @@ function memorySampler(run: RunControl) {
   return { sample, progress, peakMb: () => Math.round(peak / 1024 / 1024) };
 }
 
-interface Timings {
-  readonly started: number;
-  readonly committing: number;
-}
-
-function report(
-  name: string,
-  resumed: boolean,
-  commit: string,
-  summary: PullSummary,
-  stats: ConnectionStats,
-  timings: Timings,
-  peakMemoryMb: number,
-): Output {
-  const now = performance.now();
-  return {
-    instance: name,
-    mode: "full",
-    resumed,
-    commit,
-    ...summary,
-    unreadable: [...summary.unreadable],
-    requests: stats.requests,
-    retries: stats.retries,
-    semaphoreWaitMs: stats.semaphoreWaitMs,
-    seconds: tenths(now - timings.started),
-    phaseSeconds: { ...summary.phaseSeconds, commit: tenths(now - timings.committing) },
-    peakConcurrency: stats.peakConcurrency,
-    requestSeconds: tenths(stats.requestMs),
-    peakMemoryMb,
+// A pull continues an interrupted full pull, pulls changes once a full pull exists, or
+// starts from scratch when asked to (--full) or when nothing was pulled yet.
+async function openSession(input: { instance: string; full: boolean }, context: UseCaseContext) {
+  const root = await workspaceRoot(context);
+  const name = InstanceName.parse(input.instance);
+  const profile = await getInstance(root, name, context.profiles);
+  const state = context.syncState(root, name);
+  const resumed = (await state.readCheckpoint()) !== null;
+  const pulled = (await state.readState()) !== null;
+  const mode: MirrorMode = resumed ? "resume" : !input.full && pulled ? "incremental" : "fresh";
+  const reader = context.connections.open(
+    profile,
+    await resolveSecret(profile, context.credentials),
+  );
+  const mirror = await context.mirrors.open(root, name, mode);
+  const paths = instancePaths(name);
+  const deps: IncrementalDependencies = {
+    pager: new KeysetPager(reader),
+    statistics: reader,
+    records: mirror,
+    state,
+    metadataRoot: paths.metadata,
+    operationalRoot: paths.operational,
+    policy: DEFAULT_REDACTION,
+    now: context.clock,
   };
-}
-
-function render(output: Output): string {
-  const unreadable = output.unreadable.length === 0 ? "none" : output.unreadable.join(", ");
-  const phases = output.phaseSeconds;
-  return [
-    `pulled ${output.instance}${output.resumed ? " (resumed)" : ""} in ${output.seconds} s -> ${output.commit.slice(0, 10)} on servicenow-remote/${output.instance}`,
-    `  ${output.records} records in ${output.classes} classes, ${output.childRows} child rows, ${output.operationalRows} inventory rows, ${output.skippedRows} skipped`,
-    `  instance load: ${output.requests} requests, ${output.retries} retries, semaphore wait ${output.semaphoreWaitMs} ms, peak concurrency ${output.peakConcurrency}`,
-    `  time: catalog ${phases.catalog} s, records ${phases.records} s, child rows ${phases.children} s, inventory ${phases.operational} s, commit ${phases.commit} s; ${output.requestSeconds} s in requests; peak memory ${output.peakMemoryMb} MB`,
-    `  not readable by this user: ${unreadable}`,
-    `next: snagentic integrate ${output.instance}`,
-  ].join("\n");
+  return { name, mode, reader, mirror, deps };
 }
 
 export const pull = defineUseCase({
   name: "pull",
   description:
-    "Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The first " +
-    "pull is complete and resumable; then run integrate to bring it into the working branch.",
+    "Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The " +
+    "first pull is complete and resumable; later pulls fetch only what changed. Then run " +
+    "integrate to bring it into the working branch.",
   input: z.object({
     instance: z.string(),
     full: z.boolean().default(false).describe("pull everything again"),
   }),
-  output: Output,
+  output: PullOutput,
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
   arguments: ["instance"],
   async handle(input, context, run) {
     const started = performance.now();
-    const root = await workspaceRoot(context);
-    const name = InstanceName.parse(input.instance);
-    const profile = await getInstance(root, name, context.profiles);
-    const state = context.syncState(root, name);
-    const resumed = (await state.readCheckpoint()) !== null;
-    if (!input.full && !resumed && (await state.readState()) !== null) {
-      throw new IncrementalNotYetError(name);
-    }
-    const reader = context.connections.open(
-      profile,
-      await resolveSecret(profile, context.credentials),
-    );
-    const mirror = await context.mirrors.open(root, name, resumed);
-    const paths = instancePaths(name);
+    const session = await openSession(input, context);
     const memory = memorySampler(run);
-    const deps = {
-      pager: new KeysetPager(reader),
-      records: mirror,
-      state,
-      metadataRoot: paths.metadata,
-      operationalRoot: paths.operational,
-      policy: DEFAULT_REDACTION,
-      now: context.clock,
+    const facts = (finished: FinishedPull, committing: number): RunFacts => {
+      memory.sample();
+      return {
+        instance: session.name,
+        resumed: session.mode === "resume",
+        commit: finished.commit,
+        changed: finished.created,
+        stats: session.reader.stats(),
+        started,
+        committing,
+        peakMemoryMb: memory.peakMb(),
+      };
     };
+    const { deps, mirror, name } = session;
     try {
+      if (session.mode === "incremental") {
+        const summary = await pullIncremental(deps, name, run.signal, memory.progress);
+        const committing = performance.now();
+        const finished = await mirror.finish(
+          `snagentic pull ${name}: changes in ${summary.changedSources.join(", ")}`,
+        );
+        await completePull(deps.state, summary.next);
+        return incrementalOutput(facts(finished, committing), summary);
+      }
       const summary = await pullFull(deps, run.signal, memory.progress);
       const committing = performance.now();
-      const commit = await mirror.finish(
+      const finished = await mirror.finish(
         `snagentic pull ${name}: full (${summary.records} records, ${summary.childRows} child rows)`,
       );
-      memory.sample();
-      return report(
-        name,
-        resumed,
-        commit,
-        summary,
-        reader.stats(),
-        { started, committing },
-        memory.peakMb(),
-      );
+      await completePull(deps.state, summary.next);
+      return fullOutput(facts(finished, committing), summary);
     } catch (error) {
       await mirror.abort();
       throw error;
     }
   },
-  render,
+  render: renderPull,
   exitCode: () => 0,
 });

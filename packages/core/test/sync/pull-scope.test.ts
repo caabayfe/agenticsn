@@ -3,6 +3,7 @@ import {
   attachChildren,
   Catalog,
   CHILD_TABLES,
+  childGrouper,
   classesToPull,
   OPERATIONAL_TABLES,
   ownerOfBase,
@@ -78,6 +79,32 @@ describe("attachChildren", () => {
     );
     expect(versions.orphans).toBe(0);
     expect([...activities.attached.keys()]).toEqual(["global/wf_workflow/approve--wf1"]);
+  });
+});
+
+describe("childGrouper", () => {
+  it("groups streamed child rows like attachChildren, without holding the table twice", () => {
+    const owners = new Map([["flow1", "global/sys_hub_flow/my-flow--flow1"]]);
+    const grouper = childGrouper("flow", owners);
+    for (const row of [
+      { sys_id: "b", flow: "flow1" },
+      { sys_id: "a", flow: "flow1" },
+      { sys_id: "c", flow: "x" },
+    ]) {
+      grouper.add(row);
+    }
+    const grouped = grouper.result();
+    expect([...grouped.attached]).toEqual([
+      [
+        "global/sys_hub_flow/my-flow--flow1",
+        [
+          { sys_id: "a", flow: "flow1" },
+          { sys_id: "b", flow: "flow1" },
+        ],
+      ],
+    ]);
+    expect(grouped.orphans).toBe(1);
+    expect(owners.get("a")).toBe("global/sys_hub_flow/my-flow--flow1");
   });
 });
 

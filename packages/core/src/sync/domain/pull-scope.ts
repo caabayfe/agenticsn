@@ -79,26 +79,43 @@ export interface AttachedChildren {
   readonly orphans: number;
 }
 
-// Groups child rows by owning record. `owners` maps sys_id -> record base and is extended
-// with each attached row, so later child tables can resolve through earlier ones.
+// Groups child rows by owning record as they stream in. `owners` maps sys_id -> record base
+// and is extended with each attached row, so later child tables resolve through earlier ones.
+export function childGrouper(parentField: string, owners: Map<string, string>) {
+  const attached = new Map<string, Row[]>();
+  let orphans = 0;
+  return {
+    add(row: Row): void {
+      const base = owners.get(row[parentField] ?? "");
+      if (base === undefined) {
+        orphans += 1;
+        return;
+      }
+      const list = attached.get(base);
+      if (list === undefined) {
+        attached.set(base, [row]);
+      } else {
+        list.push(row);
+      }
+      owners.set(row["sys_id"] ?? "", base);
+    },
+    result(): AttachedChildren {
+      for (const list of attached.values()) {
+        list.sort((a, b) => ((a["sys_id"] ?? "") < (b["sys_id"] ?? "") ? -1 : 1));
+      }
+      return { attached, orphans };
+    },
+  };
+}
+
 export function attachChildren(
   rows: readonly Row[],
   parentField: string,
   owners: Map<string, string>,
 ): AttachedChildren {
-  const attached = new Map<string, Row[]>();
-  let orphans = 0;
+  const grouper = childGrouper(parentField, owners);
   for (const row of rows) {
-    const base = owners.get(row[parentField] ?? "");
-    if (base === undefined) {
-      orphans += 1;
-      continue;
-    }
-    attached.set(base, [...(attached.get(base) ?? []), row]);
-    owners.set(row["sys_id"] ?? "", base);
+    grouper.add(row);
   }
-  for (const list of attached.values()) {
-    list.sort((a, b) => ((a["sys_id"] ?? "") < (b["sys_id"] ?? "") ? -1 : 1));
-  }
-  return { attached, orphans };
+  return grouper.result();
 }

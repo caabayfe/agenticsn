@@ -131,6 +131,7 @@ export {
   attachChildren,
   CHILD_TABLES,
   type ChildTable,
+  childGrouper,
   classesToPull,
   OPERATIONAL_TABLES,
   type OperationalTable,

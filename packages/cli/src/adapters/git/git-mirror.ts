@@ -20,11 +20,22 @@ async function revParse(repository: string, ref: string): Promise<string | null>
   return result.exitCode === 0 ? result.stdout.trim() : null;
 }
 
+// A record's YAML is <dir>/<leaf>.yaml where the leaf has no dot (ADR-0017); field files and
+// child-row files have more dots.
+function recordBaseOf(path: string): string | null {
+  const leaf = path.slice(path.lastIndexOf("/") + 1);
+  return leaf.endsWith(".yaml") && leaf.split(".").length === 2
+    ? path.slice(0, -".yaml".length)
+    : null;
+}
+
 // Streams a pull into git (spike S8). Progress is committed to refs/snagentic/pull/<name>
 // at every checkpoint; finish() commits the final tree on servicenow-remote/<name>.
 export class GitMirror implements MirrorSession {
   private readonly pending: string[] = [];
-  private readonly written = new Set<string>();
+  // Repository paths of record bases (without .yaml) written or resumed: all a pull needs to
+  // know about earlier records, far smaller than every file path.
+  private readonly recordBases: Set<string>;
   private readonly openedAt = Date.now() - 1000;
   // One fast-import stream is shared by concurrent pull workers: every operation on it runs
   // alone, so blobs and commits are never interleaved.
@@ -36,9 +47,11 @@ export class GitMirror implements MirrorSession {
     private readonly repository: string,
     private readonly instance: InstanceName,
     private readonly stream: FastImport,
-    private readonly resumedPaths: readonly string[],
+    resumedBases: readonly string[],
     private readonly resumedFrom: string | null,
-  ) {}
+  ) {
+    this.recordBases = new Set(resumedBases);
+  }
 
   static async open(
     repository: string,
@@ -51,12 +64,12 @@ export class GitMirror implements MirrorSession {
       await runGit(["update-ref", "-d", ref], repository);
     }
     const paths =
-      tip === null
-        ? []
-        : (await runGitOrThrow(["ls-tree", "-r", "--name-only", tip], repository))
-            .split("\n")
-            .filter(Boolean);
-    return new GitMirror(repository, instance, FastImport.start(repository), paths, tip);
+      tip === null ? "" : await runGitOrThrow(["ls-tree", "-r", "--name-only", tip], repository);
+    const bases = paths.split("\n").flatMap((path) => {
+      const base = recordBaseOf(path);
+      return base === null ? [] : [base];
+    });
+    return new GitMirror(repository, instance, FastImport.start(repository), bases, tip);
   }
 
   private static progressRef(instance: InstanceName): string {
@@ -67,6 +80,7 @@ export class GitMirror implements MirrorSession {
     const yaml = toYaml(rendered.document);
     return this.serial.run(async () => {
       await this.add(`${root}/${rendered.base}.yaml`, yaml);
+      this.recordBases.add(`${root}/${rendered.base}`);
       for (const file of rendered.files) {
         await this.add(`${root}/${file.path}`, file.content);
       }
@@ -80,14 +94,9 @@ export class GitMirror implements MirrorSession {
 
   async *bases(root: string): AsyncIterable<string> {
     const prefix = `${root}/`;
-    for (const path of [...this.resumedPaths, ...this.written]) {
-      const leaf = path.slice(prefix.length);
-      if (
-        path.startsWith(prefix) &&
-        leaf.endsWith(".yaml") &&
-        leaf.split("/").at(-1)?.split(".").length === 2
-      ) {
-        yield leaf.slice(0, -".yaml".length);
+    for (const base of this.recordBases) {
+      if (base.startsWith(prefix)) {
+        yield base.slice(prefix.length);
       }
     }
   }
@@ -163,7 +172,6 @@ export class GitMirror implements MirrorSession {
   private async add(path: string, content: string): Promise<void> {
     const mark = await this.stream.blob(content);
     this.pending.push(`M 100644 ${mark} ${fastImportPath(path)}\n`);
-    this.written.add(path);
   }
 
   private async commitTree(tree: string, parent: string | null, message: string): Promise<string> {

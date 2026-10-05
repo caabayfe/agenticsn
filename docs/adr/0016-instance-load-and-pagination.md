@@ -166,7 +166,8 @@ Measurements and one controlled experiment on the PDI changed the fast-feed desi
 
 1. Every incremental pull reads one fingerprint (count and latest `sys_updated_on`) for
    `sys_metadata` and for each child table: **15 aggregate requests**. If all equal the last
-   pull's fingerprints, nothing changed and the pull ends.
+   pull's fingerprints, nothing changed and the pull ends. (Implementation count: `sys_metadata`
+   plus 19 child tables, **20 requests**; corrected below.)
 2. A changed `sys_metadata` fingerprint triggers its change feed (since the watermark minus
    the overlap) and the `sys_metadata_delete` feed; only changed records are downloaded.
 3. A changed child-table fingerprint triggers that table's change feed; affected owners have
@@ -176,5 +177,37 @@ Measurements and one controlled experiment on the PDI changed the fast-feed desi
    net.
 
 ASR-16 is revised from "at most 5 requests" (set before these measurements, and unable to see
-layout changes) to **one aggregate request per change source (15 on the PDI) and under 10 s
-when nothing changed**.
+layout changes) to **one aggregate request per change source and under 10 s when nothing
+changed**.
+
+### Amendment: implementation results (M4, 2026-10-05)
+
+There are 20 change sources (`sys_metadata` and 19 child tables), not 15. Two refinements
+came from building and running it:
+
+- **Lost child rows are found by count, not by re-listing.** A lower child-table count used
+  to mean re-listing the table (`sys_ui_element`: 71,734 rows, about 72 full-record pages).
+  Instead, one grouped aggregate (`group_by=<parent field>`, 0.6–4.9 s, 7,010 groups for
+  `sys_ui_element`) is compared with the rows mirrored per owner (counted locally with
+  `git grep -c '^- '`, 0.2 s), and only owners whose counts differ are re-read. Nested
+  families (workflow structure) are small and are still listed again together.
+- **Deletions without a deletion record are reported.** `sys_metadata_delete` rows are
+  `sys_metadata` rows themselves, so a normal deletion leaves the count unchanged. Count before
+  + records created − deletion records created between the two fingerprints must equal the
+  count after; a shortfall (for example, a deletion record deleted, or a script deleting with
+  workflow off) is reported with `pull --full` as the remedy. Grouping `sys_metadata` by scope
+  is allowed (771 groups, 2.6 s) and grouping by class is not; precise bisection
+  (scope, then class, then sys_ids) is left to `pull --verify`.
+
+Live results on the PDI (Europe to US, about 0.6 s per request):
+
+| Pull | Requests | Time | Result |
+|---|---|---|---|
+| Nothing changed | 20 | 3.8–4.7 s | no commit; 83 MB peak memory (the mirror tree is read only when something changed) |
+| New business rule + new form field | 29 | 11.9 s | 3 files: the rule's YAML and script, the section's child rows |
+| Rule renamed and edited + form field deleted | 29 | 11.4 s | rename detected; the lost row found by grouped count |
+| Rule deleted | 26 | 10.4 s | rule files removed; its deletion record added |
+
+Known blind spots, unchanged: writes with system fields disabled that leave counts equal, and a
+child row moved to another owner (the old owner keeps a stale copy until it changes again).
+`pull --verify` and `pull --full` are the remedies.

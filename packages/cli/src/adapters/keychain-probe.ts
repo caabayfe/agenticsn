@@ -36,9 +36,11 @@ export function keychainProbe(
   return {
     name: NAME,
     async run() {
-      const entry = createEntry(SERVICE, `probe-${crypto.randomUUID()}`);
+      let entry: KeychainEntry | undefined;
       const secret = crypto.randomUUID();
       try {
+        // Creating the entry can itself throw (for example Linux without a D-Bus session).
+        entry = createEntry(SERVICE, `probe-${crypto.randomUUID()}`);
         await entry.setPassword(secret);
         const readBack = await entry.getPassword();
         await entry.deletePassword();
@@ -47,7 +49,9 @@ export function keychainProbe(
         }
         return okCheck(NAME, `${store}: write, read and delete succeeded`);
       } catch (error) {
-        await removeQuietly(entry);
+        if (entry !== undefined) {
+          await removeQuietly(entry);
+        }
         const reason = error instanceof Error ? error.message : String(error);
         if (platform === "linux") {
           return unavailableCheck(

@@ -21,13 +21,12 @@ const refuse = async (): Promise<never> => {
 };
 
 describe("keychain probe", () => {
-  it.if(process.platform !== "linux")(
-    "round-trips a random value through the real OS keychain and removes it",
-    async () => {
-      const check = await keychainProbe().run();
-      expect(check).toMatchObject({ name: "keychain", status: "ok", hint: null });
-    },
-  );
+  it("uses the real OS keychain: ok on macOS and Windows, ok or unavailable on Linux", async () => {
+    const check = await keychainProbe().run();
+    expect(check.name).toBe("keychain");
+    const expected = process.platform === "linux" ? ["ok", "unavailable"] : ["ok"];
+    expect(expected).toContain(check.status);
+  });
 
   it("passes when the value read back matches", async () => {
     const check = await keychainProbe(() => entryThat({}), "darwin").run();
@@ -47,6 +46,24 @@ describe("keychain probe", () => {
     const check = await keychainProbe(() => entryThat({ setPassword: refuse }), "linux").run();
     expect(check.status).toBe("unavailable");
     expect(check.hint).toContain("environment variables");
+  });
+
+  it("reports unavailable on Linux when even creating the entry throws", async () => {
+    const check = await keychainProbe(() => {
+      throw new Error("Platform secure storage failure: no D-Bus session");
+    }, "linux").run();
+    expect(check.status).toBe("unavailable");
+    expect(check.detail).toContain("no D-Bus session");
+  });
+
+  it("fails on macOS when creating the entry throws", async () => {
+    const check = await keychainProbe(() => {
+      throw new Error("keychain locked");
+    }, "darwin").run();
+    expect(check).toMatchObject({
+      status: "fail",
+      detail: "macOS Keychain refused access: keychain locked",
+    });
   });
 
   it("fails when the value read back differs", async () => {

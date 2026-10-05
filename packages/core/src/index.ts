@@ -101,6 +101,7 @@ export {
   fieldsToRedact,
   type RedactionPolicy,
 } from "./metadata/domain/redaction";
+export type { RecordStore, StoredRecord } from "./metadata/ports";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";

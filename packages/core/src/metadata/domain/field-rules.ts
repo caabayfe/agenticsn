@@ -38,7 +38,11 @@ const KNOWN_FILE_FIELDS: Readonly<Record<string, Readonly<Record<string, string>
   sp_angular_provider: { script: "js" },
 };
 
-const SECRET_TYPES = new Set(["password", "password2", "encrypted_text"]);
+export const SECRET_TYPES: ReadonlySet<string> = new Set([
+  "password",
+  "password2",
+  "encrypted_text",
+]);
 const SECRET_FIELD_NAMES = [
   "api_key",
   "client_secret",

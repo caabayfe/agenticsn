@@ -102,6 +102,7 @@ export {
   type RedactionPolicy,
 } from "./metadata/domain/redaction";
 export type { RecordStore, StoredRecord } from "./metadata/ports";
+export { type CatalogProgress, fetchCatalog } from "./sync/application/fetch-catalog";
 export {
   type KeysetListing,
   KeysetPager,

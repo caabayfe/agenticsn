@@ -1,8 +1,10 @@
 // Composition root: the only place where adapters are wired to use cases.
+import { homedir } from "node:os";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { gitProbe } from "./adapters/git-probe";
 import { keychainProbe } from "./adapters/keychain-probe";
 import { searchIndexProbe } from "./adapters/search-index-probe";
+import { FsWorkspaceStore } from "./adapters/workspace/fs-workspace-store";
 import { runCli } from "./cli/run-cli";
 import { createMcpServer } from "./mcp/create-mcp-server";
 import { USE_CASES } from "./registry/registry";
@@ -18,8 +20,16 @@ process.on("SIGINT", () => {
   cancellation.abort();
 });
 
+const workspaceOverride = process.env["SNAGENTIC_WORKSPACE"];
 const context: UseCaseContext = {
   environmentProbes: [gitProbe(), keychainProbe(), searchIndexProbe()],
+  workspaces: new FsWorkspaceStore(),
+  host: {
+    cwd: process.cwd(),
+    home: homedir(),
+    version: versionLine(),
+    ...(workspaceOverride === undefined ? {} : { workspaceOverride }),
+  },
 };
 
 process.exitCode = await runCli(

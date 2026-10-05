@@ -42,11 +42,20 @@ export function exitCodeFor(error: unknown): number {
   return error instanceof SnagenticError ? EXIT_CODES[error.category] : UNEXPECTED_ERROR_EXIT_CODE;
 }
 
-export type InvalidIdentifierCode = "invalid-sys-id" | "invalid-table-name";
+export type InvalidIdentifierCode =
+  | "invalid-sys-id"
+  | "invalid-table-name"
+  | "invalid-instance-name";
+
+const IDENTIFIER_KINDS: Readonly<Record<InvalidIdentifierCode, string>> = {
+  "invalid-sys-id": "sys_id",
+  "invalid-table-name": "table name",
+  "invalid-instance-name": "instance name (lowercase letters, digits and single hyphens)",
+};
 
 export class InvalidIdentifierError extends SnagenticError {
   constructor(code: InvalidIdentifierCode, value: string) {
-    const kind = code === "invalid-sys-id" ? "sys_id" : "table name";
+    const kind = IDENTIFIER_KINDS[code];
     super(
       code,
       "usage",

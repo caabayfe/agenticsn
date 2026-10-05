@@ -1,18 +1,19 @@
 import { describe, expect, it } from "bun:test";
 import { doctor } from "../../src/registry/doctor";
 import { executeUseCase } from "../../src/registry/execute";
-import { fakeProbe } from "../support/fakes";
+import { FAKE_CONTEXT, fakeProbe } from "../support/fakes";
 
 describe("doctor use case", () => {
   it("exits with 0 when every check passes or is unavailable", async () => {
     const context = {
+      ...FAKE_CONTEXT,
       environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
     };
     expect((await executeUseCase(doctor, {}, context)).exitCode).toBe(0);
   });
 
   it("exits with 3 (precondition) when a check fails", async () => {
-    const context = { environmentProbes: [fakeProbe("git", "fail")] };
+    const context = { ...FAKE_CONTEXT, environmentProbes: [fakeProbe("git", "fail")] };
     expect((await executeUseCase(doctor, {}, context)).exitCode).toBe(3);
   });
 
@@ -36,7 +37,7 @@ describe("doctor use case", () => {
   });
 
   it("refuses instance checks until instance profiles exist", async () => {
-    const context = { environmentProbes: [] };
+    const context = { ...FAKE_CONTEXT, environmentProbes: [] };
     await expect(executeUseCase(doctor, { local: false }, context)).rejects.toMatchObject({
       code: "invalid-input",
     });

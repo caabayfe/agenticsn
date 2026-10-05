@@ -61,6 +61,16 @@ describe("generated CLI", () => {
     expect((await run(["toggle", "--no-local"], [toggle])).out).toBe("echo: false\n");
   });
 
+  it("takes the use case's listed input fields as positional arguments", async () => {
+    const positional = defineUseCase({
+      ...echoUseCase(),
+      name: "say",
+      arguments: ["message", "label"],
+    });
+    expect((await run(["say", "hi", "--times", "2"], [positional])).out).toBe("echo: hi hi\n");
+    expect((await run(["say"], [positional])).exitCode).toBe(2);
+  });
+
   it("turns camelCase input fields into kebab-case options", async () => {
     const dryRun = defineUseCase({
       ...echoUseCase(),

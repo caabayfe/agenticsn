@@ -1,7 +1,7 @@
 [test]
 coverageSkipTestFiles = true
-# Coverage measures product code. Repository tooling (scripts/, config) is exercised by
-# its own tests but is not held to the product threshold. main.ts is the composition root;
-# it runs in subprocesses in the end-to-end tests, which coverage cannot see.
-coveragePathIgnorePatterns = ["scripts/**", "*.cjs", "packages/cli/src/main.ts"]
+# Coverage measures product code. Repository tooling (scripts/, config) and test helpers
+# are not held to the product threshold. main.ts is the composition root; it runs in
+# subprocesses in the end-to-end tests, which coverage cannot see.
+coveragePathIgnorePatterns = ["scripts/**", "*.cjs", "packages/cli/src/main.ts", "**/test/support/**"]
 coverageThreshold = 0.9

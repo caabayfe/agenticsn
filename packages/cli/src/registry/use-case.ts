@@ -1,15 +1,26 @@
 // A use case is the single definition of one operation (ADR-0003). The CLI command, the MCP
 // tool and the JSON output are all generated from it; nothing is defined twice by hand.
-import type { EnvironmentProbe } from "@snagentic/core";
+import type { EnvironmentProbe, WorkspaceStore } from "@snagentic/core";
 import type { z } from "zod";
 
 export const OUTPUT_FORMATS = ["agent", "json", "text"] as const;
 export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 export type RenderFormat = Exclude<OutputFormat, "json">;
 
+// Facts about the machine and process, resolved once by the composition root.
+export interface HostEnvironment {
+  readonly cwd: string;
+  readonly home: string;
+  readonly version: string;
+  // --workspace or SNAGENTIC_WORKSPACE; otherwise the workspace is found from cwd.
+  readonly workspaceOverride?: string;
+}
+
 // The ports use cases need, wired by the composition root (main.ts).
 export interface UseCaseContext {
   readonly environmentProbes: readonly EnvironmentProbe[];
+  readonly workspaces: WorkspaceStore;
+  readonly host: HostEnvironment;
 }
 
 export interface ProgressEvent {
@@ -44,6 +55,8 @@ export interface UseCase<
   readonly flags: UseCaseFlags;
   // Whether the operation earns a place in the MCP tool budget (ADR-0002).
   readonly mcp: boolean;
+  // Input fields the CLI takes as positional arguments, in order.
+  readonly arguments?: readonly string[];
   handle(
     input: z.output<Input>,
     context: UseCaseContext,

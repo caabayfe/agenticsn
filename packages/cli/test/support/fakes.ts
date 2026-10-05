@@ -1,4 +1,4 @@
-import { type EnvironmentProbe, SnagenticError } from "@snagentic/core";
+import { type EnvironmentProbe, SnagenticError, type WorkspaceStore } from "@snagentic/core";
 import { z } from "zod";
 import type { CliIo } from "../../src/cli/run-cli";
 import { defineUseCase, type UseCase, type UseCaseContext } from "../../src/registry/use-case";
@@ -15,8 +15,19 @@ export function fakeProbe(name: string, status: "ok" | "fail" | "unavailable"): 
   };
 }
 
+// A workspace store with no workspaces; tests that need real folders use FsWorkspaceStore.
+const NO_WORKSPACES: WorkspaceStore = {
+  ancestorsOf: (directory) => [directory],
+  readManifest: async () => null,
+  isInsideGitRepository: async () => false,
+  isEmptyOrMissing: async () => true,
+  create: async () => {},
+};
+
 export const FAKE_CONTEXT: UseCaseContext = {
   environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
+  workspaces: NO_WORKSPACES,
+  host: { cwd: "/work", home: "/home/me", version: "snagentic test" },
 };
 
 export class FakeStaleError extends SnagenticError {

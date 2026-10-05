@@ -8,7 +8,7 @@ import {
   type UseCase,
   type UseCaseContext,
 } from "../registry/use-case";
-import { optionsFor } from "./zod-options";
+import { argumentSyntax, optionsFor } from "./zod-options";
 
 export interface CliIo {
   stdout(text: string): void;
@@ -63,6 +63,21 @@ async function runUseCase(
   }
 }
 
+// Commander passes positional values first, then the options object.
+function inputFrom(
+  positional: readonly string[],
+  values: readonly unknown[],
+): Record<string, unknown> {
+  const options = (values[positional.length] ?? {}) as Record<string, unknown>;
+  const input: Record<string, unknown> = { ...options };
+  positional.forEach((key, index) => {
+    if (values[index] !== undefined) {
+      input[key] = values[index];
+    }
+  });
+  return input;
+}
+
 // Builds the CLI from the registry. Contains no knowledge of any specific use case.
 export async function runCli(
   argv: readonly string[],
@@ -85,15 +100,19 @@ export async function runCli(
     .action(options.serveMcp);
 
   for (const useCase of useCases) {
+    const positional = useCase.arguments ?? [];
     const command = program.command(useCase.name).description(useCase.description);
-    for (const option of optionsFor(useCase.input)) {
+    for (const key of positional) {
+      command.argument(argumentSyntax(useCase.input, key));
+    }
+    for (const option of optionsFor(useCase.input, positional)) {
       command.addOption(option);
     }
     command.addOption(
       new Option("--format <format>", "output format").choices(OUTPUT_FORMATS).default("text"),
     );
-    command.action(async (commandOptions: Record<string, unknown>) => {
-      exitCode = await runUseCase(useCase, commandOptions, context, io, signal);
+    command.action(async (...values: unknown[]) => {
+      exitCode = await runUseCase(useCase, inputFrom(positional, values), context, io, signal);
     });
   }
 

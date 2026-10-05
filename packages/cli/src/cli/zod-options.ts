@@ -42,6 +42,17 @@ function optionFor(key: string, original: z.core.$ZodType): Option {
   throw new Error(`input field "${key}" has a type the CLI cannot map: ${field._zod.def.type}`);
 }
 
-export function optionsFor(schema: z.ZodObject): Option[] {
-  return Object.entries(schema.shape).map(([key, field]) => optionFor(key, field));
+export function optionsFor(schema: z.ZodObject, positional: readonly string[] = []): Option[] {
+  return Object.entries(schema.shape)
+    .filter(([key]) => !positional.includes(key))
+    .map(([key, field]) => optionFor(key, field));
+}
+
+// `<name>` when the field is required, `[name]` when it may be omitted.
+export function argumentSyntax(schema: z.ZodObject, key: string): string {
+  const field = schema.shape[key];
+  if (field === undefined) {
+    throw new Error(`positional argument "${key}" is not an input field`);
+  }
+  return field.safeParse(undefined).success ? `[${kebabCase(key)}]` : `<${kebabCase(key)}>`;
 }

@@ -99,6 +99,14 @@ export function fakeInstance(tables: Record<string, Row[]>, denied: readonly str
         .at(-1);
       return { count: rows.length, maxUpdatedOn: latest || null };
     },
+    countBy: async (table: TableName, field: string) => {
+      const counts = new Map<string, number>();
+      for (const row of rowsOf(table)) {
+        const value = row[field] ?? "";
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+      return counts;
+    },
     stats: () => STATS,
   };
   return { reader, queries, fingerprints, tables };

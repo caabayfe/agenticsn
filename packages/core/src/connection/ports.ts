@@ -35,4 +35,10 @@ export interface InstanceReader {
 // One aggregate request per table: its row count and latest update (ADR-0016, M4 appendix).
 export interface TableStatistics {
   fingerprint(table: TableName, signal: AbortSignal): Promise<TableFingerprint>;
+  // Row count per value of `field`, in one aggregate request.
+  countBy(
+    table: TableName,
+    field: string,
+    signal: AbortSignal,
+  ): Promise<ReadonlyMap<string, number>>;
 }

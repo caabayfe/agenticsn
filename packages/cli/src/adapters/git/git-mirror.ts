@@ -12,7 +12,7 @@ import { serialQueue } from "../serial-queue";
 import { toYaml } from "../yaml/own-style";
 import { FastImport, fastImportPath } from "./fast-import";
 import { MirrorIndex } from "./mirror-index";
-import { runGit, runGitOrThrow } from "./run-git";
+import { gitLines, runGit, runGitOrThrow } from "./run-git";
 
 const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const IDENTITY = {
@@ -39,12 +39,12 @@ export class GitMirror implements IncrementalMirror {
   private readonly serial = serialQueue();
   // Set once this session has committed: fast-import then continues the ref by itself.
   private committedThisSession = false;
+  private loaded: MirrorIndex | null = null;
 
   private constructor(
     private readonly repository: string,
     private readonly instance: InstanceName,
     private readonly stream: FastImport,
-    private readonly index: MirrorIndex,
     private readonly startFrom: string | null,
     private readonly mode: MirrorMode,
   ) {}
@@ -59,12 +59,36 @@ export class GitMirror implements IncrementalMirror {
     if (mode !== "resume") {
       await runGit(["update-ref", "-d", progress], repository);
     }
-    const paths =
-      start === null
-        ? ""
-        : await runGitOrThrow(["ls-tree", "-r", "--name-only", start], repository);
-    const index = MirrorIndex.fromPaths(paths.split("\n"));
-    return new GitMirror(repository, instance, FastImport.start(repository), index, start, mode);
+    const mirror = new GitMirror(repository, instance, FastImport.start(repository), start, mode);
+    // A full pull needs the tree at once to resume; an incremental pull reads it only once it
+    // knows something changed.
+    if (mode !== "incremental") {
+      await mirror.prepare();
+    }
+    return mirror;
+  }
+
+  async prepare(): Promise<void> {
+    if (this.loaded !== null) {
+      return;
+    }
+    const index = new MirrorIndex();
+    if (this.startFrom !== null) {
+      for await (const path of gitLines(
+        ["ls-tree", "-r", "--name-only", this.startFrom],
+        this.repository,
+      )) {
+        index.add(path);
+      }
+    }
+    this.loaded = index;
+  }
+
+  private get index(): MirrorIndex {
+    if (this.loaded === null) {
+      throw new Error("the mirror tree is read only after prepare()");
+    }
+    return this.loaded;
   }
 
   private static async startOf(
@@ -119,6 +143,28 @@ export class GitMirror implements IncrementalMirror {
 
   filesOf(root: string, base: string): string[] {
     return this.index.filesOf(`${root}/${base}`).map((path) => path.slice(root.length + 1));
+  }
+
+  // Counts rows with git grep: in our YAML style (ADR-0015) a child-row file is a sequence of
+  // flat maps, so each row starts with "- " at the start of a line and nothing else does
+  // (multi-line values are indented block scalars). Pending writes are committed first.
+  async countChildRows(root: string, table: string): Promise<Map<string, number>> {
+    await this.checkpoint();
+    const tip =
+      (await revParse(this.repository, GitMirror.progressRef(this.instance))) ?? this.startFrom;
+    const counts = new Map<string, number>();
+    if (tip === null) {
+      return counts;
+    }
+    const suffix = `.children.${table}.yaml`;
+    const args = ["grep", "-c", "-e", "^- ", tip, "--", `${root}/*${suffix}`];
+    for await (const line of gitLines(args, this.repository, [0, 1])) {
+      // <tip>:<path>:<count>
+      const end = line.lastIndexOf(":");
+      const path = line.slice(tip.length + 1, end);
+      counts.set(path.slice(root.length + 1, -suffix.length), Number(line.slice(end + 1)));
+    }
+    return counts;
   }
 
   remove(root: string, path: string): Promise<void> {

@@ -183,7 +183,7 @@ describe("pull and integrate", () => {
     const changed = pull.render({ ...base, changed: true, incremental }, "text");
     expect(changed).toContain("pulled pdi changes in 3.2 s -> abcdef1234");
     expect(changed).toContain("records: 2 written, 1 renamed, 1 deleted, 0 skipped");
-    expect(changed).toContain("child rows: 3 files written, 0 removed");
+    expect(changed).toContain("child rows: 3 files refreshed, 0 removed");
     expect(changed).toContain("next: snagentic integrate pdi");
     const idle = pull.render({ ...base, changed: false, incremental }, "text");
     expect(idle).toStartWith("pdi is up to date (3.2 s)");

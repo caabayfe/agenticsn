@@ -69,9 +69,14 @@ export interface MirrorTree {
   baseOf(root: string, sysId: string): string | undefined;
   // Every file of a record: its YAML, field files and child-row files.
   filesOf(root: string, base: string): readonly string[];
+  // Record base -> number of child rows of `table` mirrored for it, including changes made
+  // earlier in this pull.
+  countChildRows(root: string, table: string): Promise<ReadonlyMap<string, number>>;
 }
 
 export interface IncrementalMirror extends MirrorSession, MirrorTree {
+  // Reads the mirrored tree; an incremental pull calls it only once something changed.
+  prepare(): Promise<void>;
   remove(root: string, path: string): Promise<void>;
   move(root: string, from: string, to: string): Promise<void>;
 }

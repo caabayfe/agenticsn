@@ -69,6 +69,9 @@ export async function pullIncremental(
     }),
   );
   const since = changesSince(state.watermark);
+  if ([...changes.values()].some((change) => change !== "unchanged")) {
+    await deps.records.prepare();
+  }
   let catalog = new Catalog(stored);
   let catalogRefreshed = false;
   let records = NO_RECORD_CHANGES as Awaited<ReturnType<typeof applyRecordChanges>>;

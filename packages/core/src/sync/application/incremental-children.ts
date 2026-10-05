@@ -4,7 +4,13 @@ import { TableName } from "../../kernel/table-name";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { fieldsToRedact } from "../../metadata/domain/redaction";
 import type { FingerprintChange } from "../domain/fingerprint";
-import { CHILD_TABLES, type ChildTable, childFamily, childGrouper } from "../domain/pull-scope";
+import {
+  CHILD_TABLES,
+  type ChildTable,
+  childFamily,
+  childGrouper,
+  ownerOfBase,
+} from "../domain/pull-scope";
 import { chunks } from "../domain/record-changes";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { cleaned, groupTable, owners } from "./pull-children";
@@ -43,40 +49,71 @@ async function store(
   }
 }
 
-// Changed rows name their owners; each owner's rows are then read again whole, so rows
-// deleted from an owner that also changed disappear too.
-async function refreshOwners(
+// Owners (sys_id -> record base) whose rows changed since `since`.
+async function changedOwners(
   deps: IncrementalDependencies,
-  catalog: Catalog,
   child: ChildTable,
   since: string,
   signal: AbortSignal,
-  totals: Totals,
-): Promise<void> {
-  const table = TableName.parse(child.table);
+): Promise<Map<string, string>> {
   const feed = {
-    table,
+    table: TableName.parse(child.table),
     fields: ["sys_id", "sys_updated_on", child.parentField],
     kind: "change-feed" as const,
     base: "",
     since,
   };
-  const ownerIds = new Set<string>();
+  const owners = new Map<string, string>();
   for await (const row of deps.pager.rows(feed, signal)) {
-    ownerIds.add(row[child.parentField] ?? "");
-  }
-  const bases = new Map<string, string>();
-  for (const id of ownerIds) {
+    const id = row[child.parentField] ?? "";
     const base = deps.records.baseOf(deps.metadataRoot, id);
     if (base !== undefined) {
-      bases.set(id, base);
+      owners.set(id, base);
     }
   }
+  return owners;
+}
+
+// Owners whose mirrored row count differs from the instance's: deleted rows appear in no
+// change feed, but one grouped count finds the owners that lost them.
+async function ownersWithOtherCounts(
+  deps: IncrementalDependencies,
+  child: ChildTable,
+  signal: AbortSignal,
+): Promise<Map<string, string>> {
+  const table = TableName.parse(child.table);
+  const current = await deps.statistics.countBy(table, child.parentField, signal);
+  const mirrored = await deps.records.countChildRows(deps.metadataRoot, child.table);
+  const owners = new Map<string, string>();
+  for (const [base, count] of mirrored) {
+    const id = ownerOfBase(base);
+    if ((current.get(id) ?? 0) !== count) {
+      owners.set(id, base);
+    }
+  }
+  for (const id of current.keys()) {
+    const base = deps.records.baseOf(deps.metadataRoot, id);
+    if (base !== undefined && !mirrored.has(base)) {
+      owners.set(id, base);
+    }
+  }
+  return owners;
+}
+
+// Reads each owner's rows again whole, so rows deleted from an owner disappear too.
+async function refreshOwners(
+  deps: IncrementalDependencies,
+  catalog: Catalog,
+  child: ChildTable,
+  owners: ReadonlyMap<string, string>,
+  signal: AbortSignal,
+  totals: Totals,
+): Promise<void> {
   const redact = fieldsToRedact(catalog, child.table, "", deps.policy);
-  for (const batch of chunks([...bases.keys()], OWNER_BATCH)) {
-    const grouper = childGrouper(child.parentField, new Map(bases));
+  for (const batch of chunks([...owners.keys()], OWNER_BATCH)) {
+    const grouper = childGrouper(child.parentField, new Map(owners));
     const listing = {
-      table,
+      table: TableName.parse(child.table),
       fields: "all" as const,
       kind: "snapshot" as const,
       base: `${child.parentField}IN${batch.join(",")}`,
@@ -86,10 +123,28 @@ async function refreshOwners(
     }
     const { attached } = grouper.result();
     for (const id of batch) {
-      const base = bases.get(id) ?? "";
+      const base = owners.get(id) ?? "";
       await store(deps, base, child.table, attached.get(base), totals);
     }
   }
+}
+
+async function refreshTable(
+  deps: IncrementalDependencies,
+  catalog: Catalog,
+  child: ChildTable,
+  change: FingerprintChange,
+  since: string,
+  signal: AbortSignal,
+  totals: Totals,
+): Promise<void> {
+  const owners = await changedOwners(deps, child, since, signal);
+  if (change === "shrunk") {
+    for (const [id, base] of await ownersWithOtherCounts(deps, child, signal)) {
+      owners.set(id, base);
+    }
+  }
+  await refreshOwners(deps, catalog, child, owners, signal, totals);
 }
 
 // Lists a family of child tables again, as a full pull does, and removes the files of owners
@@ -122,13 +177,13 @@ async function relistFamily(
   return unreadable;
 }
 
-// Families to list again: a nested table resolves owners only through its parent rows, and a
-// table with fewer rows lost rows that no change feed reports.
+// Families to list again: a nested table resolves owners only through its parent rows. The
+// nested families are small (workflow structure).
 function familiesToRelist(changes: ReadonlyMap<string, FingerprintChange>): ChildTable[][] {
   const roots = new Map<string, ChildTable[]>();
   for (const child of CHILD_TABLES) {
     const change = changes.get(child.table) ?? "unchanged";
-    if (change === "shrunk" || (change === "changed" && child.parentTable !== undefined)) {
+    if (change !== "unchanged" && child.parentTable !== undefined) {
       const family = childFamily(child.table);
       roots.set(family[0]?.table ?? child.table, family);
     }
@@ -151,11 +206,12 @@ export async function applyChildChanges(
     unreadable.push(...(await relistFamily(deps, catalog, family, signal, totals)));
   }
   for (const child of CHILD_TABLES) {
-    if (changes.get(child.table) !== "changed" || relisted.has(child.table)) {
+    const change = changes.get(child.table) ?? "unchanged";
+    if (change === "unchanged" || relisted.has(child.table)) {
       continue;
     }
     try {
-      await refreshOwners(deps, catalog, child, since, signal, totals);
+      await refreshTable(deps, catalog, child, change, since, signal, totals);
     } catch (error) {
       if (!(error instanceof AccessDeniedError)) {
         throw error;

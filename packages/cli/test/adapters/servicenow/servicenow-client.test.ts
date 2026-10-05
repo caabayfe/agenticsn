@@ -181,3 +181,41 @@ describe("ServiceNowClient.fingerprint", () => {
     });
   });
 });
+
+describe("ServiceNowClient.countBy", () => {
+  const TABLE = TableName.parse("sys_ui_element");
+
+  it("asks the aggregate API for a count per owner in one request", async () => {
+    const { client, sent } = clientWith(async () =>
+      response(
+        200,
+        '{"result":[{"stats":{"count":"8"},"groupby_fields":[{"field":"sys_ui_section","value":"s1"}]},' +
+          '{"stats":{"count":"2"},"groupby_fields":[{"field":"sys_ui_section","value":"s2"}]}]}',
+      ),
+    );
+    expect([...(await client.countBy(TABLE, "sys_ui_section", LIVE))]).toEqual([
+      ["s1", 8],
+      ["s2", 2],
+    ]);
+    expect(Object.fromEntries(new URL(sent[0]?.url ?? "").searchParams)).toEqual({
+      sysparm_count: "true",
+      sysparm_group_by: "sys_ui_section",
+    });
+  });
+
+  it("reads an empty table as no owners", async () => {
+    const { client } = clientWith(async () => response(200, '{"result":[]}'));
+    expect((await client.countBy(TABLE, "sys_ui_section", LIVE)).size).toBe(0);
+  });
+
+  it.each([
+    '{"result":{"stats":{"count":"1"}}}',
+    '{"result":[{"stats":{"count":"x"},"groupby_fields":[{"field":"sys_ui_section","value":"s1"}]}]}',
+    '{"result":[{"stats":{"count":"1"},"groupby_fields":[]}]}',
+  ])("reports an unexpected answer (%p)", async (body) => {
+    const { client } = clientWith(async () => response(200, body));
+    await expect(client.countBy(TABLE, "sys_ui_section", LIVE)).rejects.toMatchObject({
+      code: "instance-error",
+    });
+  });
+});

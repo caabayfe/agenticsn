@@ -12,6 +12,7 @@ function parts(path: string): { base: string; sysId: string } | null {
 // An in-memory mirror holding one root; file contents are kept as written.
 export function memoryMirror() {
   const files = new Map<string, unknown>();
+  let prepared = 0;
   const mirror: IncrementalMirror = {
     write: async (_root, rendered: RenderedRecord) => {
       files.set(`${rendered.base}.yaml`, rendered.document);
@@ -26,11 +27,24 @@ export function memoryMirror() {
       yield* new Set([...files.keys()].flatMap((path) => parts(path)?.base ?? []));
     },
     checkpoint: async () => {},
+    prepare: async () => {
+      prepared += 1;
+    },
     finish: async () => ({ commit: "commit", created: true }),
     abort: async () => {},
     baseOf: (_root, sysId) =>
       [...files.keys()].map(parts).find((found) => found?.sysId === sysId)?.base,
     filesOf: (_root, base) => [...files.keys()].filter((path) => parts(path)?.base === base),
+    countChildRows: async (_root, table) => {
+      const suffix = `.children.${table}.yaml`;
+      const counts = new Map<string, number>();
+      for (const [path, rows] of files) {
+        if (path.endsWith(suffix) && Array.isArray(rows)) {
+          counts.set(path.slice(0, -suffix.length), rows.length);
+        }
+      }
+      return counts;
+    },
     remove: async (_root, path) => {
       files.delete(path);
     },
@@ -39,5 +53,5 @@ export function memoryMirror() {
       files.delete(from);
     },
   };
-  return { mirror, files };
+  return { mirror, files, prepared: () => prepared };
 }

@@ -16,7 +16,21 @@ describe("pullIncremental: child rows", () => {
     expect(queries[2]?.query).toStartWith(`sys_ui_sectionIN${sid(4)}`);
   });
 
-  it("lists a table again when it lost rows, removing files left without rows", async () => {
+  it("finds the owners that lost rows with one grouped count, without listing the table", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    tables["sys_ui_element"] =
+      tables["sys_ui_element"]?.filter((row) => row["sys_id"] !== "e2") ?? [];
+    const { queries } = await incremental();
+    expect(files.get(`${SECTION}.children.sys_ui_element.yaml`)).toEqual([
+      expect.objectContaining({ sys_id: "e1" }),
+    ]);
+    const reads = queries.filter((query) => String(query.table) === "sys_ui_element");
+    expect(reads.every((query) => /sys_updated_on>=|sys_ui_sectionIN/.test(query.query))).toBe(
+      true,
+    );
+  });
+
+  it("removes the child-row file of an owner left without rows", async () => {
     const { incremental, tables, files } = await pulledInstance();
     tables["sys_ui_element"] = [];
     const { summary } = await incremental();

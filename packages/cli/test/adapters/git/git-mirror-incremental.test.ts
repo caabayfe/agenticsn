@@ -57,6 +57,7 @@ const tree = async (repo: string) =>
 describe("GitMirror in incremental mode", () => {
   it("knows the mirrored records it starts from", async () => {
     const mirror = await GitMirror.open(await pulled(), PDI, "incremental");
+    await mirror.prepare();
     expect(mirror.baseOf(ROOT, "00000000000000000000000000000001")).toBe(ONE);
     expect(mirror.filesOf(ROOT, ONE)).toEqual([
       `${ONE}.children.sys_ui_element.yaml`,
@@ -70,6 +71,7 @@ describe("GitMirror in incremental mode", () => {
     const repo = await pulled();
     const before = (await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], repo)).trim();
     const mirror = await GitMirror.open(repo, PDI, "incremental");
+    await mirror.prepare();
     await mirror.write(ROOT, record(3, "Three", "three();"));
     await mirror.remove(ROOT, "global/sys_script/two--00000000000000000000000000000002.yaml");
     await mirror.remove(ROOT, "global/sys_script/two--00000000000000000000000000000002.script.js");
@@ -87,6 +89,7 @@ describe("GitMirror in incremental mode", () => {
   it("moves files to a renamed record's new base", async () => {
     const repo = await pulled();
     const mirror = await GitMirror.open(repo, PDI, "incremental");
+    await mirror.prepare();
     const renamed = "global/sys_script/uno--00000000000000000000000000000001";
     await mirror.move(
       ROOT,
@@ -103,10 +106,38 @@ describe("GitMirror in incremental mode", () => {
     const repo = await pulled();
     const before = (await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], repo)).trim();
     const mirror = await GitMirror.open(repo, PDI, "incremental");
+    await mirror.prepare();
     // Writing a record again with the same content is not a change.
     await mirror.write(ROOT, record(1, "One", "one();"));
     expect(await mirror.finish("incremental")).toEqual({ commit: before, created: false });
     expect((await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], repo)).trim()).toBe(before);
+  });
+
+  it("counts mirrored child rows per record, including this pull's writes", async () => {
+    const repo = await pulled();
+    const mirror = await GitMirror.open(repo, PDI, "incremental");
+    await mirror.prepare();
+    const two = "global/sys_script/two--00000000000000000000000000000002";
+    await mirror.writeDocument(ROOT, `${two}.children.sys_ui_element.yaml`, [
+      { sys_id: "a", label: "- not a row\n- nor this" },
+      { sys_id: "b" },
+    ]);
+    const counts = await mirror.countChildRows(ROOT, "sys_ui_element");
+    expect([...counts].sort()).toEqual([
+      [ONE, 1],
+      [two, 2],
+    ]);
+    expect((await mirror.countChildRows(ROOT, "sys_ui_list_element")).size).toBe(0);
+    await mirror.abort();
+  });
+
+  it("reads the mirrored tree only when asked to", async () => {
+    const mirror = await GitMirror.open(await pulled(), PDI, "incremental");
+    expect(() => mirror.baseOf(ROOT, "00000000000000000000000000000001")).toThrow(/prepare/);
+    await mirror.prepare();
+    await mirror.prepare();
+    expect(mirror.baseOf(ROOT, "00000000000000000000000000000001")).toBe(ONE);
+    expect(await mirror.finish("nothing")).toMatchObject({ created: false });
   });
 
   it("refuses to start before a full pull exists", async () => {

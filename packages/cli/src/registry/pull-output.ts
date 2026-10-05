@@ -137,7 +137,7 @@ function renderIncremental(
   return [
     `pulled ${output.instance} changes in ${output.seconds} s -> ${output.commit.slice(0, 10)} on servicenow-remote/${output.instance}`,
     `  records: ${output.records} written, ${changes.renamed} renamed, ${changes.deleted} deleted, ${changes.skippedRows} skipped${changes.catalogRefreshed ? "; catalog read again" : ""}`,
-    `  child rows: ${changes.childFiles} files written, ${changes.removedChildFiles} removed`,
+    `  child rows: ${changes.childFiles} files refreshed, ${changes.removedChildFiles} removed`,
     `  changed on the instance: ${changes.changedSources.join(", ") || "nothing"}`,
     load(output),
   ];

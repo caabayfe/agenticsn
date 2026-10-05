@@ -13,6 +13,13 @@ describe("pullIncremental: nothing changed", () => {
     expect(summary.next.lastFullPull).toBe("2026-10-05 10:00:00");
   });
 
+  it("does not read the mirrored tree when nothing changed", async () => {
+    const { incremental, prepared } = await pulledInstance();
+    const before = prepared();
+    await incremental();
+    expect(prepared()).toBe(before);
+  });
+
   it("leaves storing the new state to the caller, after the mirror commit", async () => {
     const { incremental, state } = await pulledInstance();
     await incremental();

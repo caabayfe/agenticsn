@@ -149,7 +149,10 @@ function memoryState(checkpoint: PullCheckpoint | null = null, timeline: string[
 function run(reader: InstanceReader, state = memoryState(), records = memoryRecords()) {
   const deps = {
     pager: new KeysetPager(reader),
-    statistics: { fingerprint: async () => ({ count: 1, maxUpdatedOn: "2026-10-05 11:00:00" }) },
+    statistics: {
+      fingerprint: async () => ({ count: 1, maxUpdatedOn: "2026-10-05 11:00:00" }),
+      countBy: async () => new Map(),
+    },
     records: records.store,
     state: state.store,
     metadataRoot: "meta",

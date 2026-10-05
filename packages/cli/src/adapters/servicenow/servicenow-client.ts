@@ -27,6 +27,12 @@ function errorMessage(body: string): string {
 
 interface StatsResult {
   stats?: { count?: string; max?: { sys_updated_on?: string } };
+  groupby_fields?: { field?: string; value?: string }[];
+}
+
+function countOf(result: StatsResult | null | undefined): number | null {
+  const count = Number(result?.stats?.count);
+  return Number.isInteger(count) && count >= 0 ? count : null;
 }
 
 // The only place that builds Table API and Aggregate API requests, so ADR-0016's rules hold
@@ -86,13 +92,40 @@ export class ServiceNowClient implements InstanceReader, TableStatistics {
       { method: "GET", url: url.href, headers: this.headers },
       signal,
     );
-    const { stats } = ((await this.result(response, `statistics of ${table}`)) ??
-      {}) as StatsResult;
-    const count = Number(stats?.count);
-    if (!Number.isInteger(count) || count < 0) {
+    const result = (await this.result(response, `statistics of ${table}`)) as StatsResult;
+    const count = countOf(result);
+    if (count === null) {
       throw this.unexpected(response, `statistics of ${table}`);
     }
-    return { count, maxUpdatedOn: stats?.max?.sys_updated_on || null };
+    return { count, maxUpdatedOn: result.stats?.max?.sys_updated_on || null };
+  }
+
+  async countBy(
+    table: TableName,
+    field: string,
+    signal: AbortSignal,
+  ): Promise<ReadonlyMap<string, number>> {
+    const url = new URL(`/api/now/stats/${table}`, this.profile.url);
+    url.search = new URLSearchParams({ sysparm_count: "true", sysparm_group_by: field }).toString();
+    const response = await this.scheduler.send(
+      { method: "GET", url: url.href, headers: this.headers },
+      signal,
+    );
+    const what = `counts of ${table} by ${field}`;
+    const groups = await this.result(response, what);
+    if (!Array.isArray(groups)) {
+      throw this.unexpected(response, what);
+    }
+    const counts = new Map<string, number>();
+    for (const group of groups as StatsResult[]) {
+      const count = countOf(group);
+      const value = group.groupby_fields?.find((entry) => entry.field === field)?.value;
+      if (count === null || value === undefined) {
+        throw this.unexpected(response, what);
+      }
+      counts.set(value, count);
+    }
+    return counts;
   }
 
   stats(): ConnectionStats {

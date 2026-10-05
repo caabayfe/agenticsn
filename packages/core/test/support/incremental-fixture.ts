@@ -99,7 +99,7 @@ function memoryState() {
 export async function pulledInstance() {
   const denied: string[] = [];
   const instance = fakeInstance(instanceTables(), denied);
-  const { mirror, files } = memoryMirror();
+  const { mirror, files, prepared } = memoryMirror();
   const state = memoryState();
   let now = new Date("2026-10-05T10:00:00Z");
   const deps = {
@@ -118,6 +118,7 @@ export async function pulledInstance() {
     tables: instance.tables,
     files,
     state,
+    prepared,
     // Takes read access away from tables, as an ACL would.
     deny(...tables: string[]) {
       denied.push(...tables);

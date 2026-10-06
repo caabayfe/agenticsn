@@ -24,19 +24,26 @@ describe("the agent pack", () => {
 
   it("writes each skill where every compatible host looks, stamped with the version", () => {
     const files = skillFiles("1.2.3");
+    // .agents/skills: Codex, Copilot, Cursor. .claude/skills: Claude Code, which does not read
+    // .agents/skills (checked with Claude Code 2.1.285).
     expect(files.map((file) => file.path)).toEqual(
-      SKILLS.map((skill) => `.agents/skills/${skill.name}/SKILL.md`),
+      SKILLS.flatMap((skill) => [
+        `.agents/skills/${skill.name}/SKILL.md`,
+        `.claude/skills/${skill.name}/SKILL.md`,
+      ]),
     );
+    expect(files[1]?.content).toBe(files[0]?.content ?? "");
     expect(files[0]?.content).toStartWith(`---\nname: ${SKILLS[0]?.name}\ndescription: "`);
     expect(files[0]?.content).toContain("  generated-by: snagentic 1.2.3\n---\n");
   });
 
   it("writes front matter that YAML reads back as the skill's name and description", () => {
-    for (const [index, { content }] of skillFiles("1.2.3").entries()) {
+    for (const { path, content } of skillFiles("1.2.3")) {
+      const skill = SKILLS.find((candidate) => path.includes(`/${candidate.name}/`));
       const front = parse(content.split("\n---\n")[0]?.slice(4) ?? "");
       expect(front).toEqual({
-        name: SKILLS[index]?.name,
-        description: SKILLS[index]?.description,
+        name: skill?.name,
+        description: skill?.description,
         metadata: { "generated-by": "snagentic 1.2.3" },
       });
     }

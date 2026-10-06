@@ -8,7 +8,7 @@ export const agentInstall = defineUseCase({
   name: "install",
   group: "agent",
   description:
-    "Install the agent pack into the workspace: the workflow skills (.agents/skills), the " +
+    "Install the agent pack into the workspace: the workflow skills (.agents/skills, and .claude/skills for Claude Code), the " +
     "instructions block in AGENTS.md and its import in CLAUDE.md. Commit them so the whole " +
     "team's agents work the same way. Run again after upgrading snagentic.",
   input: z.object({}),

@@ -16,12 +16,16 @@ export interface PackFile {
   readonly content: string;
 }
 
+// Where hosts look for skills: .agents/skills (the shared location: Codex, Copilot, Cursor) and
+// .claude/skills (Claude Code, which does not read .agents/skills; checked with 2.1.285).
+const SKILL_FOLDERS = [".agents/skills", ".claude/skills"];
+
 // The files `agent install` writes, besides the instructions block in AGENTS.md.
 export function skillFiles(version: string): PackFile[] {
-  return SKILLS.map((skill) => ({
-    path: `.agents/skills/${skill.name}/SKILL.md`,
-    content: renderSkill(skill, version),
-  }));
+  return SKILLS.flatMap((skill) => {
+    const content = renderSkill(skill, version);
+    return SKILL_FOLDERS.map((folder) => ({ path: `${folder}/${skill.name}/SKILL.md`, content }));
+  });
 }
 
 export interface PackPrompt {

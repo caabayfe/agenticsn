@@ -50,6 +50,8 @@ export interface TableDescription extends Freshness {
   readonly behavior: Readonly<Partial<Record<Phase, readonly BehaviorItem[]>>>;
   // Items left out per phase (inactive ones, or beyond the per-phase limit).
   readonly omitted: Readonly<Partial<Record<Phase, number>>>;
+  // Active items per phase, all of them (inherited included).
+  readonly counts: Readonly<Partial<Record<Phase, number>>>;
   readonly notCovered: readonly string[];
   readonly next: readonly NextCall[];
 }
@@ -91,11 +93,16 @@ function field(record: IndexedRecord): FieldItem {
 function grouped(records: readonly IndexedRecord[], table: string, includeInactive: boolean) {
   const behavior: Partial<Record<Phase, BehaviorItem[]>> = {};
   const omitted: Partial<Record<Phase, number>> = {};
+  const counts: Partial<Record<Phase, number>> = {};
   for (const phase of PHASE_ORDER) {
     const all = records
       .filter((r) => r.phase === phase)
       .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
     const shown = all.filter((r) => includeInactive || r.active);
+    const active = all.filter((r) => r.active).length;
+    if (active > 0) {
+      counts[phase] = active;
+    }
     if (shown.length > 0) {
       behavior[phase] = shown.slice(0, PER_PHASE).map((r) => item(r, table));
     }
@@ -103,7 +110,7 @@ function grouped(records: readonly IndexedRecord[], table: string, includeInacti
       omitted[phase] = all.length - Math.min(shown.length, PER_PHASE);
     }
   }
-  return { behavior, omitted };
+  return { behavior, omitted, counts };
 }
 
 // A table: its fields and everything that runs on it, in execution order, including what
@@ -120,7 +127,7 @@ export async function describeTable(
     .filter((r) => r.phase === "field")
     .map(field)
     .sort((a, b) => a.name.localeCompare(b.name));
-  const { behavior, omitted } = grouped(records, table, includeInactive);
+  const { behavior, omitted, counts } = grouped(records, table, includeInactive);
   const first = behavior.before?.[0] ?? behavior.after?.[0] ?? behavior.client?.[0];
   return {
     ...freshness(deps),
@@ -130,6 +137,7 @@ export async function describeTable(
     fields,
     behavior,
     omitted,
+    counts,
     notCovered: [
       "flows and workflows triggered by this table",
       "business rules on the global table, which run on every table",

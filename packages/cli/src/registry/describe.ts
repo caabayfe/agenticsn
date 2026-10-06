@@ -45,6 +45,7 @@ const TableOutput = Freshness.extend({
     .readonly(),
   behavior: z.record(z.string(), Behavior),
   omitted: z.record(z.string(), z.number()),
+  counts: z.record(z.string(), z.number()),
   notCovered: z.array(z.string()).readonly(),
   next: NextCalls,
 });

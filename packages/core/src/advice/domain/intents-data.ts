@@ -1,0 +1,180 @@
+import type { Intent } from "./intent-types";
+
+// Intents about a record's data and form: messages, field state, values, validation, approval.
+export const DATA_INTENTS: readonly Intent[] = [
+  {
+    id: "notify",
+    label: "tell people when something happens",
+    stems: ["notif", "email", "inform", "alert", "remind", "message the", "send"],
+    options: [
+      {
+        option: "Notification on the record event, with a condition",
+        customization: "configuration",
+        classes: ["sysevent_email_action"],
+        when: "the record is inserted or updated, or an event already fires",
+        evidence: "notify",
+      },
+      {
+        option: "Flow with a notification step",
+        customization: "low-code",
+        classes: ["sys_hub_flow"],
+        when: "the message needs data gathered from several records, or a wait",
+      },
+      {
+        option: "Business rule that queues an event, and a notification on it",
+        customization: "script",
+        classes: ["sys_script", "sysevent_register", "sysevent_email_action"],
+        when: "only when the trigger cannot be expressed as a condition",
+        evidence: "after",
+      },
+    ],
+  },
+  {
+    id: "field-state",
+    label: "make fields mandatory, read-only, visible or hidden",
+    stems: [
+      "mandator",
+      "required",
+      "read-only",
+      "readonly",
+      "read only",
+      "visible",
+      "hide",
+      "hidden",
+      "show",
+      "display the field",
+    ],
+    options: [
+      {
+        option: "UI policy with UI policy actions",
+        customization: "configuration",
+        classes: ["sys_ui_policy", "sys_ui_policy_action"],
+        when: "on forms, depending on field values",
+        evidence: "client",
+      },
+      {
+        option: "Data policy",
+        customization: "configuration",
+        classes: ["sys_data_policy2"],
+        when: "mandatory or read-only for every channel (forms, imports, web services)",
+        evidence: "policy",
+      },
+      {
+        option: "Dictionary attribute or override (mandatory, read-only)",
+        customization: "configuration",
+        classes: ["sys_dictionary", "sys_dictionary_override"],
+        when: "always, regardless of values",
+      },
+      {
+        option: "Client script with g_form",
+        customization: "script",
+        classes: ["sys_script_client"],
+        when: "only when the condition cannot be expressed in a UI policy",
+        evidence: "client",
+      },
+    ],
+  },
+  {
+    id: "set-value",
+    label: "fill in, default, calculate or copy a value",
+    stems: [
+      "default",
+      "calculat",
+      "populat",
+      "auto-fill",
+      "autofill",
+      "fill in",
+      "copy",
+      "derive",
+      "set the",
+      "set field",
+      "compute",
+    ],
+    options: [
+      {
+        option: "Dictionary default value or a template",
+        customization: "configuration",
+        classes: ["sys_dictionary", "sys_template"],
+        when: "a fixed or simple default on new records",
+      },
+      {
+        option: "Calculated field or function field",
+        customization: "configuration",
+        classes: ["sys_dictionary"],
+        when: "the value always follows from other fields of the same record",
+      },
+      {
+        option: "Flow on record create or update",
+        customization: "low-code",
+        classes: ["sys_hub_flow"],
+        when: "the value comes from other records and can be set after the save",
+      },
+      {
+        option: "Before business rule setting fields on current",
+        customization: "script",
+        classes: ["sys_script"],
+        when: "the value must be right when the record is saved",
+        evidence: "before",
+      },
+    ],
+  },
+  {
+    id: "validate",
+    label: "prevent invalid data or actions",
+    stems: [
+      "validat",
+      "prevent",
+      "block",
+      "abort",
+      "must not",
+      "cannot",
+      "can't",
+      "only allow",
+      "restrict the value",
+      "stop",
+    ],
+    options: [
+      {
+        option:
+          "Data policy or dictionary constraint (mandatory, choice list, reference qualifier)",
+        customization: "configuration",
+        classes: ["sys_data_policy2", "sys_dictionary"],
+        when: "the rule is about required values or allowed choices",
+        evidence: "policy",
+      },
+      {
+        option: "UI policy or onSubmit client script for immediate feedback",
+        customization: "low-code",
+        classes: ["sys_ui_policy", "sys_script_client"],
+        when: "in addition to a server-side check, never instead of it",
+        evidence: "client",
+      },
+      {
+        option: "Before business rule with current.setAbortAction(true) and a message",
+        customization: "script",
+        classes: ["sys_script"],
+        when: "the rule needs other records or complex logic",
+        evidence: "before",
+      },
+    ],
+  },
+  {
+    id: "approval",
+    label: "ask someone to approve",
+    stems: ["approv"],
+    options: [
+      {
+        option: "Approval rule or approval definition",
+        customization: "configuration",
+        classes: ["sysapproval_rule"],
+        when: "approvers follow from the record (manager, group, user)",
+      },
+      {
+        option: "Flow with an Ask for Approval action",
+        customization: "low-code",
+        classes: ["sys_hub_flow"],
+        when: "the approval is part of a process with other steps",
+      },
+    ],
+  },
+];

@@ -1,0 +1,166 @@
+import type { Intent } from "./intent-types";
+
+// Intents about processes, people and other systems: routing, integration, schedules, access, actions.
+export const PROCESS_INTENTS: readonly Intent[] = [
+  {
+    id: "assignment",
+    label: "assign or route work",
+    stems: ["assign", "route", "routing", "dispatch"],
+    options: [
+      {
+        option: "Assignment rule or data lookup rule",
+        customization: "configuration",
+        classes: ["sysrule_assignment", "dl_definition"],
+        when: "the group or user follows from field values",
+      },
+      {
+        option: "Flow, or Advanced Work Assignment for agent queues",
+        customization: "low-code",
+        classes: ["sys_hub_flow"],
+        when: "routing depends on availability, skills or several steps",
+      },
+      {
+        option: "Before business rule setting assignment fields",
+        customization: "script",
+        classes: ["sys_script"],
+        when: "only when no rule or flow can express it",
+        evidence: "before",
+      },
+    ],
+  },
+  {
+    id: "integration",
+    label: "exchange data with another system",
+    stems: [
+      "integrat",
+      "rest",
+      "soap",
+      "api",
+      "external",
+      "webhook",
+      "endpoint",
+      "third-party",
+      "third party",
+      "sync with",
+    ],
+    options: [
+      {
+        option: "Import set and transform map (inbound)",
+        customization: "configuration",
+        classes: ["sys_transform_map"],
+        when: "data comes into ServiceNow in batches",
+      },
+      {
+        option: "IntegrationHub spoke action in a flow",
+        customization: "low-code",
+        classes: ["sys_hub_flow", "sys_hub_action_type_definition"],
+        when: "a spoke exists for the system, or a REST step is enough",
+      },
+      {
+        option: "Outbound REST message called from an async business rule or a script action",
+        customization: "script",
+        classes: ["sys_rest_message", "sys_script", "sysevent_script_action"],
+        when: "a scripted call is unavoidable; never from a before or display rule",
+        evidence: "async",
+      },
+      {
+        option: "Scripted REST API (inbound)",
+        customization: "script",
+        classes: ["sys_ws_definition", "sys_ws_operation"],
+        when: "another system must call ServiceNow with its own contract",
+      },
+    ],
+  },
+  {
+    id: "schedule",
+    label: "run something on a schedule",
+    stems: [
+      "schedul",
+      "every day",
+      "every night",
+      "every hour",
+      "every week",
+      "every month",
+      "each night",
+      "daily",
+      "nightly",
+      "weekly",
+      "monthly",
+      "periodic",
+      "recurring",
+      "cron",
+    ],
+    options: [
+      {
+        option: "Flow with a scheduled trigger",
+        customization: "low-code",
+        classes: ["sys_hub_flow"],
+        when: "the work fits flow actions",
+      },
+      {
+        option: "Scheduled script execution",
+        customization: "script",
+        classes: ["sysauto_script"],
+        when: "the work needs a script; keep it bounded and restartable",
+      },
+    ],
+  },
+  {
+    id: "access",
+    label: "control who can see or change data",
+    stems: [
+      "access",
+      "permission",
+      "role",
+      "who can",
+      "secur",
+      "acl",
+      "visible to",
+      "only managers",
+      "only admins",
+    ],
+    options: [
+      {
+        option: "ACL with roles",
+        customization: "configuration",
+        classes: ["sys_security_acl"],
+        when: "access follows from roles",
+        evidence: "access",
+      },
+      {
+        option: "ACL with a condition",
+        customization: "configuration",
+        classes: ["sys_security_acl"],
+        when: "access depends on the record's values",
+        evidence: "access",
+      },
+      {
+        option: "ACL with a script",
+        customization: "script",
+        classes: ["sys_security_acl"],
+        when: "only when roles and conditions cannot express it; never return true unconditionally",
+        evidence: "access",
+      },
+    ],
+  },
+  {
+    id: "action",
+    label: "add a button or link users can click",
+    stems: ["button", "ui action", "menu", "link", "context menu", "click"],
+    options: [
+      {
+        option: "UI action with a condition",
+        customization: "low-code",
+        classes: ["sys_ui_action"],
+        when: "users trigger the work from a form or list",
+        evidence: "action",
+      },
+      {
+        option: "Workspace declarative action",
+        customization: "low-code",
+        classes: ["sys_declarative_action_assignment"],
+        when: "the table is used in a configurable Workspace",
+      },
+    ],
+  },
+];

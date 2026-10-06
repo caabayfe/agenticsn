@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { InstanceName } from "@snagentic/core";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { toYaml } from "../../src/adapters/yaml/own-style";
+import { advise } from "../../src/registry/advise";
 import { describe } from "../../src/registry/describe";
 import { executeUseCase } from "../../src/registry/execute";
 import { find } from "../../src/registry/find";
@@ -145,5 +146,35 @@ group("find rendering", () => {
     expect(text).toContain("(inactive) A");
     expect(text).toContain("    global/sys_script/a--b1.script.js:3  new Prioritizer()");
     expect(text).toContain("… 40 in all; narrow with --class, --table or more words");
+  });
+});
+
+group("advise", () => {
+  it("advises on a request about a table, least custom first, with the design record", async () => {
+    const { context } = await workspace();
+    const { output } = await executeUseCase(
+      advise,
+      { intent: "set the priority automatically", tables: ["incident"] },
+      context,
+    );
+    expect(output["intents"]).toEqual([
+      { id: "set-value", label: "fill in, default, calculate or copy a value" },
+    ]);
+    const text = advise.render(output as never, "text");
+    expect(text).toContain("[likely] Dictionary default value or a template (configuration)");
+    expect(text).toContain("already: 1 on incident (before)");
+    expect(text).toContain("business rule: Set priority");
+    expect(text).toContain("Design record:");
+  });
+
+  it("lists rules for the classes being built", async () => {
+    const { context } = await workspace();
+    const { output } = await executeUseCase(
+      advise,
+      { intent: "anything", phase: "build", classes: ["sys_script"] },
+      context,
+    );
+    expect(advise.render(output as never, "text")).toContain("[SN-PERF-001][block]");
+    expect(advise.render(output as never, "text")).toContain("request not recognised");
   });
 });

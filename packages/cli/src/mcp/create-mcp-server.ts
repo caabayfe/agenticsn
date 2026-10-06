@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import type { ServerNotification, ServerRequest } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 import { describeError, executeUseCase, type RunControl } from "../registry/execute";
 import { assertMcpBudget } from "../registry/mcp-budget";
 import { mcpToolName, type UseCase, type UseCaseContext } from "../registry/use-case";
@@ -32,20 +33,35 @@ function runControlFor(extra: ToolExtra): RunControl {
   };
 }
 
+// ADR-0012 layer 3: a tool that changes an instance exists only when the workspace has a
+// development instance, and can only name those. For other kinds it is not registered at all.
+function toolInput(useCase: UseCase, developmentInstances: readonly string[]): z.ZodObject | null {
+  if (!useCase.flags.requiresDevelopmentInstance) {
+    return useCase.input;
+  }
+  const [first, ...rest] = developmentInstances;
+  return first === undefined ? null : useCase.input.extend({ instance: z.enum([first, ...rest]) });
+}
+
 // Builds the MCP server from the registry. Contains no knowledge of any specific use case.
 export function createMcpServer(
   useCases: readonly UseCase[],
   context: UseCaseContext,
   version: string,
+  developmentInstances: readonly string[] = [],
 ): McpServer {
   assertMcpBudget(useCases);
   const server = new McpServer({ name: "snagentic", version });
   for (const useCase of useCases.filter((candidate) => candidate.mcp)) {
+    const inputSchema = toolInput(useCase, developmentInstances);
+    if (inputSchema === null) {
+      continue;
+    }
     server.registerTool(
       mcpToolName(useCase),
       {
         description: useCase.description,
-        inputSchema: useCase.input,
+        inputSchema,
         outputSchema: useCase.output,
         annotations: {
           readOnlyHint: useCase.flags.readOnly,

@@ -103,6 +103,10 @@ export interface UseCase<
   readonly flags: UseCaseFlags;
   // Whether the operation earns a place in the MCP tool budget (ADR-0002).
   readonly mcp: boolean;
+  // The MCP tool's name when it differs from <group>_<name>, as ADR-0002 and the plan name it.
+  readonly mcpName?: string;
+  // False for an MCP-only use case that gathers several CLI commands into one tool.
+  readonly cli?: boolean;
   // Input fields the CLI takes as positional arguments, in order.
   readonly arguments?: readonly string[];
   handle(
@@ -132,7 +136,7 @@ export function qualifiedName(useCase: UseCase): string {
 }
 
 export function mcpToolName(useCase: UseCase): string {
-  return qualifiedName(useCase).replaceAll(/[- ]/g, "_");
+  return useCase.mcpName ?? qualifiedName(useCase).replaceAll(/[- ]/g, "_");
 }
 
 export function isOutputFormat(value: unknown): value is OutputFormat {

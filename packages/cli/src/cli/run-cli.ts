@@ -121,7 +121,7 @@ export async function runCli(
   program.option("--workspace <path>", "workspace folder (default: found from the current folder)");
   const contextFor = (): UseCaseContext => withWorkspaceOverride(context, program.opts());
 
-  for (const useCase of useCases) {
+  for (const useCase of useCases.filter((candidate) => candidate.cli !== false)) {
     const positional = useCase.arguments ?? [];
     const command = parentFor(program, useCase.group)
       .command(useCase.name)

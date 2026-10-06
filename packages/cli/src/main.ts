@@ -24,6 +24,7 @@ import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader
 import { FsWorkspaceStore } from "./adapters/workspace/fs-workspace-store";
 import { runCli } from "./cli/run-cli";
 import { createMcpServer } from "./mcp/create-mcp-server";
+import { developmentInstances } from "./registry/development-instances";
 import { USE_CASES } from "./registry/registry";
 import type { UseCaseContext } from "./registry/use-case";
 import { versionLine } from "./version-line";
@@ -80,7 +81,10 @@ process.exitCode = await runCli(
     version: versionLine(),
     signal: cancellation.signal,
     serveMcp: async () => {
-      await createMcpServer(USE_CASES, context, versionLine()).connect(new StdioServerTransport());
+      const development = await developmentInstances(context);
+      await createMcpServer(USE_CASES, context, versionLine(), development).connect(
+        new StdioServerTransport(),
+      );
     },
   },
 );

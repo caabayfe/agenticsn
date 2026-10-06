@@ -3,11 +3,14 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createMcpServer } from "../../src/mcp/create-mcp-server";
 import { MCP_TOOL_BUDGET } from "../../src/registry/mcp-budget";
+import { pluginsActivate } from "../../src/registry/plugins-activate";
+import { pluginsList } from "../../src/registry/plugins-list";
+import { USE_CASES } from "../../src/registry/registry";
 import type { UseCase } from "../../src/registry/use-case";
 import { echoUseCase, FAKE_CONTEXT, progressUseCase, waitForCancelUseCase } from "../support/fakes";
 
-async function connect(useCases: UseCase[]): Promise<Client> {
-  const server = createMcpServer(useCases, FAKE_CONTEXT, "test");
+async function connect(useCases: readonly UseCase[], development: string[] = []): Promise<Client> {
+  const server = createMcpServer(useCases, FAKE_CONTEXT, "test", development);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test-client", version: "1.0.0" });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -101,5 +104,28 @@ describe("generated MCP server", () => {
     );
     const cliOnly = [echoUseCase({ name: "cli-only", mcp: false })];
     expect(() => createMcpServer([...mcpTools, ...cliOnly], FAKE_CONTEXT, "test")).not.toThrow();
+  });
+});
+
+describe("ADR-0012 layer 3 on the MCP surface", () => {
+  it("does not register a tool that changes an instance when no development instance exists", async () => {
+    const { tools } = await (await connect([pluginsActivate, pluginsList])).listTools();
+    expect(tools.map((tool) => tool.name)).toEqual(["plugins"]);
+  });
+
+  it("lets a tool that changes an instance name development instances only", async () => {
+    const { tools } = await (await connect([pluginsActivate], ["pdi", "dev2"])).listTools();
+    expect(tools[0]?.name).toBe("plugin_activate");
+    expect(tools[0]?.annotations).toMatchObject({ destructiveHint: true, readOnlyHint: false });
+    expect(tools[0]?.inputSchema.properties?.["instance"]).toMatchObject({ enum: ["pdi", "dev2"] });
+  });
+});
+
+describe("the v1.0 tools", () => {
+  it("are the six the plan names, within the budget", async () => {
+    const { tools } = await (await connect(USE_CASES, ["pdi"])).listTools();
+    expect(tools.map((tool) => tool.name).sort()).toEqual(
+      ["doctor", "plugin_activate", "plugins", "pull", "status", "update_sets"].sort(),
+    );
   });
 });

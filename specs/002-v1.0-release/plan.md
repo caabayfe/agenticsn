@@ -233,7 +233,7 @@ Each milestone is a series of small pull requests (each one merged when `verify`
 | M4 | Incremental pull, integrate, status (done; results in ADR-0016) | Change a record in the PDI, `pull`, `integrate` | Fingerprints first: one aggregate per change source when nothing changed (20 on the PDI, under 10 s; ASR-16 revised); deletes detected; fingerprint reconciliation (`pull --verify`); server cost report (from `syslog_transaction`); `status` shows freshness and pending changes |
 | M5 | Update sets (done; ADR-0018) | `update-sets list / show / collisions / export` | Export matches ServiceNow's XML format (checked against a real export) |
 | M6 | Plugins (done; ADR-0016 appendix) | `plugins list`, `plugins activate` on the PDI | Development only; progress reporting; no automatic retry of ambiguous failures |
-| M7 | MCP and documentation | Use every v1.0 tool from Claude Code and Copilot | Command reference generated from the registry; getting-started guide |
+| M7 | MCP and documentation (done; docs/getting-started.md, docs/reference/commands.md) | Use every v1.0 tool from Claude Code and Copilot | Command reference generated from the registry; getting-started guide |
 | M8 | Release v1.0.0 | Install with one command on macOS, Windows, Linux | Release workflow (tag → build → checksums → GitHub release); install scripts; Homebrew tap; changelog; all section 4.4 targets met or explicitly accepted |
 
 ## 8. Release engineering (M8)

@@ -3,7 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-06
 - Requirements: ASR-16; plan section 5.1 (M5)
-- Relates to: 0012 (production read-only), 0013 (v1.0 scope)
+- Amends: 0013 (update sets are read live, not pulled into the workspace)
+- Relates to: 0012 (production read-only)
 
 ## Context
 

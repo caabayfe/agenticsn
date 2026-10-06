@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { VERSION } from "@snagentic/core";
 import { fsWorkspaceFiles } from "../../src/adapters/fs/fs-workspace-files";
@@ -33,6 +33,9 @@ describe("agent install", () => {
     const settings = JSON.parse(await readFile(join(ws.root, ".claude/settings.json"), "utf8"));
     expect(settings.hooks.PostToolUse[0].hooks[0].command).toBe("snagentic hook claude post-edit");
     expect(settings.permissions.ask).toContain("mcp__snagentic__push");
+    const hook = join(ws.root, ".git/hooks/pre-commit");
+    expect(await readFile(hook, "utf8")).toContain("snagentic validate");
+    expect((await stat(hook)).mode & 0o111).not.toBe(0);
     expect(agentInstall.render(output as never, "text")).toContain("commit these files");
   });
 

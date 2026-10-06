@@ -50,14 +50,18 @@ describe("the AGENTS.md import in CLAUDE.md", () => {
 function memoryFiles(initial: Record<string, string> = {}) {
   const files = new Map(Object.entries(initial));
   const writes: string[] = [];
+  const executables: string[] = [];
   const port: WorkspaceFiles = {
     read: async (path) => files.get(path) ?? null,
-    write: async (path, content) => {
+    write: async (path, content, options) => {
       writes.push(path);
       files.set(path, content);
+      if (options?.executable === true) {
+        executables.push(path);
+      }
     },
   };
-  return { port, files, writes };
+  return { port, files, writes, executables };
 }
 
 const SETTINGS = {
@@ -80,8 +84,20 @@ describe("installAgentPack", () => {
       { path: "AGENTS.md", status: "created" },
       { path: "CLAUDE.md", status: "updated" },
       { path: ".claude/settings.json", status: "created" },
+      { path: ".git/hooks/pre-commit", status: "created" },
     ]);
     expect(files.get("/w/AGENTS.md")).toContain("<!-- snagentic:begin 1.1.0 -->");
+  });
+
+  it("installs an executable pre-commit hook that validates, never replacing the team's own", async () => {
+    const fresh = memoryFiles();
+    await installAgentPack(fresh.port, "/w", PACK);
+    expect(fresh.executables).toEqual(["/w/.git/hooks/pre-commit"]);
+    expect(fresh.files.get("/w/.git/hooks/pre-commit")).toContain("snagentic validate");
+    const theirs = memoryFiles({ "/w/.git/hooks/pre-commit": "#!/bin/sh\nnpm test\n" });
+    const results = await installAgentPack(theirs.port, "/w", PACK);
+    expect(results.at(-1)).toEqual({ path: ".git/hooks/pre-commit", status: "skipped" });
+    expect(theirs.files.get("/w/.git/hooks/pre-commit")).toBe("#!/bin/sh\nnpm test\n");
   });
 
   it("writes nothing when the pack is already installed", async () => {
@@ -90,6 +106,7 @@ describe("installAgentPack", () => {
     writes.length = 0;
     const second = await installAgentPack(port, "/w", PACK);
     expect(second.map((file) => file.status)).toEqual([
+      "unchanged",
       "unchanged",
       "unchanged",
       "unchanged",
@@ -131,6 +148,6 @@ describe("Claude Code settings", () => {
   it("reports the settings it could not merge", async () => {
     const { port } = memoryFiles({ "/w/.claude/settings.json": "{ broken" });
     const results = await installAgentPack(port, "/w", PACK);
-    expect(results.at(-1)).toEqual({ path: ".claude/settings.json", status: "skipped" });
+    expect(results).toContainEqual({ path: ".claude/settings.json", status: "skipped" });
   });
 });

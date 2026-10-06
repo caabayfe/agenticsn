@@ -268,7 +268,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic agent install [options]
 ```
 
-Install the agent pack into the workspace: the workflow skills (.agents/skills, and .claude/skills for Claude Code), the instructions block in AGENTS.md and its import in CLAUDE.md, and Claude Code hooks and permission rules in .claude/settings.json. Commit them so the whole team's agents work the same way. Run again after upgrading snagentic.
+Install the agent pack into the workspace: the workflow skills (.agents/skills, and .claude/skills for Claude Code), the instructions block in AGENTS.md and its import in CLAUDE.md, Claude Code hooks and permission rules in .claude/settings.json, and a git pre-commit hook that runs validate. Commit them so the whole team's agents work the same way. Run again after upgrading snagentic.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

@@ -15,5 +15,5 @@ export interface WorkspaceStore {
 export interface WorkspaceFiles {
   // The file's content, or null when there is none.
   read(path: string): Promise<string | null>;
-  write(path: string, content: string): Promise<void>;
+  write(path: string, content: string, options?: { readonly executable?: boolean }): Promise<void>;
 }

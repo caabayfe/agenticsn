@@ -39,7 +39,8 @@ export const pluginsList = defineUseCase({
     ),
   }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
-  mcp: false,
+  mcp: true,
+  mcpName: "plugins",
   arguments: ["instance", "text"],
   async handle(input, context) {
     const root = await workspaceRoot(context);

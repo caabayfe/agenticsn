@@ -14,6 +14,7 @@ import { updateSetsCollisions } from "./update-sets-collisions";
 import { updateSetsExport } from "./update-sets-export";
 import { updateSetsList } from "./update-sets-list";
 import { updateSetsShow } from "./update-sets-show";
+import { updateSetsTool } from "./update-sets-tool";
 import type { UseCase } from "./use-case";
 
 // Every operation snagentic offers. Adding one here adds its CLI command and, when marked
@@ -32,6 +33,7 @@ export const USE_CASES: readonly UseCase[] = [
   updateSetsShow,
   updateSetsCollisions,
   updateSetsExport,
+  updateSetsTool,
   pluginsList,
   pluginsActivate,
   doctor,

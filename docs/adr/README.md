@@ -18,7 +18,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013) |
 | [0011](0011-enforcement-layers.md) | Enforcement layers: what each control stops and who can bypass it | Accepted |
 | [0012](0012-production-read-only-by-construction.md) | Production access is read-only by construction | Accepted, pending spike (amended by 0013) |
-| [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted |
+| [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted (amended by 0018) |
 | [0014](0014-workspace-layout.md) | Synced data lives in a workspace with a standard layout | Accepted (amended by 0017) |
 | [0015](0015-yaml-writing-style.md) | YAML writing style | Accepted |
 | [0016](0016-instance-load-and-pagination.md) | Instance load and pagination policy | Accepted |

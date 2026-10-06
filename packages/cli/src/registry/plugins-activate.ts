@@ -23,7 +23,8 @@ export const pluginsActivate = defineUseCase({
     seconds: z.number(),
   }),
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
-  mcp: false,
+  mcp: true,
+  mcpName: "plugin_activate",
   arguments: ["instance", "id"],
   async handle(input, context, run) {
     if (!input.confirm) {

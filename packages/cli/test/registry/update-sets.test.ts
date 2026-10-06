@@ -106,3 +106,34 @@ describe("update-sets commands", () => {
     expect([...written.keys()]).toEqual(["/tmp/out.xml"]);
   });
 });
+
+describe("the update_sets MCP tool", () => {
+  it("runs the command its action names, and is not a CLI command", async () => {
+    const { updateSetsTool } = await import("../../src/registry/update-sets-tool");
+    const { context } = await workspace();
+    const listed = await executeUseCase(
+      updateSetsTool,
+      { instance: "pdi", action: "list" },
+      context,
+    );
+    expect(listed.output).toMatchObject({ action: "list", list: { instance: "pdi" } });
+    const shown = await executeUseCase(
+      updateSetsTool,
+      { instance: "pdi", action: "show", id: MINE },
+      context,
+    );
+    expect(shown.output["show"]).toMatchObject({ updateSet: { name: "Incident tweaks" } });
+    expect(updateSetsTool.cli).toBe(false);
+    expect(updateSetsTool.render(listed.output as never, "text")).toContain('"action":"list"');
+  });
+
+  it("explains a missing id", async () => {
+    const { updateSetsTool } = await import("../../src/registry/update-sets-tool");
+    const { context } = await workspace();
+    await expect(
+      executeUseCase(updateSetsTool, { instance: "pdi", action: "show" }, context),
+    ).rejects.toMatchObject({
+      code: "invalid-input",
+    });
+  });
+});

@@ -1,6 +1,6 @@
 # 003. Agent interface: MCP tools, skills and instructions
 
-- Status: Draft for product-owner review
+- Status: Accepted (decisions D1–D5 taken on 2026-10-06)
 - Date: 2026-10-06
 - Builds on: ADR-0002 (agent interface model), ADR-0011 (enforcement layers),
   ADR-0019 (the engine is served through MCP; the harness only triggers it)
@@ -297,8 +297,8 @@ The agent interface is product, so it is tested like product:
   **Decided (2026-10-06): the budget is raised as needed**, keeping the rule that every tool
   answers a distinct question; ADR-0002's budget is amended when the next tool is added.
 - **D2. Skill granularity.** Workflow skills (this design) or v1's domain skills.
-  *Recommendation: workflows; domain depth moves into `advise`.* **Open: explained to the
-  product owner on 2026-10-06, awaiting a decision.**
+  *Recommendation: workflows; domain depth moves into `advise`.* **Decided (2026-10-06):
+  workflow skills, with domain depth served by `advise`.**
 - **D3. Where packs are installed.** In the workspace (shared through git, this design) or per
   user. *Recommendation: workspace.* **Decided: workspace.**
 - **D4. Evaluations.** Build the task-evaluation harness in v1.1 alongside the tools.

@@ -1,6 +1,6 @@
 # 0002. Agent interface model: files and CLI first, one small MCP, task-level skills
 
-- Status: Accepted (amended by 0011, 0012)
+- Status: Accepted (amended by 0011, 0012, 0019)
 - Date: 2026-10-05
 - Requirements: ASR-01, ASR-03, ASR-04, ASR-09
 

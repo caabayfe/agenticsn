@@ -41,7 +41,7 @@ That is 6 MCP tools, within the budget of 12.
 | Item | Planned |
 |---|---|
 | Plan and push local edits to update sets (with the governance gate) | v1.1 |
-| Governance rules, `check`, `validate`, agent packs and host hooks | v1.1 |
+| Governance rules, `check`, `validate`, `advise` (served through MCP, ADR-0019), thin agent packs and host hooks | v1.1 |
 | Table model, search, references, impact, audit | v1.2 |
 | Remote update-set validation before promotion, promotion guard | v1.3 |
 | Production troubleshooting, read gateway, read-only role verification (S6) | later |

@@ -1,6 +1,6 @@
 # 0011. Enforcement layers
 
-- Status: Accepted
+- Status: Accepted (amended by 0019)
 - Date: 2026-10-05
 - Requirements: ASR-02, ASR-03, ASR-15
 - Amends: 0002, 0004, 0010

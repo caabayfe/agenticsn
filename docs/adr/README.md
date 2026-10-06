@@ -7,7 +7,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-modular-monolith-hexagonal.md) | Modular monolith with hexagonal architecture and bounded contexts | Accepted |
-| [0002](0002-agent-interface-model.md) | Agent interface model: files and CLI first, one small MCP, task-level skills | Accepted (amended by 0011, 0012) |
+| [0002](0002-agent-interface-model.md) | Agent interface model: files and CLI first, one small MCP, task-level skills | Accepted (amended by 0011, 0012, 0019) |
 | [0003](0003-use-case-registry.md) | One use-case registry generates CLI, MCP and hook interfaces | Accepted (amended by 0012) |
 | [0004](0004-deployment-topology.md) | One binary, git as the distribution layer, three operating modes | Accepted (amended by 0011, 0012) |
 | [0005](0005-typescript-and-bun.md) | TypeScript compiled to a single binary with Bun | Accepted |
@@ -16,7 +16,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0008](0008-commercial-boundary.md) | Open core with a sealed premium engine behind the `Validator` port | Proposed |
 | [0009](0009-engineering-practices.md) | Engineering practices: TDD, strict typing, enforced boundaries | Accepted |
 | [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013) |
-| [0011](0011-enforcement-layers.md) | Enforcement layers: what each control stops and who can bypass it | Accepted |
+| [0011](0011-enforcement-layers.md) | Enforcement layers: what each control stops and who can bypass it | Accepted (amended by 0019) |
 | [0012](0012-production-read-only-by-construction.md) | Production access is read-only by construction | Accepted, pending spike (amended by 0013) |
 | [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted (amended by 0018) |
 | [0014](0014-workspace-layout.md) | Synced data lives in a workspace with a standard layout | Accepted (amended by 0017) |
@@ -24,6 +24,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0016](0016-instance-load-and-pagination.md) | Instance load and pagination policy | Accepted |
 | [0017](0017-flat-record-layout-and-full-sync.md) | Flat record layout and full sync by default | Accepted |
 | [0018](0018-update-sets-read-live.md) | Update sets are read live, and exported from reads | Accepted |
+| [0019](0019-engine-served-through-mcp.md) | The engine is served through MCP; the harness only triggers it | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

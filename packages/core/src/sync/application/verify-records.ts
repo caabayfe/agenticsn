@@ -32,6 +32,8 @@ export interface RecordVerification {
   readonly hiddenRows: number;
   // Records whose legacy sys_id no prefix covers, in parts whose counts disagree.
   readonly unverifiable: number;
+  // Listed on the instance but not storable in the mirror (unreadable class, invalid sys_id).
+  readonly unmirrorable: number;
 }
 
 // One mirrored scope folder can hold records of several scope sys_ids ("" and global).
@@ -53,6 +55,8 @@ interface Walk {
   // Hidden rows remembered from the last verification, and found by this one's listings.
   readonly hidden: HiddenCounts;
   readonly listedHidden: Record<string, number>;
+  // Records missing from the mirror -> the part whose listing found them.
+  readonly missingParts: Map<string, string>;
   readonly report: {
     countRequests: number;
     listedRows: number;
@@ -89,6 +93,7 @@ async function listPart(walk: Walk, part: Part): Promise<void> {
   const difference = compareListing(instance, part.mirrored);
   for (const [sysId, table] of difference.missing) {
     walk.missing.set(sysId, table);
+    walk.missingParts.set(sysId, hiddenKey(part.scope, part.prefix));
     walk.missingScopes.add(scopes.get(sysId) ?? "");
   }
   walk.extra.push(...difference.extra);
@@ -192,7 +197,12 @@ export async function verifyRecords(
   catalog: Catalog,
   previous: { readonly unreadable: readonly string[]; readonly hidden: HiddenCounts },
   signal: AbortSignal,
-): Promise<{ changes: RecordChanges; verification: RecordVerification; hidden: HiddenCounts }> {
+): Promise<{
+  changes: RecordChanges;
+  verification: Omit<RecordVerification, "unmirrorable">;
+  listedHidden: HiddenCounts;
+  missingParts: ReadonlyMap<string, string>;
+}> {
   const unreadable = previous.unreadable;
   const excluded = exclusion(catalog, unreadable);
   const instance = await instanceByScope(deps, catalog, excluded, signal);
@@ -206,6 +216,7 @@ export async function verifyRecords(
     extra: [],
     hidden: previous.hidden,
     listedHidden: {},
+    missingParts: new Map(),
     report: { countRequests: 1, listedRows: 0, hiddenRows: 0, unverifiable: 0 },
   };
   const scopes = [...new Set([...instance.keys(), ...mirrored.keys()])].sort();
@@ -231,7 +242,8 @@ export async function verifyRecords(
       deletedBetween: 0,
     },
     verification: { scopes: parts.length, scopesDiffering: differing.length, ...walk.report },
-    hidden: mergeHidden(previous.hidden, walk.listedHidden),
+    listedHidden: walk.listedHidden,
+    missingParts: walk.missingParts,
   };
 }
 
@@ -249,7 +261,17 @@ export async function verifyAndRepairRecords(
   progress: (event: PullProgress) => void,
 ): Promise<VerifiedRecords> {
   progress({ message: "verifying records" });
-  const { changes, verification, hidden } = await verifyRecords(deps, catalog, previous, signal);
-  const applied = await applyWithCatalog(deps, catalog, changes, signal, progress);
-  return { ...applied, verification, hidden };
+  const found = await verifyRecords(deps, catalog, previous, signal);
+  const applied = await applyWithCatalog(deps, catalog, found.changes, signal, progress);
+  // What the mirror cannot hold is remembered with the hidden rows, so the next verification
+  // does not list the same parts again for it.
+  const gaps: Record<string, number> = { ...found.listedHidden };
+  for (const sysId of applied.records.unwritten) {
+    const key = found.missingParts.get(sysId);
+    if (key !== undefined) {
+      gaps[key] = (gaps[key] ?? 0) + 1;
+    }
+  }
+  const verification = { ...found.verification, unmirrorable: applied.records.unwritten.length };
+  return { ...applied, verification, hidden: mergeHidden(previous.hidden, gaps) };
 }

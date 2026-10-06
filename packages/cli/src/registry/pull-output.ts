@@ -51,6 +51,7 @@ export const PullOutput = z.object({
           listedRows: z.number(),
           hiddenRows: z.number(),
           unverifiable: z.number(),
+          unmirrorable: z.number(),
           recovered: z.number(),
           removed: z.number(),
         })
@@ -160,7 +161,7 @@ function verificationLines(changes: NonNullable<PullOutput["incremental"]>): str
   }
   return [
     `  verified: ${v.scopes} scopes by count, ${v.scopesDiffering} differing; ${v.countRequests} count requests, ${v.listedRows} ids listed`,
-    `  repaired: ${v.recovered} records recovered, ${v.removed} removed${v.hiddenRows > 0 ? `; ${v.hiddenRows} records counted but hidden from this user` : ""}${v.unverifiable > 0 ? `; ${v.unverifiable} legacy ids could not be checked` : ""}`,
+    `  repaired: ${v.recovered} records recovered, ${v.removed} removed${v.hiddenRows > 0 ? `; ${v.hiddenRows} records counted but hidden from this user` : ""}${v.unmirrorable > 0 ? `; ${v.unmirrorable} records cannot be mirrored (unreadable class or invalid sys_id)` : ""}${v.unverifiable > 0 ? `; ${v.unverifiable} legacy ids could not be checked` : ""}`,
   ];
 }
 

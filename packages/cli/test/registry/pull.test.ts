@@ -230,6 +230,7 @@ describe("pull and integrate", () => {
       listedRows: 120,
       hiddenRows: 67,
       unverifiable: 0,
+      unmirrorable: 4,
       recovered: 1,
       removed: 2,
     };

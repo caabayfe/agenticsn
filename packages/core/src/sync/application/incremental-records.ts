@@ -18,6 +18,9 @@ export interface RecordOutcome {
   readonly deleted: number;
   readonly skippedRows: number;
   readonly unreadable: readonly string[];
+  // Changed records that could not be written: unreadable or unknown class, invalid sys_id,
+  // or not returned by their class table.
+  readonly unwritten: readonly string[];
 }
 
 const SYS_METADATA = TableName.parse("sys_metadata");
@@ -100,7 +103,13 @@ async function downloadClass(
   ids: readonly string[],
   signal: AbortSignal,
 ) {
-  const outcome = { written: 0, renamed: 0, skipped: 0, received: [] as string[] };
+  const outcome = {
+    written: 0,
+    renamed: 0,
+    skipped: 0,
+    received: [] as string[],
+    stored: [] as string[],
+  };
   for (const batch of chunks(ids, DOWNLOAD_BATCH)) {
     const listing = {
       table: TableName.parse(table),
@@ -112,6 +121,7 @@ async function downloadClass(
       outcome.received.push(row["sys_id"] ?? "");
       try {
         outcome[await replaceRecord(deps, catalog, row)] += 1;
+        outcome.stored.push(row["sys_id"] ?? "");
       } catch (error) {
         if (!(error instanceof InvalidIdentifierError)) {
           throw error;
@@ -141,6 +151,7 @@ export async function applyRecordChanges(
 ): Promise<RecordOutcome> {
   const mirrored = new Set(classesToPull(catalog));
   const received = new Set<string>();
+  const stored = new Set<string>();
   const unreadable: string[] = [];
   const totals = { written: 0, renamed: 0, deleted: 0, skippedRows: 0 };
   const classes = [...changes.changed.keys()].filter((table) => mirrored.has(table)).sort();
@@ -154,6 +165,9 @@ export async function applyRecordChanges(
       for (const id of outcome.received) {
         received.add(id);
       }
+      for (const id of outcome.stored) {
+        stored.add(id);
+      }
     } catch (error) {
       if (!(error instanceof AccessDeniedError)) {
         throw error;
@@ -166,5 +180,7 @@ export async function applyRecordChanges(
       totals.deleted += 1;
     }
   }
-  return { ...totals, unreadable: unreadable.sort() };
+  const requested = [...changes.changed.values()].flat();
+  const unwritten = requested.filter((sysId) => !stored.has(sysId)).sort();
+  return { ...totals, unreadable: unreadable.sort(), unwritten };
 }

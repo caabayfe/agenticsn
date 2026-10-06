@@ -110,4 +110,15 @@ describe("pull --verify", () => {
     expect(summary.verification).toMatchObject({ hiddenRows: 340, recovered: 0, removed: 0 });
     expect(summary.verification?.countRequests).toBe(17);
   });
+
+  it("remembers records it cannot mirror, such as an invalid sys_id, and does not list them again", async () => {
+    const { incremental, state } = await pulledInstance((data) => {
+      data["sys_script"]?.push({ ...rule(0), sys_id: "bad/id" });
+    });
+    const first = await incremental({ verify: true });
+    expect(first.summary.verification).toMatchObject({ unmirrorable: 1, recovered: 0 });
+    state.saved.state = first.summary.next;
+    const second = await incremental({ verify: true });
+    expect(second.summary.verification).toMatchObject({ scopesDiffering: 0, listedRows: 0 });
+  });
 });

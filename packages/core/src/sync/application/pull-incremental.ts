@@ -57,6 +57,7 @@ const NO_RECORD_CHANGES: RecordOutcome = {
   deleted: 0,
   skippedRows: 0,
   unreadable: [],
+  unwritten: [],
 };
 
 function compareAll(previous: Fingerprints | undefined, current: Fingerprints) {

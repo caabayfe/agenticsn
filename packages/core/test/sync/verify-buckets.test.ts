@@ -3,8 +3,11 @@ import {
   childPrefixes,
   compareListing,
   hasPrefix,
+  hiddenKey,
+  hiddenUnder,
   isHexPrefixed,
   LIST_LIMIT,
+  mergeHidden,
   mirroredRecord,
   verifyStep,
 } from "@snagentic/core";
@@ -52,16 +55,40 @@ describe("prefixes", () => {
 
 describe("verifyStep", () => {
   it("stops where counts agree", () => {
-    expect(verifyStep(10, 10, "")).toBe("agree");
+    expect(verifyStep(10, 0, 10, "")).toBe("agree");
+  });
+
+  it("allows for rows the user could not list last time", () => {
+    expect(verifyStep(12, 2, 10, "")).toBe("agree");
+    expect(verifyStep(13, 2, 10, "")).toBe("list");
   });
 
   it("lists a small part and splits a large one", () => {
-    expect(verifyStep(LIST_LIMIT, 1, "")).toBe("list");
-    expect(verifyStep(LIST_LIMIT + 1, 1, "")).toBe("split");
+    expect(verifyStep(LIST_LIMIT, 0, 1, "")).toBe("list");
+    expect(verifyStep(LIST_LIMIT + 1, 0, 1, "")).toBe("split");
   });
 
   it("lists once the prefix is as long as it may get", () => {
-    expect(verifyStep(LIST_LIMIT * 10, 1, "abcd")).toBe("list");
+    expect(verifyStep(LIST_LIMIT * 10, 0, 1, "abcd")).toBe("list");
+  });
+});
+
+describe("hidden counts", () => {
+  const hidden = { "global|0": 3, "global|1a": 2, "x_acme|": 5 };
+
+  it("adds up what is remembered under a part", () => {
+    expect(hiddenUnder(hidden, "global", "")).toBe(5);
+    expect(hiddenUnder(hidden, "global", "1")).toBe(2);
+    expect(hiddenUnder(hidden, "x_acme", "")).toBe(5);
+    expect(hiddenUnder(hidden, "x_acmf", "")).toBe(0);
+  });
+
+  it("replaces everything under a part listed again, and drops zeros", () => {
+    expect(
+      mergeHidden(hidden, { [hiddenKey("global", "")]: 4, [hiddenKey("x_acme", "")]: 0 }),
+    ).toEqual({
+      "global|": 4,
+    });
   });
 });
 

@@ -5,9 +5,15 @@ import type { RecordChanges } from "../domain/record-changes";
 import {
   childPrefixes,
   compareListing,
+  type HiddenCounts,
   hasPrefix,
+  hiddenKey,
+  hiddenUnder,
   isHexPrefixed,
+  mergeHidden,
   mirroredRecord,
+  SPREAD_LIMIT,
+  type VerifyStep,
   verifyStep,
 } from "../domain/verify-buckets";
 import { type AppliedChanges, applyWithCatalog } from "./apply-with-catalog";
@@ -30,6 +36,7 @@ export interface RecordVerification {
 
 // One mirrored scope folder can hold records of several scope sys_ids ("" and global).
 interface Part {
+  readonly scope: string;
   readonly scopeIds: readonly string[];
   readonly prefix: string;
   readonly instanceCount: number;
@@ -43,6 +50,9 @@ interface Walk {
   readonly missing: Map<string, string>;
   readonly missingScopes: Set<string>;
   readonly extra: string[];
+  // Hidden rows remembered from the last verification, and found by this one's listings.
+  readonly hidden: HiddenCounts;
+  readonly listedHidden: Record<string, number>;
   readonly report: {
     countRequests: number;
     listedRows: number;
@@ -73,7 +83,9 @@ async function listPart(walk: Walk, part: Part): Promise<void> {
     }
   }
   walk.report.listedRows += instance.size;
-  walk.report.hiddenRows += Math.max(0, part.instanceCount - instance.size);
+  const hiddenRows = Math.max(0, part.instanceCount - instance.size);
+  walk.report.hiddenRows += hiddenRows;
+  walk.listedHidden[hiddenKey(part.scope, part.prefix)] = hiddenRows;
   const difference = compareListing(instance, part.mirrored);
   for (const [sysId, table] of difference.missing) {
     walk.missing.set(sysId, table);
@@ -100,15 +112,29 @@ async function splitPart(walk: Walk, part: Part): Promise<void> {
   const covered = [...counts.values()].reduce((sum, count) => sum + count, 0);
   const legacy = part.mirrored.filter((sysId) => !isHexPrefixed(sysId, part.prefix.length + 1));
   walk.report.unverifiable += Math.abs(part.instanceCount - covered - legacy.length);
-  for (const prefix of children) {
-    const mirrored = part.mirrored.filter((sysId) => hasPrefix(sysId, prefix));
-    await walkPart(walk, { ...part, prefix, instanceCount: counts.get(prefix) ?? 0, mirrored });
+  const differing = children
+    .map((prefix) => ({
+      ...part,
+      prefix,
+      instanceCount: counts.get(prefix) ?? 0,
+      mirrored: part.mirrored.filter((sysId) => hasPrefix(sysId, prefix)),
+    }))
+    .filter((child) => stepOf(walk, child) !== "agree");
+  // A difference spread over many parts is listed outright; a concentrated one is narrowed.
+  const spread = differing.length > SPREAD_LIMIT;
+  for (const child of differing) {
+    await (spread ? listPart(walk, child) : walkPart(walk, child));
   }
+}
+
+function stepOf(walk: Walk, part: Part): VerifyStep {
+  const hidden = hiddenUnder(walk.hidden, part.scope, part.prefix);
+  return verifyStep(part.instanceCount, hidden, part.mirrored.length, part.prefix);
 }
 
 // Counts agree: nothing to do. Small part: list it. Large part: count its 16 sub-prefixes.
 async function walkPart(walk: Walk, part: Part): Promise<void> {
-  const step = verifyStep(part.instanceCount, part.mirrored.length, part.prefix);
+  const step = stepOf(walk, part);
   if (step === "list") {
     await listPart(walk, part);
   } else if (step === "split") {
@@ -164,9 +190,10 @@ function exclusion(catalog: Catalog, unreadable: readonly string[]): string {
 export async function verifyRecords(
   deps: IncrementalDependencies,
   catalog: Catalog,
-  unreadable: readonly string[],
+  previous: { readonly unreadable: readonly string[]; readonly hidden: HiddenCounts },
   signal: AbortSignal,
-): Promise<{ changes: RecordChanges; verification: RecordVerification }> {
+): Promise<{ changes: RecordChanges; verification: RecordVerification; hidden: HiddenCounts }> {
+  const unreadable = previous.unreadable;
   const excluded = exclusion(catalog, unreadable);
   const instance = await instanceByScope(deps, catalog, excluded, signal);
   const mirrored = await mirroredByScope(deps);
@@ -177,16 +204,19 @@ export async function verifyRecords(
     missing: new Map(),
     missingScopes: new Set(),
     extra: [],
+    hidden: previous.hidden,
+    listedHidden: {},
     report: { countRequests: 1, listedRows: 0, hiddenRows: 0, unverifiable: 0 },
   };
   const scopes = [...new Set([...instance.keys(), ...mirrored.keys()])].sort();
   const parts = scopes.map((scope) => ({
+    scope,
     scopeIds: instance.get(scope)?.scopeIds ?? [],
     prefix: "",
     instanceCount: instance.get(scope)?.count ?? 0,
     mirrored: mirrored.get(scope) ?? [],
   }));
-  const differing = parts.filter((part) => part.instanceCount !== part.mirrored.length);
+  const differing = parts.filter((part) => stepOf(walk, part) !== "agree");
   await forEachConcurrently(differing, 4, (part) => walkPart(walk, part));
   const changed = new Map<string, string[]>();
   for (const [sysId, table] of walk.missing) {
@@ -201,22 +231,25 @@ export async function verifyRecords(
       deletedBetween: 0,
     },
     verification: { scopes: parts.length, scopesDiffering: differing.length, ...walk.report },
+    hidden: mergeHidden(previous.hidden, walk.listedHidden),
   };
 }
 
 export interface VerifiedRecords extends AppliedChanges {
   readonly verification: RecordVerification;
+  readonly hidden: HiddenCounts;
 }
 
 // Finds what the mirror lacks or holds in excess, and repairs it.
 export async function verifyAndRepairRecords(
   deps: IncrementalDependencies,
   catalog: Catalog,
-  unreadable: readonly string[],
+  previous: { readonly unreadable: readonly string[]; readonly hidden: HiddenCounts },
   signal: AbortSignal,
   progress: (event: PullProgress) => void,
 ): Promise<VerifiedRecords> {
   progress({ message: "verifying records" });
-  const { changes, verification } = await verifyRecords(deps, catalog, unreadable, signal);
-  return { ...(await applyWithCatalog(deps, catalog, changes, signal, progress)), verification };
+  const { changes, verification, hidden } = await verifyRecords(deps, catalog, previous, signal);
+  const applied = await applyWithCatalog(deps, catalog, changes, signal, progress);
+  return { ...applied, verification, hidden };
 }

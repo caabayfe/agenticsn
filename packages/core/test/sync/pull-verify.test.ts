@@ -56,7 +56,7 @@ describe("pull --verify", () => {
 
   it("splits a large scope by sys_id prefix and lists only the part that differs", async () => {
     const { incremental, tables, files } = await pulledInstance((data) => {
-      data["sys_script"]?.push(...Array.from({ length: 5100 }, (_, i) => spread(i)));
+      data["sys_script"]?.push(...Array.from({ length: 17_000 }, (_, i) => spread(i)));
     });
     const gone = spread(7)["sys_id"] ?? "";
     tables["sys_script"] = tables["sys_script"]?.filter((row) => row["sys_id"] !== gone) ?? [];
@@ -67,7 +67,8 @@ describe("pull --verify", () => {
       (query) => String(query.table) === "sys_metadata" && query.query.startsWith("sys_scope"),
     );
     expect(listings.every((query) => query.query.includes("sys_idSTARTSWITH"))).toBe(true);
-    expect(summary.verification?.listedRows).toBeLessThan(1000);
+    // One sixteenth of the scope, not all of it.
+    expect(summary.verification?.listedRows).toBeLessThan(1500);
     expect([...files.keys()].some((path) => path.includes(gone))).toBe(false);
   });
 
@@ -83,5 +84,30 @@ describe("pull --verify", () => {
     expect(files.get(`global/sys_hub_flow/flow--${sid(3)}.children.sys_ui_element.yaml`)).toEqual([
       expect.objectContaining({ sys_id: "e2" }),
     ]);
+  });
+
+  it("learns rows hidden from this user once, and does not list them again", async () => {
+    const { incremental, state } = await pulledInstance((data) => {
+      data["sys_script"]?.push({ ...rule(20), __hidden: "true" });
+    });
+    const first = await incremental({ verify: true });
+    expect(first.summary.verification).toMatchObject({ hiddenRows: 1, recovered: 0, removed: 0 });
+    state.saved.state = first.summary.next;
+    const second = await incremental({ verify: true });
+    expect(second.summary.verification).toMatchObject({ scopesDiffering: 0, listedRows: 0 });
+  });
+
+  it("lists a difference spread over a large scope instead of splitting it ever deeper", async () => {
+    const { incremental } = await pulledInstance((data) => {
+      data["sys_script"]?.push(
+        ...Array.from({ length: 17_000 }, (_, i) => ({
+          ...spread(i),
+          ...(i % 50 === 0 ? { __hidden: "true" } : {}),
+        })),
+      );
+    });
+    const { summary } = await incremental({ verify: true });
+    expect(summary.verification).toMatchObject({ hiddenRows: 340, recovered: 0, removed: 0 });
+    expect(summary.verification?.countRequests).toBe(17);
   });
 });

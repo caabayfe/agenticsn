@@ -1,8 +1,12 @@
 // pull --verify compares record counts per scope, then per sys_id prefix, and lists sys_ids
 // only where counts differ (ADR-0016, verification appendix).
 
-// A part holding at most this many records is listed rather than split further.
-export const LIST_LIMIT = 5000;
+// A part holding at most this many records is listed rather than split further: listing them
+// takes about as many pages as splitting takes count requests (16).
+export const LIST_LIMIT = 16_000;
+// When more sub-parts than this differ, the difference is spread out (typically rows hidden
+// from this user), and listing them costs less than splitting each further.
+export const SPREAD_LIMIT = 4;
 // sys_ids are 32 hex characters; deeper prefixes than this are listed whatever their size.
 export const MAX_PREFIX = 4;
 const HEX = "0123456789abcdef";
@@ -41,15 +45,43 @@ export function isHexPrefixed(sysId: string, length: number): boolean {
 
 export type VerifyStep = "agree" | "list" | "split";
 
+// `hidden` is how many counted rows this user could not list when the part was last listed.
 export function verifyStep(
   instanceCount: number,
+  hidden: number,
   mirroredCount: number,
   prefix: string,
 ): VerifyStep {
-  if (instanceCount === mirroredCount) {
+  if (instanceCount - hidden === mirroredCount) {
     return "agree";
   }
   return instanceCount <= LIST_LIMIT || prefix.length >= MAX_PREFIX ? "list" : "split";
+}
+
+// Rows counted but not listable, remembered per listed part: "<scope>|<prefix>" -> rows.
+export type HiddenCounts = Readonly<Record<string, number>>;
+
+export const hiddenKey = (scope: string, prefix: string) => `${scope}|${prefix}`;
+
+// Hidden rows remembered for a part and everything under it.
+export function hiddenUnder(hidden: HiddenCounts, scope: string, prefix: string): number {
+  const key = hiddenKey(scope, prefix);
+  return Object.entries(hidden)
+    .filter(([stored]) => stored.startsWith(key))
+    .reduce((sum, [, rows]) => sum + rows, 0);
+}
+
+// The previous counts, with every part listed now replaced by what its listing found.
+export function mergeHidden(previous: HiddenCounts, listed: HiddenCounts): Record<string, number> {
+  const relisted = Object.keys(listed);
+  const kept = Object.entries(previous).filter(
+    ([stored]) => !relisted.some((key) => stored.startsWith(key)),
+  );
+  return Object.fromEntries(
+    [...kept, ...Object.entries(listed)]
+      .filter(([, rows]) => rows > 0)
+      .sort(([a], [b]) => (a < b ? -1 : 1)),
+  );
 }
 
 export interface ListDifference {

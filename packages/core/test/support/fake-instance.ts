@@ -96,7 +96,9 @@ export function fakeInstance(tables: Record<string, Row[]>, denied: readonly str
       if (denied.includes(query.table)) {
         throw new AccessDeniedError(`table ${query.table}`, "Insufficient rights");
       }
-      return evaluate(rowsOf(query.table), query.query, query.limit);
+      // ACLs hide rows from listings, not from aggregates.
+      const visible = rowsOf(query.table).filter((row) => row["__hidden"] !== "true");
+      return evaluate(visible, query.query, query.limit);
     },
     fingerprint: async (table: TableName): Promise<TableFingerprint> => {
       fingerprints.push(table);

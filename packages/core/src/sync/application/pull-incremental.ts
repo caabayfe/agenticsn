@@ -195,7 +195,13 @@ export async function pullIncremental(
   );
   const verified =
     options.verify === true
-      ? await verifyAndRepairRecords(deps, step.catalog, state.unreadable ?? [], signal, progress)
+      ? await verifyAndRepairRecords(
+          deps,
+          step.catalog,
+          { unreadable: state.unreadable ?? [], hidden: state.hiddenCounts ?? {} },
+          signal,
+          progress,
+        )
       : null;
   progress({ message: "child rows" });
   const catalog = verified?.catalog ?? step.catalog;
@@ -213,6 +219,7 @@ export async function pullIncremental(
       watermark: startedAt,
       fingerprints: current.fingerprints,
       unreadable: [...new Set([...(state.unreadable ?? []), ...recordUnreadable])].sort(),
+      ...(verified === null ? {} : { hiddenCounts: verified.hidden }),
     },
   };
 }

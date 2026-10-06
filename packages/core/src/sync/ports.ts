@@ -22,6 +22,8 @@ export interface SyncState {
   readonly fingerprints?: Fingerprints;
   // Classes and tables the user could not read, as found by the pulls since the last full one.
   readonly unreadable?: readonly string[];
+  // pull --verify: rows counted per part but not listable by this user (verify-buckets).
+  readonly hiddenCounts?: Readonly<Record<string, number>>;
 }
 
 // Local, per-instance sync state (.snagentic/<name>/, never committed).

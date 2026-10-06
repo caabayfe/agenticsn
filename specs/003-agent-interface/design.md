@@ -294,14 +294,18 @@ The agent interface is product, so it is tested like product:
   `plugin_activate`, or `doctor` into `status`); or raise the budget to about 16, since hosts now
   load schemas lazily and discoverability depends more on names and descriptions than count.
   *Recommendation: raise to 16 with a rule that every tool answers a distinct question.*
+  **Decided (2026-10-06): the budget is raised as needed**, keeping the rule that every tool
+  answers a distinct question; ADR-0002's budget is amended when the next tool is added.
 - **D2. Skill granularity.** Workflow skills (this design) or v1's domain skills.
-  *Recommendation: workflows; domain depth moves into `advise`.*
+  *Recommendation: workflows; domain depth moves into `advise`.* **Open: explained to the
+  product owner on 2026-10-06, awaiting a decision.**
 - **D3. Where packs are installed.** In the workspace (shared through git, this design) or per
-  user. *Recommendation: workspace.*
+  user. *Recommendation: workspace.* **Decided: workspace.**
 - **D4. Evaluations.** Build the task-evaluation harness in v1.1 alongside the tools.
   *Recommendation: yes; it is the only way to know a change to a skill or a tool result helped.*
+  **Decided: yes, in v1.1.**
 - **D5. Naming.** Skills named `servicenow-*` (the user's domain, matches how users ask) or
-  `snagentic-*` (the product). *Recommendation: `servicenow-*`.*
+  `snagentic-*` (the product). *Recommendation: `servicenow-*`.* **Decided: `servicenow-*`.**
 
 ## 9. Delivery order
 

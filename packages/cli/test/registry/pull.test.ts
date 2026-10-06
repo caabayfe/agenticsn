@@ -111,8 +111,13 @@ describe("pull and integrate", () => {
       root,
     );
     expect(script).toBe("changed();\n");
+    const verified = await executeUseCase(pull, { instance: "pdi", verify: true }, context);
+    expect(verified.output["incremental"]).toMatchObject({ verification: { scopesDiffering: 0 } });
     const again = await executeUseCase(pull, { instance: "pdi", full: true }, context);
     expect(again.output).toMatchObject({ mode: "full", records: 1 });
+    await expect(
+      executeUseCase(pull, { instance: "pdi", full: true, verify: true }, context),
+    ).rejects.toMatchObject({ code: "verify-needs-pull" });
   });
 
   it("tells where each instance stands, from local state only, through pull and integrate", async () => {
@@ -201,6 +206,7 @@ describe("pull and integrate", () => {
       childFiles: 3,
       removedChildFiles: 0,
       lostRecords: 0,
+      verification: null,
     };
     const changed = pull.render({ ...base, changed: true, incremental }, "text");
     expect(changed).toContain("pulled pdi changes in 3.2 s -> abcdef1234");
@@ -217,5 +223,25 @@ describe("pull and integrate", () => {
     expect(lost).toStartWith("pdi has no new changes to mirror");
     expect(lost).toContain("warning: 2 records left the instance without a deletion record");
     expect(lost).toContain("snagentic pull pdi --full");
+    const verification = {
+      scopes: 771,
+      scopesDiffering: 3,
+      countRequests: 33,
+      listedRows: 120,
+      hiddenRows: 67,
+      unverifiable: 0,
+      recovered: 1,
+      removed: 2,
+    };
+    const verified = pull.render(
+      { ...base, changed: true, incremental: { ...incremental, verification } },
+      "text",
+    );
+    expect(verified).toContain(
+      "verified: 771 scopes by count, 3 differing; 33 count requests, 120 ids listed",
+    );
+    expect(verified).toContain(
+      "repaired: 1 records recovered, 2 removed; 67 records counted but hidden from this user",
+    );
   });
 });

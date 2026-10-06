@@ -9,22 +9,48 @@ function parts(path: string): { base: string; sysId: string } | null {
     : { base: path.slice(0, dot), sysId: path.slice(separator + 2, dot) };
 }
 
-// An in-memory mirror holding one root; file contents are kept as written.
+// An in-memory mirror holding one root; file contents are kept as written. Indexed by record
+// like the git mirror, so tests with thousands of records stay fast.
 export function memoryMirror() {
   const files = new Map<string, unknown>();
+  const byBase = new Map<string, Set<string>>();
+  const baseById = new Map<string, string>();
   let prepared = 0;
+  const set = (path: string, content: unknown) => {
+    files.set(path, content);
+    const found = parts(path);
+    if (found !== null) {
+      byBase.set(found.base, (byBase.get(found.base) ?? new Set()).add(path));
+      baseById.set(found.sysId, found.base);
+    }
+  };
+  const remove = (path: string) => {
+    files.delete(path);
+    const found = parts(path);
+    const paths = found === null ? undefined : byBase.get(found.base);
+    if (found === null || paths === undefined) {
+      return;
+    }
+    paths.delete(path);
+    if (paths.size === 0) {
+      byBase.delete(found.base);
+      if (baseById.get(found.sysId) === found.base) {
+        baseById.delete(found.sysId);
+      }
+    }
+  };
   const mirror: IncrementalMirror = {
     write: async (_root, rendered: RenderedRecord) => {
-      files.set(`${rendered.base}.yaml`, rendered.document);
+      set(`${rendered.base}.yaml`, rendered.document);
       for (const file of rendered.files) {
-        files.set(file.path, file.content);
+        set(file.path, file.content);
       }
     },
     writeDocument: async (_root, path, document) => {
-      files.set(path, document);
+      set(path, document);
     },
     bases: async function* () {
-      yield* new Set([...files.keys()].flatMap((path) => parts(path)?.base ?? []));
+      yield* [...byBase.keys()];
     },
     checkpoint: async () => {},
     prepare: async () => {
@@ -32,9 +58,8 @@ export function memoryMirror() {
     },
     finish: async () => ({ commit: "commit", created: true }),
     abort: async () => {},
-    baseOf: (_root, sysId) =>
-      [...files.keys()].map(parts).find((found) => found?.sysId === sysId)?.base,
-    filesOf: (_root, base) => [...files.keys()].filter((path) => parts(path)?.base === base),
+    baseOf: (_root, sysId) => baseById.get(sysId),
+    filesOf: (_root, base) => [...(byBase.get(base) ?? [])],
     countChildRows: async (_root, table) => {
       const suffix = `.children.${table}.yaml`;
       const counts = new Map<string, number>();
@@ -46,11 +71,12 @@ export function memoryMirror() {
       return counts;
     },
     remove: async (_root, path) => {
-      files.delete(path);
+      remove(path);
     },
     move: async (_root, from, to) => {
-      files.set(to, files.get(from));
-      files.delete(from);
+      const content = files.get(from);
+      remove(from);
+      set(to, content);
     },
   };
   return { mirror, files, prepared: () => prepared };

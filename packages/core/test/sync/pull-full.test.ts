@@ -152,6 +152,7 @@ function run(reader: InstanceReader, state = memoryState(), records = memoryReco
     statistics: {
       fingerprint: async () => ({ count: 1, maxUpdatedOn: "2026-10-05 11:00:00" }),
       countBy: async () => new Map(),
+      count: async () => 0,
     },
     records: records.store,
     state: state.store,
@@ -214,6 +215,7 @@ describe("pullFull", () => {
       watermark: "2026-10-05 11:00:00",
       lastFullPull: "2026-10-05 11:00:00",
       fingerprints: {},
+      unreadable: [],
     });
   });
 

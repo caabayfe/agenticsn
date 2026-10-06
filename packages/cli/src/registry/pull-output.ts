@@ -43,6 +43,18 @@ export const PullOutput = z.object({
       childFiles: z.number(),
       removedChildFiles: z.number(),
       lostRecords: z.number(),
+      verification: z
+        .object({
+          scopes: z.number(),
+          scopesDiffering: z.number(),
+          countRequests: z.number(),
+          listedRows: z.number(),
+          hiddenRows: z.number(),
+          unverifiable: z.number(),
+          recovered: z.number(),
+          removed: z.number(),
+        })
+        .nullable(),
     })
     .optional(),
 });
@@ -111,6 +123,7 @@ export function incrementalOutput(facts: RunFacts, summary: IncrementalSummary):
       childFiles: summary.childFiles,
       removedChildFiles: summary.removedChildFiles,
       lostRecords: summary.lostRecords,
+      verification: summary.verification,
     },
   };
 }
@@ -140,11 +153,25 @@ function lostWarning(output: PullOutput, lost: number): string[] {
       ];
 }
 
+function verificationLines(changes: NonNullable<PullOutput["incremental"]>): string[] {
+  const v = changes.verification;
+  if (v === null) {
+    return [];
+  }
+  return [
+    `  verified: ${v.scopes} scopes by count, ${v.scopesDiffering} differing; ${v.countRequests} count requests, ${v.listedRows} ids listed`,
+    `  repaired: ${v.recovered} records recovered, ${v.removed} removed${v.hiddenRows > 0 ? `; ${v.hiddenRows} records counted but hidden from this user` : ""}${v.unverifiable > 0 ? `; ${v.unverifiable} legacy ids could not be checked` : ""}`,
+  ];
+}
+
 function renderIncremental(
   output: PullOutput,
   changes: NonNullable<PullOutput["incremental"]>,
 ): string[] {
-  const warning = lostWarning(output, changes.lostRecords);
+  const warning = [
+    ...verificationLines(changes),
+    ...(changes.verification === null ? lostWarning(output, changes.lostRecords) : []),
+  ];
   if (!output.changed) {
     const status = warning.length === 0 ? "is up to date" : "has no new changes to mirror";
     return [`${output.instance} ${status} (${output.seconds} s)`, ...warning, load(output)];

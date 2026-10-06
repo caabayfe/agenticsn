@@ -11,6 +11,7 @@ import {
   pullFull,
   pullIncremental,
   resolveSecret,
+  SnagenticError,
 } from "@snagentic/core";
 import { z } from "zod";
 import {
@@ -43,7 +44,21 @@ function memorySampler(run: RunControl) {
 
 // A pull continues an interrupted full pull, pulls changes once a full pull exists, or
 // starts from scratch when asked to (--full) or when nothing was pulled yet.
-async function openSession(input: { instance: string; full: boolean }, context: UseCaseContext) {
+class VerifyNeedsPullError extends SnagenticError {
+  constructor(instance: string) {
+    super(
+      "verify-needs-pull",
+      "usage",
+      `--verify checks a completed pull, and ${instance} has none to check`,
+      `run: snagentic pull ${instance}`,
+    );
+  }
+}
+
+async function openSession(
+  input: { instance: string; full: boolean; verify: boolean },
+  context: UseCaseContext,
+) {
   const root = await workspaceRoot(context);
   const name = InstanceName.parse(input.instance);
   const profile = await getInstance(root, name, context.profiles);
@@ -51,6 +66,9 @@ async function openSession(input: { instance: string; full: boolean }, context: 
   const resumed = (await state.readCheckpoint()) !== null;
   const pulled = (await state.readState()) !== null;
   const mode: MirrorMode = resumed ? "resume" : !input.full && pulled ? "incremental" : "fresh";
+  if (input.verify && mode !== "incremental") {
+    throw new VerifyNeedsPullError(name);
+  }
   const reader = context.connections.open(
     profile,
     await resolveSecret(profile, context.credentials),
@@ -79,6 +97,10 @@ export const pull = defineUseCase({
   input: z.object({
     instance: z.string(),
     full: z.boolean().default(false).describe("pull everything again"),
+    verify: z
+      .boolean()
+      .default(false)
+      .describe("also compare the mirror with the instance by counts and repair differences"),
   }),
   output: PullOutput,
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
@@ -104,7 +126,9 @@ export const pull = defineUseCase({
     const { deps, mirror, name } = session;
     try {
       if (session.mode === "incremental") {
-        const summary = await pullIncremental(deps, name, run.signal, memory.progress);
+        const summary = await pullIncremental(deps, name, run.signal, memory.progress, {
+          verify: input.verify,
+        });
         const committing = performance.now();
         const finished = await mirror.finish(
           `snagentic pull ${name}: changes in ${summary.changedSources.join(", ")}`,

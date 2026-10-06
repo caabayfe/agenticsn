@@ -20,6 +20,8 @@ export interface SyncState {
   readonly lastFullPull: string;
   // Absent sources (older state, unreadable tables) count as changed.
   readonly fingerprints?: Fingerprints;
+  // Classes and tables the user could not read, as found by the pulls since the last full one.
+  readonly unreadable?: readonly string[];
 }
 
 // Local, per-instance sync state (.snagentic/<name>/, never committed).

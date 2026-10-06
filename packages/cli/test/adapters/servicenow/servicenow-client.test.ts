@@ -219,3 +219,31 @@ describe("ServiceNowClient.countBy", () => {
     });
   });
 });
+
+describe("ServiceNowClient.count", () => {
+  const TABLE = TableName.parse("sys_metadata");
+
+  it("counts the rows matching a query in one aggregate request", async () => {
+    const { client, sent } = clientWith(async () =>
+      response(200, '{"result":{"stats":{"count":"42"}}}'),
+    );
+    expect(await client.count(TABLE, "sys_scope=global^sys_idSTARTSWITHa", LIVE)).toBe(42);
+    expect(Object.fromEntries(new URL(sent[0]?.url ?? "").searchParams)).toEqual({
+      sysparm_count: "true",
+      sysparm_query: "sys_scope=global^sys_idSTARTSWITHa",
+    });
+  });
+
+  it("reports an unexpected answer", async () => {
+    const { client } = clientWith(async () => response(200, '{"result":[]}'));
+    await expect(client.count(TABLE, "", LIVE)).rejects.toMatchObject({ code: "instance-error" });
+  });
+
+  it("filters grouped counts by a query when given one", async () => {
+    const { client, sent } = clientWith(async () => response(200, '{"result":[]}'));
+    await client.countBy(TABLE, "sys_scope", LIVE, "sys_class_nameNOT INa,b");
+    expect(new URL(sent[0]?.url ?? "").searchParams.get("sysparm_query")).toBe(
+      "sys_class_nameNOT INa,b",
+    );
+  });
+});

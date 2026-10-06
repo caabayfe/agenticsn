@@ -65,6 +65,7 @@ export async function pullFull(
       watermark: checkpoint.startedAt,
       lastFullPull: checkpoint.startedAt,
       fingerprints: checkpoint.fingerprints ?? {},
+      unreadable: [...records.unreadable, ...children.unreadable, ...operational.unreadable],
     },
     classes: classes.length,
     resumedClasses: checkpoint.completedClasses.length,

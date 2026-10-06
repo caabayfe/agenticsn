@@ -27,6 +27,9 @@ describe("agent install", () => {
       "utf8",
     );
     expect(skill).toContain("name: servicenow-explain");
+    expect(
+      await readFile(join(ws.root, ".claude/skills/servicenow-explain/SKILL.md"), "utf8"),
+    ).toBe(skill);
     expect(agentInstall.render(output as never, "text")).toContain("commit these files");
   });
 

@@ -120,11 +120,11 @@ First install the agent pack, once per workspace, and commit it so the whole tea
 
 ```sh
 snagentic agent install
-git add AGENTS.md CLAUDE.md .agents && git commit -m "Add the snagentic agent pack"
+git add AGENTS.md CLAUDE.md .agents .claude && git commit -m "Add the snagentic agent pack"
 ```
 
 It adds short instructions to `AGENTS.md` (your own text there is kept) and four workflow
-skills in `.agents/skills`: `servicenow-design` (agree a design before editing),
+skills in `.agents/skills` (and `.claude/skills`, where Claude Code looks): `servicenow-design` (agree a design before editing),
 `servicenow-build` (edit, then `validate` until clean), `servicenow-review` and
 `servicenow-explain`. Run it again after upgrading snagentic; `doctor` warns when the pack is
 from another version. In Claude Code the workflows are also slash commands:

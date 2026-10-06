@@ -29,7 +29,8 @@ MCP; skills only route the agent to the right query at the right moment.**
 
 - Agent Skills (`SKILL.md`, an open standard since December 2025) are read by Claude Code,
   Codex, GitHub Copilot (VS Code, CLI, coding agent) and Cursor; `.agents/skills/` is the
-  shared location every compatible tool scans.
+  shared location, except for Claude Code, which reads only `.claude/skills/` (corrected
+  2026-10-06: checked with Claude Code 2.1.285; Codex 0.160 reads `.agents/skills/`).
 - A skill is loaded when its **description** matches the task: the description is the
   trigger, the body is read only then. Short bodies matter.
 - MCP **prompts** appear as slash commands in Claude Code's CLI (`/mcp__snagentic__<name>`);
@@ -241,7 +242,7 @@ Skills are written once in `packages/agent-packs/` and rendered:
 
 | Host surface | What is generated |
 |---|---|
-| `.agents/skills/<name>/SKILL.md` | All hosts that read the standard (Claude Code, Codex, Copilot, Cursor) |
+| `.agents/skills/<name>/SKILL.md` and `.claude/skills/<name>/SKILL.md` | Codex, Copilot, Cursor; Claude Code (which reads only `.claude/skills`) |
 | MCP prompts `design`, `review`, `explain`, `deliver` | Claude Code slash commands (`/mcp__snagentic__design`), other hosts where supported |
 | `AGENTS.md` block and MCP server instructions | Section 4 |
 | Host hooks and permissions (where the host has them) | ADR-0011 layers 1 and 2: `check --changed` after edits, `validate` at the end of a turn |
@@ -399,7 +400,8 @@ noise, although only new findings are ever reported.
 - **Contract test.** Every code span in the skills and instructions must be an MCP tool, an
   input or output field, or an enum value of one (walked from the zod schemas), or a skill
   name; every skill routes through at least one tool. Renaming a field breaks the build.
-- **Install.** `agent install` writes `.agents/skills/*/SKILL.md`, the instructions between
+- **Install.** `agent install` writes `.agents/skills/*/SKILL.md` and the same files in
+  `.claude/skills/` (Claude Code reads only that folder), the instructions between
   `<!-- snagentic:begin <version> -->` and `<!-- snagentic:end -->` in `AGENTS.md` (the
   team's text around it is kept), and `@AGENTS.md` in `CLAUDE.md`. Unchanged files are not
   rewritten. `doctor` warns, inside a workspace, when the block is missing or from another

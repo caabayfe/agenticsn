@@ -8,6 +8,10 @@ import { instanceRemove } from "./instance-remove";
 import { integrate } from "./integrate";
 import { pull } from "./pull";
 import { status } from "./status";
+import { updateSetsCollisions } from "./update-sets-collisions";
+import { updateSetsExport } from "./update-sets-export";
+import { updateSetsList } from "./update-sets-list";
+import { updateSetsShow } from "./update-sets-show";
 import type { UseCase } from "./use-case";
 
 // Every operation snagentic offers. Adding one here adds its CLI command and, when marked
@@ -22,5 +26,9 @@ export const USE_CASES: readonly UseCase[] = [
   pull,
   integrate,
   status,
+  updateSetsList,
+  updateSetsShow,
+  updateSetsCollisions,
+  updateSetsExport,
   doctor,
 ];

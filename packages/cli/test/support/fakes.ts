@@ -63,6 +63,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
     },
   },
   integrator: { integrate: async () => ({ commit: null, changedFiles: 0 }) },
+  files: { write: async () => {} },
   inspector: {
     inspect: async () => ({ remoteCommit: null, unintegratedPulls: 0, localChanges: [] }),
   },

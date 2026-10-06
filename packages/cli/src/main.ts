@@ -6,6 +6,7 @@ import { instancePaths } from "@snagentic/core";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
+import { writeTextFile } from "./adapters/fs/write-text-file";
 import { gitInspector } from "./adapters/git/git-inspector";
 import { gitIntegrator } from "./adapters/git/git-integrator";
 import { GitMirror } from "./adapters/git/git-mirror";
@@ -53,6 +54,7 @@ const context: UseCaseContext = {
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
   integrator: gitIntegrator,
   inspector: gitInspector,
+  files: { write: (path, content) => writeTextFile(path, content) },
   clock: () => new Date(),
   host: {
     cwd: process.cwd(),

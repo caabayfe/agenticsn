@@ -248,6 +248,7 @@ export {
   withAgentsImport,
   withInstructions,
 } from "./workspace/domain/agent-pack";
+export { withClaudeSettings } from "./workspace/domain/claude-settings";
 export {
   DirectoryNotEmptyError,
   NestedRepositoryError,
@@ -268,4 +269,5 @@ export {
   manifestFor,
   type WorkspaceManifest,
 } from "./workspace/domain/manifest";
+export { protectedReason } from "./workspace/domain/protected-paths";
 export type { WorkspaceFiles, WorkspaceStore } from "./workspace/ports";

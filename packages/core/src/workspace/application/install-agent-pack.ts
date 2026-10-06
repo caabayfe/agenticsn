@@ -1,4 +1,5 @@
 import { withAgentsImport, withInstructions } from "../domain/agent-pack";
+import { withClaudeSettings } from "../domain/claude-settings";
 import type { WorkspaceFiles } from "../ports";
 
 export interface AgentPack {
@@ -7,9 +8,12 @@ export interface AgentPack {
   readonly instructions: string;
   // Files owned by the pack (skills), relative to the workspace root.
   readonly files: readonly { readonly path: string; readonly content: string }[];
+  // Hooks and permission rules merged into .claude/settings.json.
+  readonly claudeSettings: Parameters<typeof withClaudeSettings>[1];
 }
 
-export type InstallStatus = "created" | "updated" | "unchanged";
+// skipped: the file exists but could not be read (for example, settings that are not JSON).
+export type InstallStatus = "created" | "updated" | "unchanged" | "skipped";
 
 export interface InstalledFile {
   readonly path: string;
@@ -23,9 +27,12 @@ export async function installAgentPack(
   root: string,
   pack: AgentPack,
 ): Promise<InstalledFile[]> {
-  const write = async (path: string, next: (existing: string | null) => string) => {
+  const write = async (path: string, next: (existing: string | null) => string | null) => {
     const existing = await files.read(`${root}/${path}`);
     const content = next(existing);
+    if (content === null) {
+      return { path, status: "skipped" as const };
+    }
     if (content === existing) {
       return { path, status: "unchanged" as const };
     }
@@ -42,5 +49,10 @@ export async function installAgentPack(
     ),
   );
   results.push(await write("CLAUDE.md", withAgentsImport));
+  results.push(
+    await write(".claude/settings.json", (existing) =>
+      withClaudeSettings(existing, pack.claudeSettings),
+    ),
+  );
   return results;
 }

@@ -5,6 +5,7 @@ import {
   installedPackVersion,
   type WorkspaceFiles,
   withAgentsImport,
+  withClaudeSettings,
   withInstructions,
 } from "@snagentic/core";
 
@@ -59,10 +60,16 @@ function memoryFiles(initial: Record<string, string> = {}) {
   return { port, files, writes };
 }
 
+const SETTINGS = {
+  hooks: { Stop: [{ hooks: [{ type: "command", command: "snagentic hook claude stop" }] }] },
+  permissions: { deny: ["Bash(curl:*)"] },
+};
+
 const PACK: AgentPack = {
   version: "1.1.0",
   instructions: BLOCK,
   files: [{ path: ".agents/skills/servicenow-explain/SKILL.md", content: "skill" }],
+  claudeSettings: SETTINGS,
 };
 
 describe("installAgentPack", () => {
@@ -72,6 +79,7 @@ describe("installAgentPack", () => {
       { path: ".agents/skills/servicenow-explain/SKILL.md", status: "created" },
       { path: "AGENTS.md", status: "created" },
       { path: "CLAUDE.md", status: "updated" },
+      { path: ".claude/settings.json", status: "created" },
     ]);
     expect(files.get("/w/AGENTS.md")).toContain("<!-- snagentic:begin 1.1.0 -->");
   });
@@ -81,7 +89,48 @@ describe("installAgentPack", () => {
     await installAgentPack(port, "/w", PACK);
     writes.length = 0;
     const second = await installAgentPack(port, "/w", PACK);
-    expect(second.map((file) => file.status)).toEqual(["unchanged", "unchanged", "unchanged"]);
+    expect(second.map((file) => file.status)).toEqual([
+      "unchanged",
+      "unchanged",
+      "unchanged",
+      "unchanged",
+    ]);
     expect(writes).toEqual([]);
+  });
+});
+
+describe("Claude Code settings", () => {
+  it("adds our hooks and rules to the team's settings, keeping theirs", () => {
+    const theirs = JSON.stringify({
+      model: "opus",
+      hooks: { Stop: [{ hooks: [{ type: "command", command: "./notify.sh" }] }] },
+      permissions: { deny: ["Bash(rm:*)", "Bash(curl:*)"], allow: ["Read"] },
+    });
+    expect(JSON.parse(withClaudeSettings(theirs, SETTINGS) ?? "")).toEqual({
+      model: "opus",
+      hooks: {
+        Stop: [
+          { hooks: [{ type: "command", command: "./notify.sh" }] },
+          { hooks: [{ type: "command", command: "snagentic hook claude stop" }] },
+        ],
+      },
+      permissions: { deny: ["Bash(rm:*)", "Bash(curl:*)"], allow: ["Read"] },
+    });
+  });
+
+  it("replaces its own hook entries instead of adding them again", () => {
+    const once = withClaudeSettings(null, SETTINGS);
+    expect(withClaudeSettings(once, SETTINGS)).toBe(once);
+  });
+
+  it("leaves a settings file it cannot read as it is", () => {
+    expect(withClaudeSettings("{ not json", SETTINGS)).toBeNull();
+    expect(withClaudeSettings("[]", SETTINGS)).toBeNull();
+  });
+
+  it("reports the settings it could not merge", async () => {
+    const { port } = memoryFiles({ "/w/.claude/settings.json": "{ broken" });
+    const results = await installAgentPack(port, "/w", PACK);
+    expect(results.at(-1)).toEqual({ path: ".claude/settings.json", status: "skipped" });
   });
 });

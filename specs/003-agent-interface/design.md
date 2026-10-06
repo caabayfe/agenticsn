@@ -438,3 +438,23 @@ what they did. Opt-in and local: it needs a mirrored workspace and costs money.
 Findings so far: Claude Code reads skills only from `.claude/skills` (fixed in #18); the first
 run showed `describe incident` returning 73,000 characters, over Claude Code's limit for an MCP
 result, against principle 3.1.3 (fixed next, with the size-budget contract test).
+
+## 15. Implementation notes: host hooks and permissions (2026-10-06)
+
+ADR-0011 layers 1 and 2, for Claude Code first (other hosts: the same `check` and `validate`
+commands, wired when their hook formats are added). `agent install` merges into the
+workspace's `.claude/settings.json`, keeping the team's own settings and replacing only
+entries whose command starts with `snagentic hook`:
+
+| Hook | Runs | Effect |
+|---|---|---|
+| Before Edit/Write | `check --edited=false` on the file | protected file (local state, child rows, workspace configuration): the edit is refused with the reason |
+| After Edit/Write | `check` on the file | block findings: fed back to the agent (exit 2); other findings: added as context |
+| Stop | `validate` | block findings: the turn continues once with the findings; a second stop is let through so the agent can explain |
+
+Permission rules deny direct HTTP (`curl`, `wget`, fetches to service-now.com), `--no-verify`,
+and edits to protected files, and ask before `push`. Hooks fail open: outside a workspace or
+on their own failure they let the agent continue and say why, since enforcement is the push
+gate and CI (ADR-0011). Checked with Claude Code 2.1.285: the permission rule refused an edit
+to a child-row file before the hook ran; an `eval` edit got SN-SEC-001 back from the
+after-edit hook; the stop hook kept the turn going once, then the agent explained.

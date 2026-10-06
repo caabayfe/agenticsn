@@ -207,6 +207,23 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `check`
+
+```
+snagentic check <paths...> [options]
+```
+
+Check files around an edit: whether they may be edited at all (local state, child rows and workspace configuration may not), and what the edit introduced (validate on those records). Fast; host hooks run it after every edit.
+
+Changes the instance: no. MCP tool: none.
+
+Options:
+
+- `--no-edited`: false before an edit: only whether it is allowed
+- `--instance <value>`: default: the workspace's only instance
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `plan-push`
 
 ```
@@ -251,7 +268,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic agent install [options]
 ```
 
-Install the agent pack into the workspace: the workflow skills (.agents/skills, and .claude/skills for Claude Code), the instructions block in AGENTS.md and its import in CLAUDE.md. Commit them so the whole team's agents work the same way. Run again after upgrading snagentic.
+Install the agent pack into the workspace: the workflow skills (.agents/skills, and .claude/skills for Claude Code), the instructions block in AGENTS.md and its import in CLAUDE.md, and Claude Code hooks and permission rules in .claude/settings.json. Commit them so the whole team's agents work the same way. Run again after upgrading snagentic.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

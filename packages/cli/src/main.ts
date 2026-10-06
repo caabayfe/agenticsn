@@ -103,6 +103,7 @@ process.exitCode = await runCli(
   {
     version: versionLine(),
     signal: cancellation.signal,
+    readStdin: () => new Response(Bun.stdin.stream()).text(),
     serveMcp: async () => {
       const development = await developmentInstances(context);
       await createMcpServer(USE_CASES, context, versionLine(), development, {

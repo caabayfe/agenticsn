@@ -1,5 +1,6 @@
 // Public API of the governance context.
 
+export { type CheckQuery, type CheckResult, checkFiles } from "./application/check";
 export {
   MAX_SCRIPT_BYTES,
   type Skipped,

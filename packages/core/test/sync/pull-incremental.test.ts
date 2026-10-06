@@ -115,6 +115,42 @@ describe("pullIncremental: records", () => {
     expect(files.has(`global/sys_script/two--${sid(2)}.yaml`)).toBe(true);
   });
 
+  it("brings in records a plugin installed with their packaged timestamps, as new ones", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    tables["sys_script"]?.push({
+      sys_id: sid(12),
+      sys_class_name: "sys_script",
+      name: "Installed",
+      sys_scope: "global",
+      sys_created_on: "2022-12-21 22:22:40",
+      sys_updated_on: "2023-04-18 14:57:59",
+      "sys_package.sys_updated_on": CHANGED,
+      "sys_package.sys_created_on": CHANGED,
+    });
+    const { summary } = await incremental();
+    expect(files.has(`global/sys_script/installed--${sid(12)}.yaml`)).toBe(true);
+    expect(summary.lostRecords).toBe(0);
+  });
+
+  it("does not take records installed before the last pull, and never mirrored, for a loss", async () => {
+    // Installed just before the last pull (inside the overlap window), in a class the mirror
+    // never holds: already counted then, so not created now.
+    const { incremental, tables } = await pulledInstance((data) => {
+      data["sys_cred"]?.push({
+        sys_id: sid(13),
+        sys_class_name: "sys_cred",
+        name: "Packaged",
+        sys_scope: "global",
+        sys_updated_on: "2023-04-18 14:57:59",
+        "sys_package.sys_updated_on": "2026-10-05 09:55:00",
+        "sys_package.sys_created_on": "2026-10-05 09:55:00",
+      });
+    });
+    touch(tables["sys_script"]?.[0], { script: "changed();" });
+    const { summary } = await incremental();
+    expect(summary.lostRecords).toBe(0);
+  });
+
   it("ignores classes a pull never mirrors, such as credentials", async () => {
     const { incremental, tables } = await pulledInstance();
     touch(tables["sys_cred"]?.[0], { name: "Rotated" });

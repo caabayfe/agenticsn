@@ -1,6 +1,6 @@
 import { advise as adviseOn } from "@snagentic/core";
 import { z } from "zod";
-import { Freshness, NextCalls } from "./knowledge-schemas";
+import { BehaviorItems, Freshness, NextCalls } from "./knowledge-schemas";
 import { knowledgeSession } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
 
@@ -28,19 +28,7 @@ const Output = Freshness.extend({
         known: z.boolean(),
         inherits: Strings,
         counts: z.record(z.string(), z.number()),
-        related: z
-          .array(
-            z.object({
-              kind: z.string(),
-              name: z.string(),
-              order: z.number(),
-              active: z.boolean(),
-              path: z.string(),
-              details: z.record(z.string(), z.string()),
-              inheritedFrom: z.string().optional(),
-            }),
-          )
-          .readonly(),
+        related: BehaviorItems,
       }),
     )
     .readonly(),

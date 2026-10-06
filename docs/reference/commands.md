@@ -167,6 +167,7 @@ Options:
 
 - `--instance <value>`: default: the workspace's only instance
 - `--inactive`: tables: also list inactive behavior
+- `--phase <value>`: tables: list only this phase, in full (as next suggests when items were left out) (one of: client, action, query, display, before, after, async, notify, policy, access)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -345,6 +346,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `target` (string, required): a table name, a record path, or a sys_id
   - `instance` (string, optional): default: the workspace's only instance
   - `inactive` (boolean, optional): tables: also list inactive behavior
+  - `phase` (client | action | query | display | before | after | async | notify | policy | access, optional): tables: list only this phase, in full (as next suggests when items were left out)
 - `advise`: Advise on a ServiceNow change before or while making it. Give the request in the user's words and the tables involved. Returns the platform's options least custom first (each marked likely, possible or last resort, with what already exists on those tables), the ServiceNow guidance and rules that apply, and in the design phase a design record to fill. Reads the workspace only.
   - `intent` (string, required): the request, in the user's words
   - `tables` (array, optional): tables the change is about

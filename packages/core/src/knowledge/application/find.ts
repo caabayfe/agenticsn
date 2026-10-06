@@ -1,3 +1,4 @@
+import { fitted } from "../domain/budget";
 import type { IndexedRecord } from "../domain/indexed-record";
 import { baseOfFile } from "../domain/paths";
 import { freshness } from "./freshness";
@@ -26,6 +27,8 @@ export interface FoundRecord {
     readonly line: number;
     readonly text: string;
   }[];
+  // Matching lines in this record beyond those shown.
+  readonly moreMatches?: number;
 }
 
 export interface FindResult extends Freshness {
@@ -43,6 +46,9 @@ const found = (record: IndexedRecord): FoundRecord => ({
   scope: record.scope,
   active: record.active,
 });
+
+// Lines shown per record; the rest are counted. A file read shows them all.
+const MATCHES_PER_RECORD = 5;
 
 async function findInCode(deps: KnowledgeDependencies, query: FindQuery) {
   // The word index names candidate records; their files give the exact matches.
@@ -66,9 +72,16 @@ async function findInCode(deps: KnowledgeDependencies, query: FindQuery) {
       (query.table === undefined || r.table === query.table),
   );
   return {
-    records: kept
-      .slice(0, query.limit)
-      .map((r) => ({ ...found(r), matches: byBase.get(r.base) ?? [] })),
+    records: kept.slice(0, query.limit).map((r) => {
+      const matches = byBase.get(r.base) ?? [];
+      return {
+        ...found(r),
+        matches: matches.slice(0, MATCHES_PER_RECORD),
+        ...(matches.length > MATCHES_PER_RECORD
+          ? { moreMatches: matches.length - MATCHES_PER_RECORD }
+          : {}),
+      };
+    }),
     total: kept.length,
     more: candidates.length >= query.limit * 5 || kept.length > query.limit,
   };
@@ -100,5 +113,15 @@ export async function find(deps: KnowledgeDependencies, query: FindQuery): Promi
         ? []
         : [{ tool: "find", args: { text: query.text, code: true } }]
       : [{ tool: "describe", args: { target: first.path } }];
-  return { ...freshness(deps), ...result, next };
+  // Trimmed to the budget, best matches kept: `more` tells the agent to narrow the search.
+  return fitted(
+    (limit) => ({
+      ...freshness(deps),
+      ...result,
+      records: result.records.slice(0, limit),
+      more: result.more || result.records.length > limit,
+      next,
+    }),
+    result.records.length,
+  );
 }

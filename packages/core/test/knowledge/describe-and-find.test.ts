@@ -116,15 +116,18 @@ describe("describeTable", () => {
   it("leaves inactive behavior out, counting it, unless asked", async () => {
     const d = await deps();
     expect((await describeTable(d, "incident")).omitted.before).toBe(1);
-    expect((await describeTable(d, "incident", true)).behavior.before).toHaveLength(3);
+    expect(
+      (await describeTable(d, "incident", { includeInactive: true })).behavior.before,
+    ).toHaveLength(3);
   });
 
   it("lists the table's fields, its own and its parents'", async () => {
     const table = await describeTable(await deps(), "incident");
-    expect(table.fields.map((f) => [f.name, f.definedOn, f.mandatory])).toEqual([
-      ["number", "task", false],
-      ["priority", "incident", true],
+    expect(table.fields).toEqual([
+      { name: "number", type: "string", label: "Number", definedOn: "task" },
+      { name: "priority", type: "integer", label: "Priority", mandatory: true },
     ]);
+    expect(table.fieldCount).toBe(2);
   });
 
   it("says how fresh the mirror is, and what it does not cover yet", async () => {

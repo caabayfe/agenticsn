@@ -1,6 +1,8 @@
 import { authLogin } from "./auth-login";
 import { authLogout } from "./auth-logout";
+import { describe } from "./describe";
 import { doctor } from "./doctor";
+import { find } from "./find";
 import { init } from "./init";
 import { instanceAdd } from "./instance-add";
 import { instanceList } from "./instance-list";
@@ -29,6 +31,8 @@ export const USE_CASES: readonly UseCase[] = [
   pull,
   integrate,
   status,
+  find,
+  describe,
   updateSetsList,
   updateSetsShow,
   updateSetsCollisions,

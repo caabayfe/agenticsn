@@ -13,6 +13,8 @@ import { gitInventoryReader } from "./adapters/git/git-inventory-reader";
 import { GitMirror } from "./adapters/git/git-mirror";
 import { gitProbe } from "./adapters/git-probe";
 import { keychainProbe } from "./adapters/keychain-probe";
+import { GitMirrorFiles } from "./adapters/knowledge/git-mirror-files";
+import { SqliteKnowledgeStore } from "./adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
 import { fetchTransport } from "./adapters/servicenow/fetch-transport";
@@ -58,6 +60,13 @@ const context: UseCaseContext = {
   integrator: gitIntegrator,
   inspector: gitInspector,
   inventory: gitInventoryReader,
+  knowledge: (root, instance) => {
+    const paths = instancePaths(instance);
+    return {
+      store: new SqliteKnowledgeStore(join(root, paths.localState, "knowledge.sqlite")),
+      files: new GitMirrorFiles(root, paths.metadata),
+    };
+  },
   files: { write: (path, content) => writeTextFile(path, content) },
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,

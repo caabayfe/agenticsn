@@ -121,11 +121,20 @@ describe("ADR-0012 layer 3 on the MCP surface", () => {
   });
 });
 
-describe("the v1.0 tools", () => {
-  it("are the six the plan names, within the budget", async () => {
+describe("the MCP tools", () => {
+  it("are the v1.0 tools plus the knowledge tools find and describe", async () => {
     const { tools } = await (await connect(USE_CASES, ["pdi"])).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual(
-      ["doctor", "plugin_activate", "plugins", "pull", "status", "update_sets"].sort(),
+      [
+        "describe",
+        "doctor",
+        "find",
+        "plugin_activate",
+        "plugins",
+        "pull",
+        "status",
+        "update_sets",
+      ].sort(),
     );
   });
 });

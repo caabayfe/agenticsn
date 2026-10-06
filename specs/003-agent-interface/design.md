@@ -315,3 +315,34 @@ The agent interface is product, so it is tested like product:
 3. Instructions, the five skills, MCP prompts and `agent install`, with contract tests.
 4. The evaluation harness and a first baseline on the PDI.
 5. `plan_push` and `push` with the gate, and `servicenow-deliver`.
+
+## 10. Implementation notes: the knowledge index (step 1, 2026-10-06)
+
+`find` and `describe` read a per-instance SQLite index (ADR-0005) at
+`.snagentic/<name>/knowledge.sqlite`, rebuilt from the workspace's files at any time:
+
+- **Records** (one row each): class, scope, name, the table it acts on, its phase and order,
+  and the fields that describe it. Behavior classes are registered as data
+  (`knowledge/domain/behavior.ts`); business-rule timing follows the platform's stored values
+  (`before`, `after`, `before_display`, `async_always`, `async`, measured on the PDI).
+- **Words**: a word-only full-text index of each record's files (YAML, scripts, child rows).
+  "Used by" and code search ask it for candidate records in milliseconds, then `git grep`
+  reads only those files for exact lines.
+- **Refresh** before every call: what was committed since the last refresh, what is edited
+  locally now, and what was edited locally last time; any changed file re-reads its record.
+  Record files are scanned, not parsed (own YAML style, ADR-0015), checked against the parser
+  with generated records.
+
+Measured on the PDI (463,317 records):
+
+| | Result |
+|---|---|
+| First build | 60 s, 927 MB peak, index 576 MB on disk |
+| Refresh when nothing changed | about 0.9 s |
+| `describe incident` (fields and 500+ behavior records in order) | about 1 s in all |
+| `describe` of a script include, with who uses it | 1.05 s (was 11.3 s with full-mirror grep) |
+| `find` by name | 4 ms in the index; `find --code` 0.9 s |
+
+Not covered yet, and said so in every table description: flows and workflows triggered by a
+table, and business rules on the global table. Follow-ups: lower the first build's peak memory;
+order client-side behavior by type (onLoad, onChange, onSubmit) as well as order.

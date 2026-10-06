@@ -10,3 +10,14 @@ export class PaginationStalledError extends SnagenticError {
     );
   }
 }
+
+export class NothingPulledError extends SnagenticError {
+  constructor(instance: string) {
+    super(
+      "nothing-pulled",
+      "precondition",
+      `${instance} has not been pulled yet`,
+      `run: snagentic pull ${instance}`,
+    );
+  }
+}

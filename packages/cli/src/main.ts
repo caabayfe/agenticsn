@@ -9,6 +9,7 @@ import { LayeredCredentialStore } from "./adapters/credentials/layered-credentia
 import { writeTextFile } from "./adapters/fs/write-text-file";
 import { gitInspector } from "./adapters/git/git-inspector";
 import { gitIntegrator } from "./adapters/git/git-integrator";
+import { gitInventoryReader } from "./adapters/git/git-inventory-reader";
 import { GitMirror } from "./adapters/git/git-mirror";
 import { gitProbe } from "./adapters/git-probe";
 import { keychainProbe } from "./adapters/keychain-probe";
@@ -54,6 +55,7 @@ const context: UseCaseContext = {
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
   integrator: gitIntegrator,
   inspector: gitInspector,
+  inventory: gitInventoryReader,
   files: { write: (path, content) => writeTextFile(path, content) },
   clock: () => new Date(),
   host: {

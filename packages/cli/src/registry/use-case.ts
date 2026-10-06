@@ -7,6 +7,7 @@ import type {
   InstanceName,
   InstanceProfile,
   InstanceReader,
+  InventoryReader,
   MirrorInspector,
   MirrorIntegrator,
   MirrorMode,
@@ -59,6 +60,7 @@ export interface UseCaseContext {
   };
   readonly integrator: MirrorIntegrator;
   readonly inspector: MirrorInspector;
+  readonly inventory: InventoryReader;
   // Files a use case writes for the person, such as an export.
   readonly files: { write(path: string, content: string): Promise<void> };
   readonly clock: () => Date;

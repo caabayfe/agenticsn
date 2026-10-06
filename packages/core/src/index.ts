@@ -118,6 +118,14 @@ export {
   type RedactionPolicy,
 } from "./metadata/domain/redaction";
 export type { RecordStore, StoredRecord } from "./metadata/ports";
+export {
+  listPlugins,
+  type Plugin,
+  type PluginFilter,
+  type PluginInventory,
+  type StoreApp,
+} from "./plugins/application/list-plugins";
+export type { InventoryReader } from "./plugins/ports";
 export { forEachConcurrently } from "./sync/application/concurrently";
 export { type CatalogProgress, fetchCatalog } from "./sync/application/fetch-catalog";
 export { type FingerprintOutcome, fetchFingerprints } from "./sync/application/fetch-fingerprints";
@@ -145,7 +153,7 @@ export {
   pullIncremental,
 } from "./sync/application/pull-incremental";
 export { inventorySignatures, pullOperational } from "./sync/application/pull-operational";
-export { PaginationStalledError } from "./sync/domain/errors";
+export { NothingPulledError, PaginationStalledError } from "./sync/domain/errors";
 export {
   changesSince,
   compareFingerprint,

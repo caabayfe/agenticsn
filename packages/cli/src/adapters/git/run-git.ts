@@ -44,13 +44,22 @@ export async function* gitLines(
   const stderr = new Response(child.stderr).text();
   const decoder = new TextDecoder();
   let rest = "";
-  for await (const chunk of child.stdout) {
-    const lines = (rest + decoder.decode(chunk, { stream: true })).split("\n");
-    rest = lines.pop() ?? "";
-    yield* lines;
-  }
-  if (rest !== "") {
-    yield rest;
+  let finished = false;
+  try {
+    for await (const chunk of child.stdout) {
+      const lines = (rest + decoder.decode(chunk, { stream: true })).split("\n");
+      rest = lines.pop() ?? "";
+      yield* lines;
+    }
+    if (rest !== "") {
+      yield rest;
+    }
+    finished = true;
+  } finally {
+    // The reader stopped early (it had enough lines): stop git too.
+    if (!finished) {
+      child.kill();
+    }
   }
   if (!success.includes(await child.exited)) {
     throw new Error(`git ${args.join(" ")} failed: ${(await stderr).trim()}`);

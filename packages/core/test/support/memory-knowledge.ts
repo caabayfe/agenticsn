@@ -16,7 +16,7 @@ export function memoryStore(): KnowledgeStore & { readonly records: Map<string, 
     apply: async (upserts, removed, marker) => {
       for (const base of removed) records.delete(base);
       for (const record of upserts) records.set(record.base, record);
-      current = marker;
+      current = marker ?? current;
     },
     search: async (query) => {
       const needle = query.text?.toLowerCase() ?? "";

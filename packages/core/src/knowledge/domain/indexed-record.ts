@@ -62,7 +62,7 @@ export function indexedRecord(base: string, record: RecordFields): IndexedRecord
     sysId: record.meta["sys_id"] ?? "",
     className,
     scope: record.meta["scope"] ?? "",
-    name: displayName(record.fields),
+    name: behavior?.displayName?.(record.fields) ?? displayName(record.fields),
     table,
     phase: table === null || behavior === undefined ? null : behavior.phase(record.fields),
     order: orderOf(record.fields),

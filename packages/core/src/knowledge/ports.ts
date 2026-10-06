@@ -18,11 +18,12 @@ export interface SearchQuery {
 // The instance's knowledge index (local, rebuilt from the mirror at any time).
 export interface KnowledgeStore {
   marker(): Promise<IndexMarker | null>;
-  // Applies one refresh atomically.
+  // Applies a batch atomically. The marker is written with the last batch of a refresh only,
+  // so an interrupted refresh is repeated rather than trusted.
   apply(
     upserts: readonly IndexedRecord[],
     removed: readonly string[],
-    marker: IndexMarker,
+    marker: IndexMarker | null,
   ): Promise<void>;
   search(
     query: SearchQuery,

@@ -19,6 +19,8 @@ export interface BehaviorClass {
   // The field holding the table name. ACLs hold "table" or "table.field" in their name.
   readonly tableField: string;
   readonly phase: (fields: Readonly<Record<string, string>>) => Phase;
+  // How people refer to it, when its name field alone would mislead.
+  readonly displayName?: (fields: Readonly<Record<string, string>>) => string;
 }
 
 const ALWAYS = (phase: Phase) => () => phase;
@@ -43,7 +45,13 @@ export const BEHAVIOR_CLASSES: Readonly<Record<string, BehaviorClass>> = {
     phase: ALWAYS("notify"),
   },
   sys_data_policy2: { kind: "data policy", tableField: "model_table", phase: ALWAYS("policy") },
-  sys_dictionary: { kind: "field", tableField: "name", phase: ALWAYS("field") },
+  // A dictionary entry's `name` is its table: it is known as table.field.
+  sys_dictionary: {
+    kind: "field",
+    tableField: "name",
+    phase: ALWAYS("field"),
+    displayName: (fields) => `${fields["name"] ?? ""}.${fields["element"] ?? ""}`,
+  },
 };
 
 // The table a record acts on, or null when it is not table behavior.

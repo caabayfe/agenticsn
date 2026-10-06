@@ -35,6 +35,16 @@ describe("indexedRecord", () => {
   });
 });
 
+describe("indexedRecord for records that name their table elsewhere", () => {
+  it("finds a number record by the table it numbers, without making it behavior", () => {
+    const entry = indexedRecord(
+      "global/sys_number/inc--3",
+      record("sys_number", "3", { sys_name: "INC", prefix: "INC", category: "incident" }),
+    );
+    expect(entry).toMatchObject({ name: "INC", table: "incident", phase: null });
+  });
+});
+
 describe("recordBaseOfPath", () => {
   it("recognises record files only", () => {
     expect(recordBaseOfPath(BR)).toBe("global/sys_script/set-priority--b1");

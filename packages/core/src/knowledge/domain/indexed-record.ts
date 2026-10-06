@@ -41,6 +41,10 @@ export interface RecordFields {
   readonly fields: Readonly<Record<string, string>>;
 }
 
+// Classes that are not behavior but belong to a table, named in one of their fields: found by
+// that table (find "incident" lists the incident number record).
+const TABLE_FIELDS: Readonly<Record<string, string>> = { sys_number: "category" };
+
 const NAME_FIELDS = ["name", "sys_name", "title", "label", "element", "api_name", "id"];
 
 function displayName(fields: Readonly<Record<string, string>>): string {
@@ -55,7 +59,10 @@ function displayName(fields: Readonly<Record<string, string>>): string {
 
 export function indexedRecord(base: string, record: RecordFields): IndexedRecord {
   const className = record.meta["sys_class_name"] ?? "";
-  const table = behaviorTable(className, record.fields);
+  const tableField = TABLE_FIELDS[className];
+  const table =
+    behaviorTable(className, record.fields) ??
+    ((tableField === undefined ? "" : record.fields[tableField]) || null);
   const behavior = BEHAVIOR_CLASSES[className];
   return {
     base,

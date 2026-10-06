@@ -72,6 +72,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
   delivery: () => {
     throw new Error("no delivery in this test");
   },
+  pushJournal: () => {
+    throw new Error("no push journal in this test");
+  },
   governance: () => {
     throw new Error("no governance in this test");
   },

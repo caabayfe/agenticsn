@@ -9,6 +9,7 @@ import type {
   InstanceName,
   InstanceProfile,
   InstanceReader,
+  InstanceWriter,
   InventoryReader,
   KnowledgeStore,
   MirrorFiles,
@@ -17,6 +18,7 @@ import type {
   MirrorMode,
   PluginActivator,
   ProfileStore,
+  PushJournalStore,
   ScriptChecker,
   ServerCostReader,
   SyncStateStore,
@@ -49,7 +51,9 @@ export interface ConnectionFactory {
   open(
     profile: InstanceProfile,
     secret: string,
-  ): InstanceReader & TableStatistics & ServerCostReader & { readonly plugins: PluginActivator };
+  ): InstanceReader &
+    TableStatistics &
+    ServerCostReader & { readonly plugins: PluginActivator; readonly writer: InstanceWriter };
 }
 
 // The ports use cases need, wired by the composition root (main.ts).
@@ -83,6 +87,8 @@ export interface UseCaseContext {
   ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
   // An instance's mirror branch and working tree, for plan and push.
   readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;
+  // Where push journals its progress (.snagentic/<name>/push-journal.json).
+  readonly pushJournal: (root: string, instance: InstanceName) => PushJournalStore;
   // Text files inside the workspace (the agent pack).
   readonly workspaceFiles: WorkspaceFiles;
   // Files a use case writes for the person, such as an export.

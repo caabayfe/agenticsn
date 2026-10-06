@@ -225,6 +225,26 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `push`
+
+```
+snagentic push [options]
+```
+
+Deliver a reviewed plan to the development instance: writes the planned records into the update set 'snagentic: <label> [<scope>]' (one per scope), then checks each was captured. Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace.
+
+Changes the instance: **yes, development instances only**. MCP tool: `push`.
+
+Options:
+
+- `--instance <value>`: the development instance
+- `--plan <value>`: the planId from plan_push
+- `--confirm`: true once the user approved the plan
+- `--label <value>`: names the update sets (default: the git branch)
+- `--allow-collisions`: 
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `agent install`
 
 ```
@@ -379,6 +399,12 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `instance` (string, optional): default: the workspace's only instance
   - `label` (string, optional): names the update sets (default: the git branch)
   - `allowCollisions` (boolean, optional): accept records already held in someone else's open update set
+- `push`: Deliver a reviewed plan to the development instance: writes the planned records into the update set 'snagentic: <label> [<scope>]' (one per scope), then checks each was captured. Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. Destructive: hosts ask before running it.
+  - `instance` (string, required): the development instance
+  - `plan` (string, required): the planId from plan_push
+  - `confirm` (boolean, optional): true once the user approved the plan
+  - `label` (string, optional): names the update sets (default: the git branch)
+  - `allowCollisions` (boolean, optional)
 - `update_sets`: Read a ServiceNow instance's update sets. action=list: open and recently changed sets with update counts. show: one set's updates (needs id). collisions: records held by more than one open set. export: write a set as ServiceNow XML (needs id). Never changes the instance.
   - `instance` (string, required)
   - `action` (list | show | collisions | export, required)

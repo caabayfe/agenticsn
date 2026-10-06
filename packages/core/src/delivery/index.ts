@@ -8,6 +8,12 @@ export {
   type PushPlan,
 } from "./application/plan-push";
 export {
+  type PushDependencies,
+  type PushQuery,
+  type PushResult,
+  push,
+} from "./application/push";
+export {
   type ChangeOutcome,
   changeOf,
   type Operation,
@@ -15,7 +21,16 @@ export {
   type PlannedWrite,
   type PlanProblem,
 } from "./domain/change";
-export { MirrorNotIntegratedError, NothingPulledYetError } from "./domain/errors";
+export {
+  IntegrationUserNotFoundError,
+  MirrorNotIntegratedError,
+  NothingPulledYetError,
+  PlanChangedError,
+  PlanNotReadyError,
+  PushConfirmationRequiredError,
+  RecordChangedOnInstanceError,
+  UnfinishedPushError,
+} from "./domain/errors";
 export { type GateFinding, type GateResult, gateOf, planId } from "./domain/gate";
 export {
   globMatches,
@@ -24,4 +39,10 @@ export {
   type WaiverProblem,
   waiverFor,
 } from "./domain/waivers";
-export type { DeliveryWorkspace, RecordFiles } from "./ports";
+export type {
+  DeliveryWorkspace,
+  InstanceWriter,
+  PushJournal,
+  PushJournalStore,
+  RecordFiles,
+} from "./ports";

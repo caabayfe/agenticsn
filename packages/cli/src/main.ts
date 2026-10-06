@@ -26,6 +26,7 @@ import { fetchTransport } from "./adapters/servicenow/fetch-transport";
 import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
+import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
 import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
 import { FsWorkspaceStore } from "./adapters/workspace/fs-workspace-store";
@@ -79,6 +80,8 @@ const context: UseCaseContext = {
   files: { write: (path, content) => writeTextFile(path, content) },
   workspaceFiles: fsWorkspaceFiles,
   delivery: (root, instance) => new GitDeliveryWorkspace(root, instance),
+  pushJournal: (root, instance) =>
+    new JsonPushJournalStore(join(root, instancePaths(instance).localState)),
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,
   host: {

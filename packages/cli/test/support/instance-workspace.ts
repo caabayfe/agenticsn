@@ -14,6 +14,7 @@ import { GitChangedRecords } from "../../src/adapters/governance/git-changed-rec
 import { GitMirrorFiles } from "../../src/adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "../../src/adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
+import { JsonPushJournalStore } from "../../src/adapters/state/json-push-journal-store";
 import { JsonSyncStateStore } from "../../src/adapters/state/json-sync-state-store";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import type { UseCaseContext } from "../../src/registry/use-case";
@@ -58,6 +59,7 @@ export async function instanceWorkspace(
     }),
     workspaceFiles: fsWorkspaceFiles,
     delivery: (r, name) => new GitDeliveryWorkspace(r, name),
+    pushJournal: (r, name) => new JsonPushJournalStore(join(r, instancePaths(name).localState)),
     governance: (r, name) => ({
       records: new GitChangedRecords(r, instancePaths(name).metadata),
       checker: new EslintScriptChecker(),

@@ -5,6 +5,7 @@ import {
   InstanceError,
   type InstanceProfile,
   type InstanceReader,
+  type InstanceWriter,
   type PluginActivator,
   type Row,
   type ServerCost,
@@ -17,6 +18,7 @@ import {
 import { CicdPluginActivator } from "./cicd-plugin-activator";
 import type { HttpResponse } from "./http-types";
 import type { RequestScheduler } from "./request-scheduler";
+import { TableApiWriter } from "./table-api-writer";
 
 const MAX_PAGE_SIZE = 10_000;
 
@@ -65,6 +67,8 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   private readonly userAgent: string;
   // Plugin activation through the CI/CD API, over this connection.
   readonly plugins: PluginActivator = new CicdPluginActivator(this);
+  // Table API writes, for push to development instances.
+  readonly writer: InstanceWriter = new TableApiWriter(this);
 
   constructor(
     private readonly profile: InstanceProfile,
@@ -159,6 +163,20 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       counts.set(value, count);
     }
     return counts;
+  }
+
+  // A write with a JSON body (Table API). Never retried (the scheduler retries only GET).
+  async sendJson(
+    method: "POST" | "PATCH",
+    path: string,
+    body: Readonly<Record<string, string>>,
+    what: string,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    const url = new URL(path, this.profile.url);
+    const headers = { ...this.headers, "Content-Type": "application/json" };
+    const request = { method, url: url.href, headers, body: JSON.stringify(body) };
+    return this.result(await this.scheduler.send(request, signal), what);
   }
 
   // Any other API of the instance, as JSON: the parsed `result`, with the same error handling.

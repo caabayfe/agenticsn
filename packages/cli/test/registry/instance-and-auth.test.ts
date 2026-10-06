@@ -47,6 +47,10 @@ async function setup() {
             ? [{ "role.name": "admin" }]
             : [{ sys_id: "u1", sys_updated_on: "2026-09-23 20:12:26" }],
         fingerprint: async () => ({ count: 0, maxUpdatedOn: null }),
+        writer: {
+          insert: async () => ({}),
+          update: async () => ({}),
+        },
         countBy: async () => new Map(),
         count: async () => 0,
         serverCost: async () => {

@@ -1,7 +1,13 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 import { doctor } from "../../src/registry/doctor";
 import { executeUseCase } from "../../src/registry/execute";
 import { FAKE_CONTEXT, fakeProbe } from "../support/fakes";
+import { instanceWorkspace } from "../support/instance-workspace";
+
+const cleanups: (() => Promise<void>)[] = [];
+afterEach(async () => {
+  await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
+});
 
 describe("doctor use case", () => {
   it("exits with 0 when every check passes or is unavailable", async () => {
@@ -10,6 +16,24 @@ describe("doctor use case", () => {
       environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
     };
     expect((await executeUseCase(doctor, {}, context)).exitCode).toBe(0);
+  });
+
+  it("checks the agent pack inside a workspace, as a warning", async () => {
+    const ws = await instanceWorkspace({});
+    cleanups.push(ws.cleanup);
+    const context = { ...ws.context, environmentProbes: [fakeProbe("git", "ok")] };
+    const { output, exitCode } = await executeUseCase(doctor, {}, context);
+    expect(output["checks"]).toEqual([
+      expect.objectContaining({ name: "git" }),
+      expect.objectContaining({ name: "agent-pack", status: "warn" }),
+    ]);
+    expect(exitCode).toBe(0);
+  });
+
+  it("leaves the agent pack out outside a workspace", async () => {
+    const context = { ...FAKE_CONTEXT, environmentProbes: [fakeProbe("git", "ok")] };
+    const { output } = await executeUseCase(doctor, {}, context);
+    expect(output["checks"]).toEqual([expect.objectContaining({ name: "git" })]);
   });
 
   it("exits with 3 (precondition) when a check fails", async () => {

@@ -25,16 +25,16 @@ module.exports = {
         "depend on it, never the reverse.",
       severity: "error",
       from: { path: "(^|/)packages/core/" },
-      to: { path: "(^|/)packages/(cli|rules-basic)/" },
+      to: { path: "(^|/)packages/(cli|rules-basic|agent-packs)/" },
     },
     {
-      name: "rules-are-pure",
+      name: "packs-are-pure",
       comment:
-        "Rule packs are pure functions of a script and its record: they may import only " +
-        "themselves and the ESLint rule API, so a rule can never read files or call an instance.",
+        "Rule packs and agent packs are pure data and functions: they may import only " +
+        "themselves and the ESLint rule API, so a pack can never read files or call an instance.",
       severity: "error",
-      from: { path: "(^|/)packages/rules-basic/src/" },
-      to: { pathNot: ["(^|/)packages/rules-basic/src/", "/eslint/", "/@types/estree/"] },
+      from: { path: "(^|/)packages/(rules-basic|agent-packs)/src/" },
+      to: { pathNot: ["(^|/)packages/$2/src/", "/eslint/", "/@types/estree/"] },
     },
     {
       name: "interfaces-do-not-import-adapters",

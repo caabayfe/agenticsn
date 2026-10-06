@@ -16,12 +16,17 @@
         "yaml": "^2.9.1",
       },
     },
+    "packages/agent-packs": {
+      "name": "@snagentic/agent-packs",
+      "version": "1.0.0",
+    },
     "packages/cli": {
       "name": "@snagentic/cli",
       "version": "1.0.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.0",
         "@napi-rs/keyring": "^2.1.0",
+        "@snagentic/agent-packs": "workspace:*",
         "@snagentic/core": "workspace:*",
         "@snagentic/rules-basic": "workspace:*",
         "commander": "^15.0.0",
@@ -129,6 +134,8 @@
     "@napi-rs/keyring-win32-x64-msvc": ["@napi-rs/keyring-win32-x64-msvc@2.1.0", "", { "os": "win32", "cpu": "x64" }, "sha512-3zYwO7dhJiUNyv2te81ujXm2vGxHwgx+z2eBm0dTYe3aWpvKQVzpfxCp/7cViJs8duVYE04wVOgXiRhRCMEq2w=="],
 
     "@noble/hashes": ["@noble/hashes@2.4.0", "", {}, "sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA=="],
+
+    "@snagentic/agent-packs": ["@snagentic/agent-packs@workspace:packages/agent-packs"],
 
     "@snagentic/cli": ["@snagentic/cli@workspace:packages/cli"],
 

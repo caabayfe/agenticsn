@@ -388,3 +388,24 @@ and classes, and in design the design record. Live on the PDI: about 1.1 s per c
 Follow-ups: validating an update set's records (needs instance reads); the hit rates of
 SN-MNT-001, SN-UPG-001 and SN-PERF-002 on out-of-box code are high and worth reviewing for
 noise, although only new findings are ever reported.
+
+## 13. Implementation notes: the agent pack (step 3, 2026-10-06)
+
+- **Source.** `packages/agent-packs` holds the skills as typed data (the section 5.1 shape)
+  and the instructions; it renders `SKILL.md` files (front matter quoted, stamped with the
+  version) and MCP prompts. A boundary rule keeps it pure, like rule packs.
+- **Four skills now**: design, build, review, explain. `servicenow-deliver` joins with
+  `plan_push` and `push` (step 5), and the instructions name only tools that exist.
+- **Contract test.** Every code span in the skills and instructions must be an MCP tool, an
+  input or output field, or an enum value of one (walked from the zod schemas), or a skill
+  name; every skill routes through at least one tool. Renaming a field breaks the build.
+- **Install.** `agent install` writes `.agents/skills/*/SKILL.md`, the instructions between
+  `<!-- snagentic:begin <version> -->` and `<!-- snagentic:end -->` in `AGENTS.md` (the
+  team's text around it is kept), and `@AGENTS.md` in `CLAUDE.md`. Unchanged files are not
+  rewritten. `doctor` warns, inside a workspace, when the block is missing or from another
+  version.
+- **MCP.** The server sends the instructions and offers `design`, `review` and `explain` as
+  prompts taking the user's request.
+
+Not yet: host hooks and permission rules (ADR-0011 layer 1), which need `check --changed`;
+skill trigger evaluations and task runs (section 7, step 4).

@@ -26,6 +26,7 @@ const CASES: [string, Record<string, string>, string, string][] = [
     "gr.addEncodedQuery('active=true^caller_id=' + userId);",
     "gr.addEncodedQuery('active=true^priority=1');",
   ],
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the sample is JavaScript source.
   ["SN-SEC-003", {}, "gr.addEncodedQuery(`state=${state}`);", "gr.addQuery('state', state);"],
   [
     "SN-SEC-004",
@@ -96,7 +97,9 @@ const CASES: [string, Record<string, string>, string, string][] = [
   [
     "SN-MNT-002",
     {},
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the sample is JavaScript source.
     "var url = `https://acme.service-now.com/${table}.do`;",
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the sample is JavaScript source.
     "var url = `${base}${table}.do`;",
   ],
   ["SN-MNT-003", { scoped: "true" }, "gs.log('started');", "gs.info('started');"],

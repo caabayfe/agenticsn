@@ -31,6 +31,7 @@ export type {
   TableQuery,
   TableStatistics,
 } from "./connection/ports";
+export { checkAgentPack } from "./environment/application/check-agent-pack";
 export { runDoctor } from "./environment/application/run-doctor";
 export { runInstanceChecks } from "./environment/application/run-instance-checks";
 export {
@@ -234,7 +235,18 @@ export type {
 export * from "./updatesets/index";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
+export {
+  type AgentPack,
+  type InstalledFile,
+  type InstallStatus,
+  installAgentPack,
+} from "./workspace/application/install-agent-pack";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";
+export {
+  installedPackVersion,
+  withAgentsImport,
+  withInstructions,
+} from "./workspace/domain/agent-pack";
 export {
   DirectoryNotEmptyError,
   NestedRepositoryError,
@@ -255,4 +267,4 @@ export {
   manifestFor,
   type WorkspaceManifest,
 } from "./workspace/domain/manifest";
-export type { WorkspaceStore } from "./workspace/ports";
+export type { WorkspaceFiles, WorkspaceStore } from "./workspace/ports";

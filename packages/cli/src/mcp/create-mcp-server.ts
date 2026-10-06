@@ -43,15 +43,46 @@ function toolInput(useCase: UseCase, developmentInstances: readonly string[]): z
   return first === undefined ? null : useCase.input.extend({ instance: z.enum([first, ...rest]) });
 }
 
+// What the agent pack contributes (spec 003): always-loaded instructions, and the workflows
+// offered as prompts (slash commands in hosts that show them).
+export interface AgentInterface {
+  readonly instructions: string;
+  readonly prompts: readonly {
+    readonly name: string;
+    readonly description: string;
+    readonly message: (request: string) => string;
+  }[];
+}
+
+function registerPrompts(server: McpServer, prompts: AgentInterface["prompts"]): void {
+  for (const prompt of prompts) {
+    server.registerPrompt(
+      prompt.name,
+      {
+        description: prompt.description,
+        argsSchema: { request: z.string().describe("what the user wants, in their words") },
+      },
+      ({ request }) => ({
+        messages: [{ role: "user", content: { type: "text", text: prompt.message(request) } }],
+      }),
+    );
+  }
+}
+
 // Builds the MCP server from the registry. Contains no knowledge of any specific use case.
 export function createMcpServer(
   useCases: readonly UseCase[],
   context: UseCaseContext,
   version: string,
   developmentInstances: readonly string[] = [],
+  agent: AgentInterface = { instructions: "", prompts: [] },
 ): McpServer {
   assertMcpBudget(useCases);
-  const server = new McpServer({ name: "snagentic", version });
+  const server = new McpServer(
+    { name: "snagentic", version },
+    agent.instructions === "" ? {} : { instructions: agent.instructions },
+  );
+  registerPrompts(server, agent.prompts);
   for (const useCase of useCases.filter((candidate) => candidate.mcp)) {
     const inputSchema = toolInput(useCase, developmentInstances);
     if (inputSchema === null) {

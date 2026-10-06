@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createProfile, InstanceName, instancePaths, type Row } from "@snagentic/core";
 import { fakeInstance } from "../../../core/test/support/fake-instance";
+import { fsWorkspaceFiles } from "../../src/adapters/fs/fs-workspace-files";
 import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { gitInventoryReader } from "../../src/adapters/git/git-inventory-reader";
@@ -54,6 +55,7 @@ export async function instanceWorkspace(
       store: new SqliteKnowledgeStore(join(r, instancePaths(name).localState, "knowledge.sqlite")),
       files: new GitMirrorFiles(r, instancePaths(name).metadata),
     }),
+    workspaceFiles: fsWorkspaceFiles,
     governance: (r, name) => ({
       records: new GitChangedRecords(r, instancePaths(name).metadata),
       checker: new EslintScriptChecker(),

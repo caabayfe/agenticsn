@@ -68,6 +68,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
   knowledge: () => {
     throw new Error("no knowledge index in this test");
   },
+  workspaceFiles: { read: async () => null, write: async () => {} },
   governance: () => {
     throw new Error("no governance in this test");
   },

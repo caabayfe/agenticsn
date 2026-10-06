@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createMcpServer } from "../../src/mcp/create-mcp-server";
+import { type AgentInterface, createMcpServer } from "../../src/mcp/create-mcp-server";
 import { MCP_TOOL_BUDGET } from "../../src/registry/mcp-budget";
 import { pluginsActivate } from "../../src/registry/plugins-activate";
 import { pluginsList } from "../../src/registry/plugins-list";
@@ -9,8 +9,12 @@ import { USE_CASES } from "../../src/registry/registry";
 import type { UseCase } from "../../src/registry/use-case";
 import { echoUseCase, FAKE_CONTEXT, progressUseCase, waitForCancelUseCase } from "../support/fakes";
 
-async function connect(useCases: readonly UseCase[], development: string[] = []): Promise<Client> {
-  const server = createMcpServer(useCases, FAKE_CONTEXT, "test", development);
+async function connect(
+  useCases: readonly UseCase[],
+  development: string[] = [],
+  agent: AgentInterface = { instructions: "", prompts: [] },
+): Promise<Client> {
+  const server = createMcpServer(useCases, FAKE_CONTEXT, "test", development, agent);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: "test-client", version: "1.0.0" });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -138,5 +142,39 @@ describe("the MCP tools", () => {
         "validate",
       ].sort(),
     );
+  });
+});
+
+describe("the agent interface", () => {
+  const agent: AgentInterface = {
+    instructions: "# ServiceNow workspace",
+    prompts: [
+      {
+        name: "explain",
+        description: "Explain behavior",
+        message: (request) => `explain: ${request}`,
+      },
+    ],
+  };
+
+  it("sends the workspace instructions to the host", async () => {
+    const client = await connect([echoUseCase()], [], agent);
+    expect(client.getInstructions()).toBe("# ServiceNow workspace");
+  });
+
+  it("offers each workflow as a prompt taking the user's request", async () => {
+    const client = await connect([echoUseCase()], [], agent);
+    const { prompts } = await client.listPrompts();
+    expect(prompts).toEqual([
+      expect.objectContaining({
+        name: "explain",
+        description: "Explain behavior",
+        arguments: [expect.objectContaining({ name: "request", required: true })],
+      }),
+    ]);
+    const prompt = await client.getPrompt({ name: "explain", arguments: { request: "why?" } });
+    expect(prompt.messages).toEqual([
+      { role: "user", content: { type: "text", text: "explain: why?" } },
+    ]);
   });
 });

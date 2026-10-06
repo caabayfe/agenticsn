@@ -50,6 +50,9 @@ describe("snagentic entry point (real adapters)", () => {
         "update_sets",
         "validate",
       ]);
+      expect(client.getInstructions()).toStartWith("# ServiceNow workspace (snagentic)");
+      const { prompts } = await client.listPrompts();
+      expect(prompts.map((prompt) => prompt.name)).toEqual(["design", "review", "explain"]);
       const result = await client.callTool({ name: "doctor", arguments: {} });
       expect(result.structuredContent).toHaveProperty("checks");
     } finally {

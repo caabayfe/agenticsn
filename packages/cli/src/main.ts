@@ -2,10 +2,12 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { INSTRUCTIONS, PROMPTS } from "@snagentic/agent-packs";
 import { instancePaths } from "@snagentic/core";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
+import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
 import { writeTextFile } from "./adapters/fs/write-text-file";
 import { gitInspector } from "./adapters/git/git-inspector";
 import { gitIntegrator } from "./adapters/git/git-integrator";
@@ -74,6 +76,7 @@ const context: UseCaseContext = {
     checker: new EslintScriptChecker(),
   }),
   files: { write: (path, content) => writeTextFile(path, content) },
+  workspaceFiles: fsWorkspaceFiles,
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,
   host: {
@@ -97,9 +100,10 @@ process.exitCode = await runCli(
     signal: cancellation.signal,
     serveMcp: async () => {
       const development = await developmentInstances(context);
-      await createMcpServer(USE_CASES, context, versionLine(), development).connect(
-        new StdioServerTransport(),
-      );
+      await createMcpServer(USE_CASES, context, versionLine(), development, {
+        instructions: INSTRUCTIONS,
+        prompts: PROMPTS,
+      }).connect(new StdioServerTransport());
     },
   },
 );

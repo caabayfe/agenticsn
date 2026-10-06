@@ -12,7 +12,7 @@ import type {
 
 // Bump when the schema or the indexing rules change (the knowledge domain: phases, names,
 // tables): an index with another version is dropped and rebuilt from the files.
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 const SCHEMA = `
 create table records (

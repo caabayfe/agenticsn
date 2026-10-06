@@ -211,3 +211,52 @@ Live results on the PDI (Europe to US, about 0.6 s per request):
 Known blind spots, unchanged: writes with system fields disabled that leave counts equal, and a
 child row moved to another owner (the old owner keeps a stale copy until it changes again).
 `pull --verify` and `pull --full` are the remedies.
+
+## Appendix: verification by counts (`pull --verify`, M4, 2026-10-06)
+
+Fingerprints miss changes that leave counts and timestamps as they were: records deleted without
+a deletion record, inserts with old timestamps, child rows moved between owners. `pull --verify`
+reconciles the mirror with the instance by counts and repairs what differs.
+
+**Measured constraints (PDI):**
+
+| Finding | Evidence |
+|---|---|
+| `sys_metadata` cannot be grouped by class, but can be grouped by scope and filtered by class | `group_by=sys_class_name` denied (field ACL); `group_by=sys_scope`: 771 groups, 2.6 s; `sys_class_nameNOT IN…` allowed |
+| Class grouping works on every other table | `sys_script`, `sys_hub_flow_base`, `sys_ui_policy` all answer |
+| Aggregates count rows that listings hide | 50 business rules counted in `sn_kmf`, 0 listed |
+| `global` holds most records | 455,778 of 655,259 |
+
+**Design:**
+
+1. Records: one grouped count of `sys_metadata` per scope, leaving out classes a pull never
+   mirrors and classes this user cannot read. Where a scope's count differs from the mirror's
+   (counted locally), parts of up to 16,000 records are listed (`sys_id`, `sys_class_name` only)
+   and compared; larger parts are split into 16 `sys_id`-prefix counts. A difference spread over
+   more than 4 of the 16 parts is listed outright rather than split further.
+2. What the mirror cannot hold (rows hidden from listings, records of unreadable classes,
+   invalid sys_ids) is remembered per part in the sync state and subtracted next time, so a
+   verification lists only where something actually changed.
+3. Child rows: grouped counts per owner on every child table, compared with the rows mirrored
+   per record, as for shrunk tables.
+
+**Bug found and fixed on the way:** `sys_variable_value.document_key` usually names a flow
+step or action instance, not the record. Count reconciliation compared counts per key with
+counts per record and removed 698 variable-value files from the PDI mirror (the instance was
+never affected; the files were restored by the next verification, byte-identical to the full
+pull). Owners are now resolved as the full pull does, through child-row ids read from the
+mirror (`git grep`). The same flaw affected incremental pulls on `main` whenever
+`sys_variable_value` lost rows.
+
+**Live results (PDI):**
+
+| Verification | Requests | Time | Listed | Result |
+|---|---|---|---|---|
+| First (learning) | 1,052 | 23 min | 367,272 ids | removed the stale deletion record; before the fixes above |
+| Learning, with fixes | 987 | 7.4 min | 339,154 ids | 2,486 hidden and 1,691 unmirrorable records remembered |
+| Steady state | 59 | 33 s | 0 | 760 scopes agree; child tables agree |
+
+The learning run is paid once per workspace (and again after a full pull). Known limits:
+content-only changes with system fields disabled stay invisible (verification checks
+existence, not content); a part whose remembered gap and a real loss cancel out is missed.
+Peak memory of a verification is about 0.9 GB on the PDI (mirror index and child-row owners).

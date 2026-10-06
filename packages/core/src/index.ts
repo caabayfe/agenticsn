@@ -131,6 +131,7 @@ export { completePull, type PullSummary, pullFull } from "./sync/application/pul
 export {
   FullPullRequiredError,
   type IncrementalSummary,
+  type PullOptions,
   pullIncremental,
 } from "./sync/application/pull-incremental";
 export { PaginationStalledError } from "./sync/domain/errors";
@@ -177,6 +178,24 @@ export {
   type SyncPhase,
   syncPhase,
 } from "./sync/domain/sync-phase";
+export {
+  childPrefixes,
+  compareListing,
+  type HiddenCounts,
+  hasPrefix,
+  hiddenKey,
+  hiddenUnder,
+  isHexPrefixed,
+  LIST_LIMIT,
+  type ListDifference,
+  MAX_PREFIX,
+  type MirroredRecord,
+  mergeHidden,
+  mirroredRecord,
+  SPREAD_LIMIT,
+  type VerifyStep,
+  verifyStep,
+} from "./sync/domain/verify-buckets";
 export type {
   Fingerprints,
   FinishedPull,

@@ -4,18 +4,13 @@ import { TableName } from "../../kernel/table-name";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { fieldsToRedact } from "../../metadata/domain/redaction";
 import type { FingerprintChange } from "../domain/fingerprint";
-import {
-  CHILD_TABLES,
-  type ChildTable,
-  childFamily,
-  childGrouper,
-  ownerOfBase,
-} from "../domain/pull-scope";
+import { CHILD_TABLES, type ChildTable, childFamily } from "../domain/pull-scope";
 import { chunks } from "../domain/record-changes";
+import { type ChildOwners, childOwners, ownersWithOtherCounts } from "./child-owners";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { cleaned, groupTable, owners } from "./pull-children";
 
-// Owner sys_ids per request when refreshing an owner's child rows.
+// Parent keys per request when refreshing records' child rows.
 const OWNER_BATCH = 100;
 
 export interface ChildOutcome {
@@ -49,13 +44,14 @@ async function store(
   }
 }
 
-// Owners (sys_id -> record base) whose rows changed since `since`.
+// Records whose child rows changed since `since`.
 async function changedOwners(
   deps: IncrementalDependencies,
   child: ChildTable,
+  owners: ChildOwners,
   since: string,
   signal: AbortSignal,
-): Promise<Map<string, string>> {
+): Promise<Set<string>> {
   const feed = {
     table: TableName.parse(child.table),
     fields: ["sys_id", "sys_updated_on", child.parentField],
@@ -63,68 +59,73 @@ async function changedOwners(
     base: "",
     since,
   };
-  const owners = new Map<string, string>();
+  const bases = new Set<string>();
   for await (const row of deps.pager.rows(feed, signal)) {
-    const id = row[child.parentField] ?? "";
-    const base = deps.records.baseOf(deps.metadataRoot, id);
+    const base = owners.baseOf(row[child.parentField] ?? "");
     if (base !== undefined) {
-      owners.set(id, base);
+      bases.add(base);
     }
   }
-  return owners;
+  return bases;
 }
 
-// Owners whose mirrored row count differs from the instance's: deleted rows appear in no
-// change feed, but one grouped count finds the owners that lost them.
-async function ownersWithOtherCounts(
-  deps: IncrementalDependencies,
-  child: ChildTable,
-  signal: AbortSignal,
-): Promise<Map<string, string>> {
-  const table = TableName.parse(child.table);
-  const current = await deps.statistics.countBy(table, child.parentField, signal);
-  const mirrored = await deps.records.countChildRows(deps.metadataRoot, child.table);
-  const owners = new Map<string, string>();
-  for (const [base, count] of mirrored) {
-    const id = ownerOfBase(base);
-    if ((current.get(id) ?? 0) !== count) {
-      owners.set(id, base);
+// Records grouped so that each request names at most OWNER_BATCH parent keys; a record with
+// more keys than that gets a batch of its own, read in several requests.
+function ownerBatches(bases: Iterable<string>, owners: ChildOwners): string[][] {
+  const batches: string[][] = [];
+  let current: string[] = [];
+  let keys = 0;
+  for (const base of bases) {
+    const count = owners.keysOf(base).length;
+    if (current.length > 0 && keys + count > OWNER_BATCH) {
+      batches.push(current);
+      current = [];
+      keys = 0;
     }
+    current.push(base);
+    keys += count;
   }
-  for (const id of current.keys()) {
-    const base = deps.records.baseOf(deps.metadataRoot, id);
-    if (base !== undefined && !mirrored.has(base)) {
-      owners.set(id, base);
-    }
-  }
-  return owners;
+  return current.length > 0 ? [...batches, current] : batches;
 }
 
-// Reads each owner's rows again whole, so rows deleted from an owner disappear too.
+// Reads each record's child rows again whole, so rows deleted from it disappear too. A
+// record's file is written only once all of its keys have been read.
 async function refreshOwners(
   deps: IncrementalDependencies,
   catalog: Catalog,
   child: ChildTable,
-  owners: ReadonlyMap<string, string>,
+  owners: ChildOwners,
+  bases: Iterable<string>,
   signal: AbortSignal,
   totals: Totals,
 ): Promise<void> {
   const redact = fieldsToRedact(catalog, child.table, "", deps.policy);
-  for (const batch of chunks([...owners.keys()], OWNER_BATCH)) {
-    const grouper = childGrouper(child.parentField, new Map(owners));
-    const listing = {
-      table: TableName.parse(child.table),
-      fields: "all" as const,
-      kind: "snapshot" as const,
-      base: `${child.parentField}IN${batch.join(",")}`,
-    };
-    for await (const row of deps.pager.rows(listing, signal)) {
-      grouper.add(cleaned(row, redact));
+  for (const batch of ownerBatches(bases, owners)) {
+    const rows = new Map<string, Row[]>();
+    for (const keys of chunks(
+      batch.flatMap((base) => owners.keysOf(base)),
+      OWNER_BATCH,
+    )) {
+      const listing = {
+        table: TableName.parse(child.table),
+        fields: "all" as const,
+        kind: "snapshot" as const,
+        base: `${child.parentField}IN${keys.join(",")}`,
+      };
+      for await (const row of deps.pager.rows(listing, signal)) {
+        const base = owners.baseOf(row[child.parentField] ?? "");
+        if (base !== undefined) {
+          const list = rows.get(base) ?? [];
+          list.push(cleaned(row, redact));
+          rows.set(base, list);
+        }
+      }
     }
-    const { attached } = grouper.result();
-    for (const id of batch) {
-      const base = owners.get(id) ?? "";
-      await store(deps, base, child.table, attached.get(base), totals);
+    for (const base of batch) {
+      const sorted = (rows.get(base) ?? []).sort((a, b) =>
+        (a["sys_id"] ?? "") < (b["sys_id"] ?? "") ? -1 : 1,
+      );
+      await store(deps, base, child.table, sorted, totals);
     }
   }
 }
@@ -138,13 +139,14 @@ async function refreshTable(
   signal: AbortSignal,
   totals: Totals,
 ): Promise<void> {
-  const owners = await changedOwners(deps, child, since, signal);
+  const owners = await childOwners(deps, child);
+  const bases = await changedOwners(deps, child, owners, since, signal);
   if (change === "shrunk") {
-    for (const [id, base] of await ownersWithOtherCounts(deps, child, signal)) {
-      owners.set(id, base);
+    for (const base of await ownersWithOtherCounts(deps, child, owners, signal)) {
+      bases.add(base);
     }
   }
-  await refreshOwners(deps, catalog, child, owners, signal, totals);
+  await refreshOwners(deps, catalog, child, owners, bases, signal, totals);
 }
 
 // Lists a family of child tables again, as a full pull does, and removes the files of owners

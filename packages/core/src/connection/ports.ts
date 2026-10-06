@@ -40,5 +40,8 @@ export interface TableStatistics {
     table: TableName,
     field: string,
     signal: AbortSignal,
+    query?: string,
   ): Promise<ReadonlyMap<string, number>>;
+  // Rows matching an encoded query (indexed fields only), in one aggregate request.
+  count(table: TableName, query: string, signal: AbortSignal): Promise<number>;
 }

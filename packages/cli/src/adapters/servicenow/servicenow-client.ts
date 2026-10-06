@@ -82,42 +82,48 @@ export class ServiceNowClient implements InstanceReader, TableStatistics {
   }
 
   // Count and latest raw sys_updated_on in one aggregate request.
+  // Count and latest raw sys_updated_on in one aggregate request.
   async fingerprint(table: TableName, signal: AbortSignal): Promise<TableFingerprint> {
-    const url = new URL(`/api/now/stats/${table}`, this.profile.url);
-    url.search = new URLSearchParams({
-      sysparm_count: "true",
-      sysparm_max_fields: "sys_updated_on",
-    }).toString();
-    const response = await this.scheduler.send(
-      { method: "GET", url: url.href, headers: this.headers },
-      signal,
-    );
-    const result = (await this.result(response, `statistics of ${table}`)) as StatsResult;
-    const count = countOf(result);
+    const what = `statistics of ${table}`;
+    const params = { sysparm_count: "true", sysparm_max_fields: "sys_updated_on" };
+    const { response, result } = await this.aggregate(table, params, signal, what);
+    const stats = result as StatsResult | null;
+    const count = countOf(stats);
     if (count === null) {
-      throw this.unexpected(response, `statistics of ${table}`);
+      throw this.unexpected(response, what);
     }
-    return { count, maxUpdatedOn: result.stats?.max?.sys_updated_on || null };
+    return { count, maxUpdatedOn: stats?.stats?.max?.sys_updated_on || null };
+  }
+
+  async count(table: TableName, query: string, signal: AbortSignal): Promise<number> {
+    const what = `count of ${table}`;
+    const params = { sysparm_count: "true", sysparm_query: query };
+    const { response, result } = await this.aggregate(table, params, signal, what);
+    const count = countOf(result as StatsResult | null);
+    if (count === null) {
+      throw this.unexpected(response, what);
+    }
+    return count;
   }
 
   async countBy(
     table: TableName,
     field: string,
     signal: AbortSignal,
+    query?: string,
   ): Promise<ReadonlyMap<string, number>> {
-    const url = new URL(`/api/now/stats/${table}`, this.profile.url);
-    url.search = new URLSearchParams({ sysparm_count: "true", sysparm_group_by: field }).toString();
-    const response = await this.scheduler.send(
-      { method: "GET", url: url.href, headers: this.headers },
-      signal,
-    );
     const what = `counts of ${table} by ${field}`;
-    const groups = await this.result(response, what);
-    if (!Array.isArray(groups)) {
+    const params = {
+      sysparm_count: "true",
+      sysparm_group_by: field,
+      ...(query === undefined ? {} : { sysparm_query: query }),
+    };
+    const { response, result } = await this.aggregate(table, params, signal, what);
+    if (!Array.isArray(result)) {
       throw this.unexpected(response, what);
     }
     const counts = new Map<string, number>();
-    for (const group of groups as StatsResult[]) {
+    for (const group of result as StatsResult[]) {
       const count = countOf(group);
       const value = group.groupby_fields?.find((entry) => entry.field === field)?.value;
       if (count === null || value === undefined) {
@@ -126,6 +132,21 @@ export class ServiceNowClient implements InstanceReader, TableStatistics {
       counts.set(value, count);
     }
     return counts;
+  }
+
+  private async aggregate(
+    table: TableName,
+    params: Record<string, string>,
+    signal: AbortSignal,
+    what: string,
+  ): Promise<{ response: HttpResponse; result: unknown }> {
+    const url = new URL(`/api/now/stats/${table}`, this.profile.url);
+    url.search = new URLSearchParams(params).toString();
+    const response = await this.scheduler.send(
+      { method: "GET", url: url.href, headers: this.headers },
+      signal,
+    );
+    return { response, result: await this.result(response, what) };
   }
 
   stats(): ConnectionStats {

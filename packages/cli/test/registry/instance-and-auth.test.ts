@@ -48,6 +48,7 @@ async function setup() {
             : [{ sys_id: "u1", sys_updated_on: "2026-09-23 20:12:26" }],
         fingerprint: async () => ({ count: 0, maxUpdatedOn: null }),
         countBy: async () => new Map(),
+        count: async () => 0,
         stats: () => ({
           requests: 3,
           retries: 0,

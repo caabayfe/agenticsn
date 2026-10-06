@@ -31,6 +31,7 @@ describe("fetchFingerprints", () => {
         throw new Error("network down");
       },
       countBy: async () => new Map(),
+      count: async () => 0,
     };
     await expect(fetchFingerprints(failing, LIVE)).rejects.toThrow("network down");
   });

@@ -20,6 +20,10 @@ export interface SyncState {
   readonly lastFullPull: string;
   // Absent sources (older state, unreadable tables) count as changed.
   readonly fingerprints?: Fingerprints;
+  // Classes and tables the user could not read, as found by the pulls since the last full one.
+  readonly unreadable?: readonly string[];
+  // pull --verify: rows counted per part but not listable by this user (verify-buckets).
+  readonly hiddenCounts?: Readonly<Record<string, number>>;
 }
 
 // Local, per-instance sync state (.snagentic/<name>/, never committed).
@@ -72,6 +76,8 @@ export interface MirrorTree {
   // Record base -> number of child rows of `table` mirrored for it, including changes made
   // earlier in this pull.
   countChildRows(root: string, table: string): Promise<ReadonlyMap<string, number>>;
+  // Child-row sys_id -> base of the record whose child-row file holds it, for these tables.
+  childRowOwners(root: string, tables: readonly string[]): Promise<ReadonlyMap<string, string>>;
 }
 
 export interface IncrementalMirror extends MirrorSession, MirrorTree {

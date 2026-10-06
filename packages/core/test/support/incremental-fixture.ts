@@ -3,6 +3,7 @@ import {
   DEFAULT_REDACTION,
   KeysetPager,
   type PullCheckpoint,
+  type PullOptions,
   pullFull,
   pullIncremental,
   type Row,
@@ -65,6 +66,11 @@ export function instanceTables(): Record<string, Row[]> {
     ],
     wf_workflow_version: [{ sys_id: "v1", workflow: sid(5), name: "v1", sys_updated_on: BEFORE }],
     wf_activity: [{ sys_id: "a1", workflow_version: "v1", name: "Begin", sys_updated_on: BEFORE }],
+    // Owned through the flow's stage, as variable values usually are through flow steps.
+    sys_variable_value: [
+      { sys_id: "vv1", document_key: "st1", value: "a", sys_updated_on: BEFORE },
+      { sys_id: "vv2", document_key: "st1", value: "b", sys_updated_on: BEFORE },
+    ],
     sys_metadata_delete: [],
   };
 }
@@ -96,9 +102,11 @@ function memoryState() {
 }
 
 // A fully pulled instance; `incremental()` then pulls what changed since, at 11:00.
-export async function pulledInstance() {
+export async function pulledInstance(shape: (tables: Record<string, Row[]>) => void = () => {}) {
   const denied: string[] = [];
-  const instance = fakeInstance(instanceTables(), denied);
+  const tables = instanceTables();
+  shape(tables);
+  const instance = fakeInstance(tables, denied);
   const { mirror, files, prepared } = memoryMirror();
   const state = memoryState();
   let now = new Date("2026-10-05T10:00:00Z");
@@ -123,12 +131,18 @@ export async function pulledInstance() {
     deny(...tables: string[]) {
       denied.push(...tables);
     },
-    async incremental() {
+    async incremental(options: PullOptions = {}) {
       now = new Date("2026-10-05T11:00:00Z");
       instance.queries.length = 0;
       instance.fingerprints.length = 0;
-      const summary = await pullIncremental(deps, "pdi", LIVE);
-      return { summary, queries: [...instance.queries], fingerprints: [...instance.fingerprints] };
+      instance.counted.length = 0;
+      const summary = await pullIncremental(deps, "pdi", LIVE, () => {}, options);
+      return {
+        summary,
+        queries: [...instance.queries],
+        fingerprints: [...instance.fingerprints],
+        counted: [...instance.counted],
+      };
     },
   };
 }

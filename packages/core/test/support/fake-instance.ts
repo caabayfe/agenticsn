@@ -21,9 +21,10 @@ const STATS: ConnectionStats = {
 
 type Term = (row: Row) => boolean;
 
-// field>=value, field>value, field=value, fieldINa,b
+// field>=value, field>value, field=value, fieldINa,b, fieldNOT INa,b, fieldSTARTSWITHv,
+// fieldISEMPTY
 function term(text: string): Term {
-  const match = /^([a-z0-9_]+?)(>=|>|=|IN)(.*)$/.exec(text);
+  const match = /^([a-z0-9_]+?)(>=|>|=|NOT IN|IN|STARTSWITH|ISEMPTY)(.*)$/.exec(text);
   if (match === null) {
     throw new Error(`the fake instance does not understand "${text}"`);
   }
@@ -36,6 +37,14 @@ function term(text: string): Term {
       return (row) => read(row) > value;
     case "=":
       return (row) => read(row) === value;
+    case "ISEMPTY":
+      return (row) => read(row) === "";
+    case "STARTSWITH":
+      return (row) => read(row).toLowerCase().startsWith(value.toLowerCase());
+    case "NOT IN": {
+      const values = new Set(value.split(","));
+      return (row) => !values.has(read(row));
+    }
     default: {
       const values = new Set(value.split(","));
       return (row) => values.has(read(row));
@@ -75,6 +84,8 @@ export function evaluate(rows: readonly Row[], query: string, limit: number): Ro
 export function fakeInstance(tables: Record<string, Row[]>, denied: readonly string[] = []) {
   const queries: TableQuery[] = [];
   const fingerprints: string[] = [];
+  // Aggregate requests other than fingerprints, as their queries.
+  const counted: string[] = [];
   const rowsOf = (table: string): Row[] =>
     table === "sys_metadata"
       ? Object.values(tables).flatMap((rows) => rows.filter((row) => row["sys_class_name"]))
@@ -85,7 +96,9 @@ export function fakeInstance(tables: Record<string, Row[]>, denied: readonly str
       if (denied.includes(query.table)) {
         throw new AccessDeniedError(`table ${query.table}`, "Insufficient rights");
       }
-      return evaluate(rowsOf(query.table), query.query, query.limit);
+      // ACLs hide rows from listings, not from aggregates.
+      const visible = rowsOf(query.table).filter((row) => row["__hidden"] !== "true");
+      return evaluate(visible, query.query, query.limit);
     },
     fingerprint: async (table: TableName): Promise<TableFingerprint> => {
       fingerprints.push(table);
@@ -99,9 +112,14 @@ export function fakeInstance(tables: Record<string, Row[]>, denied: readonly str
         .at(-1);
       return { count: rows.length, maxUpdatedOn: latest || null };
     },
-    countBy: async (table: TableName, field: string) => {
+    count: async (table: TableName, query: string) => {
+      counted.push(query);
+      return evaluate(rowsOf(table), query, Number.MAX_SAFE_INTEGER).length;
+    },
+    countBy: async (table: TableName, field: string, _signal?: AbortSignal, query = "") => {
+      counted.push(`${table} by ${field}${query === "" ? "" : ` where ${query}`}`);
       const counts = new Map<string, number>();
-      for (const row of rowsOf(table)) {
+      for (const row of evaluate(rowsOf(table), query, Number.MAX_SAFE_INTEGER)) {
         const value = row[field] ?? "";
         counts.set(value, (counts.get(value) ?? 0) + 1);
       }
@@ -109,5 +127,5 @@ export function fakeInstance(tables: Record<string, Row[]>, denied: readonly str
     },
     stats: () => STATS,
   };
-  return { reader, queries, fingerprints, tables };
+  return { reader, queries, fingerprints, counted, tables };
 }

@@ -131,6 +131,25 @@ describe("GitMirror in incremental mode", () => {
     await mirror.abort();
   });
 
+  it("finds which record holds each child row, quoted or not, in the tables asked for", async () => {
+    const repo = await pulled();
+    const mirror = await GitMirror.open(repo, PDI, "incremental");
+    await mirror.prepare();
+    const two = "global/sys_script/two--00000000000000000000000000000002";
+    await mirror.writeDocument(ROOT, `${two}.children.sys_hub_flow_stage.yaml`, [
+      { label: "x", sys_id: "123e4567" },
+      { sys_id: "s2", script: "sys_id: not a row\n  sys_id: nor this" },
+    ]);
+    const owners = await mirror.childRowOwners(ROOT, ["sys_hub_flow_stage", "sys_ui_element"]);
+    expect([...owners].sort()).toEqual([
+      ["123e4567", two],
+      ["c", ONE],
+      ["s2", two],
+    ]);
+    expect((await mirror.childRowOwners(ROOT, [])).size).toBe(0);
+    await mirror.abort();
+  });
+
   it("reads the mirrored tree only when asked to", async () => {
     const mirror = await GitMirror.open(await pulled(), PDI, "incremental");
     expect(() => mirror.baseOf(ROOT, "00000000000000000000000000000001")).toThrow(/prepare/);

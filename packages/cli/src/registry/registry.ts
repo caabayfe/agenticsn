@@ -1,3 +1,4 @@
+import { advise } from "./advise";
 import { authLogin } from "./auth-login";
 import { authLogout } from "./auth-logout";
 import { describe } from "./describe";
@@ -33,6 +34,7 @@ export const USE_CASES: readonly UseCase[] = [
   status,
   find,
   describe,
+  advise,
   updateSetsList,
   updateSetsShow,
   updateSetsCollisions,

@@ -156,6 +156,22 @@ describe("generated CLI", () => {
     expect({ exitCode, served }).toEqual({ exitCode: 0, served: true });
   });
 
+  it("maps a list of strings to an option taking several values", async () => {
+    let received: unknown;
+    const listing = defineUseCase({
+      ...echoUseCase(),
+      name: "listing",
+      input: z.object({ tables: z.array(z.string()).default([]) }),
+      async handle(input) {
+        received = input.tables;
+        return { echoed: "" };
+      },
+      render: () => "",
+    });
+    await run(["listing", "--tables", "incident", "task"], [listing]);
+    expect(received).toEqual(["incident", "task"]);
+  });
+
   it("refuses to generate an option for an input type it cannot map", async () => {
     const unsupported = defineUseCase({
       ...echoUseCase(),

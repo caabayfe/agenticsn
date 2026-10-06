@@ -36,6 +36,9 @@ function optionFor(key: string, original: z.core.$ZodType): Option {
   if (field instanceof z.ZodNumber) {
     return new Option(`--${flag} <number>`, description).argParser(Number);
   }
+  if (field instanceof z.ZodArray && field.element instanceof z.ZodString) {
+    return new Option(`--${flag} <values...>`, description);
+  }
   if (field instanceof z.ZodEnum) {
     return new Option(`--${flag} <value>`, description).choices(field.options.map(String));
   }

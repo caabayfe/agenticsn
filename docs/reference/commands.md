@@ -170,6 +170,25 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `advise`
+
+```
+snagentic advise <intent> [options]
+```
+
+Advise on a ServiceNow change before or while making it. Give the request in the user's words and the tables involved. Returns the platform's options least custom first (each marked likely, possible or last resort, with what already exists on those tables), the ServiceNow guidance and rules that apply, and in the design phase a design record to fill. Reads the workspace only.
+
+Changes the instance: no. MCP tool: `advise`.
+
+Options:
+
+- `--tables <values...>`: tables the change is about
+- `--phase <value>`: design before editing, build while editing, review before delivering (one of: design, build, review)
+- `--classes <values...>`: build and review: classes being changed, such as sys_script
+- `--instance <value>`: default: the workspace's only instance
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `update-sets list`
 
 ```
@@ -297,6 +316,12 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `target` (string, required): a table name, a record path, or a sys_id
   - `instance` (string, optional): default: the workspace's only instance
   - `inactive` (boolean, optional): tables: also list inactive behavior
+- `advise`: Advise on a ServiceNow change before or while making it. Give the request in the user's words and the tables involved. Returns the platform's options least custom first (each marked likely, possible or last resort, with what already exists on those tables), the ServiceNow guidance and rules that apply, and in the design phase a design record to fill. Reads the workspace only.
+  - `intent` (string, required): the request, in the user's words
+  - `tables` (array, optional): tables the change is about
+  - `phase` (design | build | review, optional): design before editing, build while editing, review before delivering
+  - `classes` (array, optional): build and review: classes being changed, such as sys_script
+  - `instance` (string, optional): default: the workspace's only instance
 - `update_sets`: Read a ServiceNow instance's update sets. action=list: open and recently changed sets with update counts. show: one set's updates (needs id). collisions: records held by more than one open set. export: write a set as ServiceNow XML (needs id). Never changes the instance.
   - `instance` (string, required)
   - `action` (list | show | collisions | export, required)

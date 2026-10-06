@@ -1,5 +1,6 @@
 // Public API of @snagentic/core. Other packages import only from here.
 
+export * from "./advice/index";
 export { measureServerCost } from "./connection/application/measure-server-cost";
 export {
   ConcurrencyController,

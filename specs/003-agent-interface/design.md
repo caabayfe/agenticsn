@@ -346,3 +346,21 @@ Measured on the PDI (463,317 records):
 Not covered yet, and said so in every table description: flows and workflows triggered by a
 table, and business rules on the global table. Follow-ups: lower the first build's peak memory;
 order client-side behavior by type (onLoad, onChange, onSubmit) as well as order.
+
+## 11. Implementation notes: `advise` (step 2, 2026-10-06)
+
+The ServiceNow knowledge is a typed catalog in core (`packages/core/src/advice`), ported from
+v1's six skills and rule set:
+
+- **23 rules** (`SN-SEC/PERF/UPG/MNT/UX-nnn`, ids kept from v1): severity, why, remediation, and
+  the scripts and classes they apply to. `validate` implements their checks next, with the same
+  ids.
+- **Guidance** (`SN-ADV-<area>-nnn`): design, server, client, security, integration and review
+  practice, each tied to work phases and to the classes or intents it applies to.
+- **Ten intents** (notify, field state, set a value, validate, approval, assignment,
+  integration, schedule, access, actions), recognised from the request's words, each with its
+  options least custom first (a test enforces the order) and the classes each option creates.
+
+`advise` returns the ladder marked likely / possible / last resort with evidence from the
+target tables (what already runs there), related records, the guidance and rules for the phase
+and classes, and in design the design record. Live on the PDI: about 1.1 s per call.

@@ -23,3 +23,45 @@ export interface DeliveryWorkspace {
   // The parsed waivers.yaml at the workspace root, or null when there is none.
   waivers(): Promise<unknown | null>;
 }
+
+// Writes to a development instance's tables (Table API). Never retried: a write whose outcome
+// is unknown fails, and the push stops (ADR-0016).
+export interface InstanceWriter {
+  insert(
+    table: string,
+    values: Readonly<Record<string, string>>,
+    signal: AbortSignal,
+  ): Promise<Readonly<Record<string, string>>>;
+  update(
+    table: string,
+    sysId: string,
+    values: Readonly<Record<string, string>>,
+    signal: AbortSignal,
+  ): Promise<Readonly<Record<string, string>>>;
+}
+
+// What a push has done so far, written before every instance write, so an interrupted push
+// can be recovered: names and hashes only, never field values or credentials.
+export interface PushJournal {
+  readonly planId: string;
+  readonly mirrorCommit: string;
+  readonly startedAt: string;
+  // The current-update-set preference while it is switched, to restore it.
+  readonly preference: {
+    readonly sysId: string;
+    readonly name: string;
+    readonly previousValue: string;
+  } | null;
+  readonly steps: readonly {
+    readonly operation: string;
+    readonly table: string;
+    readonly sysId: string;
+    readonly state: "sending" | "written";
+  }[];
+}
+
+export interface PushJournalStore {
+  read(): Promise<PushJournal | null>;
+  write(journal: PushJournal): Promise<void>;
+  clear(): Promise<void>;
+}

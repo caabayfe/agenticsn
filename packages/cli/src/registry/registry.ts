@@ -14,6 +14,7 @@ import { planPush } from "./plan-push";
 import { pluginsActivate } from "./plugins-activate";
 import { pluginsList } from "./plugins-list";
 import { pull } from "./pull";
+import { push } from "./push";
 import { status } from "./status";
 import { updateSetsCollisions } from "./update-sets-collisions";
 import { updateSetsExport } from "./update-sets-export";
@@ -40,6 +41,7 @@ export const USE_CASES: readonly UseCase[] = [
   advise,
   validate,
   planPush,
+  push,
   agentInstall,
   updateSetsList,
   updateSetsShow,

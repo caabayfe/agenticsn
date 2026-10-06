@@ -41,6 +41,17 @@ export class Catalog {
     return ScopeName.fromInstance(this.data.scopes[scopeSysId] ?? scopeSysId);
   }
 
+  // The sys_id of a scope known by its namespace ("global" for global), or null when unknown.
+  scopeSysId(namespace: string): string | null {
+    if (namespace === "global") {
+      return "global";
+    }
+    const found = Object.entries(this.data.scopes).find(
+      ([sysId, name]) => ScopeName.fromInstance(name) === namespace && sysId !== "",
+    );
+    return found?.[0] ?? null;
+  }
+
   knowsScope(scopeSysId: string): boolean {
     return scopeSysId === "" || scopeSysId === "global" || scopeSysId in this.data.scopes;
   }

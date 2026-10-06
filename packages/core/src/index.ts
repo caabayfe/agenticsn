@@ -216,6 +216,11 @@ export type {
   SyncState,
   SyncStateStore,
 } from "./sync/ports";
+export {
+  renderUnload,
+  type UnloadField,
+  type UnloadRecord,
+} from "./updatesets/domain/unload-xml";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";

@@ -14,6 +14,7 @@ import {
   rawTimestamp,
   resolveSecret,
   SnagenticError,
+  verifyReadOnlyCredential,
 } from "@snagentic/core";
 import { z } from "zod";
 import {
@@ -60,6 +61,7 @@ class VerifyNeedsPullError extends SnagenticError {
 async function openSession(
   input: { instance: string; full: boolean; verify: boolean },
   context: UseCaseContext,
+  signal: AbortSignal,
 ) {
   const root = await workspaceRoot(context);
   const name = InstanceName.parse(input.instance);
@@ -75,6 +77,7 @@ async function openSession(
     profile,
     await resolveSecret(profile, context.credentials),
   );
+  await verifyReadOnlyCredential(profile, reader, signal);
   const mirror = await context.mirrors.open(root, name, mode);
   const paths = instancePaths(name);
   const deps: IncrementalDependencies = {
@@ -113,7 +116,7 @@ export const pull = defineUseCase({
     // The transaction log is searched from a little before the start, so a skewed local
     // clock cannot hide requests; the run tag in the User-Agent does the matching.
     const since = rawTimestamp(new Date(context.clock().getTime() - 5 * 60_000));
-    const session = await openSession(input, context);
+    const session = await openSession(input, context, run.signal);
     const memory = memorySampler(run);
     const facts = async (finished: FinishedPull, committing: number): Promise<RunFacts> => {
       memory.sample();

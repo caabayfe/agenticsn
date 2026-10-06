@@ -1,5 +1,8 @@
 import {
   EXIT_CODES,
+  ensureDevelopmentInstance,
+  getInstance,
+  InstanceName,
   InvalidInputError,
   OperationCancelledError,
   redactSecrets,
@@ -8,6 +11,7 @@ import {
 } from "@snagentic/core";
 import { z } from "zod";
 import type { RunControl, UseCase, UseCaseContext } from "./use-case";
+import { workspaceRoot } from "./workspace-root";
 
 export type { ProgressEvent, RunControl } from "./use-case";
 
@@ -33,6 +37,28 @@ async function handle(
   }
 }
 
+// ADR-0012 layer 3: a use case that changes an instance runs only against a development one,
+// checked here, once, before any handler can reach the instance.
+async function ensureWritableTarget(
+  useCase: UseCase,
+  input: Record<string, unknown>,
+  context: UseCaseContext,
+): Promise<void> {
+  if (!useCase.flags.requiresDevelopmentInstance) {
+    return;
+  }
+  const instance = input["instance"];
+  if (typeof instance !== "string") {
+    throw new Error(`${useCase.name} changes an instance but has no instance input`);
+  }
+  const profile = await getInstance(
+    await workspaceRoot(context),
+    InstanceName.parse(instance),
+    context.profiles,
+  );
+  ensureDevelopmentInstance(profile, [useCase.group, useCase.name].filter(Boolean).join(" "));
+}
+
 export interface Execution {
   readonly output: Record<string, unknown>;
   readonly exitCode: number;
@@ -49,6 +75,7 @@ export async function executeUseCase(
   if (!input.success) {
     throw new InvalidInputError(z.prettifyError(input.error));
   }
+  await ensureWritableTarget(useCase, input.data, context);
   const output = useCase.output.safeParse(await handle(useCase, input.data, context, run));
   if (!output.success) {
     throw new Error(

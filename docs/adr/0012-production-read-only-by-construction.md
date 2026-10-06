@@ -97,3 +97,12 @@ go through development, an update set, validation and promotion.
   credentials through its shell. Still useful as a typed, audited path.
 - **Refusing writes in code without registering them conditionally.** Rejected. A missing
   code path is safer than a guarded one.
+
+## Implementation status (2026-10-06)
+
+- Layer 4 runs on every connection to a test or production instance (`pull`, `update-sets`):
+  one request checks that the user holds `snc_read_only`, and snagentic refuses before
+  asking anything else. Verified live with a writable credential on a test profile.
+- Layer 3 is enforced centrally: a use case flagged `requiresDevelopmentInstance` is refused
+  for any other kind before its handler runs. Removing such tools from the MCP surface for
+  non-development instances comes with M7.

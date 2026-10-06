@@ -48,6 +48,12 @@ export {
   removeInstance,
 } from "./instance/application/manage-instances";
 export {
+  DevelopmentInstanceRequiredError,
+  ensureDevelopmentInstance,
+  ReadOnlyCredentialRequiredError,
+  verifyReadOnlyCredential,
+} from "./instance/application/verify-access";
+export {
   CredentialsMissingError,
   InstanceExistsError,
   InstanceNotFoundError,

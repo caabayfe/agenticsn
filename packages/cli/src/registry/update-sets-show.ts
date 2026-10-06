@@ -26,7 +26,7 @@ export const updateSetsShow = defineUseCase({
   mcp: false,
   arguments: ["instance", "id"],
   async handle(input, context, run) {
-    const { name, pager, reader } = await connect(context, input.instance);
+    const { name, pager, reader } = await connect(context, input.instance, run.signal);
     const deps = { pager, statistics: reader, now: context.clock };
     const shown = await showUpdateSet(deps, name, input.id, run.signal);
     return { instance: name, ...shown };

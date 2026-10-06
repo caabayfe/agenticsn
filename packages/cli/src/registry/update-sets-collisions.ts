@@ -36,7 +36,7 @@ export const updateSetsCollisions = defineUseCase({
   mcp: false,
   arguments: ["instance"],
   async handle(input, context, run) {
-    const { name, pager, reader } = await connect(context, input.instance);
+    const { name, pager, reader } = await connect(context, input.instance, run.signal);
     const deps = { pager, statistics: reader, now: context.clock };
     const report = await updateSetCollisions(deps, run.signal);
     return {

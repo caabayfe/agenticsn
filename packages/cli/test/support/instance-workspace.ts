@@ -14,7 +14,10 @@ import { FAKE_CONTEXT } from "./fakes";
 
 // A real workspace with a "pdi" development profile, connected to an in-memory instance.
 // Files written by use cases are captured instead of written.
-export async function instanceWorkspace(data: Record<string, Row[]>) {
+export async function instanceWorkspace(
+  data: Record<string, Row[]>,
+  kind: "development" | "test" | "production" = "development",
+) {
   const base = await mkdtemp(join(tmpdir(), "snagentic-workspace-"));
   const root = join(base, "w");
   await new FsWorkspaceStore().create(root, { layout: 1, createdWith: "test" });
@@ -25,8 +28,8 @@ export async function instanceWorkspace(data: Record<string, Row[]>) {
       name: InstanceName.parse("pdi"),
       url: "dev1",
       username: "admin",
-      kind: "development",
-      acknowledgeReadOnly: false,
+      kind,
+      acknowledgeReadOnly: kind !== "development",
     }),
   );
   const instance = fakeInstance(data);

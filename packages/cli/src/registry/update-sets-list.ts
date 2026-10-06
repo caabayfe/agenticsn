@@ -30,7 +30,7 @@ export const updateSetsList = defineUseCase({
   mcp: false,
   arguments: ["instance"],
   async handle(input, context, run) {
-    const { name, pager, reader } = await connect(context, input.instance);
+    const { name, pager, reader } = await connect(context, input.instance, run.signal);
     const deps = { pager, statistics: reader, now: context.clock };
     return { instance: name, updateSets: await listUpdateSets(deps, input.days, run.signal) };
   },

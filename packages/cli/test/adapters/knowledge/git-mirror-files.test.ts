@@ -61,17 +61,24 @@ describe("GitMirrorFiles", () => {
     ]);
   });
 
-  it("reads a record's fields, and nothing for a file that is gone", async () => {
+  it("reads a record's fields and the text of all its files", async () => {
     const { files, write } = await workspace();
     await write(
       `${RULE}.yaml`,
       toYaml({ _meta: { sys_id: "b1" }, name: "Set priority", collection: "incident" }),
     );
-    expect(await files.readRecord(`${RULE}.yaml`)).toEqual({
+    await write(`${RULE}.script.js`, "new Prioritizer();\n");
+    const document = await files.readDocument(RULE);
+    expect(document.record).toEqual({
       meta: { sys_id: "b1" },
       fields: { name: "Set priority", collection: "incident" },
     });
-    expect(await files.readRecord("global/sys_script/gone--b9.yaml")).toBeNull();
+    expect(document.text).toContain("new Prioritizer();");
+    expect(document.text).toContain("name: Set priority");
+    expect(await files.readDocument("global/sys_script/gone--b9")).toEqual({
+      record: null,
+      text: "",
+    });
   });
 
   it("lists the files beside a record", async () => {
@@ -104,5 +111,12 @@ describe("GitMirrorFiles", () => {
       ),
     ).toEqual([1, 1, 2]);
     expect(await files.grep(["Prioritiz"], { limit: 10, wholeWords: true })).toEqual([]);
+    // Only the files of the records named.
+    expect(
+      await files.grep(["Prioritizer"], { limit: 10, bases: ["global/sys_script/other--b2"] }),
+    ).toEqual([]);
+    expect(
+      (await files.grep(["Prioritizer"], { limit: 10, bases: [RULE] })).map((h) => h.line),
+    ).toEqual([1, 2]);
   });
 });

@@ -61,7 +61,18 @@ async function usedBy(deps: KnowledgeDependencies, record: IndexedRecord) {
     ...(record.className === "sys_script_include" && record.name !== "" ? [record.name] : []),
   ];
   const limit = USED_BY_LIMIT * 4;
-  const hits = await deps.files.grep(needles, { limit, wholeWords: true });
+  // The word index names the candidate records; their files give the exact lines.
+  const candidates = (await deps.store.containing(needles, limit + 1)).filter(
+    (base) => base !== record.base,
+  );
+  const hits =
+    candidates.length === 0
+      ? []
+      : await deps.files.grep(needles, {
+          limit,
+          wholeWords: true,
+          bases: candidates.slice(0, limit),
+        });
   const own = `${record.base}.`;
   const elsewhere = hits.filter((hit) => !hit.path.startsWith(own));
   const records = new Map(
@@ -85,7 +96,10 @@ async function usedBy(deps: KnowledgeDependencies, record: IndexedRecord) {
       });
     }
   }
-  return { usedBy: result.slice(0, USED_BY_LIMIT), more: hits.length >= limit };
+  return {
+    usedBy: result.slice(0, USED_BY_LIMIT),
+    more: candidates.length > limit || result.length > USED_BY_LIMIT,
+  };
 }
 
 // One record, by its path or sys_id: what it is, its files, and what refers to it.

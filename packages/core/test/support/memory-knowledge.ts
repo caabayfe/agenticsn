@@ -7,15 +7,34 @@ import type {
   RecordFields,
 } from "@snagentic/core";
 
+const words = (text: string) =>
+  text
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}_]+/u)
+    .filter(Boolean);
+
+// True when `phrase`'s words appear in `text`'s words in sequence (as FTS5 phrases do).
+function hasPhrase(text: string, phrase: string): boolean {
+  const wanted = words(phrase);
+  return wanted.length > 0 && ` ${words(text).join(" ")} `.includes(` ${wanted.join(" ")} `);
+}
+
 export function memoryStore(): KnowledgeStore & { readonly records: Map<string, IndexedRecord> } {
   const records = new Map<string, IndexedRecord>();
+  const texts = new Map<string, string>();
   let current: IndexMarker | null = null;
   return {
     records,
     marker: async () => current,
     apply: async (upserts, removed, marker) => {
-      for (const base of removed) records.delete(base);
-      for (const record of upserts) records.set(record.base, record);
+      for (const base of removed) {
+        records.delete(base);
+        texts.delete(base);
+      }
+      for (const { record, text } of upserts) {
+        records.set(record.base, record);
+        texts.set(record.base, text);
+      }
       current = marker ?? current;
     },
     search: async (query) => {
@@ -34,11 +53,17 @@ export function memoryStore(): KnowledgeStore & { readonly records: Map<string, 
       [...records.values()].filter((r) => r.table !== null && tables.includes(r.table)),
     byBases: async (bases) => bases.flatMap((base) => records.get(base) ?? []),
     bySysId: async (sysId) => [...records.values()].find((r) => r.sysId === sysId) ?? null,
+    containing: async (phrases, limit) =>
+      [...texts]
+        .filter(([, text]) => phrases.some((phrase) => hasPhrase(text, phrase)))
+        .map(([base]) => base)
+        .slice(0, limit),
     count: async () => records.size,
   };
 }
 
-// Files of a workspace: committed content per commit, plus local edits on top.
+// Files of a workspace: committed content per commit, plus local edits on top. A record's
+// text is its fields and the code lines of its files.
 export function memoryMirror(files: Record<string, RecordFields>) {
   const state = {
     head: "c1" as string | null,
@@ -55,10 +80,27 @@ export function memoryMirror(files: Record<string, RecordFields>) {
         commit === null ? Object.keys(state.files) : (state.committedSince.get(commit) ?? []),
       dirty: [...state.dirty],
     }),
-    readRecord: async (path) => state.files[path] ?? null,
+    readDocument: async (base) => {
+      const record = state.files[`${base}.yaml`] ?? null;
+      const code = state.code
+        .filter((hit) => hit.path.startsWith(`${base}.`))
+        .map((hit) => hit.text);
+      return {
+        record,
+        text:
+          record === null
+            ? ""
+            : [...Object.values(record.fields), record.meta["sys_id"] ?? "", ...code].join("\n"),
+      };
+    },
     filesOf: async (base) => state.beside[base] ?? [],
     grep: async (texts, options) =>
       state.code
+        .filter(
+          (hit) =>
+            options.bases === undefined ||
+            options.bases.some((base) => hit.path.startsWith(`${base}.`)),
+        )
         .filter((hit) =>
           texts.some((text) =>
             options.wholeWords === true

@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type {
+  IndexedDocument,
   IndexedRecord,
   IndexMarker,
   KnowledgeStore,
@@ -11,7 +12,7 @@ import type {
 
 // Bump when the schema or the indexing rules change (the knowledge domain: phases, names,
 // tables): an index with another version is dropped and rebuilt from the files.
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 const SCHEMA = `
 create table records (
@@ -31,6 +32,10 @@ create trigger records_ad after delete on records begin
   insert into records_fts (records_fts, rowid, name, class, tbl, scope) values ('delete', old.rowid, old.name, old.class, old.tbl, old.scope);
 end;
 create table marker (id integer primary key check (id = 1), commit_id text not null, dirty text not null);
+create table docs (id integer primary key, base text not null unique);
+create virtual table refs_fts using fts5 (
+  text, content = '', contentless_delete = 1,
+  tokenize = "unicode61 remove_diacritics 2 tokenchars '_'");
 `;
 
 interface Row {
@@ -61,12 +66,15 @@ const toRecord = (row: Row): IndexedRecord => ({
   fields: JSON.parse(row.fields) as Record<string, string>,
 });
 
+// The words of a text as the index tokenizes them (letters, digits and underscores).
+function words(text: string): string[] {
+  return text.split(/[^\p{L}\p{N}_]+/u).filter(Boolean);
+}
+
 // Words of a search, each matched as a prefix, all required. Quoting keeps FTS5 syntax
 // characters in the user's text from being read as operators.
 function matchExpression(text: string): string {
-  return text
-    .split(/[^\p{L}\p{N}_]+/u)
-    .filter(Boolean)
+  return words(text)
     .map((word) => `"${word.replaceAll('"', '""')}"*`)
     .join(" ");
 }
@@ -81,7 +89,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     const version =
       this.db.query<{ user_version: number }, []>("pragma user_version").get()?.user_version ?? 0;
     if (version !== SCHEMA_VERSION) {
-      for (const name of ["records_fts", "records", "marker"]) {
+      for (const name of ["records_fts", "records", "marker", "docs", "refs_fts"]) {
         this.db.run(`drop table if exists ${name}`);
       }
       this.db.run(SCHEMA);
@@ -101,32 +109,16 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
   }
 
   async apply(
-    upserts: readonly IndexedRecord[],
+    upserts: readonly IndexedDocument[],
     removed: readonly string[],
     marker: IndexMarker | null,
   ): Promise<void> {
-    const remove = this.db.prepare("delete from records where base = ?");
-    const insert = this.db.prepare(
-      "insert into records (base, sys_id, class, scope, name, tbl, phase, ord, active, updated_on, fields) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    );
     this.db.transaction(() => {
-      for (const base of [...removed, ...upserts.map((record) => record.base)]) {
-        remove.run(base);
+      for (const base of [...removed, ...upserts.map((document) => document.record.base)]) {
+        this.forget(base);
       }
-      for (const r of upserts) {
-        insert.run(
-          r.base,
-          r.sysId,
-          r.className,
-          r.scope,
-          r.name,
-          r.table,
-          r.phase,
-          r.order,
-          r.active ? 1 : 0,
-          r.updatedOn,
-          JSON.stringify(r.fields),
-        );
+      for (const document of upserts) {
+        this.remember(document);
       }
       if (marker !== null) {
         this.db.run("insert or replace into marker (id, commit_id, dirty) values (1, ?, ?)", [
@@ -135,6 +127,54 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
         ]);
       }
     })();
+  }
+
+  private forget(base: string): void {
+    this.db.run("delete from records where base = ?", [base]);
+    const doc = this.db
+      .query<{ id: number }, [string]>("select id from docs where base = ?")
+      .get(base);
+    if (doc !== null) {
+      this.db.run("delete from refs_fts where rowid = ?", [doc.id]);
+      this.db.run("delete from docs where id = ?", [doc.id]);
+    }
+  }
+
+  private remember({ record: r, text }: IndexedDocument): void {
+    this.db.run(
+      "insert into records (base, sys_id, class, scope, name, tbl, phase, ord, active, updated_on, fields) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        r.base,
+        r.sysId,
+        r.className,
+        r.scope,
+        r.name,
+        r.table,
+        r.phase,
+        r.order,
+        r.active ? 1 : 0,
+        r.updatedOn,
+        JSON.stringify(r.fields),
+      ],
+    );
+    const id = this.db
+      .query<{ id: number }, [string]>("insert into docs (base) values (?) returning id")
+      .get(r.base)?.id;
+    this.db.run("insert into refs_fts (rowid, text) values (?, ?)", [id ?? null, text]);
+  }
+
+  async containing(texts: readonly string[], limit: number): Promise<string[]> {
+    const phrases = texts.map((text) => words(text)).filter((list) => list.length > 0);
+    if (phrases.length === 0) {
+      return [];
+    }
+    const match = phrases.map((list) => `"${list.join(" ").replaceAll('"', '""')}"`).join(" OR ");
+    return this.db
+      .query<{ base: string }, [string, number]>(
+        "select d.base from refs_fts join docs d on d.id = refs_fts.rowid where refs_fts match ? limit ?",
+      )
+      .all(match, limit)
+      .map((row) => row.base);
   }
 
   async search(query: SearchQuery): Promise<{ records: IndexedRecord[]; total: number }> {

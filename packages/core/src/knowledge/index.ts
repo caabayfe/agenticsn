@@ -33,6 +33,7 @@ export { baseOfFile, recordBaseOfPath } from "./domain/paths";
 export type {
   CodeHit,
   GrepOptions,
+  IndexedDocument,
   IndexMarker,
   KnowledgeStore,
   MirrorFiles,

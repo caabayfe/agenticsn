@@ -45,7 +45,12 @@ const found = (record: IndexedRecord): FoundRecord => ({
 });
 
 async function findInCode(deps: KnowledgeDependencies, query: FindQuery) {
-  const hits = await deps.files.grep([query.text], { limit: query.limit * 5 });
+  // The word index names candidate records; their files give the exact matches.
+  const candidates = await deps.store.containing([query.text], query.limit * 5);
+  const hits =
+    candidates.length === 0
+      ? []
+      : await deps.files.grep([query.text], { limit: query.limit * 5, bases: candidates });
   const byBase = new Map<string, { file: string; line: number; text: string }[]>();
   for (const hit of hits) {
     const base = baseOfFile(hit.path);
@@ -65,7 +70,7 @@ async function findInCode(deps: KnowledgeDependencies, query: FindQuery) {
       .slice(0, query.limit)
       .map((r) => ({ ...found(r), matches: byBase.get(r.base) ?? [] })),
     total: kept.length,
-    more: hits.length >= query.limit * 5 || kept.length > query.limit,
+    more: candidates.length >= query.limit * 5 || kept.length > query.limit,
   };
 }
 

@@ -1,8 +1,8 @@
 import { forEachConcurrently } from "../../sync/application/concurrently";
 import { chunks } from "../../sync/domain/record-changes";
-import { type IndexedRecord, indexedRecord } from "../domain/indexed-record";
-import { recordBaseOfPath } from "../domain/paths";
-import type { KnowledgeStore, MirrorFiles } from "../ports";
+import { indexedRecord } from "../domain/indexed-record";
+import { baseOfFile } from "../domain/paths";
+import type { IndexedDocument, KnowledgeStore, MirrorFiles } from "../ports";
 
 export interface RefreshOutcome {
   readonly indexed: number;
@@ -27,30 +27,28 @@ export async function refreshIndex(
   }
   const marker = await store.marker();
   const changes = await mirror.changes(marker === null ? null : marker.commit);
-  const paths = [
-    ...new Set([...changes.committed, ...changes.dirty, ...(marker?.dirty ?? [])]),
-  ].filter((path) => recordBaseOfPath(path) !== null);
+  // Any changed file of a record (its YAML, a script, its child rows) re-reads the record.
+  const paths = [...changes.committed, ...changes.dirty, ...(marker?.dirty ?? [])];
+  const bases = [...new Set(paths.map(baseOfFile))];
   let indexed = 0;
   let removed = 0;
-  for (const batch of chunks(paths, BATCH)) {
-    const upserts: IndexedRecord[] = [];
+  for (const batch of chunks(bases, BATCH)) {
+    const upserts: IndexedDocument[] = [];
     const gone: string[] = [];
-    await forEachConcurrently(batch, READERS, async (path) => {
-      const base = recordBaseOfPath(path) ?? "";
-      const record = await mirror.readRecord(path);
-      if (record === null) {
+    await forEachConcurrently(batch, READERS, async (base) => {
+      const document = await mirror.readDocument(base);
+      if (document.record === null) {
         gone.push(base);
       } else {
-        upserts.push(indexedRecord(base, record));
+        upserts.push({ record: indexedRecord(base, document.record), text: document.text });
       }
     });
     await store.apply(upserts, gone, null);
     indexed += upserts.length;
     removed += gone.length;
   }
-  if (marker === null || paths.length > 0 || marker.commit !== head) {
-    const dirty = changes.dirty.filter((path) => recordBaseOfPath(path) !== null);
-    await store.apply([], [], { commit: head, dirty });
+  if (marker === null || bases.length > 0 || marker.commit !== head) {
+    await store.apply([], [], { commit: head, dirty: changes.dirty });
   }
   return { indexed, removed, records: await store.count(), rebuilt: marker === null };
 }

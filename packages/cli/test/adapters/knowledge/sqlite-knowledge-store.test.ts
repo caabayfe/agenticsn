@@ -20,7 +20,7 @@ async function store() {
   };
 }
 
-const entry = (base: string, extra: Partial<IndexedRecord> = {}): IndexedRecord => ({
+const record = (base: string, extra: Partial<IndexedRecord> = {}): IndexedRecord => ({
   base,
   sysId: base.slice(-2),
   className: "sys_script",
@@ -34,6 +34,10 @@ const entry = (base: string, extra: Partial<IndexedRecord> = {}): IndexedRecord 
   fields: { when: "before" },
   ...extra,
 });
+const entry = (base: string, extra: Partial<IndexedRecord> = {}, text = "") => ({
+  record: record(base, extra),
+  text,
+});
 
 describe("SqliteKnowledgeStore", () => {
   it("stores records and the marker together, and reads them back", async () => {
@@ -41,7 +45,7 @@ describe("SqliteKnowledgeStore", () => {
     expect(await s.marker()).toBeNull();
     await s.apply([entry("global/sys_script/a--b1")], [], { commit: "c1", dirty: ["x.yaml"] });
     expect(await s.marker()).toEqual({ commit: "c1", dirty: ["x.yaml"] });
-    expect(await s.bySysId("b1")).toEqual(entry("global/sys_script/a--b1"));
+    expect(await s.bySysId("b1")).toEqual(record("global/sys_script/a--b1"));
     expect(await s.byBases(["global/sys_script/a--b1", "missing"])).toHaveLength(1);
     expect(await s.count()).toBe(1);
   });
@@ -109,5 +113,40 @@ describe("SqliteKnowledgeStore", () => {
     expect(await reopened.count()).toBe(0);
     expect(await reopened.marker()).toBeNull();
     reopened.close();
+  });
+
+  it("finds the records whose files contain words or a sequence of words", async () => {
+    const { store: s } = await store();
+    await s.apply(
+      [
+        entry("a--b1", {}, "var util = new TaskStateUtil(current);"),
+        entry(
+          "b--b2",
+          {},
+          "new ProblemTaskStateUtilsSNC().run(); parent: 96e1ade7c0a80a6d381ba0c6aeb4ad61",
+        ),
+        entry("c--b3", {}, "current.update();"),
+      ],
+      [],
+      { commit: "c1", dirty: [] },
+    );
+    expect(await s.containing(["TaskStateUtil"], 10)).toEqual(["a--b1"]);
+    expect(await s.containing(["TaskStateUtil", "96e1ade7c0a80a6d381ba0c6aeb4ad61"], 10)).toEqual([
+      "a--b1",
+      "b--b2",
+    ]);
+    expect(await s.containing(["current.update()"], 10)).toEqual(["c--b3"]);
+    expect(await s.containing(["update current"], 10)).toEqual([]);
+    expect(await s.containing(["()"], 10)).toEqual([]);
+  });
+
+  it("forgets a record's words when it is updated or removed", async () => {
+    const { store: s } = await store();
+    await s.apply([entry("a--b1", {}, "old words")], [], { commit: "c1", dirty: [] });
+    await s.apply([entry("a--b1", {}, "new words")], [], { commit: "c2", dirty: [] });
+    expect(await s.containing(["old"], 10)).toEqual([]);
+    expect(await s.containing(["new"], 10)).toEqual(["a--b1"]);
+    await s.apply([], ["a--b1"], { commit: "c3", dirty: [] });
+    expect(await s.containing(["new"], 10)).toEqual([]);
   });
 });

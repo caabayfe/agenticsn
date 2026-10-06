@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { INSTRUCTIONS, SKILLS, skillFiles } from "@snagentic/agent-packs";
+import { CLAUDE_SETTINGS, INSTRUCTIONS, SKILLS, skillFiles } from "@snagentic/agent-packs";
 import { z } from "zod";
+import { CLAUDE_HOOK_EVENTS } from "../src/hooks/claude-hooks";
 import { USE_CASES } from "../src/registry/registry";
 import { mcpToolName } from "../src/registry/use-case";
 
@@ -62,6 +63,25 @@ describe("the agent pack's contract with the tools", () => {
         skill: skill.name,
         tools: true,
       });
+    }
+  });
+});
+
+describe("the Claude Code settings' contract with snagentic", () => {
+  it("runs only hook events snagentic handles", () => {
+    const commands = Object.values(CLAUDE_SETTINGS.hooks).flatMap((entries) =>
+      entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)),
+    );
+    expect(commands.map((command) => command.replace("snagentic hook claude ", ""))).toEqual([
+      ...CLAUDE_HOOK_EVENTS,
+    ]);
+  });
+
+  it("names only existing tools in its permission rules", () => {
+    const toolNames = new Set(USE_CASES.filter((u) => u.mcp).map(mcpToolName));
+    const rules = [...CLAUDE_SETTINGS.permissions.ask, ...CLAUDE_SETTINGS.permissions.deny];
+    for (const rule of rules.filter((r) => r.startsWith("mcp__snagentic__"))) {
+      expect(toolNames.has(rule.replace("mcp__snagentic__", ""))).toBe(true);
     }
   });
 });

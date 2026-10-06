@@ -15,6 +15,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - The `servicenow-deliver` skill and `deliver` prompt; `agent install` also writes skills to
   `.claude/skills`, where Claude Code looks.
 
+### Guardrails in the agent's turn
+
+- `agent install` adds Claude Code hooks and permission rules to `.claude/settings.json`
+  (merged with the team's): protected files cannot be edited, each edit is checked (`check`),
+  and the agent cannot end its turn with blocking findings without explaining; direct calls
+  to the instance and `--no-verify` are denied, and `push` asks first.
+- `check <paths...>`: the fast per-edit check the hooks run (protected files, then validate).
+
 ### Knowledge and governance
 
 - `find` and `describe`: search the mirrored instance and explain a table's behavior in

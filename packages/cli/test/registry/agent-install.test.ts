@@ -30,6 +30,9 @@ describe("agent install", () => {
     expect(
       await readFile(join(ws.root, ".claude/skills/servicenow-explain/SKILL.md"), "utf8"),
     ).toBe(skill);
+    const settings = JSON.parse(await readFile(join(ws.root, ".claude/settings.json"), "utf8"));
+    expect(settings.hooks.PostToolUse[0].hooks[0].command).toBe("snagentic hook claude post-edit");
+    expect(settings.permissions.ask).toContain("mcp__snagentic__push");
     expect(agentInstall.render(output as never, "text")).toContain("commit these files");
   });
 

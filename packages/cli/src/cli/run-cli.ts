@@ -1,5 +1,6 @@
 import { EXIT_CODES } from "@snagentic/core";
 import { Command, CommanderError, Option } from "commander";
+import { addHookCommand } from "../hooks/hook-command";
 import { describeError, executeUseCase, type ProgressEvent } from "../registry/execute";
 import {
   isOutputFormat,
@@ -18,6 +19,8 @@ export interface CliIo {
 export interface CliOptions {
   readonly version: string;
   readonly serveMcp: () => Promise<void>;
+  // The process's standard input, for host hooks.
+  readonly readStdin?: () => Promise<string>;
   // Aborted on Ctrl-C by the composition root.
   readonly signal?: AbortSignal;
 }
@@ -119,6 +122,18 @@ export async function runCli(
     .command("mcp")
     .description("Serve snagentic's MCP tools over stdio. Agent hosts start this themselves.")
     .action(options.serveMcp);
+
+  addHookCommand(
+    program,
+    useCases,
+    () => withWorkspaceOverride(context, program.opts()),
+    options.readStdin ?? (async () => ""),
+    (outcome) => {
+      io.stdout(outcome.stdout);
+      io.stderr(outcome.stderr);
+      exitCode = outcome.exitCode;
+    },
+  );
 
   program.option("--workspace <path>", "workspace folder (default: found from the current folder)");
   const contextFor = (): UseCaseContext => withWorkspaceOverride(context, program.opts());

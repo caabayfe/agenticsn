@@ -2,6 +2,7 @@ import { advise } from "./advise";
 import { agentInstall } from "./agent-install";
 import { authLogin } from "./auth-login";
 import { authLogout } from "./auth-logout";
+import { check } from "./check";
 import { describe } from "./describe";
 import { doctor } from "./doctor";
 import { find } from "./find";
@@ -40,6 +41,7 @@ export const USE_CASES: readonly UseCase[] = [
   describe,
   advise,
   validate,
+  check,
   planPush,
   push,
   agentInstall,

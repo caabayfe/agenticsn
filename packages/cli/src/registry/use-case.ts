@@ -3,6 +3,7 @@
 import type {
   ChangedRecords,
   CredentialStore,
+  DeliveryWorkspace,
   EnvironmentProbe,
   IncrementalMirror,
   InstanceName,
@@ -80,6 +81,8 @@ export interface UseCaseContext {
     root: string,
     instance: InstanceName,
   ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
+  // An instance's mirror branch and working tree, for plan and push.
+  readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;
   // Text files inside the workspace (the agent pack).
   readonly workspaceFiles: WorkspaceFiles;
   // Files a use case writes for the person, such as an export.

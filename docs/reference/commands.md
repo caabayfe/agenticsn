@@ -207,6 +207,24 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `plan-push`
+
+```
+snagentic plan-push [options]
+```
+
+Plan delivering the workspace's changes to the instance: the records and fields that would change, the update sets they go into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
+
+Changes the instance: no. MCP tool: `plan_push`.
+
+Options:
+
+- `--instance <value>`: default: the workspace's only instance
+- `--label <value>`: names the update sets (default: the git branch)
+- `--allow-collisions`: accept records already held in someone else's open update set
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `agent install`
 
 ```
@@ -357,6 +375,10 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `paths` (array, optional): record files to check (default: every record changed since base)
   - `base` (string, optional): commit, branch or tag to compare with; findings already there are not reported
   - `instance` (string, optional): default: the workspace's only instance
+- `plan_push`: Plan delivering the workspace's changes to the instance: the records and fields that would change, the update sets they go into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
+  - `instance` (string, optional): default: the workspace's only instance
+  - `label` (string, optional): names the update sets (default: the git branch)
+  - `allowCollisions` (boolean, optional): accept records already held in someone else's open update set
 - `update_sets`: Read a ServiceNow instance's update sets. action=list: open and recently changed sets with update counts. show: one set's updates (needs id). collisions: records held by more than one open set. export: write a set as ServiceNow XML (needs id). Never changes the instance.
   - `instance` (string, required)
   - `action` (list | show | collisions | export, required)

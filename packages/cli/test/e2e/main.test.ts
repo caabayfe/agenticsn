@@ -44,6 +44,7 @@ describe("snagentic entry point (real adapters)", () => {
         "describe",
         "doctor",
         "find",
+        "plan_push",
         "plugins",
         "pull",
         "status",

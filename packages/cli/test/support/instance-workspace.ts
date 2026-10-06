@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createProfile, InstanceName, instancePaths, type Row } from "@snagentic/core";
 import { fakeInstance } from "../../../core/test/support/fake-instance";
+import { GitDeliveryWorkspace } from "../../src/adapters/delivery/git-delivery-workspace";
 import { fsWorkspaceFiles } from "../../src/adapters/fs/fs-workspace-files";
 import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
@@ -56,6 +57,7 @@ export async function instanceWorkspace(
       files: new GitMirrorFiles(r, instancePaths(name).metadata),
     }),
     workspaceFiles: fsWorkspaceFiles,
+    delivery: (r, name) => new GitDeliveryWorkspace(r, name),
     governance: (r, name) => ({
       records: new GitChangedRecords(r, instancePaths(name).metadata),
       checker: new EslintScriptChecker(),

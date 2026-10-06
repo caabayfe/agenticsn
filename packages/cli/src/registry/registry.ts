@@ -10,6 +10,7 @@ import { instanceAdd } from "./instance-add";
 import { instanceList } from "./instance-list";
 import { instanceRemove } from "./instance-remove";
 import { integrate } from "./integrate";
+import { planPush } from "./plan-push";
 import { pluginsActivate } from "./plugins-activate";
 import { pluginsList } from "./plugins-list";
 import { pull } from "./pull";
@@ -38,6 +39,7 @@ export const USE_CASES: readonly UseCase[] = [
   describe,
   advise,
   validate,
+  planPush,
   agentInstall,
   updateSetsList,
   updateSetsShow,

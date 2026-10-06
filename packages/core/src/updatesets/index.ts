@@ -3,6 +3,7 @@ export {
   type ExportedUpdateSet,
   exportUpdateSet,
 } from "./application/export-update-set";
+export { heldInOpenUpdateSets, type RecordHolder } from "./application/held-records";
 export type { UpdateSetDependencies } from "./application/update-set-reads";
 export {
   listUpdateSets,

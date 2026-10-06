@@ -7,6 +7,7 @@ import { instancePaths } from "@snagentic/core";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
+import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
 import { writeTextFile } from "./adapters/fs/write-text-file";
 import { gitInspector } from "./adapters/git/git-inspector";
@@ -77,6 +78,7 @@ const context: UseCaseContext = {
   }),
   files: { write: (path, content) => writeTextFile(path, content) },
   workspaceFiles: fsWorkspaceFiles,
+  delivery: (root, instance) => new GitDeliveryWorkspace(root, instance),
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,
   host: {

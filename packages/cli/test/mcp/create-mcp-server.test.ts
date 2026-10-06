@@ -126,7 +126,7 @@ describe("ADR-0012 layer 3 on the MCP surface", () => {
 });
 
 describe("the MCP tools", () => {
-  it("are the v1.0 tools plus find, describe, advise and validate", async () => {
+  it("are the v1.0 tools plus find, describe, advise, validate and plan_push", async () => {
     const { tools } = await (await connect(USE_CASES, ["pdi"])).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual(
       [
@@ -135,6 +135,7 @@ describe("the MCP tools", () => {
         "doctor",
         "find",
         "plugin_activate",
+        "plan_push",
         "plugins",
         "pull",
         "status",

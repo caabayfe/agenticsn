@@ -10,7 +10,8 @@ export const agentInstall = defineUseCase({
   description:
     "Install the agent pack into the workspace: the workflow skills (.agents/skills, and " +
     ".claude/skills for Claude Code), the instructions block in AGENTS.md and its import in " +
-    "CLAUDE.md, and Claude Code hooks and permission rules in .claude/settings.json. Commit " +
+    "CLAUDE.md, Claude Code hooks and permission rules in .claude/settings.json, and a git " +
+    "pre-commit hook that runs validate. Commit " +
     "them so the whole team's agents work the same way. Run again after upgrading snagentic.",
   input: z.object({}),
   output: z.object({

@@ -39,3 +39,20 @@ export function withAgentsImport(existing: string | null): string {
     ? existing
     : `${existing.trimEnd()}\n\n@AGENTS.md\n`;
 }
+
+const HOOK_MARK = "# snagentic: validate before every commit";
+
+// The pre-commit hook (ADR-0011, layer 4): validate, so a commit with block findings fails.
+// It skips quietly where snagentic is not installed, so the repository stays usable.
+export const PRE_COMMIT_HOOK = [
+  "#!/bin/sh",
+  `${HOOK_MARK} (ADR-0011). Installed by snagentic agent install.`,
+  "command -v snagentic >/dev/null 2>&1 || exit 0",
+  "exec snagentic validate --format agent",
+  "",
+].join("\n");
+
+// Ours to write when there is no hook, or it is ours; null when the team has its own hook.
+export function withPreCommitHook(existing: string | null): string | null {
+  return existing === null || existing.includes(HOOK_MARK) ? PRE_COMMIT_HOOK : null;
+}

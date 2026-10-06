@@ -1,4 +1,4 @@
-import { withAgentsImport, withInstructions } from "../domain/agent-pack";
+import { withAgentsImport, withInstructions, withPreCommitHook } from "../domain/agent-pack";
 import { withClaudeSettings } from "../domain/claude-settings";
 import type { WorkspaceFiles } from "../ports";
 
@@ -27,7 +27,11 @@ export async function installAgentPack(
   root: string,
   pack: AgentPack,
 ): Promise<InstalledFile[]> {
-  const write = async (path: string, next: (existing: string | null) => string | null) => {
+  const write = async (
+    path: string,
+    next: (existing: string | null) => string | null,
+    options: { readonly executable?: boolean } = {},
+  ) => {
     const existing = await files.read(`${root}/${path}`);
     const content = next(existing);
     if (content === null) {
@@ -36,7 +40,7 @@ export async function installAgentPack(
     if (content === existing) {
       return { path, status: "unchanged" as const };
     }
-    await files.write(`${root}/${path}`, content);
+    await files.write(`${root}/${path}`, content, options);
     return { path, status: existing === null ? ("created" as const) : ("updated" as const) };
   };
   const results: InstalledFile[] = [];
@@ -54,5 +58,6 @@ export async function installAgentPack(
       withClaudeSettings(existing, pack.claudeSettings),
     ),
   );
+  results.push(await write(".git/hooks/pre-commit", withPreCommitHook, { executable: true }));
   return results;
 }

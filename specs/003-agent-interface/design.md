@@ -453,7 +453,8 @@ entries whose command starts with `snagentic hook`:
 | Stop | `validate` | block findings: the turn continues once with the findings; a second stop is let through so the agent can explain |
 
 Permission rules deny direct HTTP (`curl`, `wget`, fetches to service-now.com), `--no-verify`,
-and edits to protected files, and ask before `push`. Hooks fail open: outside a workspace or
+and edits to protected files, and ask before `push`. Layer 4: `agent install` also installs `.git/hooks/pre-commit` running `validate` (left
+alone when the team has its own hook). Hooks fail open: outside a workspace or
 on their own failure they let the agent continue and say why, since enforcement is the push
 gate and CI (ADR-0011). Checked with Claude Code 2.1.285: the permission rule refused an edit
 to a child-row file before the hook ran; an `eval` edit got SN-SEC-001 back from the

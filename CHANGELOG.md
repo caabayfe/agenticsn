@@ -22,6 +22,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   and the agent cannot end its turn with blocking findings without explaining; direct calls
   to the instance and `--no-verify` are denied, and `push` asks first.
 - `check <paths...>`: the fast per-edit check the hooks run (protected files, then validate).
+- `agent install` also installs a git pre-commit hook that runs `validate` (never replacing a
+  hook the team already has), so a commit with blocking findings fails.
 
 ### Knowledge and governance
 

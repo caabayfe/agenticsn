@@ -1,5 +1,6 @@
 import type { TableStatistics } from "../../connection/ports";
 import type { RedactionPolicy } from "../../metadata/domain/redaction";
+import { formatRawTimestamp } from "../domain/raw-timestamp";
 import type { MirrorWriter, SyncStateStore } from "../ports";
 import type { KeysetPager } from "./keyset-pager";
 
@@ -26,5 +27,5 @@ export interface PullDependencies {
 
 // Raw UTC timestamp in ServiceNow's format.
 export function rawTimestamp(date: Date): string {
-  return date.toISOString().slice(0, 19).replace("T", " ");
+  return formatRawTimestamp(date.getTime());
 }

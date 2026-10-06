@@ -6,6 +6,7 @@ import { instancePaths } from "@snagentic/core";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
+import { gitInspector } from "./adapters/git/git-inspector";
 import { gitIntegrator } from "./adapters/git/git-integrator";
 import { GitMirror } from "./adapters/git/git-mirror";
 import { gitProbe } from "./adapters/git-probe";
@@ -51,6 +52,7 @@ const context: UseCaseContext = {
     new JsonSyncStateStore(join(root, instancePaths(instance).localState)),
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
   integrator: gitIntegrator,
+  inspector: gitInspector,
   clock: () => new Date(),
   host: {
     cwd: process.cwd(),

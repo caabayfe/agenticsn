@@ -10,6 +10,7 @@ import type {
 import { instancePaths } from "@snagentic/core";
 import { serialQueue } from "../serial-queue";
 import { toYaml } from "../yaml/own-style";
+import { childRowOwners, countChildRows } from "./child-row-files";
 import { FastImport, fastImportPath } from "./fast-import";
 import { MirrorIndex } from "./mirror-index";
 import { gitLines, runGit, runGitOrThrow } from "./run-git";
@@ -145,26 +146,23 @@ export class GitMirror implements IncrementalMirror {
     return this.index.filesOf(`${root}/${base}`).map((path) => path.slice(root.length + 1));
   }
 
-  // Counts rows with git grep: in our YAML style (ADR-0015) a child-row file is a sequence of
-  // flat maps, so each row starts with "- " at the start of a line and nothing else does
-  // (multi-line values are indented block scalars). Pending writes are committed first.
-  async countChildRows(root: string, table: string): Promise<Map<string, number>> {
+  countChildRows(root: string, table: string): Promise<Map<string, number>> {
+    return this.atCurrentTip((tip) => countChildRows(this.repository, tip, root, table));
+  }
+
+  childRowOwners(root: string, tables: readonly string[]): Promise<Map<string, string>> {
+    return this.atCurrentTip((tip) => childRowOwners(this.repository, tip, root, tables));
+  }
+
+  // Runs a read of the mirrored tree as this pull has left it so far (pending writes are
+  // committed first); nothing to read before the first pull.
+  private async atCurrentTip<T>(
+    read: (tip: string) => Promise<Map<string, T>>,
+  ): Promise<Map<string, T>> {
     await this.checkpoint();
-    const tip =
-      (await revParse(this.repository, GitMirror.progressRef(this.instance))) ?? this.startFrom;
-    const counts = new Map<string, number>();
-    if (tip === null) {
-      return counts;
-    }
-    const suffix = `.children.${table}.yaml`;
-    const args = ["grep", "-c", "-e", "^- ", tip, "--", `${root}/*${suffix}`];
-    for await (const line of gitLines(args, this.repository, [0, 1])) {
-      // <tip>:<path>:<count>
-      const end = line.lastIndexOf(":");
-      const path = line.slice(tip.length + 1, end);
-      counts.set(path.slice(root.length + 1, -suffix.length), Number(line.slice(end + 1)));
-    }
-    return counts;
+    const progress = await revParse(this.repository, GitMirror.progressRef(this.instance));
+    const tip = progress ?? this.startFrom;
+    return tip === null ? new Map() : read(tip);
   }
 
   remove(root: string, path: string): Promise<void> {

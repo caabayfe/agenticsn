@@ -122,9 +122,9 @@ async function splitPart(walk: Walk, part: Part): Promise<void> {
     .filter((child) => stepOf(walk, child) !== "agree");
   // A difference spread over many parts is listed outright; a concentrated one is narrowed.
   const spread = differing.length > SPREAD_LIMIT;
-  for (const child of differing) {
-    await (spread ? listPart(walk, child) : walkPart(walk, child));
-  }
+  await forEachConcurrently(differing, spread ? 4 : 1, (child) =>
+    spread ? listPart(walk, child) : walkPart(walk, child),
+  );
 }
 
 function stepOf(walk: Walk, part: Part): VerifyStep {

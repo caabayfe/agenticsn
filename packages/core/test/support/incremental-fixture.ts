@@ -66,6 +66,11 @@ export function instanceTables(): Record<string, Row[]> {
     ],
     wf_workflow_version: [{ sys_id: "v1", workflow: sid(5), name: "v1", sys_updated_on: BEFORE }],
     wf_activity: [{ sys_id: "a1", workflow_version: "v1", name: "Begin", sys_updated_on: BEFORE }],
+    // Owned through the flow's stage, as variable values usually are through flow steps.
+    sys_variable_value: [
+      { sys_id: "vv1", document_key: "st1", value: "a", sys_updated_on: BEFORE },
+      { sys_id: "vv2", document_key: "st1", value: "b", sys_updated_on: BEFORE },
+    ],
     sys_metadata_delete: [],
   };
 }

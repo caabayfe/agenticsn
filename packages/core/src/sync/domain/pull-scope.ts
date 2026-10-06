@@ -22,6 +22,9 @@ export interface ChildTable {
   readonly parentField: string;
   // Set when the parent is another child table, listed earlier.
   readonly parentTable?: string;
+  // The parent field may name a row of any earlier child table, not only a record
+  // (sys_variable_value.document_key usually names a flow step or action instance).
+  readonly ownedThroughChildRows?: true;
 }
 
 const FLOW_CHILDREN = [
@@ -48,7 +51,7 @@ export const CHILD_TABLES: readonly ChildTable[] = [
   { table: "wf_activity", parentField: "workflow_version", parentTable: "wf_workflow_version" },
   { table: "wf_condition", parentField: "activity", parentTable: "wf_activity" },
   { table: "wf_transition", parentField: "from", parentTable: "wf_activity" },
-  { table: "sys_variable_value", parentField: "document_key" },
+  { table: "sys_variable_value", parentField: "document_key", ownedThroughChildRows: true },
 ];
 
 function rootOf(child: ChildTable): string {

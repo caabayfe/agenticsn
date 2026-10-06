@@ -76,6 +76,8 @@ export interface MirrorTree {
   // Record base -> number of child rows of `table` mirrored for it, including changes made
   // earlier in this pull.
   countChildRows(root: string, table: string): Promise<ReadonlyMap<string, number>>;
+  // Child-row sys_id -> base of the record whose child-row file holds it, for these tables.
+  childRowOwners(root: string, tables: readonly string[]): Promise<ReadonlyMap<string, string>>;
 }
 
 export interface IncrementalMirror extends MirrorSession, MirrorTree {

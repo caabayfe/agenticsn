@@ -80,3 +80,39 @@ describe("pullIncremental: child tables the user may not read", () => {
     expect(summary.unreadable).toEqual(["sys_ui_element", "wf_activity"]);
   });
 });
+
+describe("pullIncremental: rows owned through other child rows", () => {
+  const VARIABLES = `global/sys_hub_flow/flow--${sid(3)}.children.sys_variable_value.yaml`;
+
+  it("attaches them to the record that owns the parent row, as a full pull does", async () => {
+    const { files } = await pulledInstance();
+    expect(files.get(VARIABLES)).toEqual([
+      expect.objectContaining({ sys_id: "vv1" }),
+      expect.objectContaining({ sys_id: "vv2" }),
+    ]);
+  });
+
+  it("refreshes the owning record's rows when one of them changes", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    touch(tables["sys_variable_value"]?.[0], { value: "changed" });
+    await incremental();
+    expect(files.get(VARIABLES)).toEqual([
+      expect.objectContaining({ sys_id: "vv1", value: "changed" }),
+      expect.objectContaining({ sys_id: "vv2", value: "b" }),
+    ]);
+  });
+
+  it("finds a deleted one by count, keeping the others", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    tables["sys_variable_value"] = tables["sys_variable_value"]?.slice(1) ?? [];
+    await incremental();
+    expect(files.get(VARIABLES)).toEqual([expect.objectContaining({ sys_id: "vv2" })]);
+  });
+
+  it("keeps them when verifying, where counts are per parent row", async () => {
+    const { incremental, files } = await pulledInstance();
+    const { summary } = await incremental({ verify: true });
+    expect(summary.removedChildFiles).toBe(0);
+    expect(files.get(VARIABLES)).toHaveLength(2);
+  });
+});

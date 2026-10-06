@@ -70,6 +70,18 @@ export function memoryMirror() {
       }
       return counts;
     },
+    childRowOwners: async (_root, tables) => {
+      const owners = new Map<string, string>();
+      for (const [path, rows] of files) {
+        const table = /\.children\.([a-z0-9_]+)\.yaml$/.exec(path)?.[1];
+        if (table !== undefined && tables.includes(table) && Array.isArray(rows)) {
+          for (const row of rows as { sys_id?: string }[]) {
+            owners.set(row.sys_id ?? "", path.slice(0, path.indexOf(".children.")));
+          }
+        }
+      }
+      return owners;
+    },
     remove: async (_root, path) => {
       remove(path);
     },

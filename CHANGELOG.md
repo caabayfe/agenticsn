@@ -13,6 +13,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - `validate [paths...] --base <ref>`: checks changed records against 24 platform rules
   (security, performance, upgradability, manageability, user experience) and reports only
   what the change introduced; exits 1 on a blocking finding. Also an MCP tool.
+- `agent install`: writes the agent pack into the workspace: instructions in `AGENTS.md`
+  (imported by `CLAUDE.md`) and the workflow skills `servicenow-design`, `-build`, `-review`
+  and `-explain` in `.agents/skills`. The MCP server sends the same instructions and offers
+  the workflows as prompts; `doctor` warns when the installed pack is from another version.
 
 ## [1.0.0] - 2026-10-06
 

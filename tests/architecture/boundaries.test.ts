@@ -37,9 +37,10 @@ describe("architecture boundaries", () => {
     );
   });
 
-  it("forbids a rule pack from importing anything but itself and the ESLint rule API", async () => {
-    expect(await rulesBrokenBy("rules-basic/src/impure.ts")).toContain("rules-are-pure");
+  it("forbids a rule or agent pack from importing anything but itself and the ESLint rule API", async () => {
+    expect(await rulesBrokenBy("rules-basic/src/impure.ts")).toContain("packs-are-pure");
     expect(await rulesBrokenBy("rules-basic/src/index.ts")).toEqual([]);
+    expect(await rulesBrokenBy("agent-packs/src/impure.ts")).toContain("packs-are-pure");
   });
 
   it("forbids the use-case registry from importing adapters", async () => {

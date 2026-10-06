@@ -20,6 +20,7 @@ import type {
   ServerCostReader,
   SyncStateStore,
   TableStatistics,
+  WorkspaceFiles,
   WorkspaceStore,
 } from "@snagentic/core";
 import type { z } from "zod";
@@ -79,6 +80,8 @@ export interface UseCaseContext {
     root: string,
     instance: InstanceName,
   ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
+  // Text files inside the workspace (the agent pack).
+  readonly workspaceFiles: WorkspaceFiles;
   // Files a use case writes for the person, such as an export.
   readonly files: { write(path: string, content: string): Promise<void> };
   readonly clock: () => Date;

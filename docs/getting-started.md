@@ -112,8 +112,23 @@ retried automatically: if its outcome is unclear, snagentic tells you what to ch
 
 ## 7. Use it from your coding agent
 
-snagentic serves its tools over MCP: `doctor`, `pull`, `status`, `update_sets`, `plugins`
-and (when the workspace has a development instance) `plugin_activate`.
+snagentic serves its tools over MCP: `find`, `describe`, `advise` and `validate` for
+understanding and checking changes; `doctor`, `pull`, `status`, `update_sets`, `plugins`; and
+(when the workspace has a development instance) `plugin_activate`.
+
+First install the agent pack, once per workspace, and commit it so the whole team gets it:
+
+```sh
+snagentic agent install
+git add AGENTS.md CLAUDE.md .agents && git commit -m "Add the snagentic agent pack"
+```
+
+It adds short instructions to `AGENTS.md` (your own text there is kept) and four workflow
+skills in `.agents/skills`: `servicenow-design` (agree a design before editing),
+`servicenow-build` (edit, then `validate` until clean), `servicenow-review` and
+`servicenow-explain`. Run it again after upgrading snagentic; `doctor` warns when the pack is
+from another version. In Claude Code the workflows are also slash commands:
+`/mcp__snagentic__design`, `/mcp__snagentic__review`, `/mcp__snagentic__explain`.
 
 **Claude Code**, from inside the workspace:
 

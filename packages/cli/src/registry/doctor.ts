@@ -1,12 +1,15 @@
 import {
   CHECK_STATUSES,
   type Check,
+  checkAgentPack,
   EXIT_CODES,
   getInstance,
   InstanceName,
   runDoctor,
   runInstanceChecks,
   summarizeChecks,
+  VERSION,
+  WorkspaceNotFoundError,
 } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase, type RunControl, type UseCaseContext } from "./use-case";
@@ -35,6 +38,18 @@ async function instanceChecks(
   return runInstanceChecks(profile, secret, reader, run.signal);
 }
 
+// Checks of the workspace doctor runs in; none outside a workspace.
+async function workspaceChecks(context: UseCaseContext): Promise<Check[]> {
+  try {
+    return [await checkAgentPack(context.workspaceFiles, await workspaceRoot(context), VERSION)];
+  } catch (error) {
+    if (error instanceof WorkspaceNotFoundError) {
+      return [];
+    }
+    throw error;
+  }
+}
+
 function renderCheck(check: Check, width: number): string[] {
   const line = `${check.status.padEnd(11)} ${check.name.padEnd(width)}  ${check.detail}`;
   return check.status === "ok" || check.hint === null
@@ -54,7 +69,10 @@ export const doctor = defineUseCase({
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
   async handle(input, context, run) {
-    const local = await runDoctor(context.environmentProbes);
+    const local = summarizeChecks([
+      ...(await runDoctor(context.environmentProbes)).checks,
+      ...(await workspaceChecks(context)),
+    ]);
     if (input.instance === undefined) {
       return local;
     }

@@ -17,6 +17,8 @@ export {
   type RuleCategory,
   ruleById,
   rulesFor,
+  rulesForScript,
   type ScriptKind,
   type Severity,
 } from "./domain/rules";
+export { SCRIPT_FIELDS, scriptFieldsOf } from "./domain/script-fields";

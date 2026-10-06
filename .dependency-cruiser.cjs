@@ -20,10 +20,21 @@ module.exports = {
     },
     {
       name: "core-does-not-depend-on-cli",
-      comment: "packages/core is the engine; interfaces depend on it, never the reverse.",
+      comment:
+        "packages/core is the engine; interfaces and the rule packs it runs through ports " +
+        "depend on it, never the reverse.",
       severity: "error",
       from: { path: "(^|/)packages/core/" },
-      to: { path: "(^|/)packages/cli/" },
+      to: { path: "(^|/)packages/(cli|rules-basic)/" },
+    },
+    {
+      name: "rules-are-pure",
+      comment:
+        "Rule packs are pure functions of a script and its record: they may import only " +
+        "themselves and the ESLint rule API, so a rule can never read files or call an instance.",
+      severity: "error",
+      from: { path: "(^|/)packages/rules-basic/src/" },
+      to: { pathNot: ["(^|/)packages/rules-basic/src/", "/eslint/", "/@types/estree/"] },
     },
     {
       name: "interfaces-do-not-import-adapters",
@@ -65,7 +76,7 @@ module.exports = {
     enhancedResolveOptions: {
       exportsFields: ["exports"],
       conditionNames: ["import", "default"],
-      extensions: [".ts", ".js"],
+      extensions: [".ts", ".js", ".d.ts"],
     },
   },
 };

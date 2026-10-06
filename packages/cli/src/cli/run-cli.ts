@@ -71,8 +71,10 @@ function inputFrom(
   const options = (values[positional.length] ?? {}) as Record<string, unknown>;
   const input: Record<string, unknown> = { ...options };
   positional.forEach((key, index) => {
-    if (values[index] !== undefined) {
-      input[key] = values[index];
+    // A list argument given no values arrives empty: treat it as absent, like any other.
+    const value = values[index];
+    if (value !== undefined && !(Array.isArray(value) && value.length === 0)) {
+      input[key] = value;
     }
   });
   return input;

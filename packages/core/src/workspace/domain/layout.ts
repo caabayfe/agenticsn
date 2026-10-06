@@ -35,3 +35,12 @@ export const GITIGNORE = [
   "*.key",
   "",
 ].join("\n");
+
+// A path to a record's file as the mirror names it (relative to instances/<name>/metadata),
+// given relative to it, to the workspace, or as an absolute path inside the workspace.
+export function metadataPath(name: InstanceName, workspace: string, path: string): string {
+  const metadata = `${instancePaths(name).metadata}/`;
+  let relative = path.startsWith(`${workspace}/`) ? path.slice(workspace.length + 1) : path;
+  relative = relative.startsWith(metadata) ? relative.slice(metadata.length) : relative;
+  return relative.startsWith("./") ? relative.slice(2) : relative;
+}

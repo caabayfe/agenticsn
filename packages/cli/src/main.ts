@@ -12,6 +12,8 @@ import { gitIntegrator } from "./adapters/git/git-integrator";
 import { gitInventoryReader } from "./adapters/git/git-inventory-reader";
 import { GitMirror } from "./adapters/git/git-mirror";
 import { gitProbe } from "./adapters/git-probe";
+import { EslintScriptChecker } from "./adapters/governance/eslint-script-checker";
+import { GitChangedRecords } from "./adapters/governance/git-changed-records";
 import { keychainProbe } from "./adapters/keychain-probe";
 import { GitMirrorFiles } from "./adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "./adapters/knowledge/sqlite-knowledge-store";
@@ -67,6 +69,10 @@ const context: UseCaseContext = {
       files: new GitMirrorFiles(root, paths.metadata),
     };
   },
+  governance: (root, instance) => ({
+    records: new GitChangedRecords(root, instancePaths(instance).metadata),
+    checker: new EslintScriptChecker(),
+  }),
   files: { write: (path, content) => writeTextFile(path, content) },
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,

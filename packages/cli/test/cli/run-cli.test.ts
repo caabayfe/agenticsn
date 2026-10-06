@@ -172,6 +172,24 @@ describe("generated CLI", () => {
     expect(received).toEqual(["incident", "task"]);
   });
 
+  it("takes a list of strings as the last positional argument, absent when none is given", async () => {
+    const received: unknown[] = [];
+    const listing = defineUseCase({
+      ...echoUseCase(),
+      name: "listing",
+      input: z.object({ paths: z.array(z.string()).optional() }),
+      arguments: ["paths"],
+      async handle(input) {
+        received.push(input.paths);
+        return { echoed: "" };
+      },
+      render: () => "",
+    });
+    await run(["listing", "a.js", "b.js"], [listing]);
+    await run(["listing"], [listing]);
+    expect(received).toEqual([["a.js", "b.js"], undefined]);
+  });
+
   it("refuses to generate an option for an input type it cannot map", async () => {
     const unsupported = defineUseCase({
       ...echoUseCase(),

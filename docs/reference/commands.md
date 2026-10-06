@@ -189,6 +189,23 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `validate`
+
+```
+snagentic validate [paths...] [options]
+```
+
+Check changed ServiceNow records against the platform rules (security, performance, upgradability, manageability, user experience) and report only what the change introduced, with rule id, file, line, why and remediation. By default checks every record edited since HEAD; give paths to check those, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
+
+Changes the instance: no. MCP tool: `validate`.
+
+Options:
+
+- `--base <value>`: commit, branch or tag to compare with; findings already there are not reported
+- `--instance <value>`: default: the workspace's only instance
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `update-sets list`
 
 ```
@@ -321,6 +338,10 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `tables` (array, optional): tables the change is about
   - `phase` (design | build | review, optional): design before editing, build while editing, review before delivering
   - `classes` (array, optional): build and review: classes being changed, such as sys_script
+  - `instance` (string, optional): default: the workspace's only instance
+- `validate`: Check changed ServiceNow records against the platform rules (security, performance, upgradability, manageability, user experience) and report only what the change introduced, with rule id, file, line, why and remediation. By default checks every record edited since HEAD; give paths to check those, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
+  - `paths` (array, optional): record files to check (default: every record changed since base)
+  - `base` (string, optional): commit, branch or tag to compare with; findings already there are not reported
   - `instance` (string, optional): default: the workspace's only instance
 - `update_sets`: Read a ServiceNow instance's update sets. action=list: open and recently changed sets with update counts. show: one set's updates (needs id). collisions: records held by more than one open set. export: write a set as ServiceNow XML (needs id). Never changes the instance.
   - `instance` (string, required)

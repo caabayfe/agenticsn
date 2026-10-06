@@ -57,5 +57,6 @@ export function argumentSyntax(schema: z.ZodObject, key: string): string {
   if (field === undefined) {
     throw new Error(`positional argument "${key}" is not an input field`);
   }
-  return field.safeParse(undefined).success ? `[${kebabCase(key)}]` : `<${kebabCase(key)}>`;
+  const name = unwrap(field).field instanceof z.ZodArray ? `${kebabCase(key)}...` : kebabCase(key);
+  return field.safeParse(undefined).success ? `[${name}]` : `<${name}>`;
 }

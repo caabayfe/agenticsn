@@ -1,0 +1,15 @@
+{
+  "name": "@snagentic/rules-basic",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "eslint": "^10.12.0"
+  },
+  "devDependencies": {
+    "@snagentic/core": "workspace:*"
+  }
+}

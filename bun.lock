@@ -7,6 +7,7 @@
       "devDependencies": {
         "@biomejs/biome": "^2.5.15",
         "@types/bun": "^1.4.2",
+        "@types/estree": "^1.0.9",
         "dependency-cruiser": "^18.5.0",
         "eslint": "^10.12.0",
         "espree": "^11.2.0",
@@ -17,11 +18,12 @@
     },
     "packages/cli": {
       "name": "@snagentic/cli",
-      "version": "0.0.0",
+      "version": "1.0.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.0",
         "@napi-rs/keyring": "^2.1.0",
         "@snagentic/core": "workspace:*",
+        "@snagentic/rules-basic": "workspace:*",
         "commander": "^15.0.0",
         "yaml": "^2.9.1",
         "zod": "^4.6.5",
@@ -29,9 +31,19 @@
     },
     "packages/core": {
       "name": "@snagentic/core",
-      "version": "0.0.0",
+      "version": "1.0.0",
       "dependencies": {
         "@noble/hashes": "^2.4.0",
+      },
+    },
+    "packages/rules-basic": {
+      "name": "@snagentic/rules-basic",
+      "version": "1.0.0",
+      "dependencies": {
+        "eslint": "^10.12.0",
+      },
+      "devDependencies": {
+        "@snagentic/core": "workspace:*",
       },
     },
   },
@@ -121,6 +133,8 @@
     "@snagentic/cli": ["@snagentic/cli@workspace:packages/cli"],
 
     "@snagentic/core": ["@snagentic/core@workspace:packages/core"],
+
+    "@snagentic/rules-basic": ["@snagentic/rules-basic@workspace:packages/rules-basic"],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 

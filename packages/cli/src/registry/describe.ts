@@ -1,31 +1,16 @@
 import {
+  type DescribeTableOptions,
   describeRecord,
   describeTable,
   type KnowledgeDependencies,
   PHASE_ORDER,
-  type RecordDescription,
-  type TableDescription,
 } from "@snagentic/core";
 import { z } from "zod";
-import { Freshness, NextCalls } from "./knowledge-schemas";
+import { BehaviorItems, Freshness, NextCalls } from "./knowledge-schemas";
 import { knowledgeSession } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
 
 const Details = z.record(z.string(), z.string());
-const Behavior = z
-  .array(
-    z.object({
-      kind: z.string(),
-      name: z.string(),
-      order: z.number(),
-      active: z.boolean(),
-      path: z.string(),
-      details: Details,
-      inheritedFrom: z.string().optional(),
-    }),
-  )
-  .readonly();
-
 const TableOutput = Freshness.extend({
   table: z.string(),
   known: z.boolean(),
@@ -36,14 +21,14 @@ const TableOutput = Freshness.extend({
         name: z.string(),
         type: z.string(),
         label: z.string(),
-        reference: z.string(),
-        mandatory: z.boolean(),
-        definedOn: z.string(),
-        path: z.string(),
+        reference: z.string().optional(),
+        mandatory: z.literal(true).optional(),
+        definedOn: z.string().optional(),
       }),
     )
     .readonly(),
-  behavior: z.record(z.string(), Behavior),
+  fieldCount: z.number(),
+  behavior: z.record(z.string(), BehaviorItems),
   omitted: z.record(z.string(), z.number()),
   counts: z.record(z.string(), z.number()),
   notCovered: z.array(z.string()).readonly(),
@@ -77,20 +62,24 @@ const RecordOutput = Freshness.extend({
 });
 
 // A table name, unless the target looks like a record path or is not a known table.
-async function describeTarget(deps: KnowledgeDependencies, target: string, inactive: boolean) {
+async function describeTarget(
+  deps: KnowledgeDependencies,
+  target: string,
+  options: DescribeTableOptions,
+) {
   const isPath = target.includes("/") || target.endsWith(".yaml");
   if (!isPath && deps.catalog?.parents[target] !== undefined) {
-    return { kind: "table" as const, table: await describeTable(deps, target, inactive) };
+    return { kind: "table" as const, table: await describeTable(deps, target, options) };
   }
   if (!isPath && (await deps.store.bySysId(target)) === null) {
-    return { kind: "table" as const, table: await describeTable(deps, target, inactive) };
+    return { kind: "table" as const, table: await describeTable(deps, target, options) };
   }
   return { kind: "record" as const, record: await describeRecord(deps, target) };
 }
 
-function renderTable(t: TableDescription): string[] {
+function renderTable(t: z.infer<typeof TableOutput>): string[] {
   const lines = [
-    `${t.table}${t.known ? "" : " (not a table in the catalog)"} — inherits ${t.inherits.slice(1).join(" → ") || "nothing"}; ${t.fields.length} fields`,
+    `${t.table}${t.known ? "" : " (not a table in the catalog)"} — inherits ${t.inherits.slice(1).join(" → ") || "nothing"}; ${t.fieldCount} fields`,
   ];
   for (const phase of PHASE_ORDER) {
     const items = t.behavior[phase] ?? [];
@@ -103,13 +92,15 @@ function renderTable(t: TableDescription): string[] {
       lines.push(`    ${String(b.order).padStart(5)}  ${b.kind}: ${b.name}${from}  ${b.path}`);
     }
     if (t.omitted[phase] !== undefined) {
-      lines.push(`    … ${t.omitted[phase]} more (inactive, or beyond the first ${items.length})`);
+      lines.push(
+        `    … ${t.omitted[phase]} more (inactive, or beyond the first ${items.length}): describe ${t.table} --phase ${phase}`,
+      );
     }
   }
   return lines;
 }
 
-function renderRecord(r: RecordDescription): string[] {
+function renderRecord(r: z.infer<typeof RecordOutput>): string[] {
   return [
     `${r.className}: ${r.name}${r.active ? "" : " (inactive)"}  ${r.path}`,
     ...(r.table === null ? [] : [`  acts on ${r.table}`]),
@@ -130,6 +121,12 @@ export const describe = defineUseCase({
     target: z.string().min(1).describe("a table name, a record path, or a sys_id"),
     instance: z.string().optional().describe("default: the workspace's only instance"),
     inactive: z.boolean().default(false).describe("tables: also list inactive behavior"),
+    phase: z
+      .enum(PHASE_ORDER)
+      .optional()
+      .describe(
+        "tables: list only this phase, in full (as next suggests when items were left out)",
+      ),
   }),
   output: z.object({
     instance: z.string(),
@@ -144,7 +141,10 @@ export const describe = defineUseCase({
     const deps = await knowledgeSession(context, input.instance, run.progress);
     return {
       instance: deps.instance,
-      ...(await describeTarget(deps, input.target, input.inactive)),
+      ...(await describeTarget(deps, input.target, {
+        includeInactive: input.inactive,
+        ...(input.phase === undefined ? {} : { phase: input.phase }),
+      })),
     };
   },
   render(output) {

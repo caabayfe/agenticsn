@@ -36,6 +36,7 @@ export const find = defineUseCase({
             .array(z.object({ file: z.string(), line: z.number(), text: z.string() }))
             .readonly()
             .optional(),
+          moreMatches: z.number().optional(),
         }),
       )
       .readonly(),

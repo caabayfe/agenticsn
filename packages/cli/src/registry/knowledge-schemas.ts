@@ -11,3 +11,18 @@ export const NextCalls = z
     z.object({ tool: z.string(), args: z.record(z.string(), z.union([z.string(), z.boolean()])) }),
   )
   .readonly();
+
+// One piece of behavior on a table (describe, advise).
+export const BehaviorItems = z
+  .array(
+    z.object({
+      kind: z.string(),
+      name: z.string(),
+      order: z.number(),
+      inactive: z.literal(true).optional(),
+      path: z.string(),
+      details: z.record(z.string(), z.string()),
+      inheritedFrom: z.string().optional(),
+    }),
+  )
+  .readonly();

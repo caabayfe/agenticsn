@@ -8,6 +8,7 @@ export {
 } from "./application/describe-record";
 export {
   type BehaviorItem,
+  type DescribeTableOptions,
   describeTable,
   type FieldItem,
   PHASE_ORDER,
@@ -28,6 +29,7 @@ export {
   orderOf,
   type Phase,
 } from "./domain/behavior";
+export { fitted, RESULT_BUDGET, sizeOf } from "./domain/budget";
 export { type IndexedRecord, indexedRecord, type RecordFields } from "./domain/indexed-record";
 export { baseOfFile, recordBaseOfPath } from "./domain/paths";
 export type {

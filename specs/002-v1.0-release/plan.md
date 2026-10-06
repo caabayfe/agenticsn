@@ -234,7 +234,7 @@ Each milestone is a series of small pull requests (each one merged when `verify`
 | M5 | Update sets (done; ADR-0018) | `update-sets list / show / collisions / export` | Export matches ServiceNow's XML format (checked against a real export) |
 | M6 | Plugins (done; ADR-0016 appendix) | `plugins list`, `plugins activate` on the PDI | Development only; progress reporting; no automatic retry of ambiguous failures |
 | M7 | MCP and documentation (done; docs/getting-started.md, docs/reference/commands.md) | Use every v1.0 tool from Claude Code and Copilot | Command reference generated from the registry; getting-started guide |
-| M8 | Release v1.0.0 | Install with one command on macOS, Windows, Linux | Release workflow (tag → build → checksums → GitHub release); install scripts; Homebrew tap; changelog; all section 4.4 targets met or explicitly accepted |
+| M8 | Release v1.0.0 (released 2026-10-06; signing, Homebrew tap and license deferred) | Install with one command on macOS, Windows, Linux | Release workflow (tag → build → checksums → GitHub release); install scripts; Homebrew tap; changelog; all section 4.4 targets met or explicitly accepted |
 
 ## 8. Release engineering (M8)
 

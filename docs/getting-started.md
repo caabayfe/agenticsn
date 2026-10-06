@@ -10,15 +10,23 @@ Every command is described in the [command reference](reference/commands.md).
 
 ## 1. Install
 
-Until release builds are published (v1.0), build the single binary from source with
-[Bun](https://bun.sh):
+macOS (Apple silicon) and Linux:
 
 ```sh
-bun install
-bun run build          # writes dist/snagentic
+curl -fsSL https://github.com/caabayfe/agenticsn/releases/latest/download/install.sh | sh
 ```
 
-Put `dist/snagentic` on your `PATH`, then check your machine:
+Windows (PowerShell):
+
+```powershell
+irm https://github.com/caabayfe/agenticsn/releases/latest/download/install.ps1 | iex
+```
+
+The installers check the binary's SHA-256 sum before installing it. The binaries are not
+signed yet, so macOS Gatekeeper and Windows SmartScreen may warn on first run. To build from
+source instead: `bun install && bun run build` (writes `dist/snagentic`).
+
+Then check your machine:
 
 ```sh
 snagentic doctor

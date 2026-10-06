@@ -1,5 +1,6 @@
 import type { Artifact } from "../../metadata/domain/artifact";
 import { isDeniedClass } from "../../metadata/domain/field-rules";
+import { recordBase } from "../../metadata/domain/record-layout";
 
 export type Operation = "update" | "create";
 
@@ -100,6 +101,12 @@ export function changeOf(
   const { identity, fields } = target.artifact;
   if (isDeniedClass(identity.className)) {
     return problem(path, `${identity.className} records are never synced or pushed`);
+  }
+  // Pull names files after the record's display name; a different name would leave two files
+  // for one record after the next pull, and plan it as new again.
+  const expected = `${recordBase(target.artifact)}.yaml`;
+  if (expected !== path) {
+    return problem(path, `rename it to ${expected}, the name the next pull gives this record`);
   }
   return {
     kind: "write",

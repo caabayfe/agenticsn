@@ -71,7 +71,8 @@ describe("changeOf", () => {
   });
 
   it("creates a new record with all its fields and its own sys_id", () => {
-    const outcome = changeOf(PATH, null, version({ name: "New", script: "x();" }));
+    const named = `global/sys_script/new--${SYS_ID}.yaml`;
+    const outcome = changeOf(named, null, version({ name: "New", script: "x();" }));
     expect(outcome).toMatchObject({
       kind: "write",
       write: {
@@ -79,6 +80,16 @@ describe("changeOf", () => {
         sysId: SYS_ID,
         values: { name: "New", script: "x();" },
         baseHash: null,
+      },
+    });
+  });
+
+  it("asks a new record's file to have the name the next pull will give it", () => {
+    expect(changeOf(PATH, null, version({ name: "New" }))).toEqual({
+      kind: "problem",
+      problem: {
+        path: PATH,
+        reason: `rename it to global/sys_script/new--${SYS_ID}.yaml, the name the next pull gives this record`,
       },
     });
   });

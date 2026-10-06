@@ -1,12 +1,12 @@
 import { instructions } from "./instructions";
 import { renderBody, renderSkill, type Skill } from "./skill";
 import { BUILD } from "./skills/build";
+import { DELIVER } from "./skills/deliver";
 import { DESIGN } from "./skills/design";
 import { EXPLAIN } from "./skills/explain";
 import { REVIEW } from "./skills/review";
 
-// servicenow-deliver joins when plan_push and push exist (spec 003, step 5).
-export const SKILLS: readonly Skill[] = [DESIGN, BUILD, REVIEW, EXPLAIN];
+export const SKILLS: readonly Skill[] = [DESIGN, BUILD, REVIEW, EXPLAIN, DELIVER];
 
 export const INSTRUCTIONS = instructions(SKILLS.map((skill) => skill.name));
 

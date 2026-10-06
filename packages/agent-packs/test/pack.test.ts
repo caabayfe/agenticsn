@@ -57,7 +57,12 @@ describe("the agent pack", () => {
   });
 
   it("offers prompts that start a workflow with the user's request", () => {
-    expect(PROMPTS.map((prompt) => prompt.name)).toEqual(["design", "review", "explain"]);
+    expect(PROMPTS.map((prompt) => prompt.name)).toEqual([
+      "design",
+      "review",
+      "explain",
+      "deliver",
+    ]);
     const message = PROMPTS[2]?.message("why does priority change?") ?? "";
     expect(message).toStartWith(
       "Follow the servicenow-explain workflow for this request: why does priority change?",

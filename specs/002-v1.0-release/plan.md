@@ -172,7 +172,7 @@ what v1's 1,400-line `InstanceSync` could not do.
 | Measure | Target | How it is checked |
 |---|---|---|
 | Full pull of the PDI (≈ 280k records) | Baseline in M3, then ≤ v1's time | Live run against the PDI, recorded in a report |
-| Incremental pull, nothing changed | ≤ 5 requests and < 10 s (ASR-16) | Live PDI run plus the server cost report |
+| Incremental pull, nothing changed | One aggregate per change source and < 10 s (ASR-16, revised in M4; was ≤ 5 requests) | Live PDI run plus the server cost report |
 | Incremental pull, 100 changed records | < 60 s | Live PDI run |
 | Peak memory during a full pull | < 1 GB | Measured in the same run |
 | Requests per changed record (incremental) | ≤ 2 amortized | Counted by the scheduler; asserted in benchmarks |
@@ -242,6 +242,10 @@ Each milestone is a series of small pull requests (each one merged when `verify`
 - A release workflow builds the four supported binaries, writes `SHA256SUMS`, and attaches
   build provenance (GitHub artifact attestations).
 - Install: `curl … | sh` (macOS, Linux), `irm … | iex` (Windows), `brew install`.
+- Prepared in M8 (`.github/workflows/release.yml`, `scripts/install/`, `CHANGELOG.md`,
+  `packaging/homebrew/`, `docs/reports/v1.0-targets.md`). Still for the product owner: accept
+  the targets marked in the report, decide signing, create the Homebrew tap repository, and
+  tag `v1.0.0`.
 - **Signing.** macOS notarization needs an Apple Developer account, and Windows signing
   needs a code-signing certificate. Without them the binaries work, but macOS Gatekeeper
   and Windows SmartScreen warn on first run. *Decision for you before M8.*

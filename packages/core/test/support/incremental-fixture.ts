@@ -72,6 +72,17 @@ export function instanceTables(): Record<string, Row[]> {
       { sys_id: "vv2", document_key: "st1", value: "b", sys_updated_on: BEFORE },
     ],
     sys_metadata_delete: [],
+    v_plugin: [
+      { sys_id: "p1", id: "com.snc.a", name: "A", active: "active", version: "1", scope: "global" },
+      {
+        sys_id: "p2",
+        id: "com.snc.b",
+        name: "B",
+        active: "inactive",
+        version: "1",
+        scope: "global",
+      },
+    ],
   };
 }
 

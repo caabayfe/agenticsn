@@ -71,7 +71,7 @@ function instance(extra: Record<string, Row[]> = {}, denied: string[] = []) {
         name: "B",
         active: "active",
         version: "1",
-        parent: "",
+        scope: "global",
         extra: "ignored",
       },
       { sys_id: "p2", id: "com.a", name: "A", active: "inactive", version: "2", parent: "" },
@@ -215,6 +215,7 @@ describe("pullFull", () => {
       watermark: "2026-10-05 11:00:00",
       lastFullPull: "2026-10-05 11:00:00",
       fingerprints: {},
+      inventory: {},
       unreadable: [],
     });
   });
@@ -239,15 +240,15 @@ describe("pullFull", () => {
   it("writes operational tables with their curated fields, ordered by key", async () => {
     const { result, records } = run(instance().reader);
     await result;
-    expect(records.documents.get("ops|v_plugin.yaml")).toEqual([
-      { id: "com.a", name: "A", active: "inactive", version: "2", parent: "" },
-      { id: "com.b", name: "B", active: "active", version: "1", parent: "" },
+    expect(records.documents.get("ops|plugins.yaml")).toEqual([
+      { id: "com.a", name: "A", active: "inactive", version: "2", scope: "" },
+      { id: "com.b", name: "B", active: "active", version: "1", scope: "global" },
     ]);
   });
 
   it("reports unreadable child and operational tables and carries on", async () => {
-    const summary = await run(instance({}, ["wf_activity", "sys_store_app"]).reader).result;
-    expect(summary.unreadable).toEqual(["wf_activity", "sys_store_app"]);
+    const summary = await run(instance({}, ["wf_activity", "domain"]).reader).result;
+    expect(summary.unreadable).toEqual(["wf_activity", "domain"]);
     expect(summary.operationalRows).toBe(2);
   });
 

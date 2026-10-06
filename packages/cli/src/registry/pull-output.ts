@@ -58,6 +58,7 @@ export const PullOutput = z.object({
       childFiles: z.number(),
       removedChildFiles: z.number(),
       lostRecords: z.number(),
+      inventoryRefreshed: z.array(z.string()),
       verification: z
         .object({
           scopes: z.number(),
@@ -141,6 +142,7 @@ export function incrementalOutput(facts: RunFacts, summary: IncrementalSummary):
       childFiles: summary.childFiles,
       removedChildFiles: summary.removedChildFiles,
       lostRecords: summary.lostRecords,
+      inventoryRefreshed: [...summary.inventoryRefreshed],
       verification: summary.verification,
     },
   };
@@ -210,6 +212,9 @@ function renderIncremental(
     `pulled ${output.instance} changes in ${output.seconds} s -> ${output.commit.slice(0, 10)} on servicenow-remote/${output.instance}`,
     `  records: ${output.records} written, ${changes.renamed} renamed, ${changes.deleted} deleted, ${changes.skippedRows} skipped${changes.catalogRefreshed ? "; catalog read again" : ""}`,
     `  child rows: ${changes.childFiles} files refreshed, ${changes.removedChildFiles} removed`,
+    ...(changes.inventoryRefreshed.length > 0
+      ? [`  inventory listed again: ${changes.inventoryRefreshed.join(", ")}`]
+      : []),
     `  changed on the instance: ${changes.changedSources.join(", ") || "nothing"}`,
     ...warning,
     load(output),

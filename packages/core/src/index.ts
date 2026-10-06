@@ -144,6 +144,7 @@ export {
   type PullOptions,
   pullIncremental,
 } from "./sync/application/pull-incremental";
+export { inventorySignatures, pullOperational } from "./sync/application/pull-operational";
 export { PaginationStalledError } from "./sync/domain/errors";
 export {
   changesSince,
@@ -152,6 +153,12 @@ export {
   type FingerprintChange,
   type TableFingerprint,
 } from "./sync/domain/fingerprint";
+export {
+  INVENTORY,
+  type InventorySignal,
+  type InventorySource,
+  inventorySignature,
+} from "./sync/domain/inventory";
 export {
   type Cursor,
   cursorOf,
@@ -170,8 +177,6 @@ export {
   childFamily,
   childGrouper,
   classesToPull,
-  OPERATIONAL_TABLES,
-  type OperationalTable,
   ownerOfBase,
 } from "./sync/domain/pull-scope";
 export {

@@ -91,8 +91,8 @@ describe("pull and integrate", () => {
       await runGitOrThrow(["ls-tree", "-r", "--name-only", "servicenow-remote/pdi"], root),
     ).toContain("rule--00000000000000000000000000000001.script.js");
     const integrated = await executeUseCase(integrate, { instance: "pdi" }, context);
-    // The record and its script, plus the four (here empty) operational inventory files.
-    expect(integrated.output["changedFiles"]).toBe(6);
+    // The record and its script, plus the three (here empty) inventory files.
+    expect(integrated.output["changedFiles"]).toBe(5);
   });
 
   it("pulls only what changed after the first pull, and reports when nothing did", async () => {
@@ -222,12 +222,14 @@ describe("pull and integrate", () => {
       childFiles: 3,
       removedChildFiles: 0,
       lostRecords: 0,
+      inventoryRefreshed: ["plugins"],
       verification: null,
     };
     const changed = pull.render({ ...base, changed: true, incremental }, "text");
     expect(changed).toContain("pulled pdi changes in 3.2 s -> abcdef1234");
     expect(changed).toContain("records: 2 written, 1 renamed, 1 deleted, 0 skipped");
     expect(changed).toContain("child rows: 3 files refreshed, 0 removed");
+    expect(changed).toContain("inventory listed again: plugins");
     expect(changed).toContain("next: snagentic integrate pdi");
     const idle = pull.render({ ...base, changed: false, incremental }, "text");
     expect(idle).toStartWith("pdi is up to date (3.2 s)");

@@ -5,9 +5,12 @@ import { CHANGED, FLOW, pulledInstance, RULE, sid, touch } from "../support/incr
 describe("pullIncremental: nothing changed", () => {
   it("asks one aggregate per change source and nothing else, then moves the watermark", async () => {
     const { incremental } = await pulledInstance();
-    const { summary, queries, fingerprints } = await incremental();
-    expect(fingerprints.sort()).toEqual([...FINGERPRINT_SOURCES].sort());
+    const { summary, queries, fingerprints, counted } = await incremental();
+    // The 20 change sources, plus the inventory's two signals: store apps and active plugins.
+    expect(fingerprints.sort()).toEqual([...FINGERPRINT_SOURCES, "sys_scope"].sort());
+    expect(counted).toEqual(["v_plugin by active"]);
     expect(queries).toEqual([]);
+    expect(summary.inventoryRefreshed).toEqual([]);
     expect(summary).toMatchObject({ changedSources: [], records: 0, childFiles: 0 });
     expect(summary.next.watermark).toBe("2026-10-05 11:00:00");
     expect(summary.next.lastFullPull).toBe("2026-10-05 10:00:00");
@@ -159,5 +162,25 @@ describe("pullIncremental: limited access", () => {
     });
     const { summary } = await incremental();
     expect(summary.skippedRows).toBe(1);
+  });
+});
+
+describe("pullIncremental: the operational inventory", () => {
+  it("lists plugins again when one is activated, and nothing else of the inventory", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    const plugin = tables["v_plugin"]?.find((row) => row["id"] === "com.snc.b");
+    Object.assign(plugin ?? {}, { active: "active" });
+    const { summary } = await incremental();
+    expect(summary.inventoryRefreshed).toEqual(["plugins"]);
+    expect(files.get("plugins.yaml")).toEqual([
+      expect.objectContaining({ id: "com.snc.a", active: "active" }),
+      expect.objectContaining({ id: "com.snc.b", active: "active" }),
+    ]);
+  });
+
+  it("lists the whole inventory again when verifying", async () => {
+    const { incremental } = await pulledInstance();
+    const { summary } = await incremental({ verify: true });
+    expect(summary.inventoryRefreshed).toEqual(["plugins", "store_apps", "domains"]);
   });
 });

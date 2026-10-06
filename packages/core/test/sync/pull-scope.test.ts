@@ -6,7 +6,6 @@ import {
   childFamily,
   childGrouper,
   classesToPull,
-  OPERATIONAL_TABLES,
   ownerOfBase,
 } from "@snagentic/core";
 
@@ -33,16 +32,6 @@ describe("what a full pull covers (ADR-0017)", () => {
     expect(tables.indexOf("wf_workflow_version")).toBeLessThan(tables.indexOf("wf_activity"));
     expect(tables.indexOf("wf_activity")).toBeLessThan(tables.indexOf("wf_condition"));
     expect(tables.indexOf("sys_hub_action_instance_v2")).toBeGreaterThanOrEqual(0);
-  });
-
-  it("names the curated fields of each operational table", () => {
-    expect(OPERATIONAL_TABLES.map((table) => table.table)).toEqual([
-      "v_plugin",
-      "sys_plugins",
-      "sys_store_app",
-      "domain",
-    ]);
-    expect(OPERATIONAL_TABLES.every((table) => table.fields.includes(table.key))).toBe(true);
   });
 });
 

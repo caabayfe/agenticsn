@@ -12,6 +12,7 @@ export interface PullCheckpoint {
   readonly records: number;
   // Taken when the pull started, so changes made while it ran are seen by the next pull.
   readonly fingerprints?: Fingerprints;
+  readonly inventory?: Readonly<Record<string, string>>;
 }
 
 export interface SyncState {
@@ -20,6 +21,8 @@ export interface SyncState {
   readonly lastFullPull: string;
   // Absent sources (older state, unreadable tables) count as changed.
   readonly fingerprints?: Fingerprints;
+  // Change signatures of the operational inventory's sources (inventory file -> signature).
+  readonly inventory?: Readonly<Record<string, string>>;
   // Classes and tables the user could not read, as found by the pulls since the last full one.
   readonly unreadable?: readonly string[];
   // pull --verify: rows counted per part but not listable by this user (verify-buckets).

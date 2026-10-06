@@ -102,7 +102,9 @@ go through development, an update set, validation and promotion.
 
 - Layer 4 runs on every connection to a test or production instance (`pull`, `update-sets`):
   one request checks that the user holds `snc_read_only`, and snagentic refuses before
-  asking anything else. Verified live with a writable credential on a test profile.
+  asking anything else. Verified live with a writable credential on a test profile. The
+  product owner confirmed on 2026-10-06 that this ships enforced in v1.0, ahead of spike S6
+  (ADR-0013 had deferred it).
 - Layer 3 is enforced centrally: a use case flagged `requiresDevelopmentInstance` is refused
   for any other kind before its handler runs. Removing such tools from the MCP surface for
   non-development instances comes with M7.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { VERSION } from "@snagentic/core";
 
 const MAIN = "packages/cli/src/main.ts";
 
@@ -18,7 +19,7 @@ describe("snagentic entry point (real adapters)", () => {
   it("prints its version", async () => {
     expect(await snagentic("--version")).toMatchObject({
       exitCode: 0,
-      stdout: "snagentic 0.0.0\n",
+      stdout: `snagentic ${VERSION}\n`,
     });
   });
 

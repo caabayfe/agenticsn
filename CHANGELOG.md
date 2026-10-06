@@ -2,7 +2,7 @@
 
 All notable changes to snagentic. Versions follow [semantic versioning](https://semver.org).
 
-## [1.0.0] - unreleased
+## [1.0.0] - 2026-10-06
 
 The first release of the rebuild: sync all of an instance's metadata into git, keep it fresh
 with almost no load on the instance, and act on update sets and plugins. See

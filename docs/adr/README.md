@@ -23,6 +23,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0015](0015-yaml-writing-style.md) | YAML writing style | Accepted |
 | [0016](0016-instance-load-and-pagination.md) | Instance load and pagination policy | Accepted |
 | [0017](0017-flat-record-layout-and-full-sync.md) | Flat record layout and full sync by default | Accepted |
+| [0018](0018-update-sets-read-live.md) | Update sets are read live, and exported from reads | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

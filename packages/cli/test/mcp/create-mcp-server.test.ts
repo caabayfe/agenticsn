@@ -122,7 +122,7 @@ describe("ADR-0012 layer 3 on the MCP surface", () => {
 });
 
 describe("the MCP tools", () => {
-  it("are the v1.0 tools plus the knowledge tools find, describe and advise", async () => {
+  it("are the v1.0 tools plus find, describe, advise and validate", async () => {
     const { tools } = await (await connect(USE_CASES, ["pdi"])).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual(
       [
@@ -135,6 +135,7 @@ describe("the MCP tools", () => {
         "pull",
         "status",
         "update_sets",
+        "validate",
       ].sort(),
     );
   });

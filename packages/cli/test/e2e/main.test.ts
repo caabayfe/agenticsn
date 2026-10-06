@@ -48,6 +48,7 @@ describe("snagentic entry point (real adapters)", () => {
         "pull",
         "status",
         "update_sets",
+        "validate",
       ]);
       const result = await client.callTool({ name: "doctor", arguments: {} });
       expect(result.structuredContent).toHaveProperty("checks");

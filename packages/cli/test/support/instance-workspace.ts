@@ -7,6 +7,8 @@ import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { gitInventoryReader } from "../../src/adapters/git/git-inventory-reader";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
+import { EslintScriptChecker } from "../../src/adapters/governance/eslint-script-checker";
+import { GitChangedRecords } from "../../src/adapters/governance/git-changed-records";
 import { GitMirrorFiles } from "../../src/adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "../../src/adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
@@ -51,6 +53,10 @@ export async function instanceWorkspace(
     knowledge: (r, name) => ({
       store: new SqliteKnowledgeStore(join(r, instancePaths(name).localState, "knowledge.sqlite")),
       files: new GitMirrorFiles(r, instancePaths(name).metadata),
+    }),
+    governance: (r, name) => ({
+      records: new GitChangedRecords(r, instancePaths(name).metadata),
+      checker: new EslintScriptChecker(),
     }),
     files: {
       write: async (path, content) => {

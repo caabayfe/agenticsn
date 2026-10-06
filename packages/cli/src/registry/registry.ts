@@ -19,6 +19,7 @@ import { updateSetsList } from "./update-sets-list";
 import { updateSetsShow } from "./update-sets-show";
 import { updateSetsTool } from "./update-sets-tool";
 import type { UseCase } from "./use-case";
+import { validate } from "./validate";
 
 // Every operation snagentic offers. Adding one here adds its CLI command and, when marked
 // `mcp: true`, its MCP tool.
@@ -35,6 +36,7 @@ export const USE_CASES: readonly UseCase[] = [
   find,
   describe,
   advise,
+  validate,
   updateSetsList,
   updateSetsShow,
   updateSetsCollisions,

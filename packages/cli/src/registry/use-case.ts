@@ -1,6 +1,7 @@
 // A use case is the single definition of one operation (ADR-0003). The CLI command, the MCP
 // tool and the JSON output are all generated from it; nothing is defined twice by hand.
 import type {
+  ChangedRecords,
   CredentialStore,
   EnvironmentProbe,
   IncrementalMirror,
@@ -15,6 +16,7 @@ import type {
   MirrorMode,
   PluginActivator,
   ProfileStore,
+  ScriptChecker,
   ServerCostReader,
   SyncStateStore,
   TableStatistics,
@@ -72,6 +74,11 @@ export interface UseCaseContext {
     readonly store: KnowledgeStore;
     readonly files: MirrorFiles;
   };
+  // What validate checks: an instance's changed records, and the rule pack that checks them.
+  readonly governance: (
+    root: string,
+    instance: InstanceName,
+  ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
   // Files a use case writes for the person, such as an export.
   readonly files: { write(path: string, content: string): Promise<void> };
   readonly clock: () => Date;

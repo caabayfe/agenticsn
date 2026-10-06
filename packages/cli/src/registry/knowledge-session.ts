@@ -9,7 +9,7 @@ import type { ProgressEvent, UseCaseContext } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
 // The instance a knowledge tool is about: the one named, or the workspace's only one.
-async function instanceFor(root: string, context: UseCaseContext, name: string | undefined) {
+export async function instanceFor(root: string, context: UseCaseContext, name: string | undefined) {
   if (name !== undefined) {
     return InstanceName.parse(name);
   }

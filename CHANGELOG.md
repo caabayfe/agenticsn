@@ -2,6 +2,18 @@
 
 All notable changes to snagentic. Versions follow [semantic versioning](https://semver.org).
 
+## [Unreleased]
+
+### Knowledge and governance
+
+- `find` and `describe`: search the mirrored instance and explain a table's behavior in
+  execution order, or a record and who uses it, from a local index (no instance requests).
+- `advise`: for an intent and target tables, the options least custom first, with evidence
+  from the instance, the applicable guidance and rules.
+- `validate [paths...] --base <ref>`: checks changed records against 24 platform rules
+  (security, performance, upgradability, manageability, user experience) and reports only
+  what the change introduced; exits 1 on a blocking finding. Also an MCP tool.
+
 ## [1.0.0] - 2026-10-06
 
 The first release of the rebuild: sync all of an instance's metadata into git, keep it fresh

@@ -6,6 +6,7 @@ import {
   instancePaths,
   LAYOUT_VERSION,
   manifestFor,
+  metadataPath,
   WorkspaceLayoutError,
 } from "@snagentic/core";
 
@@ -55,6 +56,18 @@ describe("workspace layout", () => {
       localState: ".snagentic/dev",
       remoteBranch: "servicenow-remote/dev",
     });
+  });
+
+  it("reads a path as relative to the instance metadata, whether given from there, the workspace or the disk", () => {
+    const dev = InstanceName.parse("dev");
+    expect(metadataPath(dev, "/w", "global/x--1.yaml")).toBe("global/x--1.yaml");
+    expect(metadataPath(dev, "/w", "instances/dev/metadata/global/x--1.yaml")).toBe(
+      "global/x--1.yaml",
+    );
+    expect(metadataPath(dev, "/w", "/w/instances/dev/metadata/global/x--1.yaml")).toBe(
+      "global/x--1.yaml",
+    );
+    expect(metadataPath(dev, "/w", "./global/x--1.yaml")).toBe("global/x--1.yaml");
   });
 
   it("keeps local state and secrets out of git", () => {

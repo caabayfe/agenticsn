@@ -1,3 +1,5 @@
+import { type ScriptKind, scriptKindsOf } from "./script-fields";
+
 // The ServiceNow rules snagentic checks (validate) and cites (advise). Ids are stable and
 // never reused (AGENTS.md). Categories follow ServiceNow Instance Scan. Ported from v1.
 
@@ -8,8 +10,8 @@ export type RuleCategory =
   | "manageability"
   | "user_experience";
 export type Severity = "block" | "warn" | "info";
-// Where a rule's script applies: server-side scripts, form (client) scripts, portal client code.
-export type ScriptKind = "server" | "client" | "portal_client";
+
+export type { ScriptKind };
 
 export interface Rule {
   readonly id: string;
@@ -216,6 +218,25 @@ export const RULES: readonly Rule[] = [
     why: "A description explains intent to the next maintainer and to Instance Scan.",
     remediation: "Fill in the description field.",
     scripts: [],
+    classes: [
+      "sys_script",
+      "sys_script_include",
+      "sys_script_client",
+      "catalog_script_client",
+      "sys_ui_policy",
+      "sp_widget",
+      "sys_ws_operation",
+      "sys_script_fix",
+    ],
+  },
+  {
+    id: "SN-MNT-007",
+    category: "manageability",
+    severity: "block",
+    title: "Scripts must parse",
+    why: "A script with a syntax error fails every time it runs, and no other rule can check it.",
+    remediation: "Fix the syntax error at the reported line.",
+    scripts: [],
   },
   {
     id: "SN-UX-001",
@@ -248,29 +269,12 @@ export const RULES: readonly Rule[] = [
   },
 ];
 
-// The script kinds a class's scripts run as.
-const CLASS_SCRIPTS: Readonly<Record<string, readonly ScriptKind[]>> = {
-  sys_script: ["server"],
-  sys_script_include: ["server"],
-  sys_security_acl: ["server"],
-  sys_ws_operation: ["server"],
-  sysauto_script: ["server"],
-  sysevent_script_action: ["server"],
-  sys_script_fix: ["server"],
-  sys_transform_map: ["server"],
-  sys_script_client: ["client"],
-  catalog_script_client: ["client"],
-  sys_ui_policy: ["client"],
-  sys_ui_action: ["server", "client"],
-  sp_widget: ["server", "portal_client"],
-};
-
 // Rules that apply to records of these classes (all rules when no class is given).
 export function rulesFor(classes: readonly string[]): Rule[] {
   if (classes.length === 0) {
     return [...RULES];
   }
-  const kinds = new Set(classes.flatMap((c) => CLASS_SCRIPTS[c] ?? []));
+  const kinds = new Set(classes.flatMap(scriptKindsOf));
   return RULES.filter((rule) =>
     rule.classes !== undefined
       ? rule.classes.some((c) => classes.includes(c))
@@ -280,4 +284,13 @@ export function rulesFor(classes: readonly string[]): Rule[] {
 
 export function ruleById(id: string): Rule | undefined {
   return RULES.find((rule) => rule.id === id);
+}
+
+// Rules a pack checks in one script: a field of a record of this class, running as `kind`.
+export function rulesForScript(className: string, kind: ScriptKind): Rule[] {
+  return RULES.filter(
+    (rule) =>
+      rule.scripts.includes(kind) &&
+      (rule.classes === undefined || rule.classes.includes(className)),
+  );
 }

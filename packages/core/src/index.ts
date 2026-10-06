@@ -41,6 +41,7 @@ export {
   summarizeChecks,
 } from "./environment/domain/check";
 export type { EnvironmentProbe } from "./environment/ports";
+export * from "./governance/index";
 export { login, logout, resolveSecret } from "./instance/application/credentials";
 export {
   addInstance,
@@ -241,7 +242,12 @@ export {
   WorkspaceLayoutError,
   WorkspaceNotFoundError,
 } from "./workspace/domain/errors";
-export { GITIGNORE, type InstancePaths, instancePaths } from "./workspace/domain/layout";
+export {
+  GITIGNORE,
+  type InstancePaths,
+  instancePaths,
+  metadataPath,
+} from "./workspace/domain/layout";
 export {
   checkLayout,
   LAYOUT_VERSION,

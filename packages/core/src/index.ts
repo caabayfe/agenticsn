@@ -97,6 +97,7 @@ export { ScopeName } from "./kernel/scope-name";
 export { slug } from "./kernel/slug";
 export { SysId } from "./kernel/sys-id";
 export { TableName } from "./kernel/table-name";
+export * from "./knowledge/index";
 export { type Artifact, type ArtifactIdentity, artifactFromRow } from "./metadata/domain/artifact";
 export { Catalog, type CatalogData } from "./metadata/domain/catalog";
 export {

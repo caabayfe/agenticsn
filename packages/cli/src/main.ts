@@ -16,6 +16,7 @@ import { keychainProbe } from "./adapters/keychain-probe";
 import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
 import { fetchTransport } from "./adapters/servicenow/fetch-transport";
+import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
 import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
@@ -58,6 +59,7 @@ const context: UseCaseContext = {
   inventory: gitInventoryReader,
   files: { write: (path, content) => writeTextFile(path, content) },
   clock: () => new Date(),
+  sleep: SYSTEM_CLOCK.sleep,
   host: {
     cwd: process.cwd(),
     home: homedir(),

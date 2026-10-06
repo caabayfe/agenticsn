@@ -52,6 +52,14 @@ async function setup() {
         serverCost: async () => {
           throw new Error("not used");
         },
+        plugins: {
+          activate: async () => {
+            throw new Error("not used");
+          },
+          progress: async () => {
+            throw new Error("not used");
+          },
+        },
         stats: () => ({
           requests: 3,
           retries: 0,

@@ -6,3 +6,20 @@ export interface InventoryReader {
   // the inventory was never pulled.
   read(root: string, instance: string, file: string): Promise<readonly Row[] | null>;
 }
+
+export type ActivationStatus = "pending" | "running" | "successful" | "failed" | "canceled";
+
+export interface ActivationProgress {
+  readonly progressId: string;
+  readonly status: ActivationStatus;
+  readonly percent: number;
+  readonly message: string;
+  readonly error: string;
+}
+
+// ServiceNow's CI/CD API for plugins (sn_cicd). Starting an activation changes the instance;
+// it is never retried.
+export interface PluginActivator {
+  activate(pluginId: string, signal: AbortSignal): Promise<ActivationProgress>;
+  progress(progressId: string, signal: AbortSignal): Promise<ActivationProgress>;
+}

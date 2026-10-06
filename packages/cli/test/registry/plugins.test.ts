@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { InstanceName } from "@snagentic/core";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
 import { executeUseCase } from "../../src/registry/execute";
+import { pluginsActivate } from "../../src/registry/plugins-activate";
 import { pluginsList } from "../../src/registry/plugins-list";
 import { instanceWorkspace } from "../support/instance-workspace";
 
@@ -101,5 +102,74 @@ describe("plugins list", () => {
       "text",
     );
     expect(text).toContain("... and 5 more; narrow with a search text or --state");
+  });
+});
+
+describe("plugins activate", () => {
+  async function instanceWith(kind: "development" | "test", active: string, roles: string[] = []) {
+    const ws = await instanceWorkspace(
+      {
+        v_plugin: [{ sys_id: "p1", id: "com.snc.cool", name: "Cool plugin", active }],
+        sys_user_has_role: roles.map((role) => ({
+          sys_id: role,
+          "user.user_name": "admin",
+          state: "active",
+          "role.name": role,
+        })),
+      },
+      kind,
+    );
+    cleanups.push(ws.cleanup);
+    return ws;
+  }
+
+  it("needs --confirm, and activates nothing without it", async () => {
+    const { context, instance } = await instanceWith("development", "inactive");
+    await expect(
+      executeUseCase(pluginsActivate, { instance: "pdi", id: "com.snc.cool" }, context),
+    ).rejects.toMatchObject({
+      code: "confirmation-required",
+    });
+    expect(instance.activations).toEqual([]);
+  });
+
+  it("does not exist for a test instance, confirmed or not", async () => {
+    const { context, instance } = await instanceWith("test", "inactive", ["snc_read_only"]);
+    await expect(
+      executeUseCase(
+        pluginsActivate,
+        { instance: "pdi", id: "com.snc.cool", confirm: true },
+        context,
+      ),
+    ).rejects.toMatchObject({ code: "development-instance-required" });
+    expect(instance.activations).toEqual([]);
+  });
+
+  it("activates a plugin on a development instance and suggests pulling what it installed", async () => {
+    const { context, instance } = await instanceWith("development", "inactive");
+    const { output } = await executeUseCase(
+      pluginsActivate,
+      { instance: "pdi", id: "com.snc.cool", confirm: true },
+      context,
+    );
+    expect(output).toMatchObject({
+      state: "activated",
+      name: "Cool plugin",
+      progressId: "progress-com.snc.cool",
+    });
+    expect(instance.activations).toEqual(["com.snc.cool"]);
+    expect(pluginsActivate.render(output as never, "text")).toContain("next: snagentic pull pdi");
+  });
+
+  it("changes nothing for a plugin that is already active", async () => {
+    const { context, instance } = await instanceWith("development", "active");
+    const { output } = await executeUseCase(
+      pluginsActivate,
+      { instance: "pdi", id: "com.snc.cool", confirm: true },
+      context,
+    );
+    expect(output["state"]).toBe("already-active");
+    expect(instance.activations).toEqual([]);
+    expect(pluginsActivate.render(output as never, "text")).toContain("nothing was changed");
   });
 });

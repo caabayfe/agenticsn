@@ -118,14 +118,7 @@ export {
   type RedactionPolicy,
 } from "./metadata/domain/redaction";
 export type { RecordStore, StoredRecord } from "./metadata/ports";
-export {
-  listPlugins,
-  type Plugin,
-  type PluginFilter,
-  type PluginInventory,
-  type StoreApp,
-} from "./plugins/application/list-plugins";
-export type { InventoryReader } from "./plugins/ports";
+export * from "./plugins/index";
 export { forEachConcurrently } from "./sync/application/concurrently";
 export { type CatalogProgress, fetchCatalog } from "./sync/application/fetch-catalog";
 export { type FingerprintOutcome, fetchFingerprints } from "./sync/application/fetch-fingerprints";
@@ -235,41 +228,7 @@ export type {
   SyncState,
   SyncStateStore,
 } from "./sync/ports";
-export {
-  type ExportedUpdateSet,
-  exportUpdateSet,
-} from "./updatesets/application/export-update-set";
-export type { UpdateSetDependencies } from "./updatesets/application/update-set-reads";
-export {
-  listUpdateSets,
-  showUpdateSet,
-  type UpdateEntry,
-  type UpdateSetSummary,
-  updateSetCollisions,
-} from "./updatesets/application/update-set-views";
-export {
-  type CapturedUpdate,
-  type Collision,
-  type CollisionReport,
-  findCollisions,
-  type Holder,
-  type OpenUpdateSet,
-} from "./updatesets/domain/collisions";
-export { UpdateSetNotFoundError } from "./updatesets/domain/errors";
-export {
-  type Application,
-  type ExportStamp,
-  exportedUpdate,
-  exportId,
-  type FieldSpec,
-  inRecordedOrder,
-  remoteUpdateSet,
-} from "./updatesets/domain/export-mapping";
-export {
-  renderUnload,
-  type UnloadField,
-  type UnloadRecord,
-} from "./updatesets/domain/unload-xml";
+export * from "./updatesets/index";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";

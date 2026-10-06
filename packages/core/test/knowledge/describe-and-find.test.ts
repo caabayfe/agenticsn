@@ -214,6 +214,27 @@ describe("find", () => {
     expect(result.next).toEqual([{ tool: "find", args: { text: "GlideAggregate", code: true } }]);
   });
 
+  it("lists records by class or table alone, without words", async () => {
+    const result = await find(await deps(), {
+      text: "",
+      className: "sys_script",
+      table: "task",
+      limit: 10,
+    });
+    expect(result.records.map((r) => r.name)).toEqual(["Close children"]);
+  });
+
+  it("asks for words or a filter, and for words to search code", async () => {
+    await expect(find(await deps(), { text: " ", limit: 10 })).rejects.toMatchObject({
+      code: "invalid-input",
+    });
+    await expect(
+      find(await deps(), { text: "", code: true, className: "sys_script", limit: 10 }),
+    ).rejects.toMatchObject({
+      code: "invalid-input",
+    });
+  });
+
   it("narrows by class and table", async () => {
     const result = await find(await deps(), {
       text: "priority",

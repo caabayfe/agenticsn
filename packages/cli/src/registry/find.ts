@@ -9,9 +9,15 @@ export const find = defineUseCase({
   description:
     "Find where something lives in the mirrored instance: records by name (business rules, " +
     "script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. " +
+    "Without text, lists records by class, table or scope. " +
     "Reads the workspace only. Follow up with describe on a result's path.",
   input: z.object({
-    text: z.string().min(1).describe("words of the name, or the text to look for in code"),
+    text: z
+      .string()
+      .default("")
+      .describe(
+        "words of the name, or the text to look for in code; empty lists by class, table or scope",
+      ),
     instance: z.string().optional().describe("default: the workspace's only instance"),
     code: z.boolean().default(false).describe("search inside scripts and long fields"),
     class: z.string().optional().describe("only records of this class, such as sys_script"),

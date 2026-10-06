@@ -1,3 +1,4 @@
+import { InvalidInputError } from "../../kernel/errors";
 import { fitted } from "../domain/budget";
 import type { IndexedRecord } from "../domain/indexed-record";
 import { baseOfFile } from "../domain/paths";
@@ -104,6 +105,14 @@ async function findByName(deps: KnowledgeDependencies, query: FindQuery) {
 
 // Where something lives: records by name (ranked), or by text in their code.
 export async function find(deps: KnowledgeDependencies, query: FindQuery): Promise<FindResult> {
+  const filtered = [query.className, query.table, query.scope].some((value) => value !== undefined);
+  if (query.text.trim() === "" && (query.code === true || !filtered)) {
+    throw new InvalidInputError(
+      query.code === true
+        ? "searching code needs the text to look for"
+        : "give words to find, or a class, table or scope to list",
+    );
+  }
   const result =
     query.code === true ? await findInCode(deps, query) : await findByName(deps, query);
   const first = result.records[0];

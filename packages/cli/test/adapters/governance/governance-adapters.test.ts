@@ -110,6 +110,42 @@ describe("EslintScriptChecker", () => {
     });
   });
 
+  it("reads a portal client script as the function expression the platform evaluates", () => {
+    const portal = { ...context, className: "sp_widget", kind: "portal_client" as const };
+    for (const source of [
+      "function($scope) {\n  alert('x');\n}",
+      "function() {\n  alert('x');\n};\n",
+    ]) {
+      expect(new EslintScriptChecker().check(source, ["SN-UX-003"], portal)).toMatchObject({
+        parsed: true,
+        hits: [{ ruleId: "SN-UX-003", line: 2 }],
+      });
+    }
+    expect(
+      new EslintScriptChecker().check(
+        "function($scope) {\n  alert('x');\n}",
+        ["SN-UX-003"],
+        portal,
+      ),
+    ).toEqual({
+      parsed: true,
+      hits: [{ ruleId: "SN-UX-003", line: 2, message: expect.any(String) }],
+    });
+  });
+
+  it("ignores inline ESLint comments in platform scripts", () => {
+    expect(
+      new EslintScriptChecker().check(
+        '/* eslint no-undef: "error" */\n/* global foo */\nfoo(); // eslint-disable-line sn/SN-SEC-001\neval(a);',
+        ["SN-SEC-001"],
+        context,
+      ),
+    ).toEqual({
+      parsed: true,
+      hits: [{ ruleId: "SN-SEC-001", line: 4, message: expect.any(String) }],
+    });
+  });
+
   it("ignores rule ids the pack does not implement", () => {
     expect(new EslintScriptChecker().check("x();", ["SN-UPG-002"], context)).toEqual({
       parsed: true,

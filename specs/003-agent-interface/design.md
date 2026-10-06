@@ -364,3 +364,27 @@ v1's six skills and rule set:
 `advise` returns the ladder marked likely / possible / last resort with evidence from the
 target tables (what already runs there), related records, the guidance and rules for the phase
 and classes, and in design the design record. Live on the PDI: about 1.1 s per call.
+
+## 12. Implementation notes: `validate` (step 2, 2026-10-06)
+
+- **Rule pack.** `packages/rules-basic` holds v1's 21 script rules as ESLint rules (ADR-0006),
+  each with triggering and passing samples; a test keeps it in step with the catalog. A
+  boundary rule keeps packs pure: they import only themselves and the ESLint rule API.
+- **Engine.** `core/governance` checks each changed record's script fields, each run as the
+  kind the platform runs it (`advice/domain/script-fields.ts`: server, client or portal client;
+  a client UI action's script is client code unless it guards a server branch). Only findings
+  the change introduced are reported: a finding already in the base version, matched by rule,
+  field and line text, is left out. Lines the credential rule flags are masked in every
+  finding. New script records without a description get SN-MNT-006; a script that does not
+  parse gets SN-MNT-007 (new, block). SN-UPG-002 is listed as not checked until there is an
+  inventory of customized out-of-box records.
+- **Interface.** `validate [paths...] --base <ref>`, an MCP tool; exit 1 on a block finding.
+- **Calibration on the PDI** (17,026 out-of-box scripts in seven classes, 92 s): 5 parse
+  failures, all real (a missing `+`, Rhino-only syntax, one-line scripts cut by a `//`
+  comment). Portal client scripts are read as the function expressions the platform
+  evaluates, and inline `eslint` comments in platform scripts are ignored; without these, 183
+  working scripts failed to parse and ESLint's own messages leaked into findings.
+
+Follow-ups: validating an update set's records (needs instance reads); the hit rates of
+SN-MNT-001, SN-UPG-001 and SN-PERF-002 on out-of-box code are high and worth reviewing for
+noise, although only new findings are ever reported.

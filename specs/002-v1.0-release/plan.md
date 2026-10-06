@@ -192,7 +192,8 @@ what v1's 1,400-line `InstanceSync` could not do.
 ### 5.2 Plugins
 
 - `list`: installed and available plugins and store applications, with versions. This
-  comes from the operational inventory, so it works offline after a pull.
+  comes from the operational inventory, so it works offline after a pull (incremental pulls
+  refresh it when plugin or store-app signals move).
 - `activate <id>`: uses the supported CI/CD API (`/api/sn_cicd/plugin/{id}/activate`) and
   polls `progress/{id}`.
   - Development instances only: the use case is not registered for other kinds.
@@ -231,7 +232,7 @@ Each milestone is a series of small pull requests (each one merged when `verify`
 | M3 | Full pull (done; baseline in docs/reports/pull-baseline-pdi.md) | `pull --full` of the PDI into a fresh repo | `KeysetPager` with property tests (no gaps, no duplicates, stall detection); resumable; baseline performance report; git commit strategy chosen by measurement |
 | M4 | Incremental pull, integrate, status (done; results in ADR-0016) | Change a record in the PDI, `pull`, `integrate` | Fingerprints first: one aggregate per change source when nothing changed (20 on the PDI, under 10 s; ASR-16 revised); deletes detected; fingerprint reconciliation (`pull --verify`); server cost report (from `syslog_transaction`); `status` shows freshness and pending changes |
 | M5 | Update sets (done; ADR-0018) | `update-sets list / show / collisions / export` | Export matches ServiceNow's XML format (checked against a real export) |
-| M6 | Plugins | `plugins list`, `plugins activate` on the PDI | Development only; progress reporting; no automatic retry of ambiguous failures |
+| M6 | Plugins (done; ADR-0016 appendix) | `plugins list`, `plugins activate` on the PDI | Development only; progress reporting; no automatic retry of ambiguous failures |
 | M7 | MCP and documentation | Use every v1.0 tool from Claude Code and Copilot | Command reference generated from the registry; getting-started guide |
 | M8 | Release v1.0.0 | Install with one command on macOS, Windows, Linux | Release workflow (tag → build → checksums → GitHub release); install scripts; Homebrew tap; changelog; all section 4.4 targets met or explicitly accepted |
 

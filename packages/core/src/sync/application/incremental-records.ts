@@ -37,15 +37,63 @@ export interface ChangeWindow {
 const between = (window: ChangeWindow, created: string | undefined) =>
   created !== undefined && created >= window.previous && created < window.current;
 
-// The change feed and the delete feed (ADR-0016): identities only, no content.
+interface Collected {
+  readonly changed: Map<string, string[]>;
+  readonly scopes: Set<string>;
+  // A record can be in both the change feed and the install feed.
+  readonly seen: Set<string>;
+  createdBetween: number;
+}
+
+function collect(into: Collected, row: Row, created: boolean): void {
+  const sysId = row["sys_id"] ?? "";
+  if (into.seen.has(sysId)) {
+    return;
+  }
+  into.seen.add(sysId);
+  const table = row["sys_class_name"] ?? "";
+  const ids = into.changed.get(table) ?? [];
+  ids.push(sysId);
+  into.changed.set(table, ids);
+  into.scopes.add(row["sys_scope"] ?? "");
+  into.createdBetween += created ? 1 : 0;
+}
+
+// Plugin activations and app installs or upgrades write records that keep the timestamps
+// they were packaged with, so no change feed sees them. Their package does change: records
+// whose package was created or updated since the watermark are read too (measured on the PDI:
+// one plugin activation, 9 records, found in 0.7 s). A record counts as created when its
+// package was created between the two pulls' fingerprints: an upgraded package's new records
+// are not counted, which can only hide a loss, never report one that did not happen.
+async function readInstalled(
+  deps: IncrementalDependencies,
+  window: ChangeWindow,
+  into: Collected,
+  signal: AbortSignal,
+): Promise<void> {
+  const installed = {
+    table: SYS_METADATA,
+    fields: ["sys_id", "sys_class_name", "sys_scope", "sys_package.sys_created_on"],
+    kind: "snapshot" as const,
+    base: `sys_package.sys_updated_on>=${window.since}`,
+  };
+  for await (const row of deps.pager.rows(installed, signal)) {
+    collect(into, row, between(window, row["sys_package.sys_created_on"]));
+  }
+}
+
+// The change feed, the install feed and the delete feed (ADR-0016): identities only.
 export async function readRecordChanges(
   deps: IncrementalDependencies,
   window: ChangeWindow,
   signal: AbortSignal,
 ): Promise<RecordChanges> {
-  const changed = new Map<string, string[]>();
-  const scopes = new Set<string>();
-  let createdBetween = 0;
+  const into: Collected = {
+    changed: new Map(),
+    scopes: new Set(),
+    seen: new Set(),
+    createdBetween: 0,
+  };
   const feed = {
     table: SYS_METADATA,
     fields: ["sys_id", "sys_updated_on", "sys_created_on", "sys_class_name", "sys_scope"],
@@ -54,13 +102,9 @@ export async function readRecordChanges(
     since: window.since,
   };
   for await (const row of deps.pager.rows(feed, signal)) {
-    const table = row["sys_class_name"] ?? "";
-    const ids = changed.get(table) ?? [];
-    ids.push(row["sys_id"] ?? "");
-    changed.set(table, ids);
-    scopes.add(row["sys_scope"] ?? "");
-    createdBetween += between(window, row["sys_created_on"]) ? 1 : 0;
+    collect(into, row, between(window, row["sys_created_on"]));
   }
+  await readInstalled(deps, window, into, signal);
   const deletions = {
     ...feed,
     table: SYS_METADATA_DELETE,
@@ -72,6 +116,7 @@ export async function readRecordChanges(
     deleted.push(row["sys_metadata"] ?? "");
     deletedBetween += between(window, row["sys_created_on"]) ? 1 : 0;
   }
+  const { changed, scopes, createdBetween } = into;
   return { changed, scopes, deleted, createdBetween, deletedBetween };
 }
 

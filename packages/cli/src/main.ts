@@ -9,12 +9,14 @@ import { LayeredCredentialStore } from "./adapters/credentials/layered-credentia
 import { writeTextFile } from "./adapters/fs/write-text-file";
 import { gitInspector } from "./adapters/git/git-inspector";
 import { gitIntegrator } from "./adapters/git/git-integrator";
+import { gitInventoryReader } from "./adapters/git/git-inventory-reader";
 import { GitMirror } from "./adapters/git/git-mirror";
 import { gitProbe } from "./adapters/git-probe";
 import { keychainProbe } from "./adapters/keychain-probe";
 import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
 import { fetchTransport } from "./adapters/servicenow/fetch-transport";
+import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
 import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
@@ -54,8 +56,10 @@ const context: UseCaseContext = {
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
   integrator: gitIntegrator,
   inspector: gitInspector,
+  inventory: gitInventoryReader,
   files: { write: (path, content) => writeTextFile(path, content) },
   clock: () => new Date(),
+  sleep: SYSTEM_CLOCK.sleep,
   host: {
     cwd: process.cwd(),
     home: homedir(),

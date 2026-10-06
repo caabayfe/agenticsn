@@ -5,6 +5,7 @@ import { createProfile, InstanceName, instancePaths, type Row } from "@snagentic
 import { fakeInstance } from "../../../core/test/support/fake-instance";
 import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
+import { gitInventoryReader } from "../../src/adapters/git/git-inventory-reader";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
 import { JsonSyncStateStore } from "../../src/adapters/state/json-sync-state-store";
@@ -44,6 +45,7 @@ export async function instanceWorkspace(
     mirrors: { open: (r, name, mode) => GitMirror.open(r, name, mode) },
     integrator: gitIntegrator,
     inspector: gitInspector,
+    inventory: gitInventoryReader,
     files: {
       write: async (path, content) => {
         written.set(path, content);

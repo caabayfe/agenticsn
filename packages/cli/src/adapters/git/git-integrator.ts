@@ -3,6 +3,7 @@ import {
   type IntegrationResult,
   instancePaths,
   type MirrorIntegrator,
+  NothingPulledError,
   SnagenticError,
 } from "@snagentic/core";
 import { runGit, runGitOrThrow } from "./run-git";
@@ -24,11 +25,7 @@ async function ensureIntegrable(root: string, instance: string): Promise<string>
   if (
     (await runGit(["rev-parse", "--verify", "--quiet", paths.remoteBranch], root)).exitCode !== 0
   ) {
-    throw new IntegrationBlockedError(
-      "nothing-pulled",
-      `${instance} has not been pulled yet`,
-      `run: snagentic pull ${instance}`,
-    );
+    throw new NothingPulledError(instance);
   }
   // Only tracked changes in what the mirror owns block a merge. Untracked files (such as
   // the instance profile) are kept; git itself refuses to overwrite one on a collision.

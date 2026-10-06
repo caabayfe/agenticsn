@@ -70,24 +70,6 @@ export function childFamily(table: string): ChildTable[] {
   return CHILD_TABLES.filter((candidate) => rootOf(candidate) === root);
 }
 
-export interface OperationalTable {
-  readonly table: string;
-  // Identifies a row across instances (v_plugin rows have no stable sys_id).
-  readonly key: string;
-  readonly fields: readonly string[];
-}
-
-export const OPERATIONAL_TABLES: readonly OperationalTable[] = [
-  { table: "v_plugin", key: "id", fields: ["id", "name", "active", "version", "parent"] },
-  { table: "sys_plugins", key: "source", fields: ["source", "name", "active", "version"] },
-  {
-    table: "sys_store_app",
-    key: "sys_id",
-    fields: ["sys_id", "scope", "name", "version", "active", "vendor"],
-  },
-  { table: "domain", key: "sys_id", fields: ["sys_id", "name", "parent", "active"] },
-];
-
 // A record path ends in <slug>--<sys_id>; slugs never contain "--".
 export function ownerOfBase(base: string): string {
   const leaf = base.slice(base.lastIndexOf("/") + 1);

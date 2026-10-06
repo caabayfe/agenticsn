@@ -7,9 +7,11 @@ import type {
   InstanceName,
   InstanceProfile,
   InstanceReader,
+  InventoryReader,
   MirrorInspector,
   MirrorIntegrator,
   MirrorMode,
+  PluginActivator,
   ProfileStore,
   ServerCostReader,
   SyncStateStore,
@@ -41,7 +43,7 @@ export interface ConnectionFactory {
   open(
     profile: InstanceProfile,
     secret: string,
-  ): InstanceReader & TableStatistics & ServerCostReader;
+  ): InstanceReader & TableStatistics & ServerCostReader & { readonly plugins: PluginActivator };
 }
 
 // The ports use cases need, wired by the composition root (main.ts).
@@ -59,9 +61,11 @@ export interface UseCaseContext {
   };
   readonly integrator: MirrorIntegrator;
   readonly inspector: MirrorInspector;
+  readonly inventory: InventoryReader;
   // Files a use case writes for the person, such as an export.
   readonly files: { write(path: string, content: string): Promise<void> };
   readonly clock: () => Date;
+  readonly sleep: (milliseconds: number, signal: AbortSignal) => Promise<void>;
   readonly host: HostEnvironment;
 }
 

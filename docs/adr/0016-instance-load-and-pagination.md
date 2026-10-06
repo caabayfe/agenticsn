@@ -279,3 +279,17 @@ Live on the PDI:
 
 The `sys_metadata` aggregates dominate: about half of an idle pull's server time. The child
 tables' 19 fingerprints together cost less than that one request.
+
+## Appendix: plugins, installs and the inventory (M6, 2026-10-06)
+
+- **Installs keep packaged timestamps.** Activating a plugin on the PDI inserted records whose
+  `sys_created_on` and `sys_updated_on` are the packaged ones (2019–2023): no change feed saw
+  them, and only `--verify` recovered them (at a cost of 339 requests, because five new records
+  in `global` looked like a spread difference). Their package does change: when `sys_metadata`
+  moved, the record step also lists records whose `sys_package.sys_updated_on` is at or after
+  the change window. Measured: one activation, 9 records, 0.7 s. A record counts as created
+  (for the lost-record check) only when its package was created in the window.
+- **Inventory signals.** Plugins are refreshed when the active counts of `v_plugin` move, store
+  applications (read through `sys_scope`, since `sys_store_app` is not readable even by admin)
+  when the `sys_scope` fingerprint moves. Two aggregate requests: an idle pull is now 22
+  requests, 4.4 s (3.2 s of server time).

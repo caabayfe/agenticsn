@@ -28,13 +28,15 @@ describe("pull --verify", () => {
       removed: 0,
     });
     expect(queries.some((query) => String(query.table) === "sys_metadata")).toBe(false);
-    expect(counted[0]).toStartWith("sys_metadata by sys_scope");
+    expect(counted.filter((entry) => entry.startsWith("sys_metadata by sys_scope"))).toHaveLength(
+      1,
+    );
   });
 
   it("leaves classes a pull never mirrors, such as credentials, out of the counts", async () => {
     const { incremental } = await pulledInstance();
     const { counted } = await incremental({ verify: true });
-    expect(counted[0]).toBe("sys_metadata by sys_scope where sys_class_nameNOT INsys_cred");
+    expect(counted).toContain("sys_metadata by sys_scope where sys_class_nameNOT INsys_cred");
   });
 
   it("removes a record that vanished without a deletion record", async () => {

@@ -6,6 +6,7 @@ import {
   FINGERPRINT_SOURCES,
   type FingerprintChange,
 } from "../domain/fingerprint";
+import { INVENTORY } from "../domain/inventory";
 import { unexplainedLoss } from "../domain/record-changes";
 import type { Fingerprints, SyncState } from "../ports";
 import { applyWithCatalog } from "./apply-with-catalog";
@@ -14,6 +15,7 @@ import { applyChildChanges, type ChildOutcome } from "./incremental-children";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { type ChangeWindow, type RecordOutcome, readRecordChanges } from "./incremental-records";
 import { type PullProgress, rawTimestamp } from "./pull-dependencies";
+import { inventorySignatures, pullOperational } from "./pull-operational";
 import {
   type RecordVerification,
   type VerifiedRecords,
@@ -43,6 +45,8 @@ export interface IncrementalSummary {
   readonly removedChildFiles: number;
   // Records gone from the instance without a deletion record; still in the mirror.
   readonly lostRecords: number;
+  // Inventory files listed again because their source changed (or with verify).
+  readonly inventoryRefreshed: readonly string[];
   // pull --verify only: what the count comparison found and repaired.
   readonly verification: (RecordVerification & { recovered: number; removed: number }) | null;
   readonly unreadable: readonly string[];
@@ -134,7 +138,7 @@ function summarize(
   verified: VerifiedRecords | null,
   children: ChildOutcome,
   unreadable: readonly string[],
-): Omit<IncrementalSummary, "watermark" | "next"> {
+): Omit<IncrementalSummary, "watermark" | "next" | "inventoryRefreshed"> {
   const { records } = step;
   return {
     changedSources: [...changes].filter(([, change]) => change !== "unchanged").map(([t]) => t),
@@ -161,6 +165,48 @@ function summarize(
 // Brings the mirror up to date with what changed since the last pull (ADR-0016, M4
 // appendix): one aggregate request per change source, then change feeds and targeted
 // downloads only where a fingerprint moved. With verify, it then reconciles by counts.
+// What moved since the last pull: the change sources' fingerprints and the inventory's
+// signals. The mirror tree is read only when something needs it.
+async function detectChanges(
+  deps: IncrementalDependencies,
+  state: SyncState,
+  verify: boolean,
+  signal: AbortSignal,
+) {
+  const current = await fetchFingerprints(deps.statistics, signal);
+  const fingerprintChanges = compareAll(state.fingerprints, current.fingerprints);
+  const changes = verify ? verifyAllChildren(fingerprintChanges) : fingerprintChanges;
+  const inventory = await inventorySignatures(deps.statistics, signal);
+  const stale = INVENTORY.filter(
+    (source) =>
+      verify ||
+      (source.signal !== undefined && inventory[source.file] !== state.inventory?.[source.file]),
+  );
+  const moved = [...changes.values()].some((change) => change !== "unchanged");
+  if (verify || moved || stale.length > 0) {
+    await deps.records.prepare();
+  }
+  return { current, fingerprintChanges, changes, inventory, stale };
+}
+
+function nextState(
+  state: SyncState,
+  startedAt: string,
+  fingerprints: Fingerprints,
+  inventory: Readonly<Record<string, string>>,
+  unreadable: readonly string[],
+  verified: VerifiedRecords | null,
+): SyncState {
+  return {
+    ...state,
+    watermark: startedAt,
+    fingerprints,
+    inventory,
+    unreadable: [...new Set([...(state.unreadable ?? []), ...unreadable])].sort(),
+    ...(verified === null ? {} : { hiddenCounts: verified.hidden }),
+  };
+}
+
 export async function pullIncremental(
   deps: IncrementalDependencies,
   instance: string,
@@ -173,54 +219,47 @@ export async function pullIncremental(
   if (state === null || stored === null) {
     throw new FullPullRequiredError(instance);
   }
+  const verify = options.verify === true;
   const startedAt = rawTimestamp(deps.now());
   progress({ message: "checking for changes" });
-  const current = await fetchFingerprints(deps.statistics, signal);
-  const fingerprintChanges = compareAll(state.fingerprints, current.fingerprints);
-  const changes =
-    options.verify === true ? verifyAllChildren(fingerprintChanges) : fingerprintChanges;
-  if (options.verify === true || [...changes.values()].some((change) => change !== "unchanged")) {
-    await deps.records.prepare();
-  }
+  const { current, fingerprintChanges, changes, inventory, stale } = await detectChanges(
+    deps,
+    state,
+    verify,
+    signal,
+  );
   const since = changesSince(state.watermark);
   const window = { since, previous: state.watermark, current: startedAt };
+  const metadataChange = changes.get("sys_metadata") ?? "changed";
   const step = await recordStep(
     deps,
     state,
     new Catalog(stored),
     current.fingerprints,
-    changes.get("sys_metadata") ?? "changed",
+    metadataChange,
     window,
     signal,
     progress,
   );
-  const verified =
-    options.verify === true
-      ? await verifyAndRepairRecords(
-          deps,
-          step.catalog,
-          { unreadable: state.unreadable ?? [], hidden: state.hiddenCounts ?? {} },
-          signal,
-          progress,
-        )
-      : null;
+  const previous = { unreadable: state.unreadable ?? [], hidden: state.hiddenCounts ?? {} };
+  const verified = verify
+    ? await verifyAndRepairRecords(deps, step.catalog, previous, signal, progress)
+    : null;
   progress({ message: "child rows" });
-  const catalog = verified?.catalog ?? step.catalog;
-  const children = await applyChildChanges(deps, catalog, changes, since, signal);
+  const children = await applyChildChanges(
+    deps,
+    verified?.catalog ?? step.catalog,
+    changes,
+    since,
+    signal,
+  );
+  const operational = await pullOperational(deps, signal, stale);
   const recordUnreadable = [...step.records.unreadable, ...(verified?.records.unreadable ?? [])];
-  const summary = summarize(fingerprintChanges, step, verified, children, [
-    ...current.unreadable,
-    ...recordUnreadable,
-  ]);
+  const unreadable = [...current.unreadable, ...recordUnreadable, ...operational.unreadable];
   return {
-    ...summary,
+    ...summarize(fingerprintChanges, step, verified, children, unreadable),
+    inventoryRefreshed: stale.map((source) => source.file),
     watermark: startedAt,
-    next: {
-      ...state,
-      watermark: startedAt,
-      fingerprints: current.fingerprints,
-      unreadable: [...new Set([...(state.unreadable ?? []), ...recordUnreadable])].sort(),
-      ...(verified === null ? {} : { hiddenCounts: verified.hidden }),
-    },
+    next: nextState(state, startedAt, current.fingerprints, inventory, recordUnreadable, verified),
   };
 }

@@ -6,6 +6,8 @@ import { instanceAdd } from "./instance-add";
 import { instanceList } from "./instance-list";
 import { instanceRemove } from "./instance-remove";
 import { integrate } from "./integrate";
+import { pluginsActivate } from "./plugins-activate";
+import { pluginsList } from "./plugins-list";
 import { pull } from "./pull";
 import { status } from "./status";
 import { updateSetsCollisions } from "./update-sets-collisions";
@@ -30,5 +32,7 @@ export const USE_CASES: readonly UseCase[] = [
   updateSetsShow,
   updateSetsCollisions,
   updateSetsExport,
+  pluginsList,
+  pluginsActivate,
   doctor,
 ];

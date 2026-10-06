@@ -5,7 +5,7 @@ import { fetchCatalog } from "./fetch-catalog";
 import { fetchFingerprints } from "./fetch-fingerprints";
 import { pullChildren } from "./pull-children";
 import { type PullDependencies, type PullProgress, rawTimestamp } from "./pull-dependencies";
-import { pullOperational } from "./pull-operational";
+import { inventorySignatures, pullOperational } from "./pull-operational";
 import { pullRecords } from "./pull-records";
 
 export interface PullSummary {
@@ -49,6 +49,7 @@ export async function pullFull(
     completedClasses: [],
     records: 0,
     fingerprints: (await fetchFingerprints(deps.statistics, signal)).fingerprints,
+    inventory: await inventorySignatures(deps.statistics, signal),
   };
   await deps.state.writeCheckpoint(checkpoint);
   const classes = classesToPull(catalog);
@@ -65,6 +66,7 @@ export async function pullFull(
       watermark: checkpoint.startedAt,
       lastFullPull: checkpoint.startedAt,
       fingerprints: checkpoint.fingerprints ?? {},
+      inventory: checkpoint.inventory ?? {},
       unreadable: [...records.unreadable, ...children.unreadable, ...operational.unreadable],
     },
     classes: classes.length,

@@ -5,9 +5,12 @@ import { CHANGED, FLOW, pulledInstance, RULE, sid, touch } from "../support/incr
 describe("pullIncremental: nothing changed", () => {
   it("asks one aggregate per change source and nothing else, then moves the watermark", async () => {
     const { incremental } = await pulledInstance();
-    const { summary, queries, fingerprints } = await incremental();
-    expect(fingerprints.sort()).toEqual([...FINGERPRINT_SOURCES].sort());
+    const { summary, queries, fingerprints, counted } = await incremental();
+    // The 20 change sources, plus the inventory's two signals: store apps and active plugins.
+    expect(fingerprints.sort()).toEqual([...FINGERPRINT_SOURCES, "sys_scope"].sort());
+    expect(counted).toEqual(["v_plugin by active"]);
     expect(queries).toEqual([]);
+    expect(summary.inventoryRefreshed).toEqual([]);
     expect(summary).toMatchObject({ changedSources: [], records: 0, childFiles: 0 });
     expect(summary.next.watermark).toBe("2026-10-05 11:00:00");
     expect(summary.next.lastFullPull).toBe("2026-10-05 10:00:00");
@@ -112,6 +115,42 @@ describe("pullIncremental: records", () => {
     expect(files.has(`global/sys_script/two--${sid(2)}.yaml`)).toBe(true);
   });
 
+  it("brings in records a plugin installed with their packaged timestamps, as new ones", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    tables["sys_script"]?.push({
+      sys_id: sid(12),
+      sys_class_name: "sys_script",
+      name: "Installed",
+      sys_scope: "global",
+      sys_created_on: "2022-12-21 22:22:40",
+      sys_updated_on: "2023-04-18 14:57:59",
+      "sys_package.sys_updated_on": CHANGED,
+      "sys_package.sys_created_on": CHANGED,
+    });
+    const { summary } = await incremental();
+    expect(files.has(`global/sys_script/installed--${sid(12)}.yaml`)).toBe(true);
+    expect(summary.lostRecords).toBe(0);
+  });
+
+  it("does not take records installed before the last pull, and never mirrored, for a loss", async () => {
+    // Installed just before the last pull (inside the overlap window), in a class the mirror
+    // never holds: already counted then, so not created now.
+    const { incremental, tables } = await pulledInstance((data) => {
+      data["sys_cred"]?.push({
+        sys_id: sid(13),
+        sys_class_name: "sys_cred",
+        name: "Packaged",
+        sys_scope: "global",
+        sys_updated_on: "2023-04-18 14:57:59",
+        "sys_package.sys_updated_on": "2026-10-05 09:55:00",
+        "sys_package.sys_created_on": "2026-10-05 09:55:00",
+      });
+    });
+    touch(tables["sys_script"]?.[0], { script: "changed();" });
+    const { summary } = await incremental();
+    expect(summary.lostRecords).toBe(0);
+  });
+
   it("ignores classes a pull never mirrors, such as credentials", async () => {
     const { incremental, tables } = await pulledInstance();
     touch(tables["sys_cred"]?.[0], { name: "Rotated" });
@@ -159,5 +198,25 @@ describe("pullIncremental: limited access", () => {
     });
     const { summary } = await incremental();
     expect(summary.skippedRows).toBe(1);
+  });
+});
+
+describe("pullIncremental: the operational inventory", () => {
+  it("lists plugins again when one is activated, and nothing else of the inventory", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    const plugin = tables["v_plugin"]?.find((row) => row["id"] === "com.snc.b");
+    Object.assign(plugin ?? {}, { active: "active" });
+    const { summary } = await incremental();
+    expect(summary.inventoryRefreshed).toEqual(["plugins"]);
+    expect(files.get("plugins.yaml")).toEqual([
+      expect.objectContaining({ id: "com.snc.a", active: "active" }),
+      expect.objectContaining({ id: "com.snc.b", active: "active" }),
+    ]);
+  });
+
+  it("lists the whole inventory again when verifying", async () => {
+    const { incremental } = await pulledInstance();
+    const { summary } = await incremental({ verify: true });
+    expect(summary.inventoryRefreshed).toEqual(["plugins", "store_apps", "domains"]);
   });
 });

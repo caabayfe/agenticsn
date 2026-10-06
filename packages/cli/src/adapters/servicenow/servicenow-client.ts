@@ -5,6 +5,7 @@ import {
   InstanceError,
   type InstanceProfile,
   type InstanceReader,
+  type PluginActivator,
   type Row,
   type ServerCost,
   type ServerCostReader,
@@ -13,6 +14,7 @@ import {
   type TableQuery,
   type TableStatistics,
 } from "@snagentic/core";
+import { CicdPluginActivator } from "./cicd-plugin-activator";
 import type { HttpResponse } from "./http-types";
 import type { RequestScheduler } from "./request-scheduler";
 
@@ -61,6 +63,8 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   private readonly headers: Readonly<Record<string, string>>;
   // Unique per connection, so the transaction log can tell this run's requests apart.
   private readonly userAgent: string;
+  // Plugin activation through the CI/CD API, over this connection.
+  readonly plugins: PluginActivator = new CicdPluginActivator(this);
 
   constructor(
     private readonly profile: InstanceProfile,
@@ -155,6 +159,24 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       counts.set(value, count);
     }
     return counts;
+  }
+
+  // Any other API of the instance, as JSON: the parsed `result`, with the same error handling.
+  // `path` is an absolute API path such as /api/sn_cicd/progress/<id>.
+  async callApi(
+    method: "GET" | "POST",
+    path: string,
+    what: string,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    const url = new URL(path, this.profile.url);
+    const headers =
+      method === "POST" ? { ...this.headers, "Content-Type": "application/json" } : this.headers;
+    const response = await this.scheduler.send(
+      { method, url: url.href, headers, ...(method === "POST" ? { body: "{}" } : {}) },
+      signal,
+    );
+    return this.result(response, what);
   }
 
   private async aggregate(

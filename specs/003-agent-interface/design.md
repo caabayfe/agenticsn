@@ -411,3 +411,30 @@ noise, although only new findings are ever reported.
 
 Not yet: host hooks and permission rules (ADR-0011 layer 1), which need `check --changed`;
 skill trigger evaluations and task runs (section 7, step 4).
+
+## 14. Implementation notes: the evaluation harness (step 4, 2026-10-06)
+
+`scripts/eval/` runs real agents (Claude Code headless first) on scripted scenarios and scores
+what they did. Opt-in and local: it needs a mirrored workspace and costs money.
+
+- **Workspace.** One APFS clone of a source workspace (default `~/snagentic/pdi`, about 70 s
+  once), kept as a slot and reset with git before every run. Its instances point at
+  `https://eval.invalid` (no keychain entry matches it, and password variables are removed),
+  so nothing an agent does during an evaluation can reach an instance. Each variant installs
+  the pack with the binary under test and commits it as the run's base.
+- **Runs.** `claude -p` with `--strict-mcp-config` (only snagentic), `--setting-sources
+  project` (none of the developer's own settings), an allow-list of tools, a budget and a
+  time limit; multi-turn scenarios resume the session. Transcripts stay in `.eval-results/`
+  (they quote instance code; git ignores them).
+- **Scoring on behavior**, from the tool-call trace and the workspace diff: tools called,
+  described before editing, no edits before approval, validated after the last edit, the end
+  state passes `validate`, the least custom record classes, record paths cited, protected files
+  and the instance's API left alone, and for trigger evaluations which skill was loaded.
+- **Scenarios**: five tasks (explain twice, design, design then build, review) and six trigger
+  phrasings (four must load a skill, two must not). **Variants** for experiment 1, how much the
+  always-loaded instructions should say: A (shipped), B (plus a question-to-tool map and the
+  CLI fallback), C (plus ServiceNow practice), and A and B without the MCP server.
+
+Findings so far: Claude Code reads skills only from `.claude/skills` (fixed in #18); the first
+run showed `describe incident` returning 73,000 characters, over Claude Code's limit for an MCP
+result, against principle 3.1.3 (fixed next, with the size-budget contract test).

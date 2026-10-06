@@ -49,6 +49,7 @@ bun run size               # no product file over 300 lines
 bun run verify             # typecheck + lint + arch + size + test: run before every commit
 bun run build              # compile the snagentic binary for this platform
 SNAGENTIC_LIVE_INSTANCE=pdi bun test tests/live   # opt-in, real instance
+bun scripts/eval/run.ts --variants A,B --reps 2   # opt-in agent evaluations (real cost)
 ```
 
 ## Repository layout

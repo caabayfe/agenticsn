@@ -26,7 +26,7 @@ export const updateSetsExport = defineUseCase({
   mcp: false,
   arguments: ["instance", "id"],
   async handle(input, context, run) {
-    const { name, profile, pager, reader } = await connect(context, input.instance);
+    const { name, profile, pager, reader } = await connect(context, input.instance, run.signal);
     const deps = { pager, statistics: reader, now: context.clock };
     const exported = await exportUpdateSet(deps, name, input.id, profile.auth.username, run.signal);
     const file = input.output ?? `${slug(exported.name)}--${exported.sysId}.xml`;

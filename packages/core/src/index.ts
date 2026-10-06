@@ -113,6 +113,11 @@ export { type CatalogProgress, fetchCatalog } from "./sync/application/fetch-cat
 export { type FingerprintOutcome, fetchFingerprints } from "./sync/application/fetch-fingerprints";
 export type { IncrementalDependencies } from "./sync/application/incremental-dependencies";
 export {
+  type InstanceStatus,
+  instanceStatus,
+  type StatusDependencies,
+} from "./sync/application/instance-status";
+export {
   type KeysetListing,
   KeysetPager,
   type PagerSettings,
@@ -165,15 +170,24 @@ export {
   type RecordChanges,
   unexplainedLoss,
 } from "./sync/domain/record-changes";
+export {
+  minutesSince,
+  nextCommand,
+  type SyncFacts,
+  type SyncPhase,
+  syncPhase,
+} from "./sync/domain/sync-phase";
 export type {
   Fingerprints,
   FinishedPull,
   IncrementalMirror,
   IntegrationResult,
+  MirrorInspector,
   MirrorIntegrator,
   MirrorMode,
   MirrorSession,
   MirrorTree,
+  MirrorView,
   MirrorWriter,
   PullCheckpoint,
   SyncState,

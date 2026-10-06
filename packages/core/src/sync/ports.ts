@@ -91,3 +91,17 @@ export interface IntegrationResult {
 export interface MirrorIntegrator {
   integrate(root: string, instance: string): Promise<IntegrationResult>;
 }
+
+export interface MirrorView {
+  // Tip of servicenow-remote/<name>; null before the first completed pull.
+  readonly remoteCommit: string | null;
+  // Pull commits on the remote branch not yet merged into the current branch.
+  readonly unintegratedPulls: number;
+  // Synced files changed locally since the last integration, committed or not, and new ones.
+  readonly localChanges: readonly string[];
+}
+
+// Reads, without changing anything, how the workspace relates to an instance's mirror.
+export interface MirrorInspector {
+  inspect(root: string, instance: string): Promise<MirrorView>;
+}

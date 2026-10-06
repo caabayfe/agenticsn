@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createProfile, InstanceName, instancePaths, type Row } from "@snagentic/core";
 import { fakeInstance } from "../../../core/test/support/fake-instance";
+import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
@@ -13,6 +14,7 @@ import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-stor
 import { executeUseCase } from "../../src/registry/execute";
 import { integrate } from "../../src/registry/integrate";
 import { pull } from "../../src/registry/pull";
+import { status } from "../../src/registry/status";
 import type { UseCaseContext } from "../../src/registry/use-case";
 import { FAKE_CONTEXT } from "../support/fakes";
 
@@ -67,6 +69,7 @@ async function setup(data: Record<string, Row[]> = structuredClone(DATA)) {
     syncState: (r, instance) => new JsonSyncStateStore(join(r, instancePaths(instance).localState)),
     mirrors: { open: (r, instance, mode) => GitMirror.open(r, instance, mode) },
     integrator: gitIntegrator,
+    inspector: gitInspector,
     host: { cwd: root, home: base, version: "test" },
   };
   return { root, context, instance };
@@ -110,6 +113,24 @@ describe("pull and integrate", () => {
     expect(script).toBe("changed();\n");
     const again = await executeUseCase(pull, { instance: "pdi", full: true }, context);
     expect(again.output).toMatchObject({ mode: "full", records: 1 });
+  });
+
+  it("tells where each instance stands, from local state only, through pull and integrate", async () => {
+    const { context, instance } = await setup();
+    const phase = async () => {
+      const { output } = await executeUseCase(status, {}, context);
+      return (output["instances"] as { phase: string; next: string }[])[0];
+    };
+    expect(await phase()).toMatchObject({ phase: "never-pulled", next: "snagentic pull pdi" });
+    await executeUseCase(pull, { instance: "pdi" }, context);
+    expect(await phase()).toMatchObject({
+      phase: "not-integrated",
+      next: "snagentic integrate pdi",
+    });
+    await executeUseCase(integrate, { instance: "pdi" }, context);
+    const requests = instance.queries.length;
+    expect(await phase()).toMatchObject({ phase: "integrated" });
+    expect(instance.queries.length).toBe(requests);
   });
 
   it("renders the summary with the instance load and the next step", () => {

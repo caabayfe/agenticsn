@@ -63,6 +63,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
     },
   },
   integrator: { integrate: async () => ({ commit: null, changedFiles: 0 }) },
+  inspector: {
+    inspect: async () => ({ remoteCommit: null, unintegratedPulls: 0, localChanges: [] }),
+  },
   clock: () => new Date("2026-10-05T12:00:00Z"),
   host: { cwd: "/work", home: "/home/me", version: "snagentic test" },
 };

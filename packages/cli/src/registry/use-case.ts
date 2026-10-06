@@ -7,6 +7,7 @@ import type {
   InstanceName,
   InstanceProfile,
   InstanceReader,
+  MirrorInspector,
   MirrorIntegrator,
   MirrorMode,
   ProfileStore,
@@ -53,6 +54,7 @@ export interface UseCaseContext {
     open(root: string, instance: InstanceName, mode: MirrorMode): Promise<IncrementalMirror>;
   };
   readonly integrator: MirrorIntegrator;
+  readonly inspector: MirrorInspector;
   readonly clock: () => Date;
   readonly host: HostEnvironment;
 }

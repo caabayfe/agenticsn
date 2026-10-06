@@ -1,4 +1,5 @@
 import { CHILD_TABLES } from "./pull-scope";
+import { formatRawTimestamp, parseRawTimestamp } from "./raw-timestamp";
 
 // Count and latest sys_updated_on of a table: inserts and updates raise the latest update,
 // deletions lower the count (ADR-0016, M4 appendix).
@@ -35,11 +36,6 @@ export function compareFingerprint(
 // watermark catches rows that were still in flight (ADR-0016).
 export const OVERLAP_MINUTES = 10;
 
-// Raw UTC "YYYY-MM-DD HH:MM:SS" timestamps.
 export function changesSince(watermark: string): string {
-  const time = Date.parse(`${watermark.replace(" ", "T")}Z`);
-  if (Number.isNaN(time)) {
-    throw new Error(`not a raw UTC timestamp: ${watermark}`);
-  }
-  return new Date(time - OVERLAP_MINUTES * 60_000).toISOString().slice(0, 19).replace("T", " ");
+  return formatRawTimestamp(parseRawTimestamp(watermark) - OVERLAP_MINUTES * 60_000);
 }

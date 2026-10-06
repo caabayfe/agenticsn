@@ -8,7 +8,7 @@ export const BUILD: Skill = {
   steps: [
     "`advise` with the same `intent` and `tables`, and `phase` build: follow its `guidance` and `rules` for the classes you touch.",
     "For each record to change, `describe` it (`target`: its path) and read the `files` it lists.",
-    "Edit the YAML and script files. For a new record, follow an existing record of the same class (`find` with `class`).",
+    "Edit the YAML and script files. For a new record, follow an existing record of the same class (`find` with `class`): a new 32-character hex sys_id, and the file named after its name in lowercase with dashes, then --<sys_id>.yaml.",
     "`validate` (no arguments: everything changed since the last commit).",
     "Fix every finding whose `severity` is block, and each warn unless the user accepts it. Repeat `validate` until it has `passed`.",
   ],
@@ -23,6 +23,6 @@ export const BUILD: Skill = {
     "When a fix would change the approved design, or a finding looks wrong (say which `ruleId` and why).",
   never: [
     "Never silence or work around a finding to make `validate` pass.",
-    "Never edit records outside the approved design, .snagentic/, or child-row files.",
+    "Never edit records outside the approved design, .snagentic/, or child-row files (<record>.children.<table>.yaml); child records with their own folder are records like any other.",
   ],
 };

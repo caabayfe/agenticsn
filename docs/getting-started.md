@@ -110,7 +110,32 @@ snagentic pull dev                                       # brings in what it ins
 Activation uses ServiceNow's CI/CD API, works on development instances only, and is never
 retried automatically: if its outcome is unclear, snagentic tells you what to check.
 
-## 7. Use it from your coding agent
+## 7. Deliver changes to a development instance
+
+Edit records as files, check them, then plan and push:
+
+```sh
+snagentic validate                      # findings the change introduced; fix every block
+snagentic plan-push                     # what would change, the gate, and collisions
+snagentic push --instance dev --plan <planId> --confirm
+snagentic pull --instance dev && snagentic integrate dev
+```
+
+`plan-push` compares the workspace with the instance as last pulled, and writes nothing. `push`
+writes only that plan, into the update set `snagentic: <branch> [<scope>]`, and stops if any
+record changed on the instance since the pull. Only development instances can be written.
+Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`:
+
+```yaml
+waivers:
+  - rule: SN-MNT-001
+    path: instances/dev/metadata/global/sys_script_include/legacy-util--*.script.js
+    reason: Known group, replaced in STRY0012345
+    approver: lead@example.com
+    expires: 2027-03-31
+```
+
+## 8. Use it from your coding agent
 
 snagentic serves its tools over MCP: `find`, `describe`, `advise` and `validate` for
 understanding and checking changes; `doctor`, `pull`, `status`, `update_sets`, `plugins`; and
@@ -123,12 +148,13 @@ snagentic agent install
 git add AGENTS.md CLAUDE.md .agents .claude && git commit -m "Add the snagentic agent pack"
 ```
 
-It adds short instructions to `AGENTS.md` (your own text there is kept) and four workflow
+It adds short instructions to `AGENTS.md` (your own text there is kept) and five workflow
 skills in `.agents/skills` (and `.claude/skills`, where Claude Code looks): `servicenow-design` (agree a design before editing),
-`servicenow-build` (edit, then `validate` until clean), `servicenow-review` and
-`servicenow-explain`. Run it again after upgrading snagentic; `doctor` warns when the pack is
+`servicenow-build` (edit, then `validate` until clean), `servicenow-review`,
+`servicenow-explain` and `servicenow-deliver` (plan, approval, push). Run it again after upgrading snagentic; `doctor` warns when the pack is
 from another version. In Claude Code the workflows are also slash commands:
-`/mcp__snagentic__design`, `/mcp__snagentic__review`, `/mcp__snagentic__explain`.
+`/mcp__snagentic__design`, `/mcp__snagentic__review`, `/mcp__snagentic__explain`,
+`/mcp__snagentic__deliver`.
 
 **Claude Code**, from inside the workspace:
 

@@ -135,10 +135,10 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 ### `find`
 
 ```
-snagentic find <text> [options]
+snagentic find [text] [options]
 ```
 
-Find where something lives in the mirrored instance: records by name (business rules, script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. Reads the workspace only. Follow up with describe on a result's path.
+Find where something lives in the mirrored instance: records by name (business rules, script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. Without text, lists records by class, table or scope. Reads the workspace only. Follow up with describe on a result's path.
 
 Changes the instance: no. MCP tool: `find`.
 
@@ -372,8 +372,8 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `verify` (boolean, optional): also compare the mirror with the instance by counts and repair differences
 - `status`: Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet integrated and local changes to synced files. Reads local state only; never calls the instance.
   - `instance` (string, optional): one instance (default: all)
-- `find`: Find where something lives in the mirrored instance: records by name (business rules, script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. Reads the workspace only. Follow up with describe on a result's path.
-  - `text` (string, required): words of the name, or the text to look for in code
+- `find`: Find where something lives in the mirrored instance: records by name (business rules, script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. Without text, lists records by class, table or scope. Reads the workspace only. Follow up with describe on a result's path.
+  - `text` (string, optional): words of the name, or the text to look for in code; empty lists by class, table or scope
   - `instance` (string, optional): default: the workspace's only instance
   - `code` (boolean, optional): search inside scripts and long fields
   - `class` (string, optional): only records of this class, such as sys_script

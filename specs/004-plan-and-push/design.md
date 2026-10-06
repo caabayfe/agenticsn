@@ -1,6 +1,6 @@
 # 004. Plan and push to development update sets
 
-- Status: Draft for review (2026-10-06)
+- Status: Implemented (2026-10-06); decisions D1-D6 open to the owner's review
 - Implements: ADR-0010 phase 3, ADR-0013 item 1 (push ships with its gate), ADR-0007 (push
   mechanics), ADR-0006 (gate and waivers), ADR-0012 (development instances only)
 - Spec 003 step 5: `plan_push`, `push`, and the `servicenow-deliver` skill
@@ -97,14 +97,13 @@ Both are MCP tools (budget: 12 → 14, D1 of spec 003). The CLI: `snagentic plan
   pushes from one branch accumulate in one update set per scope, as a developer would.
 - **D4. Collisions block by default.** A planned record held in another open update set is
   someone else's work in progress; `allowCollisions` overrides it explicitly.
-- **D6. Child rows become editable (found by the evaluation baseline).** A UI policy needs a
-  UI policy action, which the mirror keeps as a child row of the policy
-  (`<policy>.children.sys_ui_policy_action.yaml`). Agents were told never to edit those files,
-  so one stopped and another wrote the action as a separate record that the next pull would
-  duplicate. Plan will read edits to child-row files row by row (update and create by the
-  row's sys_id) so the least custom option can be built; until then the plan reports
-  child-row edits as unsupported. This lands in the push change, with the instructions and
-  the build skill updated in the same change.
+- **D6. New records carry the mirror's file name (found by the evaluation baseline).** An
+  agent stopped building a UI policy because it read "never edit child-row files" as "never
+  create child records"; UI policy actions are ordinary records with their own folder. The
+  instructions now name child-row files exactly (`<record>.children.<table>.yaml`). A second
+  agent created the action correctly, but under a file name pull would not give it, which would
+  leave two files for one record after the next pull and plan it as new again: plan now
+  reports a new record whose file name is not the one pull would write, with the right name.
 - **D5. Push does not pull.** The deliver skill runs `pull` and `integrate` after `push`;
   push stays the smallest possible write path.
 

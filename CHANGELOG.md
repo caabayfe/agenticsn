@@ -4,6 +4,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Delivery
+
+- `plan-push`: what pushing the workspace would change on the instance (fields per record,
+  new records, update sets), gated by `validate` and reviewed waivers in `waivers.yaml`, with
+  records held in other open update sets. Writes nothing; returns a plan id.
+- `push`: writes a reviewed plan to a development instance, into the update set
+  `snagentic: <branch> [<scope>]`, restoring the user's current update set afterwards; stops if a
+  record changed on the instance since the last pull; verifies each write was captured.
+- The `servicenow-deliver` skill and `deliver` prompt; `agent install` also writes skills to
+  `.claude/skills`, where Claude Code looks.
+
 ### Knowledge and governance
 
 - `find` and `describe`: search the mirrored instance and explain a table's behavior in
@@ -14,8 +25,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   (security, performance, upgradability, manageability, user experience) and reports only
   what the change introduced; exits 1 on a blocking finding. Also an MCP tool.
 - `agent install`: writes the agent pack into the workspace: instructions in `AGENTS.md`
-  (imported by `CLAUDE.md`) and the workflow skills `servicenow-design`, `-build`, `-review`
-  and `-explain` in `.agents/skills`. The MCP server sends the same instructions and offers
+  (imported by `CLAUDE.md`) and the workflow skills `servicenow-design`, `-build`, `-review`,
+  `-explain` and `-deliver` in `.agents/skills`. The MCP server sends the same instructions and offers
   the workflows as prompts; `doctor` warns when the installed pack is from another version.
 
 ## [1.0.0] - 2026-10-06

@@ -25,7 +25,7 @@ type Term = (row: Row) => boolean;
 // field>=value, field>value, field=value, fieldINa,b, fieldNOT INa,b, fieldSTARTSWITHv,
 // fieldISEMPTY
 function term(text: string): Term {
-  const match = /^([a-z0-9_]+?)(>=|>|=|NOT IN|IN|STARTSWITH|ISEMPTY)(.*)$/.exec(text);
+  const match = /^([a-z0-9_]+?)(>=|>|=|NOT IN|IN|STARTSWITH|ISNOTEMPTY|ISEMPTY)(.*)$/.exec(text);
   if (match === null) {
     throw new Error(`the fake instance does not understand "${text}"`);
   }
@@ -38,6 +38,8 @@ function term(text: string): Term {
       return (row) => read(row) > value;
     case "=":
       return (row) => read(row) === value;
+    case "ISNOTEMPTY":
+      return (row) => read(row) !== "";
     case "ISEMPTY":
       return (row) => read(row) === "";
     case "STARTSWITH":

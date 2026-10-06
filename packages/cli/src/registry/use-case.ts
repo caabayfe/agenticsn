@@ -59,6 +59,8 @@ export interface UseCaseContext {
   };
   readonly integrator: MirrorIntegrator;
   readonly inspector: MirrorInspector;
+  // Files a use case writes for the person, such as an export.
+  readonly files: { write(path: string, content: string): Promise<void> };
   readonly clock: () => Date;
   readonly host: HostEnvironment;
 }

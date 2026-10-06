@@ -217,6 +217,36 @@ export type {
   SyncStateStore,
 } from "./sync/ports";
 export {
+  type ExportedUpdateSet,
+  exportUpdateSet,
+} from "./updatesets/application/export-update-set";
+export type { UpdateSetDependencies } from "./updatesets/application/update-set-reads";
+export {
+  listUpdateSets,
+  showUpdateSet,
+  type UpdateEntry,
+  type UpdateSetSummary,
+  updateSetCollisions,
+} from "./updatesets/application/update-set-views";
+export {
+  type CapturedUpdate,
+  type Collision,
+  type CollisionReport,
+  findCollisions,
+  type Holder,
+  type OpenUpdateSet,
+} from "./updatesets/domain/collisions";
+export { UpdateSetNotFoundError } from "./updatesets/domain/errors";
+export {
+  type Application,
+  type ExportStamp,
+  exportedUpdate,
+  exportId,
+  type FieldSpec,
+  inRecordedOrder,
+  remoteUpdateSet,
+} from "./updatesets/domain/export-mapping";
+export {
   renderUnload,
   type UnloadField,
   type UnloadRecord,

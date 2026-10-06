@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { CodeHit, MirrorFiles, RecordFields } from "@snagentic/core";
+import type { CodeHit, GrepOptions, MirrorFiles, RecordFields } from "@snagentic/core";
 import { gitLines, runGit, runGitOrThrow } from "../git/run-git";
 import { scanRecord } from "../yaml/record-scan";
 
@@ -41,7 +41,9 @@ export class GitMirrorFiles implements MirrorFiles {
     );
     return {
       committed: lines(committed).map((path) => this.relative(path)),
-      dirty: [...new Set([...lines(edited), ...lines(added)])].map((path) => this.relative(path)),
+      dirty: [...new Set([...lines(edited), ...lines(added)])]
+        .map((path) => this.relative(path))
+        .sort(),
     };
   }
 
@@ -65,18 +67,22 @@ export class GitMirrorFiles implements MirrorFiles {
       .map((name) => `${directory}/${name}`);
   }
 
-  // git grep over the files as they are now (tracked files, including local edits).
-  async grep(text: string, limit: number): Promise<CodeHit[]> {
+  // git grep over the files as they are now (tracked files, including local edits), all
+  // texts in one pass over the files.
+  async grep(texts: readonly string[], options: GrepOptions): Promise<CodeHit[]> {
     const hits: CodeHit[] = [];
+    const limit = options.limit;
+    const words = options.wholeWords === true ? ["-w"] : [];
+    const patterns = texts.flatMap((text) => ["-e", text]);
     const args = [
       "grep",
       "-n",
       "-I",
       "-F",
+      ...words,
       "--full-name",
       "--no-color",
-      "-e",
-      text,
+      ...patterns,
       "--",
       this.root,
     ];

@@ -30,4 +30,11 @@ export {
 } from "./domain/behavior";
 export { type IndexedRecord, indexedRecord, type RecordFields } from "./domain/indexed-record";
 export { baseOfFile, recordBaseOfPath } from "./domain/paths";
-export type { CodeHit, IndexMarker, KnowledgeStore, MirrorFiles, SearchQuery } from "./ports";
+export type {
+  CodeHit,
+  GrepOptions,
+  IndexMarker,
+  KnowledgeStore,
+  MirrorFiles,
+  SearchQuery,
+} from "./ports";

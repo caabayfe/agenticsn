@@ -1,4 +1,6 @@
 import { Database } from "bun:sqlite";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type {
   IndexedRecord,
   IndexMarker,
@@ -7,8 +9,9 @@ import type {
   SearchQuery,
 } from "@snagentic/core";
 
-// Bump when the schema changes: an index with another version is dropped and rebuilt.
-const SCHEMA_VERSION = 1;
+// Bump when the schema or the indexing rules change (the knowledge domain: phases, names,
+// tables): an index with another version is dropped and rebuilt from the files.
+const SCHEMA_VERSION = 2;
 
 const SCHEMA = `
 create table records (
@@ -72,6 +75,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
   private readonly db: Database;
 
   constructor(path: string) {
+    mkdirSync(dirname(path), { recursive: true });
     this.db = new Database(path, { create: true });
     this.db.run("pragma journal_mode = wal");
     const version =

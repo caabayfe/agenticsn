@@ -132,6 +132,44 @@ Changes the instance: no. MCP tool: `status`.
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `find`
+
+```
+snagentic find <text> [options]
+```
+
+Find where something lives in the mirrored instance: records by name (business rules, script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. Reads the workspace only. Follow up with describe on a result's path.
+
+Changes the instance: no. MCP tool: `find`.
+
+Options:
+
+- `--instance <value>`: default: the workspace's only instance
+- `--code`: search inside scripts and long fields
+- `--class <value>`: only records of this class, such as sys_script
+- `--table <value>`: only behavior acting on this table
+- `--scope <value>`: only records of this application scope
+- `--limit <number>`: 
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `describe`
+
+```
+snagentic describe <target> [options]
+```
+
+Describe a table or a record of the mirrored instance. A table: its fields and everything that runs on it, in execution order (client scripts, UI policies, business rules before/after/async, notifications, ACLs), including what it inherits. A record (path or sys_id): its files and what refers to it. Reads the workspace only.
+
+Changes the instance: no. MCP tool: `describe`.
+
+Options:
+
+- `--instance <value>`: default: the workspace's only instance
+- `--inactive`: tables: also list inactive behavior
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `update-sets list`
 
 ```
@@ -247,6 +285,18 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `verify` (boolean, optional): also compare the mirror with the instance by counts and repair differences
 - `status`: Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet integrated and local changes to synced files. Reads local state only; never calls the instance.
   - `instance` (string, optional): one instance (default: all)
+- `find`: Find where something lives in the mirrored instance: records by name (business rules, script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. Reads the workspace only. Follow up with describe on a result's path.
+  - `text` (string, required): words of the name, or the text to look for in code
+  - `instance` (string, optional): default: the workspace's only instance
+  - `code` (boolean, optional): search inside scripts and long fields
+  - `class` (string, optional): only records of this class, such as sys_script
+  - `table` (string, optional): only behavior acting on this table
+  - `scope` (string, optional): only records of this application scope
+  - `limit` (integer, optional)
+- `describe`: Describe a table or a record of the mirrored instance. A table: its fields and everything that runs on it, in execution order (client scripts, UI policies, business rules before/after/async, notifications, ACLs), including what it inherits. A record (path or sys_id): its files and what refers to it. Reads the workspace only.
+  - `target` (string, required): a table name, a record path, or a sys_id
+  - `instance` (string, optional): default: the workspace's only instance
+  - `inactive` (boolean, optional): tables: also list inactive behavior
 - `update_sets`: Read a ServiceNow instance's update sets. action=list: open and recently changed sets with update counts. show: one set's updates (needs id). collisions: records held by more than one open set. export: write a set as ServiceNow XML (needs id). Never changes the instance.
   - `instance` (string, required)
   - `action` (list | show | collisions | export, required)

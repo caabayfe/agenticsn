@@ -8,6 +8,8 @@ import type {
   InstanceProfile,
   InstanceReader,
   InventoryReader,
+  KnowledgeStore,
+  MirrorFiles,
   MirrorInspector,
   MirrorIntegrator,
   MirrorMode,
@@ -62,6 +64,14 @@ export interface UseCaseContext {
   readonly integrator: MirrorIntegrator;
   readonly inspector: MirrorInspector;
   readonly inventory: InventoryReader;
+  // An instance's knowledge index and its files in the workspace.
+  readonly knowledge: (
+    root: string,
+    instance: InstanceName,
+  ) => {
+    readonly store: KnowledgeStore;
+    readonly files: MirrorFiles;
+  };
   // Files a use case writes for the person, such as an export.
   readonly files: { write(path: string, content: string): Promise<void> };
   readonly clock: () => Date;

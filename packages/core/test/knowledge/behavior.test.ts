@@ -10,6 +10,10 @@ describe("table behavior", () => {
     expect(phase("sys_script", { when: "after" })).toBe("after");
     expect(phase("sys_script", { when: "async" })).toBe("async");
     expect(phase("sys_script", { when: "display" })).toBe("display");
+    // Values as the platform stores them.
+    expect(phase("sys_script", { when: "before_display" })).toBe("display");
+    expect(phase("sys_script", { when: "async_always" })).toBe("async");
+    expect(phase("sys_script", { when: "" })).toBe("before");
     expect(phase("sys_script", { when: "before", action_query: "true" })).toBe("query");
   });
 

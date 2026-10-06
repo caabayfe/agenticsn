@@ -34,6 +34,11 @@ export interface KnowledgeStore {
   count(): Promise<number>;
 }
 
+export interface GrepOptions {
+  readonly limit: number;
+  readonly wholeWords?: boolean;
+}
+
 export interface CodeHit {
   // Relative to instances/<name>/metadata.
   readonly path: string;
@@ -53,6 +58,7 @@ export interface MirrorFiles {
   readRecord(path: string): Promise<RecordFields | null>;
   // Files beside a record (scripts and other long fields, child rows).
   filesOf(base: string): Promise<readonly string[]>;
-  // Fixed-string search through the files, most relevant first, at most `limit` hits.
-  grep(text: string, limit: number): Promise<readonly CodeHit[]>;
+  // Fixed-string search through the files in one pass, for any of `texts`, at most `limit`
+  // hits. With wholeWords, a match must be a whole identifier (Foo, not FooBar).
+  grep(texts: readonly string[], options: GrepOptions): Promise<readonly CodeHit[]>;
 }

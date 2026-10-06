@@ -25,12 +25,21 @@ export interface BehaviorClass {
 
 const ALWAYS = (phase: Phase) => () => phase;
 
+// The platform's stored values (measured on the PDI: before, after, before_display,
+// async_always, async; a few empty, which run as before).
+const WHEN: Readonly<Record<string, Phase>> = {
+  after: "after",
+  async: "async",
+  async_always: "async",
+  before_display: "display",
+  display: "display",
+};
+
 function businessRulePhase(fields: Readonly<Record<string, string>>): Phase {
   if (fields["action_query"] === "true") {
     return "query";
   }
-  const when = fields["when"] ?? "";
-  return when === "after" || when === "async" || when === "display" ? when : "before";
+  return WHEN[fields["when"] ?? ""] ?? "before";
 }
 
 export const BEHAVIOR_CLASSES: Readonly<Record<string, BehaviorClass>> = {

@@ -53,25 +53,22 @@ async function locate(deps: KnowledgeDependencies, target: string): Promise<Inde
   return record;
 }
 
-// Who refers to this record: its sys_id anywhere, and for script includes their name in code.
+// Who refers to this record: its sys_id anywhere, and for script includes their name in code
+// as a whole word. One pass over the files.
 async function usedBy(deps: KnowledgeDependencies, record: IndexedRecord) {
   const needles = [
     record.sysId,
     ...(record.className === "sys_script_include" && record.name !== "" ? [record.name] : []),
   ];
-  const hits = (
-    await Promise.all(needles.map((needle) => deps.files.grep(needle, USED_BY_LIMIT)))
-  ).flat();
+  const limit = USED_BY_LIMIT * 4;
+  const hits = await deps.files.grep(needles, { limit, wholeWords: true });
   const own = `${record.base}.`;
   const elsewhere = hits.filter((hit) => !hit.path.startsWith(own));
-  const bases = [
-    ...new Set(
-      elsewhere.map((hit) =>
-        hit.path.slice(0, hit.path.indexOf(".", hit.path.lastIndexOf("/") + 1)),
-      ),
+  const records = new Map(
+    (await deps.store.byBases([...new Set(elsewhere.map((hit) => baseOfFile(hit.path)))])).map(
+      (r) => [r.base, r],
     ),
-  ];
-  const records = new Map((await deps.store.byBases(bases)).map((r) => [r.base, r]));
+  );
   const seen = new Set<string>();
   const result: UsedBy[] = [];
   for (const hit of elsewhere) {
@@ -88,10 +85,7 @@ async function usedBy(deps: KnowledgeDependencies, record: IndexedRecord) {
       });
     }
   }
-  return {
-    usedBy: result.slice(0, USED_BY_LIMIT),
-    more: hits.length >= USED_BY_LIMIT * needles.length,
-  };
+  return { usedBy: result.slice(0, USED_BY_LIMIT), more: hits.length >= limit };
 }
 
 // One record, by its path or sys_id: what it is, its files, and what refers to it.

@@ -57,8 +57,16 @@ export function memoryMirror(files: Record<string, RecordFields>) {
     }),
     readRecord: async (path) => state.files[path] ?? null,
     filesOf: async (base) => state.beside[base] ?? [],
-    grep: async (text, limit) =>
-      state.code.filter((hit) => hit.text.includes(text)).slice(0, limit),
+    grep: async (texts, options) =>
+      state.code
+        .filter((hit) =>
+          texts.some((text) =>
+            options.wholeWords === true
+              ? new RegExp(`(^|[^A-Za-z0-9_])${text}([^A-Za-z0-9_]|$)`).test(hit.text)
+              : hit.text.includes(text),
+          ),
+        )
+        .slice(0, options.limit),
   };
   return { mirror, state };
 }

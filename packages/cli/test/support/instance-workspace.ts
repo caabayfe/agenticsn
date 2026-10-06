@@ -7,6 +7,8 @@ import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { gitInventoryReader } from "../../src/adapters/git/git-inventory-reader";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
+import { GitMirrorFiles } from "../../src/adapters/knowledge/git-mirror-files";
+import { SqliteKnowledgeStore } from "../../src/adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
 import { JsonSyncStateStore } from "../../src/adapters/state/json-sync-state-store";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
@@ -46,6 +48,10 @@ export async function instanceWorkspace(
     integrator: gitIntegrator,
     inspector: gitInspector,
     inventory: gitInventoryReader,
+    knowledge: (r, name) => ({
+      store: new SqliteKnowledgeStore(join(r, instancePaths(name).localState, "knowledge.sqlite")),
+      files: new GitMirrorFiles(r, instancePaths(name).metadata),
+    }),
     files: {
       write: async (path, content) => {
         written.set(path, content);

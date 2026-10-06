@@ -106,3 +106,31 @@ export function parseClaudeStreams(streams: readonly string[]): Trace {
   const { calls, skillsAvailable, costUsd, seconds, model, error } = acc;
   return { calls, replies, skillsAvailable, costUsd, seconds, model, error };
 }
+
+// The host's result event, whatever order its keys come in.
+function isResult(line: string): boolean {
+  if (!line.startsWith("{")) {
+    return false;
+  }
+  try {
+    return JSON.parse(line).type === "result";
+  } catch {
+    return false;
+  }
+}
+
+// Saved transcripts hold every turn's stream one after another; each turn ends with its
+// `result` event.
+export function splitTurns(text: string): string[] {
+  const turns: string[] = [];
+  let current: string[] = [];
+  for (const line of text.split("\n")) {
+    current.push(line);
+    if (isResult(line)) {
+      turns.push(current.join("\n"));
+      current = [];
+    }
+  }
+  const rest = current.join("\n").trim();
+  return rest === "" ? turns : [...turns, rest];
+}

@@ -11,7 +11,7 @@ import {
   validatedAfterLastEdit,
 } from "../../scripts/eval/checks";
 import { renderReport, summarize } from "../../scripts/eval/report";
-import { parseClaudeStreams } from "../../scripts/eval/trace";
+import { parseClaudeStreams, splitTurns } from "../../scripts/eval/trace";
 import type { RunResult, ToolCall, Trace, WorkspaceChanges } from "../../scripts/eval/types";
 
 const line = (event: unknown) => JSON.stringify(event);
@@ -68,6 +68,25 @@ describe("parseClaudeStreams", () => {
     });
   });
 
+  it("splits a saved transcript back into its turns", () => {
+    const turns = splitTurns(
+      [
+        '{"type":"system"}',
+        '{"type":"result","a":1}',
+        '{"type":"system"}',
+        '{"type":"result","a":2}',
+        "",
+      ].join("\n"),
+    );
+    expect(turns).toEqual([
+      '{"type":"system"}\n{"type":"result","a":1}',
+      '{"type":"system"}\n{"type":"result","a":2}',
+    ]);
+    expect(splitTurns('{"type":"system"}\n{"type":"assistant"}')).toEqual([
+      '{"type":"system"}\n{"type":"assistant"}',
+    ]);
+  });
+
   it("keeps calls that were cut off before their result", () => {
     const trace = parseClaudeStreams([use("t1", "mcp__snagentic__find", { text: "x" })]);
     expect(trace.calls).toEqual([
@@ -111,6 +130,37 @@ describe("behavior checks", () => {
       passed: true,
       detail: "no edits",
     });
+  });
+
+  it("counts the same tools called through the CLI, when the agent has no MCP server", () => {
+    const cli = (command: string, result = "") => call("Bash", { command }, { result });
+    expect(
+      usedTool("describe").run(trace([cli("snagentic describe incident --format agent")]), NONE)
+        .passed,
+    ).toBe(true);
+    expect(
+      usedTool("plan_push").run(trace([cli("cd x; snagentic plan-push 2>&1 | head")]), NONE).passed,
+    ).toBe(true);
+    expect(usedTool("describe").run(trace([cli("snagentic describer")]), NONE).passed).toBe(false);
+    const check = validatedAfterLastEdit();
+    expect(
+      check.run(
+        trace([
+          edit(),
+          cli("snagentic validate", "1 record(s) checked against HEAD: 0 block, 1 warn, 0 info"),
+        ]),
+        NONE,
+      ).passed,
+    ).toBe(true);
+    expect(
+      check.run(
+        trace([
+          edit(),
+          cli("snagentic validate", "1 record(s) checked against HEAD: 2 block, 0 warn, 0 info"),
+        ]),
+        NONE,
+      ).passed,
+    ).toBe(false);
   });
 
   it("requires a passing validate after the last edit", () => {

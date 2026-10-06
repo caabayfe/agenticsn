@@ -1,0 +1,34 @@
+# Homebrew formula for snagentic, filled in from a release's SHA256SUMS
+# (VERSION, SHA_MACOS_ARM64, SHA_LINUX_X64, SHA_LINUX_ARM64) and published to the tap.
+class Snagentic < Formula
+  desc "Develop, audit and validate ServiceNow with any coding agent, using git"
+  homepage "https://github.com/caabayfe/agenticsn"
+  version "VERSION"
+  license "UNDECIDED"
+
+  on_macos do
+    on_arm do
+      url "https://github.com/caabayfe/agenticsn/releases/download/vVERSION/snagentic-macos-arm64"
+      sha256 "SHA_MACOS_ARM64"
+    end
+  end
+
+  on_linux do
+    on_intel do
+      url "https://github.com/caabayfe/agenticsn/releases/download/vVERSION/snagentic-linux-x64"
+      sha256 "SHA_LINUX_X64"
+    end
+    on_arm do
+      url "https://github.com/caabayfe/agenticsn/releases/download/vVERSION/snagentic-linux-arm64"
+      sha256 "SHA_LINUX_ARM64"
+    end
+  end
+
+  def install
+    bin.install Dir["snagentic-*"].first => "snagentic"
+  end
+
+  test do
+    assert_match "snagentic #{version}", shell_output("#{bin}/snagentic --version")
+  end
+end

@@ -1,4 +1,6 @@
 // Public API of @snagentic/core. Other packages import only from here.
+
+export { measureServerCost } from "./connection/application/measure-server-cost";
 export {
   ConcurrencyController,
   type ConcurrencySettings,
@@ -23,6 +25,8 @@ export type {
   ConnectionStats,
   InstanceReader,
   Row,
+  ServerCost,
+  ServerCostReader,
   TableQuery,
   TableStatistics,
 } from "./connection/ports";

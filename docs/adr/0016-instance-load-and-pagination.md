@@ -260,3 +260,22 @@ The learning run is paid once per workspace (and again after a full pull). Known
 content-only changes with system fields disabled stay invisible (verification checks
 existence, not content); a part whose remembered gap and a real loss cancel out is missed.
 Peak memory of a verification is about 0.9 GB on the PDI (mirror index and child-row owners).
+
+## Appendix: server cost, measured by every pull (M4, 2026-10-06)
+
+ServiceNow logs every request in `syslog_transaction` (response, SQL, CPU, ACL and business
+rule time; SQL query count; semaphore wait). Each connection now tags its requests with a run
+id in the User-Agent (`snagentic <version> run/<8 hex>`), and every pull ends with one
+aggregate request summing its own logged transactions. The time filter starts five minutes
+before the pull, so a skewed local clock cannot hide requests; the tag does the matching.
+Users who may not read the log (usually read-only users) get "unavailable", never a failed pull.
+
+Live on the PDI:
+
+| Pull | Requests | Server time | SQL | Slowest transaction |
+|---|---|---|---|---|
+| Nothing changed | 20 | 4.1 s | 2.9 s in 568 queries | 1.9 s: `sys_metadata` count + latest update |
+| `--verify`, steady state | 59 | 15.9 s | 9.4 s in 1,646 queries | 3.7 s: `sys_metadata` grouped by scope |
+
+The `sys_metadata` aggregates dominate: about half of an idle pull's server time. The child
+tables' 19 fingerprints together cost less than that one request.

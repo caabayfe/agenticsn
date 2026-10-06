@@ -79,6 +79,7 @@ describe("pull and integrate", () => {
   it("pulls an instance into its remote branch, reports the load, and integrates it", async () => {
     const { root, context } = await setup();
     const { output } = await executeUseCase(pull, { instance: "pdi" }, context);
+    expect(output["serverCost"]).toMatchObject({ transactions: expect.any(Number) });
     expect(output).toMatchObject({
       instance: "pdi",
       mode: "full",
@@ -163,8 +164,22 @@ describe("pull and integrate", () => {
         peakConcurrency: 3,
         requestSeconds: 2.4,
         peakMemoryMb: 120,
+        serverCost: {
+          transactions: 9,
+          responseMs: 21_340,
+          maxResponseMs: 3_100,
+          sqlMs: 9_120,
+          sqlQueries: 812,
+          cpuMs: 4_200,
+          businessRuleMs: 100,
+          aclMs: 300,
+          semaphoreWaitMs: 0,
+        },
       },
       "text",
+    );
+    expect(text).toContain(
+      "server cost: 21.3 s in 9 logged transactions (slowest 3.1 s); SQL 9.1 s in 812 queries; CPU 4.2 s; ACLs 0.3 s; business rules 0.1 s",
     );
     expect(text).toContain("pulled pdi (resumed) in 1.5 s -> abcdef1234 on servicenow-remote/pdi");
     expect(text).toContain(
@@ -196,6 +211,7 @@ describe("pull and integrate", () => {
       peakConcurrency: 4,
       requestSeconds: 9,
       peakMemoryMb: 80,
+      serverCost: null,
     };
     const incremental = {
       changedSources: ["sys_metadata", "sys_ui_element"],
@@ -216,6 +232,7 @@ describe("pull and integrate", () => {
     const idle = pull.render({ ...base, changed: false, incremental }, "text");
     expect(idle).toStartWith("pdi is up to date (3.2 s)");
     expect(idle).not.toContain("next:");
+    expect(idle).toContain("server cost: unavailable (this user cannot read the transaction log)");
     const lost = pull.render(
       { ...base, changed: false, incremental: { ...incremental, lostRecords: 2 } },
       "text",

@@ -45,3 +45,23 @@ export interface TableStatistics {
   // Rows matching an encoded query (indexed fields only), in one aggregate request.
   count(table: TableName, query: string, signal: AbortSignal): Promise<number>;
 }
+
+// What the instance's transaction log records for a set of requests (ASR-16: server cost is
+// measured, not assumed). Times are milliseconds of server time.
+export interface ServerCost {
+  readonly transactions: number;
+  readonly responseMs: number;
+  readonly maxResponseMs: number;
+  readonly sqlMs: number;
+  readonly sqlQueries: number;
+  readonly cpuMs: number;
+  readonly businessRuleMs: number;
+  readonly aclMs: number;
+  readonly semaphoreWaitMs: number;
+}
+
+export interface ServerCostReader {
+  // The logged cost of this connection's own requests since `since` (raw UTC), in one
+  // aggregate request on the transaction log.
+  serverCost(since: string, signal: AbortSignal): Promise<ServerCost>;
+}

@@ -49,6 +49,9 @@ async function setup() {
         fingerprint: async () => ({ count: 0, maxUpdatedOn: null }),
         countBy: async () => new Map(),
         count: async () => 0,
+        serverCost: async () => {
+          throw new Error("not used");
+        },
         stats: () => ({
           requests: 3,
           retries: 0,

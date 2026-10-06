@@ -11,6 +11,7 @@ import type {
   MirrorIntegrator,
   MirrorMode,
   ProfileStore,
+  ServerCostReader,
   SyncStateStore,
   TableStatistics,
   WorkspaceStore,
@@ -37,7 +38,10 @@ export interface SecretReader {
 
 // Opens a connection to an instance; every connection has its own request scheduler.
 export interface ConnectionFactory {
-  open(profile: InstanceProfile, secret: string): InstanceReader & TableStatistics;
+  open(
+    profile: InstanceProfile,
+    secret: string,
+  ): InstanceReader & TableStatistics & ServerCostReader;
 }
 
 // The ports use cases need, wired by the composition root (main.ts).

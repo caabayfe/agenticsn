@@ -8,7 +8,17 @@ const result = (id: string, passed: boolean, detail: string): CheckResult => ({
   passed,
   detail,
 });
-const isTool = (call: ToolCall, tool: string) => call.name === `mcp__snagentic__${tool}`;
+// An MCP tool call, or the same tool through the CLI (`snagentic plan-push` for plan_push),
+// which agents use when they have no MCP server.
+const isTool = (call: ToolCall, tool: string) =>
+  call.name === `mcp__snagentic__${tool}` ||
+  (call.name === "Bash" &&
+    new RegExp(`(^|[;&|\\s])snagentic ${tool.replaceAll("_", "-")}(\\s|$)`).test(
+      String(call.input["command"] ?? ""),
+    ));
+// validate passed: as JSON (MCP) or in the CLI's summary line.
+const passedValidate = (result: string) =>
+  /"passed":\s*true/.test(result) || /: 0 block,/.test(result) || /no changed records/.test(result);
 const pathOf = (call: ToolCall) =>
   typeof call.input["file_path"] === "string" ? call.input["file_path"] : "";
 const isEdit = (call: ToolCall) =>
@@ -93,7 +103,7 @@ export function validatedAfterLastEdit(): Check {
     run: (trace) => {
       const lastEdit = trace.calls.findLastIndex(isEdit);
       const after = trace.calls.slice(lastEdit + 1).filter((call) => isTool(call, "validate"));
-      const passed = after.some((call) => /"passed":\s*true/.test(call.result));
+      const passed = after.some((call) => passedValidate(call.result));
       return result(id, passed, `${after.length} validate call(s) after the last edit`);
     },
   };

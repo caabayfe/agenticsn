@@ -1,4 +1,4 @@
-import type { ConnectionStats, IncrementalSummary, PullSummary } from "@snagentic/core";
+import type { ConnectionStats, IncrementalSummary, PullSummary, ServerCost } from "@snagentic/core";
 import { z } from "zod";
 
 export const PullOutput = z.object({
@@ -18,6 +18,21 @@ export const PullOutput = z.object({
   requestSeconds: z.number(),
   seconds: z.number(),
   peakMemoryMb: z.number(),
+  // Server time this run's requests cost, from the instance's transaction log; null when the
+  // log cannot be read.
+  serverCost: z
+    .object({
+      transactions: z.number(),
+      responseMs: z.number(),
+      maxResponseMs: z.number(),
+      sqlMs: z.number(),
+      sqlQueries: z.number(),
+      cpuMs: z.number(),
+      businessRuleMs: z.number(),
+      aclMs: z.number(),
+      semaphoreWaitMs: z.number(),
+    })
+    .nullable(),
   full: z
     .object({
       classes: z.number(),
@@ -72,6 +87,7 @@ export interface RunFacts {
   readonly started: number;
   readonly committing: number;
   readonly peakMemoryMb: number;
+  readonly serverCost: ServerCost | null;
 }
 
 function common(facts: RunFacts, summary: { unreadable: readonly string[]; watermark: string }) {
@@ -89,6 +105,7 @@ function common(facts: RunFacts, summary: { unreadable: readonly string[]; water
     requestSeconds: tenths(facts.stats.requestMs),
     seconds: tenths(performance.now() - facts.started),
     peakMemoryMb: facts.peakMemoryMb,
+    serverCost: facts.serverCost,
   };
 }
 
@@ -129,8 +146,20 @@ export function incrementalOutput(facts: RunFacts, summary: IncrementalSummary):
   };
 }
 
+const seconds = (milliseconds: number) => `${Math.round(milliseconds / 100) / 10} s`;
+
+function serverLine(cost: PullOutput["serverCost"]): string {
+  if (cost === null) {
+    return "  server cost: unavailable (this user cannot read the transaction log)";
+  }
+  return `  server cost: ${seconds(cost.responseMs)} in ${cost.transactions} logged transactions (slowest ${seconds(cost.maxResponseMs)}); SQL ${seconds(cost.sqlMs)} in ${cost.sqlQueries} queries; CPU ${seconds(cost.cpuMs)}; ACLs ${seconds(cost.aclMs)}; business rules ${seconds(cost.businessRuleMs)}`;
+}
+
 function load(output: PullOutput): string {
-  return `  instance load: ${output.requests} requests, ${output.retries} retries, semaphore wait ${output.semaphoreWaitMs} ms, peak concurrency ${output.peakConcurrency}`;
+  return [
+    `  instance load: ${output.requests} requests, ${output.retries} retries, semaphore wait ${output.semaphoreWaitMs} ms, peak concurrency ${output.peakConcurrency}`,
+    serverLine(output.serverCost),
+  ].join("\n");
 }
 
 function renderFull(output: PullOutput, full: NonNullable<PullOutput["full"]>): string[] {

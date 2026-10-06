@@ -77,7 +77,7 @@ describe("ServiceNowClient", () => {
     expect(sent[0]?.headers).toMatchObject({
       Authorization: `Basic ${btoa(`admin:${SECRET}`)}`,
       Accept: "application/json",
-      "User-Agent": "snagentic 1.2.3",
+      "User-Agent": expect.stringMatching(/^snagentic 1\.2\.3 run\/[0-9a-f]{8}$/),
     });
   });
 
@@ -245,5 +245,59 @@ describe("ServiceNowClient.count", () => {
     expect(new URL(sent[0]?.url ?? "").searchParams.get("sysparm_query")).toBe(
       "sys_class_nameNOT INa,b",
     );
+  });
+});
+
+describe("ServiceNowClient.serverCost", () => {
+  const LOGGED =
+    '{"result":{"stats":{"max":{"response_time":"367"},"count":"3","sum":{"cpu_time":"41",' +
+    '"acl_time":"22","business_rule_time":"0","sql_count":"87","response_time":"575",' +
+    '"sql_time":"182","semaphore_wait_time":"2"}}}}';
+
+  it("sums this connection's own logged transactions in one aggregate request", async () => {
+    const { client, sent } = clientWith(async (request) =>
+      response(200, request.url.includes("/stats/") ? LOGGED : '{"result":[]}'),
+    );
+    await client.query(QUERY, LIVE);
+    expect(await client.serverCost("2026-10-06 10:00:00", LIVE)).toEqual({
+      transactions: 3,
+      responseMs: 575,
+      maxResponseMs: 367,
+      sqlMs: 182,
+      sqlQueries: 87,
+      cpuMs: 41,
+      businessRuleMs: 0,
+      aclMs: 22,
+      semaphoreWaitMs: 2,
+    });
+    const agent = sent[0]?.headers["User-Agent"];
+    const url = new URL(sent[1]?.url ?? "");
+    expect(url.pathname).toBe("/api/now/stats/syslog_transaction");
+    expect(url.searchParams.get("sysparm_query")).toBe(
+      `sys_created_on>=2026-10-06 10:00:00^user_agent=${agent}`,
+    );
+  });
+
+  it("tags each connection's requests differently, so runs are told apart", async () => {
+    const one = clientWith(async () => response(200, '{"result":[]}'));
+    const two = clientWith(async () => response(200, '{"result":[]}'));
+    await one.client.query(QUERY, LIVE);
+    await two.client.query(QUERY, LIVE);
+    expect(one.sent[0]?.headers["User-Agent"]).not.toBe(two.sent[0]?.headers["User-Agent"]);
+  });
+
+  it("reads an empty log as no transactions", async () => {
+    const { client } = clientWith(async () => response(200, '{"result":{"stats":{"count":"0"}}}'));
+    expect(await client.serverCost("2026-10-06 10:00:00", LIVE)).toMatchObject({
+      transactions: 0,
+      responseMs: 0,
+    });
+  });
+
+  it("reports an unexpected answer", async () => {
+    const { client } = clientWith(async () => response(200, '{"result":[]}'));
+    await expect(client.serverCost("2026-10-06 10:00:00", LIVE)).rejects.toMatchObject({
+      code: "instance-error",
+    });
   });
 });

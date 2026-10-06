@@ -8,8 +8,10 @@ import {
   instancePaths,
   KeysetPager,
   type MirrorMode,
+  measureServerCost,
   pullFull,
   pullIncremental,
+  rawTimestamp,
   resolveSecret,
   SnagenticError,
 } from "@snagentic/core";
@@ -108,19 +110,25 @@ export const pull = defineUseCase({
   arguments: ["instance"],
   async handle(input, context, run) {
     const started = performance.now();
+    // The transaction log is searched from a little before the start, so a skewed local
+    // clock cannot hide requests; the run tag in the User-Agent does the matching.
+    const since = rawTimestamp(new Date(context.clock().getTime() - 5 * 60_000));
     const session = await openSession(input, context);
     const memory = memorySampler(run);
-    const facts = (finished: FinishedPull, committing: number): RunFacts => {
+    const facts = async (finished: FinishedPull, committing: number): Promise<RunFacts> => {
       memory.sample();
+      // Read before measuring, so the measuring request is not counted as part of the pull.
+      const stats = session.reader.stats();
       return {
         instance: session.name,
         resumed: session.mode === "resume",
         commit: finished.commit,
         changed: finished.created,
-        stats: session.reader.stats(),
+        stats,
         started,
         committing,
         peakMemoryMb: memory.peakMb(),
+        serverCost: await measureServerCost(session.reader, since, run.signal),
       };
     };
     const { deps, mirror, name } = session;
@@ -134,7 +142,7 @@ export const pull = defineUseCase({
           `snagentic pull ${name}: changes in ${summary.changedSources.join(", ")}`,
         );
         await completePull(deps.state, summary.next);
-        return incrementalOutput(facts(finished, committing), summary);
+        return incrementalOutput(await facts(finished, committing), summary);
       }
       const summary = await pullFull(deps, run.signal, memory.progress);
       const committing = performance.now();
@@ -142,7 +150,7 @@ export const pull = defineUseCase({
         `snagentic pull ${name}: full (${summary.records} records, ${summary.childRows} child rows)`,
       );
       await completePull(deps.state, summary.next);
-      return fullOutput(facts(finished, committing), summary);
+      return fullOutput(await facts(finished, committing), summary);
     } catch (error) {
       await mirror.abort();
       throw error;

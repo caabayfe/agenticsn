@@ -6,8 +6,10 @@ import {
   type InstanceProfile,
   type InstanceReader,
   type Row,
+  type ServerCost,
+  type ServerCostReader,
   type TableFingerprint,
-  type TableName,
+  TableName,
   type TableQuery,
   type TableStatistics,
 } from "@snagentic/core";
@@ -30,6 +32,24 @@ interface StatsResult {
   groupby_fields?: { field?: string; value?: string }[];
 }
 
+const COST_FIELDS = [
+  "response_time",
+  "sql_time",
+  "sql_count",
+  "cpu_time",
+  "business_rule_time",
+  "acl_time",
+  "semaphore_wait_time",
+];
+
+interface CostResult {
+  stats?: {
+    count?: string;
+    sum?: Record<string, string | undefined>;
+    max?: { response_time?: string };
+  };
+}
+
 function countOf(result: StatsResult | null | undefined): number | null {
   const count = Number(result?.stats?.count);
   return Number.isInteger(count) && count >= 0 ? count : null;
@@ -37,8 +57,10 @@ function countOf(result: StatsResult | null | undefined): number | null {
 
 // The only place that builds Table API and Aggregate API requests, so ADR-0016's rules hold
 // everywhere: explicit fields, raw values, no reference links, no row counts on listings.
-export class ServiceNowClient implements InstanceReader, TableStatistics {
+export class ServiceNowClient implements InstanceReader, TableStatistics, ServerCostReader {
   private readonly headers: Readonly<Record<string, string>>;
+  // Unique per connection, so the transaction log can tell this run's requests apart.
+  private readonly userAgent: string;
 
   constructor(
     private readonly profile: InstanceProfile,
@@ -46,10 +68,11 @@ export class ServiceNowClient implements InstanceReader, TableStatistics {
     private readonly scheduler: RequestScheduler,
     version: string,
   ) {
+    this.userAgent = `${version} run/${crypto.randomUUID().slice(0, 8)}`;
     this.headers = {
       Authorization: `Basic ${btoa(`${profile.auth.username}:${secret}`)}`,
       Accept: "application/json",
-      "User-Agent": version,
+      "User-Agent": this.userAgent,
     };
   }
 
@@ -147,6 +170,35 @@ export class ServiceNowClient implements InstanceReader, TableStatistics {
       signal,
     );
     return { response, result: await this.result(response, what) };
+  }
+
+  async serverCost(since: string, signal: AbortSignal): Promise<ServerCost> {
+    const what = "statistics of syslog_transaction";
+    const params = {
+      sysparm_query: `sys_created_on>=${since}^user_agent=${this.userAgent}`,
+      sysparm_count: "true",
+      sysparm_sum_fields: COST_FIELDS.join(","),
+      sysparm_max_fields: "response_time",
+    };
+    const table = TableName.parse("syslog_transaction");
+    const { response, result } = await this.aggregate(table, params, signal, what);
+    const stats = (result as CostResult | null)?.stats;
+    const transactions = Number(stats?.count);
+    if (!Number.isInteger(transactions)) {
+      throw this.unexpected(response, what);
+    }
+    const sum = (field: string) => Number(stats?.sum?.[field] ?? 0) || 0;
+    return {
+      transactions,
+      responseMs: sum("response_time"),
+      maxResponseMs: Number(stats?.max?.response_time ?? 0) || 0,
+      sqlMs: sum("sql_time"),
+      sqlQueries: sum("sql_count"),
+      cpuMs: sum("cpu_time"),
+      businessRuleMs: sum("business_rule_time"),
+      aclMs: sum("acl_time"),
+      semaphoreWaitMs: sum("semaphore_wait_time"),
+    };
   }
 
   stats(): ConnectionStats {

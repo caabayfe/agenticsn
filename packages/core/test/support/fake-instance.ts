@@ -3,6 +3,7 @@ import {
   type ConnectionStats,
   type InstanceReader,
   type Row,
+  type ServerCostReader,
   type TableFingerprint,
   type TableName,
   type TableQuery,
@@ -90,7 +91,7 @@ export function fakeInstance(tables: Record<string, Row[]>, denied: readonly str
     table === "sys_metadata"
       ? Object.values(tables).flatMap((rows) => rows.filter((row) => row["sys_class_name"]))
       : (tables[table] ?? []);
-  const reader: InstanceReader & TableStatistics = {
+  const reader: InstanceReader & TableStatistics & ServerCostReader = {
     query: async (query) => {
       queries.push(query);
       if (denied.includes(query.table)) {
@@ -125,6 +126,17 @@ export function fakeInstance(tables: Record<string, Row[]>, denied: readonly str
       }
       return counts;
     },
+    serverCost: async () => ({
+      transactions: queries.length,
+      responseMs: 100 * queries.length,
+      maxResponseMs: 100,
+      sqlMs: 40 * queries.length,
+      sqlQueries: 5 * queries.length,
+      cpuMs: 10 * queries.length,
+      businessRuleMs: 0,
+      aclMs: queries.length,
+      semaphoreWaitMs: 0,
+    }),
     stats: () => STATS,
   };
   return { reader, queries, fingerprints, counted, tables };

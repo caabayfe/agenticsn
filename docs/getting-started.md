@@ -2,10 +2,11 @@
 
 snagentic mirrors a ServiceNow instance's metadata into a git repository, so you and your
 coding agent (Claude Code, GitHub Copilot, Codex…) can read, search and change it as files.
-v1.0 syncs everything, keeps it fresh incrementally, and adds update-set and plugin actions.
-It never writes metadata to ServiceNow; its only write is activating a plugin on a
-development instance.
+It syncs everything and keeps it fresh incrementally, explains and searches the mirror,
+checks changes against platform rules, and pushes reviewed changes to development update
+sets. It writes only to development instances; test and production are read-only.
 
+New to snagentic? The [product overview](product/overview.md) explains what it is for.
 Every command is described in the [command reference](reference/commands.md).
 
 ## 1. Install

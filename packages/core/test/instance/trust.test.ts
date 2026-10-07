@@ -82,11 +82,15 @@ describe("a secret is released only for the settings it was stored for (ADR-0020
   });
 });
 
-function instance(roles: string[] | Error) {
+// The signed-in user is `session`; the profile's username is "svc".
+function instance(roles: string[] | Error, session = "svc") {
   const reader: InstanceReader = {
-    query: async () => {
+    query: async (query) => {
       if (roles instanceof Error) {
         throw roles;
+      }
+      if (query.table === "sys_user") {
+        return session === "" ? [] : [{ user_name: session }];
       }
       return roles.includes("snc_read_only") ? [{ sys_id: "r1" }] : [];
     },
@@ -137,6 +141,27 @@ describe("login stores nothing unless the typed password works and matches the k
     await expect(
       login(PROD, "bad", store, instance(new AuthenticationFailedError("prod")), LIVE),
     ).rejects.toMatchObject({ code: "authentication-failed" });
+    expect(stored).toEqual([]);
+  });
+
+  it("refuses when the instance signs in a different user than instance.yaml names", async () => {
+    const { store, stored } = recording();
+    await expect(
+      login(PROD, "pw", store, instance(["snc_read_only"], "oauth_app_user"), LIVE),
+    ).rejects.toMatchObject({
+      code: "identity-mismatch",
+      category: "not-permitted",
+      message: expect.stringContaining("signed in as oauth_app_user"),
+      hint: expect.stringContaining("instances/prod/instance.yaml"),
+    });
+    expect(stored).toEqual([]);
+  });
+
+  it("refuses when the signed-in user cannot be read", async () => {
+    const { store, stored } = recording();
+    await expect(
+      login(PROD, "pw", store, instance(["snc_read_only"], ""), LIVE),
+    ).rejects.toMatchObject({ code: "identity-unverified" });
     expect(stored).toEqual([]);
   });
 });

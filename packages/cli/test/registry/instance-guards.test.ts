@@ -17,7 +17,7 @@ async function workspace(kind: "development" | "test" | "production", roles: str
     {
       sys_user_has_role: roles.map((role, i) => ({
         sys_id: `r${i}`,
-        "user.user_name": "admin",
+        user: "u1",
         state: "active",
         "role.name": role,
       })),

@@ -58,9 +58,12 @@ export {
   ReadOnlyCredentialRequiredError,
   verifyCredentialMatchesKind,
   verifyReadOnlyCredential,
+  verifySessionIdentity,
 } from "./instance/application/verify-access";
 export {
   CredentialsMissingError,
+  IdentityMismatchError,
+  IdentityUnverifiedError,
   InstanceExistsError,
   InstanceNotFoundError,
   InstanceUrlExistsError,
@@ -111,6 +114,7 @@ export { InstanceName } from "./kernel/instance-name";
 export { HASH_EXCLUDED_FIELDS, recordHash } from "./kernel/record-hash";
 export { redactSecrets } from "./kernel/redact";
 export { ScopeName } from "./kernel/scope-name";
+export { SESSION_USER } from "./kernel/session-user";
 export { slug } from "./kernel/slug";
 export { SysId } from "./kernel/sys-id";
 export { TableName } from "./kernel/table-name";

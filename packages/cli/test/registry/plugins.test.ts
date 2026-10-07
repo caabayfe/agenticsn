@@ -112,7 +112,7 @@ describe("plugins activate", () => {
         v_plugin: [{ sys_id: "p1", id: "com.snc.cool", name: "Cool plugin", active }],
         sys_user_has_role: roles.map((role) => ({
           sys_id: role,
-          "user.user_name": "admin",
+          user: "u1",
           state: "active",
           "role.name": role,
         })),

@@ -1,5 +1,6 @@
 import type { InstanceReader } from "../../connection/ports";
 import type { Row } from "../../kernel/row";
+import { SESSION_USER } from "../../kernel/session-user";
 import { TableName } from "../../kernel/table-name";
 import { artifactFromRow } from "../../metadata/domain/artifact";
 import type { Catalog } from "../../metadata/domain/catalog";
@@ -29,8 +30,10 @@ async function first(
   return rows[0] ?? null;
 }
 
+// The signed-in user (ADR-0021), whose current update set the push sets; `username` names it
+// in errors only.
 export async function userSysId(session: InstanceSession, username: string): Promise<string> {
-  const user = await first(session, "sys_user", `user_name=${username}`, ["sys_id"]);
+  const user = await first(session, "sys_user", `sys_id=${SESSION_USER}`, ["sys_id"]);
   if (user === null || (user["sys_id"] ?? "") === "") {
     throw new IntegrationUserNotFoundError(username);
   }

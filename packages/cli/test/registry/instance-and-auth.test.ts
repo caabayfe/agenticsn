@@ -60,7 +60,7 @@ async function setup() {
                     query.query.includes("role.nameIN"),
                 )
                 .map((role) => ({ "role.name": role, sys_id: role }))
-            : [{ sys_id: "u1", sys_updated_on: "2026-09-23 20:12:26" }],
+            : [{ sys_id: "u1", user_name: "admin", sys_updated_on: "2026-09-23 20:12:26" }],
         fingerprint: async () => ({ count: 0, maxUpdatedOn: null }),
         writer: {
           insert: async () => ({}),

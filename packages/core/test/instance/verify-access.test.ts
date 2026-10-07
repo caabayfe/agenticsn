@@ -39,8 +39,9 @@ describe("verifyReadOnlyCredential (ADR-0012 layer 4)", () => {
     async (kind) => {
       const { fake, queries } = reader(["snc_read_only"]);
       await verifyReadOnlyCredential(profile(kind), fake, LIVE);
+      // ADR-0021: the signed-in session, never the editable username in instance.yaml.
       expect(queries[0]?.query).toBe(
-        "user.user_name=svc_snagentic^state=active^role.name=snc_read_only",
+        "user=javascript:gs.getUserID()^state=active^role.name=snc_read_only",
       );
     },
   );

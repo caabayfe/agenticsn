@@ -175,11 +175,19 @@ describe("push", () => {
     expect(result).toMatchObject({ notCaptured: 1, written: [{ captured: false }] });
   });
 
-  it("refuses when the instance has no user for the connection", async () => {
-    const { deps } = pushSetup();
-    const missing = { ...deps, username: "ghost" };
-    await expect(push(missing, { ...QUERY, planId: await planned(deps) })).rejects.toMatchObject({
+  it("refuses when the signed-in user cannot be read", async () => {
+    const { deps, tables } = pushSetup();
+    tables["sys_user"] = [];
+    await expect(push(deps, { ...QUERY, planId: await planned(deps) })).rejects.toMatchObject({
       code: "integration-user-not-found",
     });
+  });
+
+  it("sets the update set for the signed-in user, whatever instance.yaml names (ADR-0021)", async () => {
+    const { deps, tables } = pushSetup();
+    const renamed = { ...deps, username: "someone_else" };
+    await push(renamed, { ...QUERY, planId: await planned(deps) });
+    const preference = (tables["sys_user_preference"] ?? [])[0];
+    expect(preference).toMatchObject({ user: "u1", name: "sys_update_set" });
   });
 });

@@ -151,3 +151,6 @@ pull with no changes costs 22 requests and 3.2 s of server time.
   troubleshooting features are built.
 - Hooks for VS Code without `chat.useClaudeHooks`, the Copilot cloud agent and Codex.
 - Code signing.
+- **ADR-0020 (proposed):** trust an instance's kind and address from a record outside the
+  repository, and pin CI credentials to a host. Today a shell command that edits
+  `instance.yaml` could turn a production profile into a development one.

@@ -25,6 +25,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0017](0017-flat-record-layout-and-full-sync.md) | Flat record layout and full sync by default | Accepted |
 | [0018](0018-update-sets-read-live.md) | Update sets are read live, and exported from reads | Accepted |
 | [0019](0019-engine-served-through-mcp.md) | The engine is served through MCP; the harness only triggers it | Accepted |
+| [0020](0020-instance-trust-outside-the-repository.md) | Instance kind and address are trusted from outside the repository | Proposed |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

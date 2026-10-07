@@ -19,8 +19,9 @@ This is a clean rebuild of `../snagentic` (v1). v1 is a **reference for algorith
 fixtures and ServiceNow behavior, not code to copy**. v1 failed through scope creep and
 mixed layers; don't repeat that.
 
-**Status:** v1.0 milestones M0–M7 are done (`specs/002-v1.0-release/plan.md`); M8 (release)
-is next. User documentation: `docs/getting-started.md` and the generated
+**Status:** v1.0.0 was released on 2026-10-06 (`specs/002-v1.0-release/plan.md`); v1.1.0
+adds knowledge, governance, the agent pack and delivery (specs 003 and 004). The product
+story is in `README.md` and `docs/product/`. User documentation: `docs/getting-started.md` and the generated
 `docs/reference/commands.md` (`bun run docs` regenerates it; a test fails when it is stale).
 
 **Toolchain note:** TypeScript is pinned to 6.x on purpose. TypeScript 7 (the native

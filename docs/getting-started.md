@@ -61,6 +61,8 @@ password is stored together with the instance's URL and kind, and is used only w
 SNAGENTIC_DEV_PASSWORD=...  SNAGENTIC_DEV_URL=dev12345  SNAGENTIC_DEV_KIND=development
 ```
 
+Details, a CI example and troubleshooting: [credentials and instance trust](guides/credentials.md).
+
 Test and production instances are **read-only by construction** (ADR-0012):
 
 ```sh

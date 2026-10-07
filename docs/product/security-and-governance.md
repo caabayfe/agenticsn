@@ -50,7 +50,8 @@ that would set a secret, and lists them so they can be moved by hand.
   the password together with the instance's address and kind. The password is used only while
   `instance.yaml` still matches, so editing the file (even from a shell) cannot send it to
   another host or make a production instance writable. In CI, `SNAGENTIC_<NAME>_URL` and
-  `SNAGENTIC_<NAME>_KIND` pin the password the same way.
+  `SNAGENTIC_<NAME>_KIND` pin the password the same way. How to set it up and troubleshoot it:
+  [credentials and instance trust](../guides/credentials.md).
 - **Checked at login.** `auth login` tries the password before storing it, and refuses a test
   or production credential without `snc_read_only`, or a development profile whose credential
   has it. Agents are not allowed to run `snagentic auth`.

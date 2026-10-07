@@ -33,14 +33,36 @@ function memoryKeychain() {
 }
 
 describe("KeychainCredentialStore", () => {
-  it("stores the secret under service snagentic, account <user>@<host>", async () => {
+  it("stores the secret with the url and kind it is for, under account <user>@<host>", async () => {
     const keychain = memoryKeychain();
     const store = new KeychainCredentialStore(keychain.factory);
     await store.write(profile, "pw");
     expect(keychain.opened).toEqual(["snagentic/integration@acme.service-now.com"]);
-    expect(await store.read(profile)).toBe("pw");
+    expect(await store.read(profile)).toEqual({
+      secret: "pw",
+      source: "keychain",
+      trusted: { url: "https://acme.service-now.com", kind: "production" },
+    });
+    expect(
+      JSON.parse(keychain.entries.get("snagentic/integration@acme.service-now.com") ?? ""),
+    ).toEqual({
+      snagentic: 1,
+      secret: "pw",
+      url: "https://acme.service-now.com",
+      kind: "production",
+    });
     expect(await store.remove(profile)).toBe(true);
     expect(await store.read(profile)).toBeNull();
+  });
+
+  it("reads a secret stored by an earlier version as not bound to any instance", async () => {
+    const keychain = memoryKeychain();
+    keychain.entries.set("snagentic/integration@acme.service-now.com", "old-pw");
+    expect(await new KeychainCredentialStore(keychain.factory).read(profile)).toEqual({
+      secret: "old-pw",
+      source: "keychain",
+      trusted: null,
+    });
   });
 
   it("reads nothing when the keychain is unavailable, so CI can fall back to variables", async () => {
@@ -56,7 +78,9 @@ describe("KeychainCredentialStore", () => {
     });
     await expect(store.write(profile, "pw")).rejects.toMatchObject({
       code: "keychain-unavailable",
-      hint: expect.stringContaining("SNAGENTIC_ACME_PROD_PASSWORD"),
+      hint: expect.stringContaining(
+        "SNAGENTIC_ACME_PROD_PASSWORD, SNAGENTIC_ACME_PROD_URL and SNAGENTIC_ACME_PROD_KIND",
+      ),
     });
   });
 
@@ -75,7 +99,7 @@ describe("KeychainCredentialStore", () => {
       () => false,
     );
     if (stored) {
-      expect(await store.read(probe)).toBe("probe-secret");
+      expect((await store.read(probe))?.secret).toBe("probe-secret");
       expect(await store.remove(probe)).toBe(true);
     } else {
       expect(process.platform).toBe("linux");
@@ -83,11 +107,30 @@ describe("KeychainCredentialStore", () => {
   });
 });
 
+const PINNED = {
+  SNAGENTIC_ACME_PROD_PASSWORD: "from-ci",
+  SNAGENTIC_ACME_PROD_URL: "acme",
+  SNAGENTIC_ACME_PROD_KIND: "production",
+};
+
 describe("EnvironmentCredentialStore", () => {
-  it("reads SNAGENTIC_<NAME>_PASSWORD", async () => {
-    const store = new EnvironmentCredentialStore({ SNAGENTIC_ACME_PROD_PASSWORD: "from-ci" });
-    expect(await store.read(profile)).toBe("from-ci");
+  it("reads SNAGENTIC_<NAME>_PASSWORD, pinned by SNAGENTIC_<NAME>_URL and _KIND", async () => {
+    expect(await new EnvironmentCredentialStore(PINNED).read(profile)).toEqual({
+      secret: "from-ci",
+      source: "environment",
+      trusted: { url: "https://acme.service-now.com", kind: "production" },
+    });
     expect(await new EnvironmentCredentialStore({}).read(profile)).toBeNull();
+  });
+
+  it("binds the secret to nothing when the pinning variables are missing or invalid", async () => {
+    for (const environment of [
+      { SNAGENTIC_ACME_PROD_PASSWORD: "from-ci" },
+      { ...PINNED, SNAGENTIC_ACME_PROD_KIND: "staging" },
+      { ...PINNED, SNAGENTIC_ACME_PROD_URL: "http://" },
+    ]) {
+      expect((await new EnvironmentCredentialStore(environment).read(profile))?.trusted).toBeNull();
+    }
   });
 });
 
@@ -96,7 +139,7 @@ describe("EnvironmentCredentialStore is read-only", () => {
     const store = new EnvironmentCredentialStore({ SNAGENTIC_ACME_PROD_PASSWORD: "from-ci" });
     await expect(store.write()).rejects.toThrow(/read-only/);
     expect(await store.remove()).toBe(false);
-    expect(await store.read(profile)).toBe("from-ci");
+    expect((await store.read(profile))?.secret).toBe("from-ci");
   });
 });
 
@@ -109,12 +152,12 @@ describe("LayeredCredentialStore", () => {
       persistent,
     );
     await withVariable.write(profile, "from-keychain");
-    expect(await withVariable.read(profile)).toBe("from-ci");
+    expect((await withVariable.read(profile))?.secret).toBe("from-ci");
     const withoutVariable = new LayeredCredentialStore(
       new EnvironmentCredentialStore({}),
       persistent,
     );
-    expect(await withoutVariable.read(profile)).toBe("from-keychain");
+    expect((await withoutVariable.read(profile))?.secret).toBe("from-keychain");
     expect(await withoutVariable.remove(profile)).toBe(true);
   });
 });

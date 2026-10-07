@@ -100,9 +100,14 @@ describe("GitDeliveryWorkspace", () => {
     expect(
       await delivery.read("global/sys_script/new--ffffffffffffffffffffffffffffffff", commit),
     ).toBeNull();
-    expect(await delivery.waivers()).toBeNull();
+    expect(await delivery.waivers()).toEqual({ committed: null, uncommitted: false });
     await writeFile(join(root, "waivers.yaml"), "waivers: []\n");
-    expect(await delivery.waivers()).toEqual({ waivers: [] });
+    expect(await delivery.waivers()).toEqual({ committed: null, uncommitted: true });
+    await git(root, "add", "waivers.yaml");
+    await git(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "waive");
+    expect(await delivery.waivers()).toEqual({ committed: { waivers: [] }, uncommitted: false });
+    await writeFile(join(root, "waivers.yaml"), "waivers: [x]\n");
+    expect(await delivery.waivers()).toEqual({ committed: { waivers: [] }, uncommitted: true });
     await git(root, "checkout", "-q", "--detach");
     expect(await delivery.branch()).toMatch(/^[0-9a-f]{7,}$/);
     await rm(join(root, META, "global"), { recursive: true });

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CredentialStore } from "@snagentic/core";
+import type { CredentialStore, TrustedSettings } from "@snagentic/core";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import { runCli } from "../../src/cli/run-cli";
@@ -15,13 +15,21 @@ afterEach(async () => {
   await Promise.all(temporary.splice(0).map((d) => rm(d, { recursive: true, force: true })));
 });
 
+// Like the keychain: the secret is stored with the url and kind it was typed for.
 function memoryCredentials(): CredentialStore & { secrets: Map<string, string> } {
   const secrets = new Map<string, string>();
+  const trusted = new Map<string, TrustedSettings>();
   return {
     secrets,
-    read: async (profile) => secrets.get(profile.name) ?? null,
+    read: async (profile) => {
+      const secret = secrets.get(profile.name);
+      return secret === undefined
+        ? null
+        : { secret, source: "keychain", trusted: trusted.get(profile.name) ?? null };
+    },
     write: async (profile, secret) => {
       secrets.set(profile.name, secret);
+      trusted.set(profile.name, { url: profile.url, kind: profile.kind });
     },
     remove: async (profile) => secrets.delete(profile.name),
   };
@@ -34,6 +42,7 @@ async function setup() {
   const workspaces = new FsWorkspaceStore();
   await workspaces.create(root, { layout: 1, createdWith: "test" });
   const credentials = memoryCredentials();
+  const roles = ["admin"];
   const context: UseCaseContext = {
     ...FAKE_CONTEXT,
     workspaces,
@@ -44,7 +53,13 @@ async function setup() {
       open: () => ({
         query: async (query) =>
           String(query.table) === "sys_user_has_role"
-            ? [{ "role.name": "admin" }]
+            ? roles
+                .filter(
+                  (role) =>
+                    query.query.includes(`role.name=${role}`) ||
+                    query.query.includes("role.nameIN"),
+                )
+                .map((role) => ({ "role.name": role, sys_id: role }))
             : [{ sys_id: "u1", sys_updated_on: "2026-09-23 20:12:26" }],
         fingerprint: async () => ({ count: 0, maxUpdatedOn: null }),
         writer: {
@@ -85,7 +100,7 @@ async function setup() {
     });
     return { exitCode, out: io.out(), err: io.err() };
   };
-  return { base, root, credentials, run };
+  return { base, root, credentials, roles, run };
 }
 
 describe("instance commands", () => {
@@ -213,6 +228,33 @@ describe("auth commands", () => {
     const logout = await run("auth", "logout", "pdi");
     expect(logout.exitCode).toBe(0);
     expect(credentials.secrets.size).toBe(0);
+  });
+
+  it("stores nothing when the credential does not match the profile's kind", async () => {
+    const { run, credentials, roles } = await setup();
+    roles.push("snc_read_only");
+    await run("instance", "add", "pdi", "--url", "dev312411", "--username", "admin");
+    const login = await run("auth", "login", "pdi");
+    expect(login.exitCode).not.toBe(0);
+    expect(login.err).toContain("snc_read_only");
+    expect(credentials.secrets.size).toBe(0);
+  });
+
+  it("does not use the password after instance.yaml changes, until a person logs in again", async () => {
+    const { run, root } = await setup();
+    await run("instance", "add", "pdi", "--url", "dev312411", "--username", "admin");
+    await run("auth", "login", "pdi");
+    const file = join(root, "instances/pdi/instance.yaml");
+    await writeFile(file, (await readFile(file, "utf8")).replace("dev312411", "evil"));
+    const result = await run("doctor", "--instance", "pdi", "--format", "json");
+    const report: { checks: { name: string; status: string; detail: string }[] } = JSON.parse(
+      result.out,
+    );
+    expect(report.checks.find((check) => check.name === "credentials")).toMatchObject({
+      status: "fail",
+      detail: expect.stringContaining("url is https://evil.service-now.com"),
+    });
+    expect(report.checks.find((check) => check.name === "connection")?.status).toBe("unavailable");
   });
 
   it("is not offered to agents over MCP", () => {

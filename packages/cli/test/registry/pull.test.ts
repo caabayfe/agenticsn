@@ -16,7 +16,7 @@ import { integrate } from "../../src/registry/integrate";
 import { pull } from "../../src/registry/pull";
 import { status } from "../../src/registry/status";
 import type { UseCaseContext } from "../../src/registry/use-case";
-import { FAKE_CONTEXT } from "../support/fakes";
+import { FAKE_CONTEXT, TRUSTED_PASSWORD } from "../support/fakes";
 
 const temporary: string[] = [];
 afterEach(async () => {
@@ -64,7 +64,7 @@ async function setup(data: Record<string, Row[]> = structuredClone(DATA)) {
     ...FAKE_CONTEXT,
     workspaces: new FsWorkspaceStore(),
     profiles,
-    credentials: { read: async () => "pw", write: async () => {}, remove: async () => false },
+    credentials: TRUSTED_PASSWORD,
     connections: { open: () => instance.reader },
     syncState: (r, instance) => new JsonSyncStateStore(join(r, instancePaths(instance).localState)),
     mirrors: { open: (r, instance, mode) => GitMirror.open(r, instance, mode) },

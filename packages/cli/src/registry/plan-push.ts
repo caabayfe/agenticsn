@@ -110,7 +110,9 @@ export const planPush = defineUseCase({
       ...output.gate.waived.map(
         (f) => `waived:  ${f.ruleId} ${f.path} (${f.approver}: ${f.reason})`,
       ),
-      ...output.gate.waiverProblems.map((w) => `waivers.yaml entry ${w.index + 1}: ${w.reason}`),
+      ...output.gate.waiverProblems.map((w) =>
+        w.index < 0 ? w.reason : `waivers.yaml entry ${w.index + 1}: ${w.reason}`,
+      ),
       ...output.collisions.map(
         (c) =>
           `held:    ${c.path} in ${c.heldBy.map((h) => `"${h.updateSetName}" (${h.updatedBy})`).join(", ")}`,

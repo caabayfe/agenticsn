@@ -1,4 +1,4 @@
-import type { CredentialStore, InstanceProfile } from "@snagentic/core";
+import type { CredentialStore, InstanceProfile, StoredCredential } from "@snagentic/core";
 
 // Reads the environment first (CI), then the persistent store; writes go to the persistent
 // store only.
@@ -8,7 +8,7 @@ export class LayeredCredentialStore implements CredentialStore {
     private readonly persistent: CredentialStore,
   ) {}
 
-  async read(profile: InstanceProfile): Promise<string | null> {
+  async read(profile: InstanceProfile): Promise<StoredCredential | null> {
     return (await this.environment.read(profile)) ?? (await this.persistent.read(profile));
   }
 

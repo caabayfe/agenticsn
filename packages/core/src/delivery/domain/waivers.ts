@@ -17,6 +17,14 @@ export interface WaiverProblem {
 }
 
 const MAX_DAYS = 366;
+// A waiver covers named files, never a whole instance: wildcards may not reach the scope.
+const SCOPED_PATH = /^instances\/[^/*?]+\/metadata\/[^/*?]+\/.+$/;
+
+// Index -1: about the file, not one entry.
+export const UNCOMMITTED_WAIVERS: WaiverProblem = {
+  index: -1,
+  reason: "waivers.yaml has uncommitted changes; only committed waivers apply",
+};
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const day = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -39,6 +47,9 @@ function problemOf(entry: unknown, today: Date): string | Waiver {
   const missing = Object.entries(waiver).filter(([, field]) => field === "");
   if (missing.length > 0) {
     return `missing ${missing.map(([key]) => key).join(", ")}`;
+  }
+  if (!SCOPED_PATH.test(waiver.path) || waiver.path.split("/").includes("..")) {
+    return "path must start instances/<name>/metadata/<scope>/, without wildcards before the scope";
   }
   if (!DATE.test(waiver.expires)) {
     return "expires must be a date (YYYY-MM-DD)";

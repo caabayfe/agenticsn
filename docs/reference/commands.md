@@ -73,7 +73,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic auth login <instance> [options]
 ```
 
-Store the password for an instance in the OS keychain. Prompts without echo, or reads stdin.
+Check the password with the instance, then store it in the OS keychain together with the profile's url and kind; the password is used only while they match. Prompts without echo, or reads stdin.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
@@ -220,7 +220,7 @@ Changes the instance: no. MCP tool: none.
 Options:
 
 - `--no-edited`: false before an edit: only whether it is allowed
-- `--instance <value>`: default: the workspace's only instance
+- `--instance <value>`: validate only this instance's records (default: each record's own instance)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -427,7 +427,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `action` (list | show | collisions | export, required)
   - `id` (string, optional): the update set's sys_id, for show and export
   - `days` (integer, optional): list: also sets changed in this many days
-  - `output` (string, optional): export: file to write
+  - `output` (string, optional): export: new file to write, relative to the workspace root
 - `plugins`: List installed and available plugins and store applications with their versions, from the inventory of the last pull (no call to the instance).
   - `instance` (string, required)
   - `text` (string, optional): only those whose id, scope or name contains this

@@ -1,4 +1,5 @@
 import { type ValidateDependencies, validate } from "../../governance/index";
+import { InvalidInputError } from "../../kernel/errors";
 import type { NextCall } from "../../knowledge/index";
 import { baseOfFile } from "../../knowledge/index";
 import { parseRecord } from "../../metadata/domain/record-layout";
@@ -10,7 +11,7 @@ import {
 import { changeOf, type ParsedRecord, type PlannedWrite, type PlanProblem } from "../domain/change";
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
 import { type GateResult, gateOf, planId } from "../domain/gate";
-import { readWaivers } from "../domain/waivers";
+import { readWaivers, UNCOMMITTED_WAIVERS } from "../domain/waivers";
 import type { DeliveryWorkspace } from "../ports";
 
 export interface PlanQuery {
@@ -115,6 +116,14 @@ async function collisionsOf(
 
 // What a push would do, and whether it may (spec 004): the working tree against the mirror,
 // gated by validate and waivers, checked for collisions with open update sets.
+// The label is part of an encoded query (^ separates terms) and of "[<scope>]".
+function checkedLabel(label: string): string {
+  if (/[\^\r\n[\]]/.test(label)) {
+    throw new InvalidInputError("label must not contain ^ [ ] or line breaks");
+  }
+  return label;
+}
+
 export async function computePlan(
   deps: PlanDependencies,
   query: PlanQuery,
@@ -126,13 +135,12 @@ export async function computePlan(
   if (!(await deps.workspace.includes(commit))) {
     throw new MirrorNotIntegratedError(query.instance);
   }
-  const label = query.label ?? (await deps.workspace.branch());
+  const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
   const { writes, problems } = await writesAndProblems(deps, commit);
   const validation = await validate(deps.governance, { base: commit });
-  const { waivers, problems: waiverProblems } = readWaivers(
-    await deps.workspace.waivers(),
-    deps.now(),
-  );
+  const waiverFile = await deps.workspace.waivers();
+  const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
+  const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;
   const gate = gateOf(validation.findings, waivers, waiverProblems, deps.workspace.metadataRoot);
   const collisions = await collisionsOf(deps, writes, `snagentic: ${label} [`);
   const scopes = [...new Set(writes.map((write) => write.scope))].sort();

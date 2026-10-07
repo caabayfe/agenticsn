@@ -5,6 +5,7 @@ import {
   createProfile,
   InstanceName,
   type InstanceProfile,
+  type InstanceReader,
   listInstances,
   login,
   logout,
@@ -32,13 +33,26 @@ function memoryCredentials(): CredentialStore & { secrets: Map<string, string> }
   const secrets = new Map<string, string>();
   return {
     secrets,
-    read: async (profile) => secrets.get(profile.name) ?? null,
+    read: async (profile) => {
+      const secret = secrets.get(profile.name);
+      return secret === undefined
+        ? null
+        : { secret, source: "keychain", trusted: { url: profile.url, kind: profile.kind } };
+    },
     write: async (profile, secret) => {
       secrets.set(profile.name, secret);
     },
     remove: async (profile) => secrets.delete(profile.name),
   };
 }
+
+const LIVE = new AbortController().signal;
+const NO_ROLES: InstanceReader = {
+  query: async () => [],
+  stats: () => {
+    throw new Error("not used");
+  },
+};
 
 function profile(name: string, url: string): InstanceProfile {
   return createProfile({
@@ -92,13 +106,15 @@ describe("credentials", () => {
   it("stores, resolves and removes a secret for a profile", async () => {
     const credentials = memoryCredentials();
     const dev = profile("dev", "dev1");
-    await login(dev, "s3cret", credentials);
+    await login(dev, "s3cret", credentials, NO_ROLES, LIVE);
     expect(await resolveSecret(dev, credentials)).toBe("s3cret");
     expect(await logout(dev, credentials)).toBe(true);
   });
 
   it("refuses an empty secret", async () => {
-    await expect(login(profile("dev", "dev1"), "", memoryCredentials())).rejects.toMatchObject({
+    await expect(
+      login(profile("dev", "dev1"), "", memoryCredentials(), NO_ROLES, LIVE),
+    ).rejects.toMatchObject({
       code: "invalid-input",
     });
   });
@@ -106,7 +122,9 @@ describe("credentials", () => {
   it("explains how to log in when no secret is stored", async () => {
     await expect(resolveSecret(profile("dev", "dev1"), memoryCredentials())).rejects.toMatchObject({
       code: "credentials-missing",
-      hint: expect.stringContaining("snagentic auth login dev"),
+      hint: expect.stringMatching(
+        /snagentic auth login dev.*SNAGENTIC_DEV_PASSWORD, SNAGENTIC_DEV_URL and SNAGENTIC_DEV_KIND/,
+      ),
     });
   });
 });

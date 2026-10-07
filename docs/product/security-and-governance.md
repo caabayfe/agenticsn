@@ -37,13 +37,24 @@ flowchart LR
 | Push plans and a push journal (local state, not committed) | Credentials of any kind |
 
 Redaction happens before anything is written. A field that was redacted can't be pushed back;
-the plan tells the user to set it on the instance.
+the plan tells the user to set it on the instance. An update set export leaves out the updates
+that would set a secret, and lists them so they can be moved by hand.
 
 ## Credentials
 
 - Stored only in the **OS keychain** (macOS Keychain, Windows Credential Manager, Linux Secret
   Service) or in **environment variables** for CI. Never in files, logs, error messages or
   commits.
+- **Bound to the instance they are for**
+  ([ADR-0020](../adr/0020-instance-trust-outside-the-repository.md)). The keychain item holds
+  the password together with the instance's address and kind. The password is used only while
+  `instance.yaml` still matches, so editing the file (even from a shell) cannot send it to
+  another host or make a production instance writable. In CI, `SNAGENTIC_<NAME>_URL` and
+  `SNAGENTIC_<NAME>_KIND` pin the password the same way. How to set it up and troubleshoot it:
+  [credentials and instance trust](../guides/credentials.md).
+- **Checked at login.** `auth login` tries the password before storing it, and refuses a test
+  or production credential without `snc_read_only`, or a development profile whose credential
+  has it. Agents are not allowed to run `snagentic auth`.
 - Each developer uses their **own** ServiceNow account, so update sets and audit history show
   real authorship.
 - `snagentic doctor --instance <name>` checks connection, roles and timestamp handling.
@@ -71,8 +82,9 @@ instance. A push needs every one of these:
 1. **A plan id** from `plan-push`, bound to the exact content of the workspace. If anything
    changes after planning, the push is refused.
 2. **A passing gate:** `validate` finds no blocking finding, or each one is covered by a
-   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. Waivers are
-   reviewed in git like any other change.
+   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. Only waivers
+   committed to git apply, agents cannot edit the file, and a waiver path must name an
+   instance and a scope, so an agent cannot waive its own findings.
 3. **Explicit confirmation** (`--confirm`). MCP hosts ask the user first because the tool is
    marked destructive.
 4. **An unchanged remote base:** each record is compared with the version last pulled. If
@@ -92,8 +104,8 @@ and CI:
 
 | # | Layer | What it stops | 1.1 |
 |---|---|---|---|
-| 1 | Host hooks: refuse edits to protected files, `check` after each edit, `validate` before the agent ends its turn | Agent mistakes, immediately | Claude Code |
-| 2 | Host permission rules: deny direct HTTP to the instance, deny `--no-verify`, ask before `push` | The agent working around snagentic | Claude Code |
+| 1 | Host hooks: refuse edits to protected files (including the hook settings themselves), `check` after each edit, `validate` before the agent ends its turn | Agent mistakes, immediately | Claude Code, Copilot CLI |
+| 2 | Host permission rules and a shell hook: deny direct HTTP to the instance, deny skipping git hooks, ask before `push` | The agent working around snagentic | Claude Code; Copilot CLI (shell hook, no `ask`) |
 | 3 | Push gate (above) | Unvalidated pushes through the tool | **Yes** |
 | 4 | Git pre-commit hook running `validate` | Bad commits | **Yes** |
 | 5 | Git server branch protection and CI checks | Anything merged, whoever wrote it | 1.3 (templates) |
@@ -103,7 +115,11 @@ and CI:
 | 9 | Optional promotion guard app on test and production | Everything, including manual promotion | Planned |
 
 Hooks fail open, so a broken hook never blocks a developer. That is acceptable because the
-push gate and the git hooks hold regardless.
+push gate and the git hooks hold regardless. Copilot CLI reads the hooks from
+`.claude/settings.json`; it does not apply Claude Code's permission rules, so the shell hook
+refuses the same commands. The shell hook matches command text, so it stops an agent's
+mistakes, not a determined bypass; layers 3 to 9 cover that. VS Code runs these hooks only
+with `chat.useClaudeHooks` enabled, and the Copilot cloud agent doesn't run them.
 
 ## Guardrail content
 
@@ -143,5 +159,5 @@ pull with no changes costs 22 requests and 3.2 s of server time.
 - **Spike S6:** an in-depth confirmation of `snc_read_only` behavior across ServiceNow
   releases. The check already ships, but this confirmation is needed before production
   troubleshooting features are built.
-- Hooks and permission rules for agent hosts other than Claude Code.
+- Hooks for VS Code without `chat.useClaudeHooks`, the Copilot cloud agent and Codex.
 - Code signing.

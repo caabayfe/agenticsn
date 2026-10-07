@@ -20,8 +20,9 @@ export interface DeliveryWorkspace {
   read(base: string, at: string | null): Promise<RecordFiles | null>;
   // A file's text in the working tree, or null when it does not exist.
   text(path: string): Promise<string | null>;
-  // The parsed waivers.yaml at the workspace root, or null when there is none.
-  waivers(): Promise<unknown | null>;
+  // waivers.yaml at the workspace root as committed (parsed, or null when there is none), and
+  // whether the working tree differs. Only committed waivers apply: they are reviewed in git.
+  waivers(): Promise<{ readonly committed: unknown | null; readonly uncommitted: boolean }>;
 }
 
 // Writes to a development instance's tables (Table API). Never retried: a write whose outcome

@@ -43,7 +43,7 @@ export const SECRET_TYPES: ReadonlySet<string> = new Set([
   "password2",
   "encrypted_text",
 ]);
-const SECRET_FIELD_NAMES = [
+export const SECRET_FIELD_NAMES: readonly string[] = [
   "api_key",
   "client_secret",
   "credential",

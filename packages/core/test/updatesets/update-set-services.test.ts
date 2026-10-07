@@ -83,6 +83,11 @@ function instance() {
       update("u3", ALICE, "sys_script_2", "3"),
       update("u4", DEFAULT, "sys_script_2", "4"),
       update("u5", OLD, "sys_script_9", "5"),
+      {
+        ...update("u6", OLD, "sys_properties_1", "6"),
+        target_name: "x.api_key",
+        payload: `<record_update table="sys_properties"><sys_properties><name>x.api_key</name><value>s3cret</value></sys_properties></record_update>`,
+      },
     ],
     sys_scope: [{ sys_id: "global", name: "Global", scope: "global", version: "" }],
     sys_dictionary: [
@@ -167,5 +172,15 @@ describe("update set services", () => {
     );
     expect(xml).not.toContain("type>");
     expect(xml).toEndWith("</sys_update_xml>\n</unload>\n");
+  });
+
+  it("leaves updates holding secrets out of an export, and says which", async () => {
+    const { deps } = instance();
+    const exported = await exportUpdateSet(deps, "pdi", OLD, "admin", LIVE);
+    expect(exported.updates).toBe(1);
+    expect(exported.xml).not.toContain("s3cret");
+    expect(exported.withheld).toEqual([
+      { name: "sys_properties_1", target: "x.api_key", reason: expect.any(String) },
+    ]);
   });
 });

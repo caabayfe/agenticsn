@@ -37,6 +37,17 @@ const NO_PROFILES: ProfileStore = {
   remove: async () => {},
 };
 
+// A stored password, bound to whichever profile asks (as if the person logged in to it).
+export const TRUSTED_PASSWORD: CredentialStore = {
+  read: async (profile) => ({
+    secret: "pw",
+    source: "keychain",
+    trusted: { url: profile.url, kind: profile.kind },
+  }),
+  write: async () => {},
+  remove: async () => false,
+};
+
 const NO_CREDENTIALS: CredentialStore = {
   read: async () => null,
   write: async () => {},
@@ -63,7 +74,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
     },
   },
   integrator: { integrate: async () => ({ commit: null, changedFiles: 0 }) },
-  files: { write: async () => {} },
+  files: { create: async () => "created" },
   inventory: { read: async () => null },
   knowledge: () => {
     throw new Error("no knowledge index in this test");

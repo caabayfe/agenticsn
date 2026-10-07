@@ -18,7 +18,7 @@ import { JsonPushJournalStore } from "../../src/adapters/state/json-push-journal
 import { JsonSyncStateStore } from "../../src/adapters/state/json-sync-state-store";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import type { UseCaseContext } from "../../src/registry/use-case";
-import { FAKE_CONTEXT } from "./fakes";
+import { FAKE_CONTEXT, TRUSTED_PASSWORD } from "./fakes";
 
 // A real workspace with a "pdi" development profile, connected to an in-memory instance.
 // Files written by use cases are captured instead of written.
@@ -46,7 +46,7 @@ export async function instanceWorkspace(
     ...FAKE_CONTEXT,
     workspaces: new FsWorkspaceStore(),
     profiles,
-    credentials: { read: async () => "pw", write: async () => {}, remove: async () => false },
+    credentials: TRUSTED_PASSWORD,
     connections: { open: () => instance.reader },
     syncState: (r, name) => new JsonSyncStateStore(join(r, instancePaths(name).localState)),
     mirrors: { open: (r, name, mode) => GitMirror.open(r, name, mode) },
@@ -65,8 +65,12 @@ export async function instanceWorkspace(
       checker: new EslintScriptChecker(),
     }),
     files: {
-      write: async (path, content) => {
+      create: async (path, content) => {
+        if (written.has(path)) {
+          return "exists";
+        }
         written.set(path, content);
+        return "created";
       },
     },
     host: { cwd: root, home: base, version: "test" },

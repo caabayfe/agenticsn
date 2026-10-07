@@ -1,5 +1,5 @@
 import { isAbsolute, join } from "node:path";
-import { exportUpdateSet, slug } from "@snagentic/core";
+import { ExportFileExistsError, exportUpdateSet, slug } from "@snagentic/core";
 import { z } from "zod";
 import { connect } from "./connect";
 import { defineUseCase } from "./use-case";
@@ -21,6 +21,10 @@ export const updateSetsExport = defineUseCase({
     updates: z.number(),
     path: z.string(),
     bytes: z.number(),
+    withheld: z
+      .array(z.object({ name: z.string(), target: z.string(), reason: z.string() }))
+      .readonly()
+      .describe("updates left out because they hold a secret; move them by hand"),
   }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: false,
@@ -31,17 +35,24 @@ export const updateSetsExport = defineUseCase({
     const exported = await exportUpdateSet(deps, name, input.id, profile.auth.username, run.signal);
     const file = input.output ?? `${slug(exported.name)}--${exported.sysId}.xml`;
     const path = isAbsolute(file) ? file : join(context.host.cwd, file);
-    await context.files.write(path, exported.xml);
+    if ((await context.files.create(path, exported.xml)) === "exists") {
+      throw new ExportFileExistsError(path);
+    }
     return {
       instance: name,
       name: exported.name,
       updates: exported.updates,
       path,
       bytes: Buffer.byteLength(exported.xml),
+      withheld: exported.withheld,
     };
   },
   render(output) {
-    return `exported "${output.name}" (${output.updates} updates, ${output.bytes} bytes) to ${output.path}`;
+    const done = `exported "${output.name}" (${output.updates} updates, ${output.bytes} bytes) to ${output.path}`;
+    const withheld = output.withheld.map(
+      (u) => `withheld ${u.name} (${u.target}): ${u.reason}; move it by hand`,
+    );
+    return [done, ...withheld].join("\n");
   },
   exitCode: () => 0,
 });

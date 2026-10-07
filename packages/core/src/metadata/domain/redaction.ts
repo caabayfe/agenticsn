@@ -13,7 +13,7 @@ export const DEFAULT_REDACTION: RedactionPolicy = {
   propertyValueAllowlist: [],
 };
 
-const SECRET_PROPERTY_NAME =
+export const SECRET_PROPERTY_NAME =
   /(?:^|[._-])(?:pass(?:word|wd)?|pwd|secret|client_?secret|api_?key|access_?token|auth_?token|refresh_?token|token|private_?key)$/i;
 
 // Fields of one record that must not reach disk. Matching ignores case.

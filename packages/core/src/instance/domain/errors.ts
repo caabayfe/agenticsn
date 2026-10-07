@@ -61,7 +61,18 @@ export class CredentialsMissingError extends SnagenticError {
       "credentials-missing",
       "precondition",
       `no credentials stored for instance "${name}"`,
-      `run: snagentic auth login ${name} (or set ${variable} in CI)`,
+      `run: snagentic auth login ${name} (in CI, set ${variable})`,
+    );
+  }
+}
+
+export class ProfileNotTrustedError extends SnagenticError {
+  constructor(name: string, problems: readonly string[], hint: string) {
+    super(
+      "profile-not-trusted",
+      "not-permitted",
+      `instances/${name}/instance.yaml does not match the stored credential: ${problems.join("; ")}`,
+      hint,
     );
   }
 }

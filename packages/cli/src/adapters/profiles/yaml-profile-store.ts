@@ -10,6 +10,7 @@ import {
   normalizeInstanceUrl,
   type ProfileStore,
   SnagenticError,
+  usernameProblem,
 } from "@snagentic/core";
 import { parse, stringify } from "yaml";
 import { z } from "zod";
@@ -29,7 +30,12 @@ class InvalidProfileError extends SnagenticError {
 const ProfileFile = z.object({
   url: z.string(),
   kind: z.enum(INSTANCE_KINDS),
-  auth: z.object({ method: z.literal("basic"), username: z.string().min(1) }),
+  auth: z.object({
+    method: z.literal("basic"),
+    username: z.string().refine((value) => usernameProblem(value) === null, {
+      error: (issue) => usernameProblem(String(issue.input)) ?? "invalid username",
+    }),
+  }),
   read_only_acknowledged: z.boolean().default(false),
 });
 

@@ -98,6 +98,105 @@ describe("Claude Code hooks", () => {
   });
 });
 
+describe("hooks under other hosts", () => {
+  const checked = (paths: string[]) => async (name: string, input: Record<string, unknown>) => {
+    expect(name).toBe("check");
+    paths.push(...(Array.isArray(input["paths"]) ? input["paths"].map(String) : []));
+    return { protected: [{ path: "x", reason: "read-only" }], findings: [] };
+  };
+
+  it("checks every file in a Copilot CLI apply_patch edit, resolved against the session folder", async () => {
+    const paths: string[] = [];
+    const outcome = await runClaudeHook(
+      "pre-edit",
+      {
+        hook_event_name: "PreToolUse",
+        cwd: "/w",
+        tool_name: "Edit",
+        tool_input:
+          "*** Begin Patch\n*** Add File: snagentic.yaml\n+x\n*** Update File: /w/a.js\n*** Move to: .snagentic/b.js\n@@\n-a\n+b\n*** Delete File: c.yaml\n*** End Patch\n",
+      },
+      checked(paths),
+    );
+    expect(outcome.exitCode).toBe(2);
+    expect(paths).toEqual(["/w/snagentic.yaml", "/w/a.js", "/w/.snagentic/b.js", "/w/c.yaml"]);
+  });
+
+  it("reads the edited path from path, filePath and camelCase toolArgs payloads", async () => {
+    for (const payload of [
+      { tool_name: "create", tool_input: { path: "/w/snagentic.yaml" } },
+      { tool_name: "editFiles", tool_input: { filePath: "/w/snagentic.yaml" } },
+      { toolName: "edit", toolArgs: JSON.stringify({ path: "/w/snagentic.yaml" }) },
+    ]) {
+      const paths: string[] = [];
+      expect((await runClaudeHook("pre-edit", payload, checked(paths))).exitCode).toBe(2);
+      expect(paths).toEqual(["/w/snagentic.yaml"]);
+    }
+  });
+
+  it("leaves reads alone when a host runs the edit hook for every tool", async () => {
+    const outcome = await runClaudeHook(
+      "pre-edit",
+      { tool_name: "Read", tool_input: { file_path: "/w/snagentic.yaml" } },
+      async () => {
+        throw new Error("must not check a read");
+      },
+    );
+    expect(outcome).toEqual({ exitCode: 0, stdout: "", stderr: "" });
+  });
+
+  it("gives Copilot the post-edit context at the top level as well", async () => {
+    const outcome = await runClaudeHook("post-edit", edit, async () => ({
+      findings: [finding("warn")],
+    }));
+    const output = JSON.parse(outcome.stdout);
+    expect(output.additionalContext).toBe(output.hookSpecificOutput.additionalContext);
+  });
+});
+
+describe("pre-shell hook", () => {
+  const shell = (command: string, tool_name = "Bash") => ({ tool_name, tool_input: { command } });
+  const never = async (): Promise<Record<string, unknown>> => {
+    throw new Error("a shell hook needs no use case");
+  };
+
+  it("refuses commands that bypass snagentic or skip the git hooks", async () => {
+    for (const command of [
+      "curl -u admin https://dev1.service-now.com/api/now/table/sys_script",
+      "cd x && wget https://example.com",
+      "git commit --no-verify -m wip",
+      "git commit -anm wip",
+      "git -c core.hooksPath=/dev/null push",
+      "python3 -c 'import requests; requests.get(\"https://dev1.service-now.com\")'",
+      "env FOO=1 curl https://example.com",
+      "snagentic auth login prod",
+      "echo pw | snagentic  auth logout prod",
+      "SNAGENTIC_PROD_KIND=development snagentic pull --instance prod",
+      "export SNAGENTIC_PROD_URL=evil",
+    ]) {
+      const outcome = await runClaudeHook("pre-shell", shell(command), never);
+      expect([command, outcome.exitCode]).toEqual([command, 2]);
+      expect(outcome.stderr).toStartWith("snagentic:");
+    }
+  });
+
+  it("lets ordinary commands and non-shell tools through", async () => {
+    for (const payload of [
+      shell("bun test"),
+      shell("git commit -m 'curly braces'"),
+      shell("snagentic pull --instance pdi"),
+      shell("curl https://example.com", "Read"),
+      {},
+    ]) {
+      expect(await runClaudeHook("pre-shell", payload, never)).toEqual({
+        exitCode: 0,
+        stdout: "",
+        stderr: "",
+      });
+    }
+  });
+});
+
 describe("snagentic hook claude", () => {
   const cleanups: (() => Promise<void>)[] = [];
   afterEach(async () => {

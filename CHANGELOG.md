@@ -4,6 +4,56 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### ⚠️ Breaking: credentials are bound to their instance
+
+Stored passwords from 1.1.0 and earlier are refused (`profile-not-trusted`), and CI needs two
+more variables (ADR-0020). Before, editing `instance.yaml` could turn a production instance
+into a development one, or send a stored password to another host. Now the password is stored
+together with the instance's URL and kind, and used only while `instance.yaml` still matches.
+
+To upgrade:
+
+1. On each machine, run `snagentic auth login <name>` once per instance.
+2. In CI, next to `SNAGENTIC_<NAME>_PASSWORD`, set `SNAGENTIC_<NAME>_URL` and
+   `SNAGENTIC_<NAME>_KIND`.
+3. Run `snagentic doctor --instance <name>` to check.
+
+Guide: [credentials and instance trust](docs/guides/credentials.md).
+
+### Security
+
+- `auth login` tries the password before storing it, and refuses a test or production
+  credential without `snc_read_only` and a development profile whose credential has it.
+  Agents may not run `snagentic auth` or set `SNAGENTIC_*` credential variables.
+- Errors and `doctor` name all three CI variables when a credential is missing.
+- Host hooks now work under Copilot CLI, which reads `.claude/settings.json`: they understand
+  its patch edits and `path` arguments, so protected files are refused there too. On hosts
+  that run every hook for every tool (VS Code), the edit hooks ignore reads.
+- New `pre-shell` hook refuses `curl`, `wget`, calls to `service-now.com` and skipping git
+  hooks (`--no-verify`, `commit -n`, `core.hooksPath`). It enforces the permission rules on
+  hosts that ignore them. Run `snagentic agent install` again to add it.
+- `check` reports protected files in workspaces with no instance or several. Before, the
+  pre-edit hook failed open there. Each edited record is validated against its own instance.
+- Protected paths are compared case-insensitively and with either separator, and now include
+  `.claude/settings.json`, `.claude/settings.local.json` and `.github/hooks/`.
+- `update-sets export` leaves out updates whose payload holds a secret: credential and
+  certificate classes, secret fields, and secret-like or password-typed properties. It lists
+  them as `withheld`, to move by hand. Before, payloads were written to disk unredacted.
+- `update-sets export` never overwrites a file and never follows a link. Through MCP, the
+  output must be a new, unprotected file inside the workspace. Before, an agent could write
+  the export over any file the user could write.
+- The Claude Code deny rules for protected files use `Edit(...)` only. Claude Code ignored the
+  `Write(...)` rules. Existing `Write(...)` rules stay after an upgrade and are harmless.
+- Only committed waivers apply. `plan-push` reads `waivers.yaml` from `HEAD` and says when the
+  working copy differs. Agents can no longer edit `waivers.yaml`, and a waiver path must name
+  an instance and a scope (`instances/<name>/metadata/<scope>/...`). Before, an agent could
+  write a waiver for `**` and pass the push gate.
+- Requests to an instance never follow a redirect, so the credential is never sent to another
+  address.
+- A username edited by hand in `instance.yaml` is checked again on every read, and a push label
+  may not contain `^`, `[`, `]` or line breaks. Either could change an encoded query, for
+  example to select another open update set.
+
 ## [1.1.0] - 2026-10-07
 
 Agents can now understand an instance, design and build changes with platform guardrails, and

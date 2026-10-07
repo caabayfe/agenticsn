@@ -48,12 +48,20 @@ Every command works from any folder inside the workspace (or pass `--workspace <
 
 ```sh
 snagentic instance add dev --url dev12345 --username svc_snagentic --kind development
-snagentic auth login dev            # stores the password in the OS keychain
+snagentic auth login dev            # checks the password, stores it in the OS keychain
 snagentic doctor --instance dev     # connection, roles, timestamps, load
 ```
 
-Secrets never go into the workspace: the keychain, or an environment variable such as
-`SNAGENTIC_DEV_PASSWORD` (handy in CI).
+Secrets never go into the workspace: the keychain, or environment variables in CI. The
+password is stored together with the instance's URL and kind, and is used only while
+`instance.yaml` still matches. If you change the URL or kind on purpose, run
+`snagentic auth login dev` again. In CI, set all three variables:
+
+```sh
+SNAGENTIC_DEV_PASSWORD=...  SNAGENTIC_DEV_URL=dev12345  SNAGENTIC_DEV_KIND=development
+```
+
+Details, a CI example and troubleshooting: [credentials and instance trust](guides/credentials.md).
 
 Test and production instances are **read-only by construction** (ADR-0012):
 
@@ -125,7 +133,8 @@ snagentic pull --instance dev && snagentic integrate dev
 `plan-push` compares the workspace with the instance as last pulled, and writes nothing. `push`
 writes only that plan, into the update set `snagentic: <branch> [<scope>]`, and stops if any
 record changed on the instance since the pull. Only development instances can be written.
-Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`:
+Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. Only committed waivers
+apply, agents cannot edit the file, and the path must name an instance and a scope:
 
 ```yaml
 waivers:

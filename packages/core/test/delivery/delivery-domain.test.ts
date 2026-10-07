@@ -138,7 +138,7 @@ describe("waivers", () => {
   const today = new Date("2026-10-06T12:00:00Z");
   const valid = {
     rule: "SN-SEC-001",
-    path: "instances/dev/metadata/**",
+    path: "instances/dev/metadata/global/**",
     reason: "r",
     approver: "a",
     expires: "2027-01-01",
@@ -167,6 +167,24 @@ describe("waivers", () => {
       [5, "not a mapping"],
     ]);
     expect(readWaivers(null, today)).toEqual({ waivers: [], problems: [] });
+  });
+
+  it("refuses a waiver whose path does not name an instance and a scope", () => {
+    const paths = [
+      "**",
+      "instances/**",
+      "instances/dev/metadata/**",
+      "instances/*/metadata/global/**",
+      "instances/dev/metadata/g*/**",
+      "instances/dev/metadata/global/../../../**",
+    ];
+    const { waivers, problems } = readWaivers(
+      { waivers: paths.map((path) => ({ ...valid, path })) },
+      today,
+    );
+    expect(waivers).toEqual([]);
+    expect(problems).toHaveLength(paths.length);
+    expect(problems[0]?.reason).toContain("instances/<name>/metadata/<scope>/");
   });
 
   it("matches paths by glob: * and ? within a folder, ** across folders", () => {

@@ -1,5 +1,6 @@
 import type { InstanceName } from "../kernel/instance-name";
 import type { InstanceProfile } from "./domain/profile";
+import type { StoredCredential } from "./domain/trust";
 
 // Profiles live in the workspace (instances/<name>/instance.yaml); `root` is its path.
 export interface ProfileStore {
@@ -9,9 +10,10 @@ export interface ProfileStore {
   remove(root: string, name: InstanceName): Promise<void>;
 }
 
-// Secrets never live in the workspace: OS keychain or environment variables only.
+// Secrets never live in the workspace: OS keychain or environment variables only. A secret is
+// stored together with the profile's url and kind (ADR-0020).
 export interface CredentialStore {
-  read(profile: InstanceProfile): Promise<string | null>;
+  read(profile: InstanceProfile): Promise<StoredCredential | null>;
   write(profile: InstanceProfile, secret: string): Promise<void>;
   remove(profile: InstanceProfile): Promise<boolean>;
 }

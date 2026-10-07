@@ -72,9 +72,9 @@ describe("the Claude Code settings' contract with snagentic", () => {
     const commands = Object.values(CLAUDE_SETTINGS.hooks).flatMap((entries) =>
       entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)),
     );
-    expect(commands.map((command) => command.replace("snagentic hook claude ", ""))).toEqual([
-      ...CLAUDE_HOOK_EVENTS,
-    ]);
+    expect(commands.map((command) => command.replace("snagentic hook claude ", "")).sort()).toEqual(
+      [...CLAUDE_HOOK_EVENTS].sort(),
+    );
   });
 
   it("names only existing tools in its permission rules", () => {

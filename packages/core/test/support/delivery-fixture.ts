@@ -43,6 +43,7 @@ export interface State {
   integrated: boolean;
   texts: Record<string, string>;
   waivers: unknown;
+  waiversUncommitted: boolean;
 }
 
 function fakeWorkspace(state: State): DeliveryWorkspace {
@@ -54,7 +55,7 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
     changedFiles: async () => state.changed,
     read: async (base, at) => (at === null ? state.working : state.mirror)[base] ?? null,
     text: async (path) => state.texts[path] ?? null,
-    waivers: async () => state.waivers,
+    waivers: async () => ({ committed: state.waivers, uncommitted: state.waiversUncommitted }),
   };
 }
 
@@ -116,6 +117,7 @@ export function setup(overrides: Partial<State> = {}, held: Record<string, unkno
     integrated: true,
     texts: {},
     waivers: null,
+    waiversUncommitted: false,
     ...overrides,
   };
   const tables: Record<string, Row[]> = {

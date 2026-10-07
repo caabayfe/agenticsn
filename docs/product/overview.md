@@ -162,4 +162,6 @@ never passes through a snagentic service: there isn't one.
 - [Security and governance](security-and-governance.md): data flows, credentials and
   enforcement layers, for security reviewers.
 - [Getting started](../getting-started.md) and the [command reference](../reference/commands.md).
+- [Credentials and instance trust](../guides/credentials.md): how passwords are stored and
+  bound to one instance.
 - [Architecture decisions](../adr/README.md) and [requirements](../architecture/significant-requirements.md).

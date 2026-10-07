@@ -1,7 +1,10 @@
+import { SHELL_DENY } from "@snagentic/agent-packs";
 import { z } from "zod";
+import { isEditTool, isShellTool, toolCallOf } from "./host-payload";
 
-// Claude Code hooks (ADR-0011, layer 1), as an interface over the check and validate use
-// cases: the host sends a JSON payload on stdin; the exit code and output tell it what to do.
+// Agent host hooks (ADR-0011, layers 1 and 2), as an interface over the check and validate
+// use cases: the host sends a JSON payload on stdin; the exit code and output tell it what to
+// do. Written for Claude Code's settings, which Copilot CLI also reads (see host-payload.ts).
 // Hooks help the agent; they never replace the push gate or CI, so any failure here lets the
 // agent continue (exit 0) and says why on stderr.
 
@@ -32,7 +35,7 @@ export type RunUseCase = (
   input: Record<string, unknown>,
 ) => Promise<Record<string, unknown>>;
 
-export const CLAUDE_HOOK_EVENTS = ["pre-edit", "post-edit", "stop"] as const;
+export const CLAUDE_HOOK_EVENTS = ["pre-edit", "post-edit", "pre-shell", "stop"] as const;
 export type ClaudeHookEvent = (typeof CLAUDE_HOOK_EVENTS)[number];
 
 const OK: HookOutcome = { exitCode: 0, stdout: "", stderr: "" };
@@ -48,8 +51,8 @@ const findingsOf = (output: Record<string, unknown>): Finding[] =>
 const line = (f: Finding) =>
   `${f.severity} ${f.ruleId} ${f.path}${f.line === null ? "" : `:${f.line}`}: ${f.message} Fix: ${f.remediation}`;
 
-async function preEdit(path: string, run: RunUseCase): Promise<HookOutcome> {
-  const output = await run("check", { paths: [path], edited: false });
+async function preEdit(paths: readonly string[], run: RunUseCase): Promise<HookOutcome> {
+  const output = await run("check", { paths, edited: false });
   const blocked = Protected.parse(output["protected"]);
   if (blocked.length === 0) {
     return OK;
@@ -62,8 +65,8 @@ async function preEdit(path: string, run: RunUseCase): Promise<HookOutcome> {
   };
 }
 
-async function postEdit(path: string, run: RunUseCase): Promise<HookOutcome> {
-  const findings = findingsOf(await run("check", { paths: [path], edited: true }));
+async function postEdit(paths: readonly string[], run: RunUseCase): Promise<HookOutcome> {
+  const findings = findingsOf(await run("check", { paths, edited: true }));
   const blocking = findings.filter((f) => f.severity === "block");
   if (blocking.length > 0) {
     return {
@@ -78,11 +81,20 @@ async function postEdit(path: string, run: RunUseCase): Promise<HookOutcome> {
   const context = `snagentic check:\n${findings.map(line).join("\n")}`;
   return {
     exitCode: 0,
+    // Claude Code reads the nested field; Copilot CLI reads the top-level one.
     stdout: JSON.stringify({
       hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: context },
+      additionalContext: context,
     }),
     stderr: "",
   };
+}
+
+function preShell(command: string): HookOutcome {
+  const denied = SHELL_DENY.find((rule) => rule.pattern.test(command));
+  return denied === undefined
+    ? OK
+    : { exitCode: 2, stdout: "", stderr: `snagentic: command refused: ${denied.reason}.` };
 }
 
 // Before the agent ends its turn: no block finding may remain in what it changed. Asked once
@@ -108,11 +120,14 @@ export async function runClaudeHook(
     if (event === "stop") {
       return await stop(payload, run);
     }
-    const path = field(field(payload, "tool_input"), "file_path");
-    if (typeof path !== "string" || path === "") {
+    const call = toolCallOf(payload);
+    if (event === "pre-shell") {
+      return call.command !== undefined && isShellTool(call) ? preShell(call.command) : OK;
+    }
+    if (call.paths.length === 0 || !isEditTool(call)) {
       return OK;
     }
-    return event === "pre-edit" ? await preEdit(path, run) : await postEdit(path, run);
+    return event === "pre-edit" ? await preEdit(call.paths, run) : await postEdit(call.paths, run);
   } catch (error) {
     // Outside a workspace, or snagentic itself failing: never stop the agent's work over it.
     return {

@@ -29,14 +29,23 @@ export interface NewProfile {
   readonly acknowledgeReadOnly: boolean;
 }
 
-export function createProfile(input: NewProfile): InstanceProfile {
-  const username = input.username.trim();
+// Checked on creation and again on every read: instance.yaml is a file anyone can edit.
+export function usernameProblem(username: string): string | null {
   if (username === "") {
-    throw new InvalidInputError("username must not be empty");
+    return "username must not be empty";
   }
   // The username is used inside encoded queries, where ^ , and line breaks are syntax.
   if (/[\^,\r\n]/.test(username)) {
-    throw new InvalidInputError("username must not contain ^ , or line breaks");
+    return "username must not contain ^ , or line breaks";
+  }
+  return null;
+}
+
+export function createProfile(input: NewProfile): InstanceProfile {
+  const username = input.username.trim();
+  const problem = usernameProblem(username);
+  if (problem !== null) {
+    throw new InvalidInputError(problem);
   }
   // ADR-0013: until the read-only credential check exists (spike S6), the user must
   // confirm that test and production credentials cannot write.
@@ -69,4 +78,10 @@ export function credentialAccount(profile: InstanceProfile): string {
 // Environment variable that supplies the secret in CI, e.g. SNAGENTIC_ACME_PROD_PASSWORD.
 export function credentialVariable(profile: InstanceProfile): string {
   return `SNAGENTIC_${profile.name.toUpperCase().replaceAll("-", "_")}_PASSWORD`;
+}
+
+// All variables a CI job sets: the secret, and the url and kind that pin it (ADR-0020).
+export function credentialVariables(profile: InstanceProfile): string {
+  const prefix = credentialVariable(profile).replace(/_PASSWORD$/, "");
+  return `${prefix}_PASSWORD, ${prefix}_URL and ${prefix}_KIND`;
 }

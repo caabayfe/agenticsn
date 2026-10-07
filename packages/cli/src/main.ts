@@ -8,8 +8,8 @@ import { EnvironmentCredentialStore } from "./adapters/credentials/environment-c
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
 import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
+import { createTextFile } from "./adapters/fs/create-text-file";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
-import { writeTextFile } from "./adapters/fs/write-text-file";
 import { gitInspector } from "./adapters/git/git-inspector";
 import { gitIntegrator } from "./adapters/git/git-integrator";
 import { gitInventoryReader } from "./adapters/git/git-inventory-reader";
@@ -77,7 +77,7 @@ const context: UseCaseContext = {
     records: new GitChangedRecords(root, instancePaths(instance).metadata),
     checker: new EslintScriptChecker(),
   }),
-  files: { write: (path, content) => writeTextFile(path, content) },
+  files: { create: createTextFile },
   workspaceFiles: fsWorkspaceFiles,
   delivery: (root, instance) => new GitDeliveryWorkspace(root, instance),
   pushJournal: (root, instance) =>

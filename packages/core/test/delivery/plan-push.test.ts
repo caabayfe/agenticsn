@@ -5,6 +5,14 @@ import { NEW, RULE, record, setup } from "../support/delivery-fixture";
 const QUERY = { instance: "dev", allowCollisions: false };
 
 describe("computePlan", () => {
+  it("refuses a label that would change the update set query", async () => {
+    for (const label of ["x^NQname=other", "x\ny", "x]"]) {
+      await expect(computePlan(setup().deps, { ...QUERY, label })).rejects.toMatchObject({
+        code: "invalid-input",
+      });
+    }
+  });
+
   it("plans the changed fields of an edited record, ready to push", async () => {
     const { plan, writes } = await computePlan(setup().deps, QUERY);
     expect(plan).toMatchObject({
@@ -78,6 +86,23 @@ describe("computePlan", () => {
       gate: { passed: true, waived: [{ approver: "lead" }] },
     });
     expect(waived.plan.planId).not.toBe(blocked.plan.planId);
+  });
+
+  it("applies only committed waivers, and says when waivers.yaml has uncommitted changes", async () => {
+    const risky = record(
+      "sys_script",
+      "0123456789abcdef0123456789abcdef",
+      { name: "Rule", order: "100" },
+      "eval(x);",
+    );
+    const { plan } = await computePlan(
+      setup({ working: { [RULE]: risky }, waivers: null, waiversUncommitted: true }).deps,
+      QUERY,
+    );
+    expect(plan.ready).toBe(false);
+    expect(plan.gate.waiverProblems).toEqual([
+      { index: -1, reason: "waivers.yaml has uncommitted changes; only committed waivers apply" },
+    ]);
   });
 
   it("reports deletes, child rows and conflict markers as problems", async () => {

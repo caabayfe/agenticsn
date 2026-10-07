@@ -43,12 +43,18 @@ async function setup() {
   await workspaces.create(root, { layout: 1, createdWith: "test" });
   const credentials = memoryCredentials();
   const roles = ["admin"];
+  const prompts: string[] = [];
   const context: UseCaseContext = {
     ...FAKE_CONTEXT,
     workspaces,
     profiles: new YamlProfileStore(),
     credentials,
-    secrets: { read: async () => "typed-secret" },
+    secrets: {
+      read: async (prompt) => {
+        prompts.push(prompt);
+        return "typed-secret";
+      },
+    },
     connections: {
       open: () => ({
         query: async (query) =>
@@ -100,7 +106,7 @@ async function setup() {
     });
     return { exitCode, out: io.out(), err: io.err() };
   };
-  return { base, root, credentials, roles, run };
+  return { base, root, credentials, roles, prompts, run };
 }
 
 describe("instance commands", () => {
@@ -228,6 +234,29 @@ describe("auth commands", () => {
     const logout = await run("auth", "logout", "pdi");
     expect(logout.exitCode).toBe(0);
     expect(credentials.secrets.size).toBe(0);
+  });
+
+  it("adds an OAuth client and asks for its client secret, never a password (ADR-0021)", async () => {
+    const { root, run, credentials, prompts } = await setup();
+    const added = await run(
+      "instance",
+      "add",
+      "pdi",
+      "--url",
+      "dev312411",
+      "--username",
+      "admin",
+      "--client-id",
+      "0123abcd",
+    );
+    expect(added.exitCode).toBe(0);
+    expect(await readFile(join(root, "instances/pdi/instance.yaml"), "utf8")).toContain(
+      "method: oauth-client-credentials",
+    );
+    const login = await run("auth", "login", "pdi");
+    expect(login.exitCode).toBe(0);
+    expect(prompts).toEqual(["client secret for oauth:0123abcd@dev312411.service-now.com: "]);
+    expect(credentials.secrets.get("pdi")).toBe("typed-secret");
   });
 
   it("stores nothing when the credential does not match the profile's kind", async () => {

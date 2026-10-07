@@ -15,9 +15,9 @@ import {
   type TableQuery,
   type TableStatistics,
 } from "@snagentic/core";
+import { authorize, type RequestSender } from "./authorization";
 import { CicdPluginActivator } from "./cicd-plugin-activator";
 import type { HttpResponse } from "./http-types";
-import type { RequestScheduler } from "./request-scheduler";
 import { TableApiWriter } from "./table-api-writer";
 
 const MAX_PAGE_SIZE = 10_000;
@@ -70,15 +70,18 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   // Table API writes, for push to development instances.
   readonly writer: InstanceWriter = new TableApiWriter(this);
 
+  // Every request goes through the scheduler, signed for the profile's auth method.
+  private readonly scheduler: RequestSender;
+
   constructor(
     private readonly profile: InstanceProfile,
     secret: string,
-    private readonly scheduler: RequestScheduler,
+    scheduler: RequestSender,
     version: string,
   ) {
+    this.scheduler = authorize(profile, secret, scheduler);
     this.userAgent = `${version} run/${crypto.randomUUID().slice(0, 8)}`;
     this.headers = {
-      Authorization: `Basic ${btoa(`${profile.auth.username}:${secret}`)}`,
       Accept: "application/json",
       "User-Agent": this.userAgent,
     };

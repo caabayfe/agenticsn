@@ -49,6 +49,42 @@ describe("YamlProfileStore", () => {
     expect(await store.list(root)).toEqual([pdi]);
   });
 
+  it("writes and reads an OAuth client profile, with the client id but never a secret", async () => {
+    const root = await workspace();
+    const client = createProfile({
+      name: InstanceName.parse("pdi"),
+      url: "dev312411",
+      username: "svc_oauth",
+      clientId: "0123abcd",
+      kind: "development",
+      acknowledgeReadOnly: false,
+    });
+    await store.write(root, client);
+    expect(await readFile(join(root, "instances/pdi/instance.yaml"), "utf8")).toBe(
+      [
+        "auth:",
+        "  client_id: 0123abcd",
+        "  method: oauth-client-credentials",
+        "  username: svc_oauth",
+        "kind: development",
+        "read_only_acknowledged: false",
+        "url: https://dev312411.service-now.com",
+        "",
+      ].join("\n"),
+    );
+    expect(await store.read(root, client.name)).toEqual(client);
+  });
+
+  it("refuses a hand-edited client id that could change the keychain account", async () => {
+    const root = await workspace();
+    await mkdir(join(root, "instances/pdi"), { recursive: true });
+    await writeFile(
+      join(root, "instances/pdi/instance.yaml"),
+      "url: https://x.service-now.com\nkind: development\nauth:\n  method: oauth-client-credentials\n  client_id: a@b\n  username: svc\n",
+    );
+    await expect(store.read(root, pdi.name)).rejects.toMatchObject({ code: "invalid-profile" });
+  });
+
   it("returns nothing for a missing profile or an empty workspace", async () => {
     const root = await workspace();
     expect(await store.read(root, pdi.name)).toBeNull();

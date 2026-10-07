@@ -1,7 +1,7 @@
 import type { InstanceReader } from "../../connection/ports";
 import { InvalidInputError } from "../../kernel/errors";
 import { CredentialsMissingError, ProfileNotTrustedError } from "../domain/errors";
-import { credentialVariables, type InstanceProfile } from "../domain/profile";
+import { credentialVariables, type InstanceProfile, secretName } from "../domain/profile";
 import { trustProblems, untrustedHint } from "../domain/trust";
 import type { CredentialStore } from "../ports";
 import { verifyCredentialMatchesKind, verifySessionIdentity } from "./verify-access";
@@ -16,7 +16,7 @@ export async function login(
   signal: AbortSignal,
 ): Promise<void> {
   if (secret === "") {
-    throw new InvalidInputError("the password must not be empty");
+    throw new InvalidInputError(`the ${secretName(profile)} must not be empty`);
   }
   await verifySessionIdentity(profile, reader, signal);
   await verifyCredentialMatchesKind(profile, reader, signal);

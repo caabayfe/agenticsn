@@ -12,11 +12,19 @@ import { workspaceRoot } from "./workspace-root";
 export const instanceAdd = defineUseCase({
   group: "instance",
   name: "add",
-  description: "Add a ServiceNow instance profile (URL, kind, user) to this workspace. No secrets.",
+  description:
+    "Add a ServiceNow instance profile (URL, kind, user, and an OAuth client id when the " +
+    "instance signs in an OAuth client) to this workspace. No secrets.",
   input: z.object({
     name: z.string().describe("short name used in commands and folders, e.g. dev or acme-prod"),
     url: z.string().describe("instance name (dev12345) or https address"),
-    username: z.string().describe("integration user"),
+    username: z
+      .string()
+      .describe("integration user; with --client-id, the client's OAuth Application User"),
+    clientId: z
+      .string()
+      .optional()
+      .describe("OAuth client id from the Application Registry, for the client-credentials grant"),
     kind: z.enum(INSTANCE_KINDS).default("development").describe("only development is written to"),
     acknowledgeReadOnly: z
       .boolean()
@@ -35,7 +43,12 @@ export const instanceAdd = defineUseCase({
   arguments: ["name"],
   async handle(input, context) {
     const root = await workspaceRoot(context);
-    const profile = createProfile({ ...input, name: InstanceName.parse(input.name) });
+    const { clientId, ...rest } = input;
+    const profile = createProfile({
+      ...rest,
+      ...(clientId === undefined ? {} : { clientId }),
+      name: InstanceName.parse(input.name),
+    });
     await addInstance(root, profile, context.profiles);
     return {
       name: profile.name,

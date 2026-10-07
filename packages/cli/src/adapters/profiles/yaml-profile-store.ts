@@ -2,6 +2,8 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
+  type AuthSettings,
+  clientIdProblem,
   INSTANCE_KINDS,
   type InstanceName,
   InstanceName as InstanceNames,
@@ -27,17 +29,41 @@ class InvalidProfileError extends SnagenticError {
 }
 
 // The file format (snake_case) is separate from the domain type on purpose.
+const Username = z.string().refine((value) => usernameProblem(value) === null, {
+  error: (issue) => usernameProblem(String(issue.input)) ?? "invalid username",
+});
+
+const ClientId = z.string().refine((value) => clientIdProblem(value) === null, {
+  error: (issue) => clientIdProblem(String(issue.input)) ?? "invalid client id",
+});
+
 const ProfileFile = z.object({
   url: z.string(),
   kind: z.enum(INSTANCE_KINDS),
-  auth: z.object({
-    method: z.literal("basic"),
-    username: z.string().refine((value) => usernameProblem(value) === null, {
-      error: (issue) => usernameProblem(String(issue.input)) ?? "invalid username",
+  auth: z.discriminatedUnion("method", [
+    z.object({ method: z.literal("basic"), username: Username }),
+    z.object({
+      method: z.literal("oauth-client-credentials"),
+      client_id: ClientId,
+      username: Username,
     }),
-  }),
+  ]),
   read_only_acknowledged: z.boolean().default(false),
 });
+
+type AuthFile = z.infer<typeof ProfileFile>["auth"];
+
+function authFrom(file: AuthFile): AuthSettings {
+  return file.method === "basic"
+    ? file
+    : { method: file.method, clientId: file.client_id, username: file.username };
+}
+
+function authFile(auth: AuthSettings): AuthFile {
+  return auth.method === "basic"
+    ? { method: auth.method, username: auth.username }
+    : { method: auth.method, client_id: auth.clientId, username: auth.username };
+}
 
 export class YamlProfileStore implements ProfileStore {
   async list(root: string): Promise<readonly InstanceProfile[]> {
@@ -65,7 +91,7 @@ export class YamlProfileStore implements ProfileStore {
       name,
       url: normalizeInstanceUrl(file.data.url),
       kind: file.data.kind,
-      auth: file.data.auth,
+      auth: authFrom(file.data.auth),
       readOnlyAcknowledged: file.data.read_only_acknowledged,
     };
   }
@@ -76,7 +102,7 @@ export class YamlProfileStore implements ProfileStore {
     const file = {
       url: profile.url,
       kind: profile.kind,
-      auth: { method: profile.auth.method, username: profile.auth.username },
+      auth: authFile(profile.auth),
       read_only_acknowledged: profile.readOnlyAcknowledged,
     };
     await writeFile(join(root, paths.profile), stringify(file, { sortMapEntries: true }));

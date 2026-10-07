@@ -76,6 +76,7 @@ export {
   type AuthSettings,
   type BasicAuth,
   canWrite,
+  clientIdProblem,
   createProfile,
   credentialAccount,
   credentialVariable,
@@ -85,6 +86,8 @@ export {
   type InstanceProfile,
   instanceHost,
   type NewProfile,
+  type OAuthClientCredentials,
+  secretName,
   usernameProblem,
 } from "./instance/domain/profile";
 export {

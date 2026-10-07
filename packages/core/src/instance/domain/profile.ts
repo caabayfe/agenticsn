@@ -11,7 +11,14 @@ export interface BasicAuth {
   readonly username: string;
 }
 
-export type AuthSettings = BasicAuth;
+// ADR-0021: the instance signs the client in as its OAuth Application User, `username`.
+export interface OAuthClientCredentials {
+  readonly method: "oauth-client-credentials";
+  readonly clientId: string;
+  readonly username: string;
+}
+
+export type AuthSettings = BasicAuth | OAuthClientCredentials;
 
 export interface InstanceProfile {
   readonly name: InstanceName;
@@ -25,6 +32,8 @@ export interface NewProfile {
   readonly name: InstanceName;
   readonly url: string;
   readonly username: string;
+  // Given for an OAuth client (ADR-0021); Basic authentication otherwise.
+  readonly clientId?: string;
   readonly kind: InstanceKind;
   readonly acknowledgeReadOnly: boolean;
 }
@@ -41,12 +50,32 @@ export function usernameProblem(username: string): string | null {
   return null;
 }
 
-export function createProfile(input: NewProfile): InstanceProfile {
+// The client id names the keychain account, so it may not contain the account's separators.
+export function clientIdProblem(clientId: string): string | null {
+  return /^[A-Za-z0-9._-]+$/.test(clientId)
+    ? null
+    : "client id must be letters, digits, '.', '_' or '-'";
+}
+
+function authSettings(input: NewProfile): AuthSettings {
   const username = input.username.trim();
   const problem = usernameProblem(username);
   if (problem !== null) {
     throw new InvalidInputError(problem);
   }
+  if (input.clientId === undefined) {
+    return { method: "basic", username };
+  }
+  const clientId = input.clientId.trim();
+  const clientProblem = clientIdProblem(clientId);
+  if (clientProblem !== null) {
+    throw new InvalidInputError(clientProblem);
+  }
+  return { method: "oauth-client-credentials", clientId, username };
+}
+
+export function createProfile(input: NewProfile): InstanceProfile {
+  const auth = authSettings(input);
   // ADR-0013: until the read-only credential check exists (spike S6), the user must
   // confirm that test and production credentials cannot write.
   if (input.kind !== "development" && !input.acknowledgeReadOnly) {
@@ -56,7 +85,7 @@ export function createProfile(input: NewProfile): InstanceProfile {
     name: input.name,
     url: normalizeInstanceUrl(input.url),
     kind: input.kind,
-    auth: { method: "basic", username },
+    auth,
     readOnlyAcknowledged: input.kind !== "development",
   };
 }
@@ -70,9 +99,16 @@ export function instanceHost(profile: InstanceProfile): string {
   return profile.url.replace(/^https:\/\//, "");
 }
 
-// Keychain account under the "snagentic" service: <username>@<host>.
+// Keychain account under the "snagentic" service: <username>@<host>, or
+// oauth:<client id>@<host>, so switching the method never releases the other kind of secret.
 export function credentialAccount(profile: InstanceProfile): string {
-  return `${profile.auth.username}@${instanceHost(profile)}`;
+  const auth = profile.auth;
+  const who = auth.method === "basic" ? auth.username : `oauth:${auth.clientId}`;
+  return `${who}@${instanceHost(profile)}`;
+}
+
+export function secretName(profile: InstanceProfile): string {
+  return profile.auth.method === "basic" ? "password" : "client secret";
 }
 
 // Environment variable that supplies the secret in CI, e.g. SNAGENTIC_ACME_PROD_PASSWORD.

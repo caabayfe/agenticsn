@@ -13,6 +13,8 @@ export function fetchTransport(settings: FetchTransportSettings = {}): Transport
       method: request.method,
       headers: request.headers,
       ...(request.body === undefined ? {} : { body: request.body }),
+      // Basic auth must never follow a redirect to another address; a 3xx is an error.
+      redirect: "manual",
       signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
     });
     return { status: response.status, headers: response.headers, text: () => response.text() };

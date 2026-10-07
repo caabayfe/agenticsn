@@ -1,4 +1,5 @@
 import { type ValidateDependencies, validate } from "../../governance/index";
+import { InvalidInputError } from "../../kernel/errors";
 import type { NextCall } from "../../knowledge/index";
 import { baseOfFile } from "../../knowledge/index";
 import { parseRecord } from "../../metadata/domain/record-layout";
@@ -115,6 +116,14 @@ async function collisionsOf(
 
 // What a push would do, and whether it may (spec 004): the working tree against the mirror,
 // gated by validate and waivers, checked for collisions with open update sets.
+// The label is part of an encoded query (^ separates terms) and of "[<scope>]".
+function checkedLabel(label: string): string {
+  if (/[\^\r\n[\]]/.test(label)) {
+    throw new InvalidInputError("label must not contain ^ [ ] or line breaks");
+  }
+  return label;
+}
+
 export async function computePlan(
   deps: PlanDependencies,
   query: PlanQuery,
@@ -126,7 +135,7 @@ export async function computePlan(
   if (!(await deps.workspace.includes(commit))) {
     throw new MirrorNotIntegratedError(query.instance);
   }
-  const label = query.label ?? (await deps.workspace.branch());
+  const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
   const { writes, problems } = await writesAndProblems(deps, commit);
   const validation = await validate(deps.governance, { base: commit });
   const waiverFile = await deps.workspace.waivers();

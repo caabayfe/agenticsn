@@ -62,6 +62,16 @@ describe("YamlProfileStore", () => {
     await expect(store.read(root, pdi.name)).rejects.toMatchObject({ code: "invalid-profile" });
   });
 
+  it("refuses a hand-edited username that would change an encoded query", async () => {
+    const root = await workspace();
+    await mkdir(join(root, "instances/pdi"), { recursive: true });
+    await writeFile(
+      join(root, "instances/pdi/instance.yaml"),
+      "url: https://x.service-now.com\nkind: development\nauth:\n  method: basic\n  username: a^NQuser_name=admin\n",
+    );
+    await expect(store.read(root, pdi.name)).rejects.toMatchObject({ code: "invalid-profile" });
+  });
+
   it("removes the profile file", async () => {
     const root = await workspace();
     await store.write(root, pdi);

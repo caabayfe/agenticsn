@@ -5,6 +5,14 @@ import { NEW, RULE, record, setup } from "../support/delivery-fixture";
 const QUERY = { instance: "dev", allowCollisions: false };
 
 describe("computePlan", () => {
+  it("refuses a label that would change the update set query", async () => {
+    for (const label of ["x^NQname=other", "x\ny", "x]"]) {
+      await expect(computePlan(setup().deps, { ...QUERY, label })).rejects.toMatchObject({
+        code: "invalid-input",
+      });
+    }
+  });
+
   it("plans the changed fields of an edited record, ready to push", async () => {
     const { plan, writes } = await computePlan(setup().deps, QUERY);
     expect(plan).toMatchObject({

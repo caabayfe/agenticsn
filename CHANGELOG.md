@@ -28,6 +28,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   working copy differs. Agents can no longer edit `waivers.yaml`, and a waiver path must name
   an instance and a scope (`instances/<name>/metadata/<scope>/...`). Before, an agent could
   write a waiver for `**` and pass the push gate.
+- Requests to an instance never follow a redirect, so the credential is never sent to another
+  address.
+- A username edited by hand in `instance.yaml` is checked again on every read, and a push label
+  may not contain `^`, `[`, `]` or line breaks. Either could change an encoded query, for
+  example to select another open update set.
 
 ## [1.1.0] - 2026-10-07
 

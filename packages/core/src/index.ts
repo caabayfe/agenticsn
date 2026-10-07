@@ -78,6 +78,7 @@ export {
   type InstanceProfile,
   instanceHost,
   type NewProfile,
+  usernameProblem,
 } from "./instance/domain/profile";
 export type { CredentialStore, ProfileStore } from "./instance/ports";
 export { canonicalJson, type JsonValue } from "./kernel/canonical-json";

@@ -4,6 +4,9 @@ import { fetchTransport } from "../../../src/adapters/servicenow/fetch-transport
 const server = Bun.serve({
   port: 0,
   async fetch(request) {
+    if (new URL(request.url).pathname === "/moved") {
+      return Response.redirect("/ok", 302);
+    }
     if (new URL(request.url).pathname === "/slow") {
       await Bun.sleep(200);
     }
@@ -29,6 +32,14 @@ describe("fetchTransport", () => {
       "t1",
       "GET yes",
     ]);
+  });
+
+  it("never follows a redirect, so credentials are not sent to another address", async () => {
+    const reply = await fetchTransport()(
+      { method: "GET", url: `${server.url}moved`, headers: { "x-test": "yes" } },
+      LIVE,
+    );
+    expect(reply.status).toBe(302);
   });
 
   it("gives up on a request that exceeds the timeout", async () => {

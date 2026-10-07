@@ -29,14 +29,23 @@ export interface NewProfile {
   readonly acknowledgeReadOnly: boolean;
 }
 
-export function createProfile(input: NewProfile): InstanceProfile {
-  const username = input.username.trim();
+// Checked on creation and again on every read: instance.yaml is a file anyone can edit.
+export function usernameProblem(username: string): string | null {
   if (username === "") {
-    throw new InvalidInputError("username must not be empty");
+    return "username must not be empty";
   }
   // The username is used inside encoded queries, where ^ , and line breaks are syntax.
   if (/[\^,\r\n]/.test(username)) {
-    throw new InvalidInputError("username must not contain ^ , or line breaks");
+    return "username must not contain ^ , or line breaks";
+  }
+  return null;
+}
+
+export function createProfile(input: NewProfile): InstanceProfile {
+  const username = input.username.trim();
+  const problem = usernameProblem(username);
+  if (problem !== null) {
+    throw new InvalidInputError(problem);
   }
   // ADR-0013: until the read-only credential check exists (spike S6), the user must
   // confirm that test and production credentials cannot write.

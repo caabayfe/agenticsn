@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-07
+
+Agents can now understand an instance, design and build changes with platform guardrails, and
+deliver them to development update sets. See the [product overview](docs/product/overview.md)
+and [security and governance](docs/product/security-and-governance.md).
+
 ### Delivery
 
 - `plan-push`: what pushing the workspace would change on the instance (fields per record,

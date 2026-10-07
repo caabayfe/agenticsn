@@ -24,13 +24,16 @@ const checker: ScriptChecker = {
   }),
 };
 const deps = { records, checker };
+const depsFor = (instance: string) => {
+  expect(instance).toBe("pdi");
+  return deps;
+};
 const ROOT = "instances/pdi/metadata";
 
 describe("checkFiles", () => {
   it("reports protected files without validating anything before an edit", async () => {
-    const result = await checkFiles(deps, {
+    const result = await checkFiles(depsFor, {
       paths: [".snagentic/pdi/state.json", `${ROOT}/global/sys_script_include/bad--1.script.js`],
-      metadataRoot: ROOT,
       validate: false,
     });
     expect(result).toMatchObject({
@@ -41,9 +44,8 @@ describe("checkFiles", () => {
   });
 
   it("validates the edited records after an edit, ignoring files outside the metadata", async () => {
-    const result = await checkFiles(deps, {
+    const result = await checkFiles(depsFor, {
       paths: [`${ROOT}/global/sys_script_include/bad--1.script.js`, "AGENTS.md"],
-      metadataRoot: ROOT,
       validate: true,
     });
     expect(result).toMatchObject({
@@ -51,11 +53,55 @@ describe("checkFiles", () => {
       findings: [{ ruleId: "SN-SEC-001" }],
       passed: false,
     });
-    const clean = await checkFiles(deps, {
+    const clean = await checkFiles(depsFor, {
       paths: ["AGENTS.md"],
-      metadataRoot: ROOT,
       validate: true,
     });
     expect(clean).toEqual({ protected: [], findings: [], passed: true });
+  });
+
+  it("needs no instance to report protected files, in a workspace with several or none", async () => {
+    const result = await checkFiles(
+      () => {
+        throw new Error("no instance to validate");
+      },
+      { paths: ["snagentic.yaml", "instances/test/instance.yaml", "AGENTS.md"], validate: true },
+    );
+    expect(result.protected.map((p) => p.path)).toEqual([
+      "snagentic.yaml",
+      "instances/test/instance.yaml",
+    ]);
+    expect(result.passed).toBe(false);
+  });
+
+  it("validates each edited record against the instance its path names", async () => {
+    const seen: string[] = [];
+    const result = await checkFiles(
+      (instance) => {
+        seen.push(instance);
+        return deps;
+      },
+      {
+        paths: [
+          "instances/dev/metadata/global/sys_script_include/bad--1.script.js",
+          "instances/prod/metadata/global/sys_script_include/ok--2.script.js",
+        ],
+        validate: true,
+      },
+    );
+    expect(seen.sort()).toEqual(["dev", "prod"]);
+    expect(result.findings).toMatchObject([{ ruleId: "SN-SEC-001" }]);
+  });
+
+  it("validates only the named instance's records when one is named", async () => {
+    const result = await checkFiles(depsFor, {
+      paths: [
+        `${ROOT}/global/sys_script_include/ok--1.script.js`,
+        "instances/prod/metadata/global/sys_script_include/bad--2.script.js",
+      ],
+      validate: true,
+      instance: "pdi",
+    });
+    expect(result).toEqual({ protected: [], findings: [], passed: true });
   });
 });

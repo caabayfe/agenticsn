@@ -220,7 +220,7 @@ Changes the instance: no. MCP tool: none.
 Options:
 
 - `--no-edited`: false before an edit: only whether it is allowed
-- `--instance <value>`: default: the workspace's only instance
+- `--instance <value>`: validate only this instance's records (default: each record's own instance)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 

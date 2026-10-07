@@ -24,4 +24,27 @@ describe("protected paths", () => {
       expect(protectedReason(path)).toBeNull();
     }
   });
+
+  it("protects the hooks and permission rules that guard the agent", () => {
+    for (const path of [
+      ".claude/settings.json",
+      ".claude/settings.local.json",
+      ".github/hooks/snagentic.json",
+    ]) {
+      expect(protectedReason(path)).not.toBeNull();
+    }
+    expect(protectedReason(".claude/skills/servicenow-build/SKILL.md")).toBeNull();
+  });
+
+  it("is not fooled by letter case or Windows separators", () => {
+    for (const path of [
+      ".SNAGENTIC/pdi/state.json",
+      "Snagentic.yaml",
+      ".Claude/Settings.json",
+      "instances\\pdi\\instance.yaml",
+      ".\\.snagentic\\pdi\\state.json",
+    ]) {
+      expect([path, protectedReason(path)]).not.toEqual([path, null]);
+    }
+  });
 });

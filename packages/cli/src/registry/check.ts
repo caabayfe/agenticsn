@@ -1,7 +1,6 @@
 import { relative, resolve } from "node:path";
-import { checkFiles, instancePaths } from "@snagentic/core";
+import { checkFiles, InstanceName } from "@snagentic/core";
 import { z } from "zod";
-import { instanceFor } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
@@ -14,7 +13,10 @@ export const check = defineUseCase({
   input: z.object({
     paths: z.array(z.string()).min(1).describe("files, absolute or relative to the current folder"),
     edited: z.boolean().default(true).describe("false before an edit: only whether it is allowed"),
-    instance: z.string().optional().describe("default: the workspace's only instance"),
+    instance: z
+      .string()
+      .optional()
+      .describe("validate only this instance's records (default: each record's own instance)"),
   }),
   output: z.object({
     protected: z.array(z.object({ path: z.string(), reason: z.string() })).readonly(),
@@ -37,12 +39,11 @@ export const check = defineUseCase({
   arguments: ["paths"],
   async handle(input, context) {
     const root = await workspaceRoot(context);
-    const instance = await instanceFor(root, context, input.instance);
     const paths = input.paths.map((path) => relative(root, resolve(context.host.cwd, path)));
-    return checkFiles(context.governance(root, instance), {
+    return checkFiles((instance) => context.governance(root, InstanceName.parse(instance)), {
       paths,
-      metadataRoot: instancePaths(instance).metadata,
       validate: input.edited,
+      ...(input.instance === undefined ? {} : { instance: input.instance }),
     });
   },
   render(output) {

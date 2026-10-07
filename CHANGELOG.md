@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- `push` writes each branch, and so each pull request, into its own **update set batch**:
+  `snagentic: <branch>` holds the global changes, with a child `snagentic: <branch> [<scope>]`
+  per other application scope, so a pull request that spans scopes is promoted as one batch.
+  `--pr <url>` links the pull request from the batch's description. An update set an earlier
+  version opened as `snagentic: <branch> [global]` is not reused: complete or merge it.
+
 ## [1.2.0] - 2026-10-07
 
 ### ⚠️ Breaking: credentials are bound to their instance

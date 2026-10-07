@@ -135,8 +135,15 @@ snagentic pull --instance dev && snagentic integrate dev
 ```
 
 `plan-push` compares the workspace with the instance as last pulled, and writes nothing. `push`
-writes only that plan, into the update set `snagentic: <branch> [<scope>]`, and stops if any
-record changed on the instance since the pull. Only development instances can be written.
+writes only that plan, and stops if any record changed on the instance since the pull. Only
+development instances can be written.
+
+Each branch, and so each pull request, gets its own **update set batch**: the update set
+`snagentic: <branch>` holds the global changes, with a child `snagentic: <branch> [<scope>]`
+for each other application scope. Pushing the branch again, from any machine or from CI, reuses
+the open batch; preview and commit it on the target as one batch. Add
+`--pr <pull request url>` to link the pull request from the batch's description. Don't rename
+the batch on the instance: its name is what links it to the branch.
 Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. Only committed waivers
 apply, agents cannot edit the file, and the path must name an instance and a scope:
 

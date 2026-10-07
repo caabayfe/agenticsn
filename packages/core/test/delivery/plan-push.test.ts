@@ -19,7 +19,7 @@ describe("computePlan", () => {
       instance: "dev",
       mirrorCommit: "c0ffee",
       label: "feature/p1",
-      updateSets: ["snagentic: feature/p1 [global]"],
+      updateSets: ["snagentic: feature/p1"],
       changes: [
         { operation: "update", table: "sys_script", path: `${RULE}.yaml`, fields: ["order"] },
       ],
@@ -142,6 +142,49 @@ describe("computePlan", () => {
     expect(
       (await computePlan(setup({}, [{ name, update_set: "s2" }]).deps, QUERY)).plan.collisions,
     ).toEqual([]);
+  });
+
+  it("counts every update set of the branch's batch as ours, and no other branch's", async () => {
+    const name = "sys_script_0123456789abcdef0123456789abcdef";
+    const { deps, tables } = setup({}, [
+      { name, update_set: "s3" },
+      { name, update_set: "s4" },
+    ]);
+    tables["sys_update_set"]?.push(
+      { sys_id: "s3", name: "snagentic: feature/p1 [x_acme]", state: "in progress" },
+      { sys_id: "s4", name: "snagentic: feature/p10", state: "in progress" },
+    );
+    const { plan } = await computePlan(deps, QUERY);
+    expect(plan.collisions.flatMap((c) => c.heldBy.map((h) => h.updateSetName))).toEqual([
+      "snagentic: feature/p10",
+    ]);
+  });
+
+  it("plans the batch, with a child update set for each scope other than global", async () => {
+    const scoped = record(
+      "sys_script",
+      "abcdefabcdefabcdefabcdefabcdefab",
+      { name: "Scoped", order: "1" },
+      undefined,
+      "x_acme",
+    );
+    const path = "x_acme/sys_script/scoped--abcdefabcdefabcdefabcdefabcdefab";
+    const { deps } = setup({
+      mirror: { ...setup().state.mirror, [path]: scoped },
+      working: {
+        ...setup().state.working,
+        [path]: record(
+          "sys_script",
+          "abcdefabcdefabcdefabcdefabcdefab",
+          { name: "Scoped", order: "2" },
+          undefined,
+          "x_acme",
+        ),
+      },
+      changed: [`${RULE}.yaml`, `${path}.yaml`],
+    });
+    const { plan } = await computePlan(deps, QUERY);
+    expect(plan.updateSets).toEqual(["snagentic: feature/p1", "snagentic: feature/p1 [x_acme]"]);
   });
 
   it("needs a pull, integrated into the branch", async () => {

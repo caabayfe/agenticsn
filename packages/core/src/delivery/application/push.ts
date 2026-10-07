@@ -1,6 +1,7 @@
 import type { InstanceReader } from "../../connection/ports";
 import type { NextCall } from "../../knowledge/index";
 import { Catalog, type CatalogData } from "../../metadata/domain/catalog";
+import { GLOBAL } from "../domain/batch";
 import type { PlannedWrite } from "../domain/change";
 import {
   PlanChangedError,
@@ -13,7 +14,8 @@ import { computePlan, type PlanDependencies, type PlanQuery } from "./plan-push"
 import {
   captured,
   type InstanceSession,
-  openUpdateSet,
+  openBatch,
+  openChild,
   restorePreference,
   switchPreference,
   userSysId,
@@ -34,18 +36,24 @@ export interface PushDependencies extends PlanDependencies {
 export interface PushQuery extends PlanQuery {
   readonly planId: string;
   readonly confirm: boolean;
+  // The branch's pull request, linked from the batch's description.
+  readonly pr?: string;
+}
+
+interface OpenedUpdateSet {
+  readonly name: string;
+  readonly sysId: string;
+  readonly created: boolean;
+  readonly link: string;
 }
 
 export interface PushResult {
   readonly instance: string;
   readonly planId: string;
-  readonly updateSets: readonly {
-    scope: string;
-    name: string;
-    sysId: string;
-    created: boolean;
-    link: string;
-  }[];
+  // The branch's batch (spec 004, D3); global changes are written into it.
+  readonly batch: OpenedUpdateSet;
+  // The update set each scope's changes were written into.
+  readonly updateSets: readonly (OpenedUpdateSet & { readonly scope: string })[];
   readonly written: readonly {
     operation: string;
     table: string;
@@ -127,7 +135,30 @@ async function preflight(deps: PushDependencies, query: PushQuery, session: Inst
   return planned;
 }
 
-// Writes a reviewed plan to the development instance, into one update set per scope.
+// The update set for each scope's writes: the batch for global, otherwise its child.
+async function updateSetsFor(
+  deps: PushDependencies,
+  session: InstanceSession,
+  query: PushQuery,
+  plan: { readonly label: string; readonly scopes: readonly string[] },
+  catalog: Catalog,
+) {
+  const link = (set: { sysId: string }) => `${deps.url}/sys_update_set.do?sys_id=${set.sysId}`;
+  const opened = await openBatch(session, plan.label, query.pr);
+  const batch = { ...opened, link: link(opened) };
+  const sets: (OpenedUpdateSet & { scope: string; id: string })[] = [];
+  for (const scope of plan.scopes) {
+    const id = catalog.scopeSysId(scope) ?? scope;
+    const set =
+      scope === GLOBAL
+        ? batch
+        : await openChild(session, plan.label, { name: scope, id }, batch.sysId);
+    sets.push({ scope, id, ...set, link: link(set) });
+  }
+  return { batch, sets };
+}
+
+// Writes a reviewed plan to the development instance, into the branch's batch of update sets.
 export async function push(deps: PushDependencies, query: PushQuery): Promise<PushResult> {
   const session: InstanceSession = {
     reader: deps.reader,
@@ -147,36 +178,30 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
     },
   };
   await deps.journal.write(journal.current);
-  const updateSets: PushResult["updateSets"][number][] = [];
+  const scopes = [...new Set(writes.map((w) => w.scope))].sort();
+  const { batch, sets } = await updateSetsFor(deps, session, query, { ...plan, scopes }, catalog);
   const written: PushResult["written"][number][] = [];
-  for (const scope of [...new Set(writes.map((w) => w.scope))].sort()) {
-    const id = catalog.scopeSysId(scope) ?? scope;
-    const set = await openUpdateSet(session, `snagentic: ${plan.label} [${scope}]`, id);
-    updateSets.push({ scope, ...set, link: `${deps.url}/sys_update_set.do?sys_id=${set.sysId}` });
+  for (const { id, scope, sysId } of sets) {
     const scoped = writes.filter((w) => w.scope === scope);
     await pushScope(
       deps,
       session,
       journal,
-      { name: scope, id, setId: set.sysId, user, writes: scoped },
+      { name: scope, id, setId: sysId, user, writes: scoped },
       catalog,
     );
     for (const write of scoped) {
-      const { operation, table, sysId, path } = write;
-      written.push({
-        operation,
-        table,
-        sysId,
-        path,
-        captured: await captured(session, write, set.sysId),
-      });
+      const { operation, table, sysId: record, path } = write;
+      const done = await captured(session, write, sysId);
+      written.push({ operation, table, sysId: record, path, captured: done });
     }
   }
   await deps.journal.clear();
   return {
     instance: query.instance,
     planId: plan.planId,
-    updateSets,
+    batch,
+    updateSets: sets.map(({ id, ...set }) => set),
     written,
     notCaptured: written.filter((w) => !w.captured).length,
     next: [

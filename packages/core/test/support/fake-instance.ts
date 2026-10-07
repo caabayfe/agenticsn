@@ -96,13 +96,16 @@ export function memoryWriter(
   capture = { on: true },
 ) {
   let created = 0;
-  const current = () =>
-    (tables["sys_user_preference"] ?? []).find((row) => row["name"] === "sys_update_set")?.[
-      "value"
-    ] ?? "";
-  const captureFor = (table: string, sysId: string) => {
+  // As the platform does: a scoped record goes to the user's update set for its scope.
+  const current = (scope: string) => {
+    const name =
+      scope === "" || scope === "global" ? "sys_update_set" : `updateSetForScope${scope}`;
+    const preferences = tables["sys_user_preference"] ?? [];
+    return preferences.find((row) => row["name"] === name)?.["value"] ?? "";
+  };
+  const captureFor = (table: string, sysId: string, scope: string) => {
     if (capture.on && !["sys_user_preference", "sys_update_set"].includes(table)) {
-      const row = { sys_id: `x${sysId}`, name: `${table}_${sysId}`, update_set: current() };
+      const row = { sys_id: `x${sysId}`, name: `${table}_${sysId}`, update_set: current(scope) };
       tables["sys_update_xml"] = [...(tables["sys_update_xml"] ?? []), row];
     }
   };
@@ -112,7 +115,7 @@ export function memoryWriter(
       const row = { sys_id: values["sys_id"] ?? `new${created}`, ...values };
       tables[table] = [...(tables[table] ?? []), row];
       writes.push(`insert ${table} ${Object.keys(values).sort().join(",")}`);
-      captureFor(table, row.sys_id);
+      captureFor(table, row.sys_id, values["sys_scope"] ?? "");
       return row;
     },
     update: async (table, sysId, values) => {
@@ -126,7 +129,7 @@ export function memoryWriter(
           .map(([k, v]) => `${k}=${v}`)
           .join(",")}`,
       );
-      captureFor(table, sysId);
+      captureFor(table, sysId, row["sys_scope"] ?? "");
       return { ...row, ...values };
     },
   };

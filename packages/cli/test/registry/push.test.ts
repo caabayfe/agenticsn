@@ -72,7 +72,8 @@ describe("push", () => {
     expect(exitCode).toBe(0);
     expect(output).toMatchObject({
       planId,
-      updateSets: [{ name: "snagentic: main [global]", created: true }],
+      batch: { name: "snagentic: main", created: true },
+      updateSets: [{ name: "snagentic: main", created: true }],
       written: [{ operation: "update", table: "sys_script_include", captured: true }],
       notCaptured: 0,
     });
@@ -81,8 +82,37 @@ describe("push", () => {
     );
     expect(existsSync(join(root, ".snagentic/pdi/push-journal.json"))).toBe(false);
     const text = push.render(output as never, "text");
-    expect(text).toContain("update set created: snagentic: main [global]");
+    expect(text).toContain("batch created: snagentic: main ");
+    expect(text).not.toContain("update set created");
     expect(text).toContain("next: snagentic pull --instance pdi, then integrate");
+  });
+
+  it("shows the batch once, then each other scope's child update set", () => {
+    const set = (name: string, sysId: string) => ({
+      name,
+      sysId,
+      created: false,
+      link: `l/${sysId}`,
+    });
+    const text = push.render(
+      {
+        instance: "pdi",
+        planId: "p",
+        batch: set("snagentic: main", "b1"),
+        updateSets: [
+          { scope: "global", ...set("snagentic: main", "b1") },
+          { scope: "x_acme", ...set("snagentic: main [x_acme]", "c1") },
+        ],
+        written: [],
+        notCaptured: 0,
+        next: [],
+      },
+      "text",
+    );
+    expect(text.split("\n").slice(0, 2)).toEqual([
+      "batch reused: snagentic: main  l/b1",
+      "update set reused: snagentic: main [x_acme]  l/c1",
+    ]);
   });
 
   it("refuses without confirmation, and explains a capture problem", async () => {
@@ -96,6 +126,7 @@ describe("push", () => {
       {
         instance: "pdi",
         planId: "p",
+        batch: { name: "snagentic: main", sysId: "b1", created: false, link: "l" },
         updateSets: [],
         written: [{ operation: "update", table: "t", sysId: "s", path: "p.yaml", captured: false }],
         notCaptured: 1,

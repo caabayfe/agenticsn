@@ -12,8 +12,8 @@ export const DELIVER: Skill = {
     "`status`: when `phase` is not `integrated`, run `pull` and ask the user to run snagentic integrate first.",
     "`plan_push` (with `label` if the user named the update set).",
     "Show the plan: each of the `changes` (operation, path, `fields`), the `updateSets`, the `gate`, any `collisions` and `problems`.",
-    "Once the plan is `ready` and the user approves it: `push` with `instance`, `plan` set to the `planId`, and `confirm` true.",
-    "Report the `updateSets` with their `link` and what was `written`; then `pull`, and tell the user to integrate.",
+    "Once the plan is `ready` and the user approves it: `push` with `instance`, `plan` set to the `planId`, `confirm` true, and `pr` set to the branch's pull request URL when it has one.",
+    "Report the `batch` and `updateSets` with their `link` and what was `written`; then `pull`, and tell the user to integrate.",
   ],
   decide: [
     "`ready` is false: fix what `problems`, the gate's `blocking` findings or `collisions` name, then `plan_push` again.",
@@ -22,7 +22,7 @@ export const DELIVER: Skill = {
     "`notCaptured` is above 0: tell the user which records to add to the update set on the instance.",
   ],
   output:
-    "The update sets (names and links), the records written, and what is left: pull, integrate, and test on the instance.",
+    "The batch and its update sets (names and links), the records written, and what is left: pull, integrate, and test on the instance.",
   stopAndAsk:
     "Always before `push`: the user approves the plan you showed. Also whenever there are `collisions`.",
   never: [

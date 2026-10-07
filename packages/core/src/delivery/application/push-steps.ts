@@ -5,6 +5,7 @@ import { TableName } from "../../kernel/table-name";
 import { artifactFromRow } from "../../metadata/domain/artifact";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { DEFAULT_REDACTION } from "../../metadata/domain/redaction";
+import { batchDescription, batchName, GLOBAL, updateSetName } from "../domain/batch";
 import type { PlannedWrite } from "../domain/change";
 import { IntegrationUserNotFoundError, RecordChangedOnInstanceError } from "../domain/errors";
 import type { InstanceWriter, PushJournal } from "../ports";
@@ -40,9 +41,40 @@ export async function userSysId(session: InstanceSession, username: string): Pro
   return user["sys_id"] ?? "";
 }
 
-// The open update set for this name and scope, created when there is none (ADR-0007).
-export async function openUpdateSet(session: InstanceSession, name: string, scopeId: string) {
-  const query = `name=${name}^state=${OPEN}^application=${scopeId}`;
+// The branch's batch (spec 004, D3): its open global update set, created when there is none,
+// with the pull request's link added to its description.
+export async function openBatch(session: InstanceSession, label: string, pr?: string) {
+  const name = batchName(label);
+  const query = `name=${name}^state=${OPEN}^application=${GLOBAL}`;
+  const found = await first(session, "sys_update_set", query, ["sys_id", "description"]);
+  if (found === null) {
+    const values = {
+      name,
+      application: GLOBAL,
+      state: OPEN,
+      description: batchDescription(null, pr),
+    };
+    const created = await session.writer.insert("sys_update_set", values, session.signal);
+    return { sysId: created["sys_id"] ?? "", name, created: true };
+  }
+  const sysId = found["sys_id"] ?? "";
+  const existing = found["description"] ?? "";
+  const description = batchDescription(existing, pr);
+  if (description !== existing) {
+    await session.writer.update("sys_update_set", sysId, { description }, session.signal);
+  }
+  return { sysId, name, created: false };
+}
+
+// The batch's open child for a scope other than global, created when there is none.
+export async function openChild(
+  session: InstanceSession,
+  label: string,
+  scope: { readonly name: string; readonly id: string },
+  parent: string,
+) {
+  const name = updateSetName(label, scope.name);
+  const query = `name=${name}^state=${OPEN}^application=${scope.id}`;
   const found = await first(session, "sys_update_set", query, ["sys_id"]);
   if (found !== null) {
     return { sysId: found["sys_id"] ?? "", name, created: false };
@@ -51,9 +83,10 @@ export async function openUpdateSet(session: InstanceSession, name: string, scop
     "sys_update_set",
     {
       name,
-      application: scopeId,
+      application: scope.id,
       state: OPEN,
-      description: "Changes pushed by snagentic from a reviewed plan (snagentic plan_push).",
+      parent,
+      description: batchDescription(null),
     },
     session.signal,
   );

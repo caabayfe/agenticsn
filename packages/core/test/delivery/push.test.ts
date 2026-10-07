@@ -65,7 +65,7 @@ describe("push", () => {
       updateSets: [
         {
           scope: "global",
-          name: "snagentic: feature/p1 [global]",
+          name: "snagentic: feature/p1",
           sysId: "s2",
           created: false,
           link: "https://dev.example.com/sys_update_set.do?sys_id=s2",
@@ -113,6 +113,49 @@ describe("push", () => {
     expect(result.updateSets[0]).toMatchObject({ created: true });
     expect(calls).toContain("insert sys_script_include name,script,sys_id,sys_scope");
     expect(result.written[0]).toMatchObject({ operation: "create", captured: true });
+  });
+
+  it("puts another scope's changes in a child of the branch's batch", async () => {
+    const SCOPED_ID = "abcdefabcdefabcdefabcdefabcdefab";
+    const path = `x_acme/sys_script/scoped--${SCOPED_ID}`;
+    const fields = { name: "Scoped", order: "1" };
+    const scoped = record("sys_script", SCOPED_ID, fields, undefined, "x_acme");
+    const edited = record("sys_script", SCOPED_ID, { ...fields, order: "2" }, undefined, "x_acme");
+    const base = pushSetup({
+      mirror: { [path]: scoped },
+      working: { [path]: edited },
+      changed: [`${path}.yaml`],
+    });
+    const { tables } = base;
+    const deps = {
+      ...base.deps,
+      catalog: { parents: {}, scopes: { a1: "x_acme" }, typedFields: {} },
+    };
+    tables["sys_script"] = [
+      { sys_id: SCOPED_ID, sys_class_name: "sys_script", sys_scope: "a1", ...fields },
+    ];
+    tables["sys_update_set"] = [];
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(tables["sys_update_set"]).toMatchObject([
+      { name: "snagentic: feature/p1", application: "global", state: "in progress" },
+      { name: "snagentic: feature/p1 [x_acme]", application: "a1", parent: "new1" },
+    ]);
+    expect(result).toMatchObject({
+      batch: { name: "snagentic: feature/p1", sysId: "new1", created: true },
+      updateSets: [{ scope: "x_acme", name: "snagentic: feature/p1 [x_acme]", created: true }],
+      written: [{ path: `${path}.yaml`, captured: true }],
+    });
+    const again = await push(deps, { ...QUERY, planId: await planned(deps) }).catch((e) => e);
+    expect(again).toMatchObject({ code: "record-changed-on-instance" });
+    expect(tables["sys_update_set"]).toHaveLength(2);
+  });
+
+  it("links the pull request from the batch's description", async () => {
+    const { deps, tables } = pushSetup();
+    const pr = "https://github.com/acme/now/pull/42";
+    await push(deps, { ...QUERY, planId: await planned(deps), pr });
+    const batch = (tables["sys_update_set"] ?? []).find((row) => row["sys_id"] === "s2");
+    expect(batch?.["description"]).toContain(`Pull request: ${pr}`);
   });
 
   it("needs confirmation, the reviewed plan, and a ready plan", async () => {

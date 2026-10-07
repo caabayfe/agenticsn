@@ -8,19 +8,31 @@ export const push = defineUseCase({
   name: "push",
   description:
     "Deliver a reviewed plan to the development instance: writes the planned records into " +
-    "the update set 'snagentic: <label> [<scope>]' (one per scope), then checks each was " +
-    "captured. Only with the planId from plan_push and confirm=true, after the user approved " +
+    "the branch's update set batch, 'snagentic: <label>' (global changes) with a child " +
+    "'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr " +
+    "to link the branch's pull request from the batch. Only with the planId from plan_push and confirm=true, after the user approved " +
     "the plan. Refuses if anything changed since the plan, on the instance or in the workspace.",
   input: z.object({
     instance: z.string().describe("the development instance"),
     plan: z.string().describe("the planId from plan_push"),
     confirm: z.boolean().default(false).describe("true once the user approved the plan"),
     label: z.string().optional().describe("names the update sets (default: the git branch)"),
+    pr: z
+      .string()
+      .regex(/^https?:\/\/\S+$/, "a pull request URL")
+      .optional()
+      .describe("the branch's pull request, linked from the batch"),
     allowCollisions: z.boolean().default(false),
   }),
   output: z.object({
     instance: z.string(),
     planId: z.string(),
+    batch: z.object({
+      name: z.string(),
+      sysId: z.string(),
+      created: z.boolean(),
+      link: z.string(),
+    }),
     updateSets: z
       .array(
         z.object({
@@ -77,14 +89,16 @@ export const push = defineUseCase({
         confirm: input.confirm,
         allowCollisions: input.allowCollisions,
         ...(input.label === undefined ? {} : { label: input.label }),
+        ...(input.pr === undefined ? {} : { pr: input.pr }),
       },
     );
   },
   render(output) {
     return [
-      ...output.updateSets.map(
-        (set) => `update set ${set.created ? "created" : "reused"}: ${set.name}  ${set.link}`,
-      ),
+      `batch ${output.batch.created ? "created" : "reused"}: ${output.batch.name}  ${output.batch.link}`,
+      ...output.updateSets
+        .filter((set) => set.sysId !== output.batch.sysId)
+        .map((set) => `update set ${set.created ? "created" : "reused"}: ${set.name}  ${set.link}`),
       ...output.written.map(
         (w) =>
           `${w.operation.padEnd(6)} ${w.table}  ${w.path}${w.captured ? "" : "  NOT captured in the update set"}`,

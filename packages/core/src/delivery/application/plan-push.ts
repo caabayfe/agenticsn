@@ -8,6 +8,7 @@ import {
   type RecordHolder,
   type UpdateSetDependencies,
 } from "../../updatesets/index";
+import { batchUpdateSets, inBatch } from "../domain/batch";
 import { changeOf, type ParsedRecord, type PlannedWrite, type PlanProblem } from "../domain/change";
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
 import { type GateResult, gateOf, planId } from "../domain/gate";
@@ -16,7 +17,7 @@ import type { DeliveryWorkspace } from "../ports";
 
 export interface PlanQuery {
   readonly instance: string;
-  // Names the update sets: "snagentic: <label> [<scope>]". Default: the git branch.
+  // Names the branch's batch of update sets (domain/batch). Default: the git branch.
   readonly label?: string;
   readonly allowCollisions: boolean;
 }
@@ -103,13 +104,13 @@ async function writesAndProblems(deps: PlanDependencies, commit: string) {
 async function collisionsOf(
   deps: PlanDependencies,
   writes: readonly PlannedWrite[],
-  ours: string,
+  label: string,
 ): Promise<HeldRecord[]> {
   const names = writes.map((write) => `${write.table}_${write.sysId}`);
   const held = await heldInOpenUpdateSets(deps.updateSets, names, deps.signal);
   return writes.flatMap((write) => {
     const record = `${write.table}_${write.sysId}`;
-    const others = (held.get(record) ?? []).filter((h) => !h.updateSetName.startsWith(ours));
+    const others = (held.get(record) ?? []).filter((h) => !inBatch(label, h.updateSetName));
     return others.length === 0 ? [] : [{ path: write.path, record, heldBy: others }];
   });
 }
@@ -142,8 +143,7 @@ export async function computePlan(
   const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
   const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;
   const gate = gateOf(validation.findings, waivers, waiverProblems, deps.workspace.metadataRoot);
-  const collisions = await collisionsOf(deps, writes, `snagentic: ${label} [`);
-  const scopes = [...new Set(writes.map((write) => write.scope))].sort();
+  const collisions = await collisionsOf(deps, writes, label);
   const ready =
     writes.length > 0 &&
     problems.length === 0 &&
@@ -155,7 +155,10 @@ export async function computePlan(
     planId: id,
     mirrorCommit: commit,
     label,
-    updateSets: scopes.map((scope) => `snagentic: ${label} [${scope}]`),
+    updateSets: batchUpdateSets(
+      label,
+      writes.map((write) => write.scope),
+    ),
     changes: writes.map(({ values, baseHash, ...change }) => ({
       ...change,
       fields: Object.keys(values),

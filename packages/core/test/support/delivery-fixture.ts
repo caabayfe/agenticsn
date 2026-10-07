@@ -11,7 +11,7 @@ import {
 import { fakeInstance } from "./fake-instance";
 
 // A workspace with one business rule pulled (RULE) and edited, and an instance with two open
-// update sets: someone's (s1) and this branch's (s2). Shared by the plan and push tests.
+// update sets: someone's (s1) and this branch's batch (s2). Shared by the plan and push tests.
 export const RULE = "global/sys_script/rule--0123456789abcdef0123456789abcdef";
 export const NEW = "global/sys_script_include/util--fedcba9876543210fedcba9876543210";
 
@@ -20,6 +20,7 @@ export function record(
   sysId: string,
   fields: Record<string, string>,
   script?: string,
+  scope = "global",
 ): RecordFiles {
   const all = script === undefined ? fields : { ...fields, script };
   return {
@@ -27,7 +28,7 @@ export function record(
       _meta: {
         sys_class_name: className,
         sys_id: sysId,
-        scope: "global",
+        scope,
         hash: recordHash(className, all),
       },
       ...fields,
@@ -125,7 +126,7 @@ export function setup(overrides: Partial<State> = {}, held: Record<string, unkno
       { sys_id: "s1", name: "Someone's work", state: "in progress", application: "global" },
       {
         sys_id: "s2",
-        name: "snagentic: feature/p1 [global]",
+        name: "snagentic: feature/p1",
         state: "in progress",
         application: "global",
       },

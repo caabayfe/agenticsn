@@ -47,8 +47,9 @@ function memoryCredentials(): CredentialStore & { secrets: Map<string, string> }
 }
 
 const LIVE = new AbortController().signal;
+// Signed in as the profile's user, holding no roles.
 const NO_ROLES: InstanceReader = {
-  query: async () => [],
+  query: async (query) => (query.table === "sys_user" ? [{ user_name: "admin" }] : []),
   stats: () => {
     throw new Error("not used");
   },

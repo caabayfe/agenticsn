@@ -15,6 +15,15 @@ const profile = createProfile({
   acknowledgeReadOnly: true,
 });
 
+const oauthProfile = createProfile({
+  name: InstanceName.parse("acme-prod"),
+  url: "acme",
+  username: "integration",
+  clientId: "abc123",
+  kind: "production",
+  acknowledgeReadOnly: true,
+});
+
 function memoryKeychain() {
   const entries = new Map<string, string>();
   const opened: string[] = [];
@@ -131,6 +140,23 @@ describe("EnvironmentCredentialStore", () => {
     ]) {
       expect((await new EnvironmentCredentialStore(environment).read(profile))?.trusted).toBeNull();
     }
+  });
+});
+
+describe("credential stores with an OAuth client", () => {
+  it("keeps the client secret under account oauth:<client id>@<host>, apart from any password", async () => {
+    const keychain = memoryKeychain();
+    const store = new KeychainCredentialStore(keychain.factory);
+    await store.write(oauthProfile, "client-secret");
+    expect(keychain.opened).toEqual(["snagentic/oauth:abc123@acme.service-now.com"]);
+    expect(await store.read(profile)).toBeNull();
+    expect((await store.read(oauthProfile))?.secret).toBe("client-secret");
+  });
+
+  it("reads the client secret from SNAGENTIC_<NAME>_PASSWORD in CI", async () => {
+    expect((await new EnvironmentCredentialStore(PINNED).read(oauthProfile))?.secret).toBe(
+      "from-ci",
+    );
   });
 });
 

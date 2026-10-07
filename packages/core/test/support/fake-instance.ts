@@ -24,6 +24,9 @@ const STATS: ConnectionStats = {
 
 type Term = (row: Row) => boolean;
 
+// The fake signs every request in as sys_user u1.
+const SESSION_USER_ID = "u1";
+
 // field>=value, field>value, field=value, fieldINa,b, fieldNOT INa,b, fieldSTARTSWITHv,
 // fieldISEMPTY
 function term(text: string): Term {
@@ -31,7 +34,8 @@ function term(text: string): Term {
   if (match === null) {
     throw new Error(`the fake instance does not understand "${text}"`);
   }
-  const [, field = "", operator, value = ""] = match;
+  const [, field = "", operator, raw = ""] = match;
+  const value = raw === "javascript:gs.getUserID()" ? SESSION_USER_ID : raw;
   const read = (row: Row) => row[field] ?? "";
   switch (operator) {
     case ">=":

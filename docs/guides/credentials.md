@@ -68,6 +68,41 @@ file:
 git checkout -- instances/<name>/instance.yaml
 ```
 
+## With an OAuth client instead of a password
+
+If your organization issues OAuth clients rather than user passwords, snagentic can use the
+**client credentials** grant ([ADR-0021](../adr/0021-oauth-client-credentials.md)). The
+client secret takes the place of the password everywhere: keychain, environment variables,
+binding to the URL and kind.
+
+On the instance, an administrator needs to:
+
+1. Run Washington DC or later.
+2. Set the system property `glide.oauth.inbound.client.credential.grant_type.enabled` to
+   `true`.
+3. Create an OAuth API endpoint in **System OAuth > Application Registry**, and set its
+   **OAuth Application User**. snagentic acts as that user, so its roles follow the same
+   rules as a password account (`snc_read_only` for test and production).
+
+Then:
+
+```sh
+snagentic instance add dev --url dev12345 --kind development \
+  --client-id <client id> --username <OAuth application user>
+snagentic auth login dev            # asks for the client secret, checks it, stores it
+snagentic doctor --instance dev
+```
+
+- The keychain account is `oauth:<client id>@<host>`, so a client secret and a password for
+  the same instance never overwrite each other.
+- In CI, `SNAGENTIC_<NAME>_PASSWORD` holds the client secret. `_URL` and `_KIND` work as
+  below.
+- Access tokens stay in memory. snagentic requests one when a command starts, renews it
+  shortly before it expires, and never writes it anywhere.
+- `--username` must be the OAuth Application User. Every login and connection checks that
+  the instance signs the session in as that user (`identity-mismatch` otherwise), because
+  the role checks are made against it.
+
 ## In CI and on servers
 
 There's no keychain in CI, so the password comes from environment variables. Set **all
@@ -119,11 +154,14 @@ checks are skipped and no request is sent.
 
 | Code | Meaning | What to do |
 |---|---|---|
-| `credentials-missing` | No password for `<username>@<host>` | `snagentic auth login <name>`; in CI, set the three variables |
+| `credentials-missing` | No password for `<username>@<host>` (or client secret for `oauth:<client id>@<host>`) | `snagentic auth login <name>`; in CI, set the three variables |
 | `profile-not-trusted` | `instance.yaml` doesn't match what the password was stored for. The message names the field and both values | If you made the change, log in again. If not, restore the file |
 | `authentication-failed` | The instance rejected the username or password | Check both, then `snagentic auth login <name>` |
 | `read-only-credential-required` | A test or production account doesn't hold `snc_read_only` | Ask the ServiceNow admin to grant the role, then check with `doctor` |
 | `read-only-credential-on-development` | A development profile whose account holds `snc_read_only` | Check `kind` in `instance.yaml`. If it's right, use a development account |
+| `identity-mismatch` | The instance signed in a different user than `username` in `instance.yaml`. With OAuth, the client's OAuth Application User differs | Set `--username` to the user the client acts as, or fix the client |
+| `identity-unverified` | The instance didn't say who is signed in | Check that the account can read its own `sys_user` record |
+| `oauth-grant-unavailable` | The instance refused the client credentials grant | Set `glide.oauth.inbound.client.credential.grant_type.enabled` to `true`, then check the client id and secret |
 | `keychain-unavailable` | The OS keychain couldn't store the password | Unlock or set up the keychain, or use the environment variables |
 
 ## What this protects against, and what it doesn't

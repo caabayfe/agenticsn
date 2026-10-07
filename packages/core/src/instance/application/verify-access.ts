@@ -1,6 +1,8 @@
 import type { InstanceReader } from "../../connection/ports";
 import { SnagenticError } from "../../kernel/errors";
+import { SESSION_USER } from "../../kernel/session-user";
 import { TableName } from "../../kernel/table-name";
+import { IdentityMismatchError, IdentityUnverifiedError } from "../domain/errors";
 import type { InstanceProfile } from "../domain/profile";
 
 export class ReadOnlyCredentialRequiredError extends SnagenticError {
@@ -36,15 +38,11 @@ export class DevelopmentInstanceRequiredError extends SnagenticError {
   }
 }
 
-async function holdsReadOnly(
-  profile: InstanceProfile,
-  reader: InstanceReader,
-  signal: AbortSignal,
-): Promise<boolean> {
+async function holdsReadOnly(reader: InstanceReader, signal: AbortSignal): Promise<boolean> {
   const rows = await reader.query(
     {
       table: TableName.parse("sys_user_has_role"),
-      query: `user.user_name=${profile.auth.username}^state=active^role.name=snc_read_only`,
+      query: `user=${SESSION_USER}^state=active^role.name=snc_read_only`,
       fields: ["sys_id"],
       limit: 1,
     },
@@ -67,8 +65,33 @@ export async function verifyReadOnlyCredential(
   reader: InstanceReader,
   signal: AbortSignal,
 ): Promise<void> {
-  if (profile.kind !== "development" && !(await holdsReadOnly(profile, reader, signal))) {
+  if (profile.kind !== "development" && !(await holdsReadOnly(reader, signal))) {
     throw notReadOnly(profile);
+  }
+}
+
+// ADR-0021: the instance must sign in the user instance.yaml names, so lists, labels and
+// exports show the real one. One request, at login and in doctor only.
+export async function verifySessionIdentity(
+  profile: InstanceProfile,
+  reader: InstanceReader,
+  signal: AbortSignal,
+): Promise<void> {
+  const rows = await reader.query(
+    {
+      table: TableName.parse("sys_user"),
+      query: `sys_id=${SESSION_USER}`,
+      fields: ["user_name"],
+      limit: 1,
+    },
+    signal,
+  );
+  const actual = rows[0]?.["user_name"] ?? "";
+  if (actual === "") {
+    throw new IdentityUnverifiedError(profile.name);
+  }
+  if (actual !== profile.auth.username) {
+    throw new IdentityMismatchError(profile.name, profile.auth.username, actual);
   }
 }
 
@@ -79,7 +102,7 @@ export async function verifyCredentialMatchesKind(
   reader: InstanceReader,
   signal: AbortSignal,
 ): Promise<void> {
-  const readOnly = await holdsReadOnly(profile, reader, signal);
+  const readOnly = await holdsReadOnly(reader, signal);
   if (profile.kind === "development" && readOnly) {
     throw new ReadOnlyCredentialOnDevelopmentError(profile);
   }

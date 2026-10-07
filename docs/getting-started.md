@@ -61,7 +61,11 @@ password is stored together with the instance's URL and kind, and is used only w
 SNAGENTIC_DEV_PASSWORD=...  SNAGENTIC_DEV_URL=dev12345  SNAGENTIC_DEV_KIND=development
 ```
 
-Details, a CI example and troubleshooting: [credentials and instance trust](guides/credentials.md).
+Using an **OAuth client** instead of a password? Add `--client-id <id>` and set `--username`
+to the client's OAuth Application User; `auth login` then asks for the client secret.
+
+Details, OAuth prerequisites, a CI example and troubleshooting:
+[credentials and instance trust](guides/credentials.md).
 
 Test and production instances are **read-only by construction** (ADR-0012):
 

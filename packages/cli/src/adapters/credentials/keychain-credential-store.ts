@@ -57,7 +57,7 @@ class KeychainUnavailableError extends SnagenticError {
   }
 }
 
-// Secrets live under service "snagentic", account "<username>@<host>".
+// Secrets live under service "snagentic", account "<username>@<host>" (or "oauth:<client id>@<host>").
 export class KeychainCredentialStore implements CredentialStore {
   constructor(
     private readonly createEntry: CreateKeychainEntry = (service, account) =>

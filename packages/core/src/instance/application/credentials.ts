@@ -1,10 +1,10 @@
 import type { InstanceReader } from "../../connection/ports";
 import { InvalidInputError } from "../../kernel/errors";
 import { CredentialsMissingError, ProfileNotTrustedError } from "../domain/errors";
-import { credentialVariables, type InstanceProfile } from "../domain/profile";
+import { credentialVariables, type InstanceProfile, secretName } from "../domain/profile";
 import { trustProblems, untrustedHint } from "../domain/trust";
 import type { CredentialStore } from "../ports";
-import { verifyCredentialMatchesKind } from "./verify-access";
+import { verifyCredentialMatchesKind, verifySessionIdentity } from "./verify-access";
 
 // ADR-0020: logging in is how a person trusts a profile's url and kind. The reader uses the
 // typed secret; nothing is stored unless the instance accepts it and it matches the kind.
@@ -16,8 +16,9 @@ export async function login(
   signal: AbortSignal,
 ): Promise<void> {
   if (secret === "") {
-    throw new InvalidInputError("the password must not be empty");
+    throw new InvalidInputError(`the ${secretName(profile)} must not be empty`);
   }
+  await verifySessionIdentity(profile, reader, signal);
   await verifyCredentialMatchesKind(profile, reader, signal);
   await store.write(profile, secret);
 }

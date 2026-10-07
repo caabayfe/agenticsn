@@ -1,4 +1,5 @@
 import type { InstanceReader, Row } from "../../connection/ports";
+import { IdentityMismatchError } from "../../instance/domain/errors";
 import {
   credentialAccount,
   credentialVariables,
@@ -6,6 +7,7 @@ import {
 } from "../../instance/domain/profile";
 import { type StoredCredential, trustProblems, untrustedHint } from "../../instance/domain/trust";
 import { SnagenticError } from "../../kernel/errors";
+import { SESSION_USER } from "../../kernel/session-user";
 import { TableName } from "../../kernel/table-name";
 import type { Check, CheckStatus } from "../domain/check";
 
@@ -34,6 +36,7 @@ function failure(name: CheckName, error: unknown): Check {
   throw error;
 }
 
+// ADR-0021: the signed-in user, which must be the one instance.yaml names.
 async function connect(
   profile: InstanceProfile,
   reader: InstanceReader,
@@ -43,21 +46,27 @@ async function connect(
     const rows = await reader.query(
       {
         table: TableName.parse("sys_user"),
-        query: `user_name=${profile.auth.username}`,
-        fields: ["sys_id", "sys_updated_on"],
+        query: `sys_id=${SESSION_USER}`,
+        fields: ["sys_id", "user_name", "sys_updated_on"],
         limit: 1,
       },
       signal,
     );
-    return (
-      rows[0] ??
-      check(
+    const user = rows[0];
+    if (user === undefined) {
+      return check(
         "connection",
         "fail",
-        `authenticated, but cannot read user ${profile.auth.username}`,
+        "authenticated, but cannot read the signed-in user",
         "grant the user read access to its own sys_user record",
-      )
-    );
+      );
+    }
+    const actual = user["user_name"] ?? "";
+    if (actual !== profile.auth.username) {
+      const mismatch = new IdentityMismatchError(profile.name, profile.auth.username, actual);
+      return check("connection", "fail", mismatch.message, mismatch.hint);
+    }
+    return user;
   } catch (error) {
     return failure("connection", error);
   }

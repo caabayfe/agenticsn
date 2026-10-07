@@ -26,14 +26,15 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic instance add <name> [options]
 ```
 
-Add a ServiceNow instance profile (URL, kind, user) to this workspace. No secrets.
+Add a ServiceNow instance profile (URL, kind, user, and an OAuth client id when the instance signs in an OAuth client) to this workspace. No secrets.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
 Options:
 
 - `--url <value>`: instance name (dev12345) or https address
-- `--username <value>`: integration user
+- `--username <value>`: integration user; with --client-id, the client's OAuth Application User
+- `--client-id <value>`: OAuth client id from the Application Registry, for the client-credentials grant
 - `--kind <value>`: only development is written to (one of: development, test, production)
 - `--acknowledge-read-only`: confirm that a test or production credential is read-only
 
@@ -73,7 +74,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic auth login <instance> [options]
 ```
 
-Check the password with the instance, then store it in the OS keychain together with the profile's url and kind; the password is used only while they match. Prompts without echo, or reads stdin.
+Check the password (or OAuth client secret) with the instance, then store it in the OS keychain together with the profile's url and kind; it is used only while they match. Prompts without echo, or reads stdin.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

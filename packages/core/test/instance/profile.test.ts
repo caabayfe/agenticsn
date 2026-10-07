@@ -5,6 +5,7 @@ import {
   credentialAccount,
   InstanceName,
   normalizeInstanceUrl,
+  secretName,
 } from "@snagentic/core";
 
 describe("normalizeInstanceUrl", () => {
@@ -67,6 +68,27 @@ describe("createProfile", () => {
     },
   );
 
+  it("creates an OAuth client-credentials profile when a client id is given (ADR-0021)", () => {
+    const profile = createProfile({
+      ...base,
+      username: "svc_oauth",
+      clientId: " 0123abcd ",
+      kind: "development",
+      acknowledgeReadOnly: false,
+    });
+    expect(profile.auth).toEqual({
+      method: "oauth-client-credentials",
+      clientId: "0123abcd",
+      username: "svc_oauth",
+    });
+  });
+
+  it.each(["", "a b", "id@host", "a:b", "a^b"])("rejects the client id %p", (clientId) => {
+    expect(() =>
+      createProfile({ ...base, clientId, kind: "development", acknowledgeReadOnly: false }),
+    ).toThrow(expect.objectContaining({ code: "invalid-input" }));
+  });
+
   it("rejects an empty username", () => {
     expect(() =>
       createProfile({ ...base, username: " ", kind: "development", acknowledgeReadOnly: false }),
@@ -91,5 +113,19 @@ describe("write policy and credential naming", () => {
 
   it("names the keychain account <username>@<host>", () => {
     expect(credentialAccount(profile)).toBe("admin@dev312411.service-now.com");
+    expect(secretName(profile)).toBe("password");
+  });
+
+  it("names an OAuth client's account apart from any user, so a switched method finds nothing", () => {
+    const client = createProfile({
+      name: InstanceName.parse("pdi"),
+      url: "dev312411",
+      username: "admin",
+      clientId: "admin",
+      kind: "development",
+      acknowledgeReadOnly: false,
+    });
+    expect(credentialAccount(client)).toBe("oauth:admin@dev312411.service-now.com");
+    expect(secretName(client)).toBe("client secret");
   });
 });

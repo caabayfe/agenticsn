@@ -136,6 +136,24 @@ describe("runInstanceChecks", () => {
     expect(checks["roles"]?.status).toBe("unavailable");
   });
 
+  it("checks the signed-in user, and fails when instance.yaml names someone else (ADR-0021)", async () => {
+    const other = { ...HEALTHY, sys_user: [{ ...USER, user_name: "oauth_app_user" }] };
+    const fake = reader(other);
+    const checks = byName(await runInstanceChecks(profile(), PW, fake, LIVE));
+    expect(fake.queries[0]?.query).toBe("sys_id=javascript:gs.getUserID()");
+    expect(checks["connection"]).toMatchObject({
+      status: "fail",
+      detail: expect.stringContaining("signed in as oauth_app_user"),
+      hint: expect.stringContaining("instances/pdi/instance.yaml"),
+    });
+    expect(checks["roles"]?.status).toBe("unavailable");
+  });
+
+  it("reports the signed-in user on success", async () => {
+    const checks = byName(await runInstanceChecks(profile(), PW, reader(HEALTHY), LIVE));
+    expect(checks["connection"]?.detail).toBe("https://dev312411.service-now.com as admin");
+  });
+
   it("warns when the user is not an admin", async () => {
     const answers = { ...HEALTHY, sys_user_has_role: [{ "role.name": "snc_read_only" }] };
     const checks = byName(await runInstanceChecks(profile(), PW, reader(answers), LIVE));

@@ -76,3 +76,25 @@ export class ProfileNotTrustedError extends SnagenticError {
     );
   }
 }
+
+export class IdentityMismatchError extends SnagenticError {
+  constructor(name: string, expected: string, actual: string) {
+    super(
+      "identity-mismatch",
+      "not-permitted",
+      `the instance signed in as ${actual}, but instances/${name}/instance.yaml names ${expected}`,
+      `set the username in instances/${name}/instance.yaml to ${actual} if that is the right user, then log in again`,
+    );
+  }
+}
+
+export class IdentityUnverifiedError extends SnagenticError {
+  constructor(name: string) {
+    super(
+      "identity-unverified",
+      "precondition",
+      `${name}: could not read the signed-in user's own sys_user record`,
+      "grant the user read access to its own sys_user record, then log in again",
+    );
+  }
+}

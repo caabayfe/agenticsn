@@ -18,11 +18,11 @@
     },
     "packages/agent-packs": {
       "name": "@snagentic/agent-packs",
-      "version": "1.0.0",
+      "version": "1.2.0",
     },
     "packages/cli": {
       "name": "@snagentic/cli",
-      "version": "1.0.0",
+      "version": "1.2.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.0",
         "@napi-rs/keyring": "^2.1.0",
@@ -36,14 +36,14 @@
     },
     "packages/core": {
       "name": "@snagentic/core",
-      "version": "1.0.0",
+      "version": "1.2.0",
       "dependencies": {
         "@noble/hashes": "^2.4.0",
       },
     },
     "packages/rules-basic": {
       "name": "@snagentic/rules-basic",
-      "version": "1.0.0",
+      "version": "1.2.0",
       "dependencies": {
         "eslint": "^10.12.0",
       },

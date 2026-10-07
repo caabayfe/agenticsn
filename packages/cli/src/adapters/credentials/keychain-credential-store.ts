@@ -2,7 +2,7 @@ import { AsyncEntry } from "@napi-rs/keyring";
 import {
   type CredentialStore,
   credentialAccount,
-  credentialVariable,
+  credentialVariables,
   INSTANCE_KINDS,
   type InstanceProfile,
   SnagenticError,
@@ -52,7 +52,7 @@ class KeychainUnavailableError extends SnagenticError {
       "keychain-unavailable",
       "precondition",
       `the OS keychain could not store the secret: ${reason}`,
-      `set ${credentialVariable(profile)} instead (recommended for servers and CI)`,
+      `set ${credentialVariables(profile)} instead (recommended for servers and CI)`,
     );
   }
 }

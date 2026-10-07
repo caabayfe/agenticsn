@@ -1,7 +1,7 @@
 import type { InstanceReader } from "../../connection/ports";
 import { InvalidInputError } from "../../kernel/errors";
 import { CredentialsMissingError, ProfileNotTrustedError } from "../domain/errors";
-import { credentialVariable, type InstanceProfile } from "../domain/profile";
+import { credentialVariables, type InstanceProfile } from "../domain/profile";
 import { trustProblems, untrustedHint } from "../domain/trust";
 import type { CredentialStore } from "../ports";
 import { verifyCredentialMatchesKind } from "./verify-access";
@@ -32,7 +32,7 @@ export async function resolveSecret(
 ): Promise<string> {
   const credential = await store.read(profile);
   if (credential === null || credential.secret === "") {
-    throw new CredentialsMissingError(profile.name, credentialVariable(profile));
+    throw new CredentialsMissingError(profile.name, credentialVariables(profile));
   }
   const problems = trustProblems(profile, credential.trusted);
   if (problems.length > 0) {

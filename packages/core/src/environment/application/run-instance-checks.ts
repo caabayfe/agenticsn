@@ -1,7 +1,7 @@
 import type { InstanceReader, Row } from "../../connection/ports";
 import {
   credentialAccount,
-  credentialVariable,
+  credentialVariables,
   type InstanceProfile,
 } from "../../instance/domain/profile";
 import { type StoredCredential, trustProblems, untrustedHint } from "../../instance/domain/trust";
@@ -138,7 +138,7 @@ export async function runInstanceChecks(
   signal: AbortSignal,
 ): Promise<Check[]> {
   if (credential === null) {
-    const hint = `run: snagentic auth login ${profile.name} (or set ${credentialVariable(profile)})`;
+    const hint = `run: snagentic auth login ${profile.name} (in CI, set ${credentialVariables(profile)})`;
     return [
       check("credentials", "fail", `no credentials for ${credentialAccount(profile)}`, hint),
       ...skipped(1),

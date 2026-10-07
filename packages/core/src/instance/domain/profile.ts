@@ -79,3 +79,9 @@ export function credentialAccount(profile: InstanceProfile): string {
 export function credentialVariable(profile: InstanceProfile): string {
   return `SNAGENTIC_${profile.name.toUpperCase().replaceAll("-", "_")}_PASSWORD`;
 }
+
+// All variables a CI job sets: the secret, and the url and kind that pin it (ADR-0020).
+export function credentialVariables(profile: InstanceProfile): string {
+  const prefix = credentialVariable(profile).replace(/_PASSWORD$/, "");
+  return `${prefix}_PASSWORD, ${prefix}_URL and ${prefix}_KIND`;
+}

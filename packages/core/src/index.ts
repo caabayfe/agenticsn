@@ -76,6 +76,7 @@ export {
   createProfile,
   credentialAccount,
   credentialVariable,
+  credentialVariables,
   INSTANCE_KINDS,
   type InstanceKind,
   type InstanceProfile,

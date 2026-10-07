@@ -122,7 +122,9 @@ describe("credentials", () => {
   it("explains how to log in when no secret is stored", async () => {
     await expect(resolveSecret(profile("dev", "dev1"), memoryCredentials())).rejects.toMatchObject({
       code: "credentials-missing",
-      hint: expect.stringContaining("snagentic auth login dev"),
+      hint: expect.stringMatching(
+        /snagentic auth login dev.*SNAGENTIC_DEV_PASSWORD, SNAGENTIC_DEV_URL and SNAGENTIC_DEV_KIND/,
+      ),
     });
   });
 });

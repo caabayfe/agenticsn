@@ -61,7 +61,7 @@ export class CredentialsMissingError extends SnagenticError {
       "credentials-missing",
       "precondition",
       `no credentials stored for instance "${name}"`,
-      `run: snagentic auth login ${name} (or set ${variable} in CI)`,
+      `run: snagentic auth login ${name} (in CI, set ${variable})`,
     );
   }
 }

@@ -78,7 +78,9 @@ describe("KeychainCredentialStore", () => {
     });
     await expect(store.write(profile, "pw")).rejects.toMatchObject({
       code: "keychain-unavailable",
-      hint: expect.stringContaining("SNAGENTIC_ACME_PROD_PASSWORD"),
+      hint: expect.stringContaining(
+        "SNAGENTIC_ACME_PROD_PASSWORD, SNAGENTIC_ACME_PROD_URL and SNAGENTIC_ACME_PROD_KIND",
+      ),
     });
   });
 

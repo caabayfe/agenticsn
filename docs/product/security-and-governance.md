@@ -72,8 +72,9 @@ instance. A push needs every one of these:
 1. **A plan id** from `plan-push`, bound to the exact content of the workspace. If anything
    changes after planning, the push is refused.
 2. **A passing gate:** `validate` finds no blocking finding, or each one is covered by a
-   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. Waivers are
-   reviewed in git like any other change.
+   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. Only waivers
+   committed to git apply, agents cannot edit the file, and a waiver path must name an
+   instance and a scope, so an agent cannot waive its own findings.
 3. **Explicit confirmation** (`--confirm`). MCP hosts ask the user first because the tool is
    marked destructive.
 4. **An unchanged remote base:** each record is compared with the version last pulled. If

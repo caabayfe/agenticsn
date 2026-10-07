@@ -19,6 +19,9 @@ export function protectedReason(path: string): string | null {
   if (/^instances\/[^/]+\/metadata\/.*\.children\.[^/]+\.yaml$/.test(clean)) {
     return "child rows are read-only copies of the instance; change the record that owns them";
   }
+  if (clean === "waivers.yaml") {
+    return "waivers are exceptions a person approves and commits; ask the user to add one";
+  }
   if (/^instances\/[^/]+\/instance\.yaml$/.test(clean) || clean === "snagentic.yaml") {
     return "workspace configuration: change it with snagentic instance commands";
   }

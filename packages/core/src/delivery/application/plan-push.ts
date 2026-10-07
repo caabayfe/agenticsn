@@ -10,7 +10,7 @@ import {
 import { changeOf, type ParsedRecord, type PlannedWrite, type PlanProblem } from "../domain/change";
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
 import { type GateResult, gateOf, planId } from "../domain/gate";
-import { readWaivers } from "../domain/waivers";
+import { readWaivers, UNCOMMITTED_WAIVERS } from "../domain/waivers";
 import type { DeliveryWorkspace } from "../ports";
 
 export interface PlanQuery {
@@ -129,10 +129,9 @@ export async function computePlan(
   const label = query.label ?? (await deps.workspace.branch());
   const { writes, problems } = await writesAndProblems(deps, commit);
   const validation = await validate(deps.governance, { base: commit });
-  const { waivers, problems: waiverProblems } = readWaivers(
-    await deps.workspace.waivers(),
-    deps.now(),
-  );
+  const waiverFile = await deps.workspace.waivers();
+  const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
+  const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;
   const gate = gateOf(validation.findings, waivers, waiverProblems, deps.workspace.metadataRoot);
   const collisions = await collisionsOf(deps, writes, `snagentic: ${label} [`);
   const scopes = [...new Set(writes.map((write) => write.scope))].sort();

@@ -9,6 +9,7 @@ const PROTECTED = [
   "**/*.children.*.yaml",
   "instances/*/instance.yaml",
   "snagentic.yaml",
+  "waivers.yaml",
   ".claude/settings.json",
   ".claude/settings.local.json",
 ];

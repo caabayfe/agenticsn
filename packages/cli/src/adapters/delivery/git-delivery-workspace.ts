@@ -31,6 +31,8 @@ function recordFiles(leaf: string, names: readonly string[]) {
 }
 
 // The workspace for one instance: its mirror branch and the working tree, read with git.
+const WAIVERS = "waivers.yaml";
+
 export class GitDeliveryWorkspace implements DeliveryWorkspace {
   readonly metadataRoot: string;
   private readonly remoteBranch: string;
@@ -104,9 +106,14 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
     return this.content(path, null);
   }
 
-  async waivers(): Promise<unknown | null> {
-    const text = await readFile(join(this.root, "waivers.yaml"), "utf8").catch(() => null);
-    return text === null ? null : fromYamlStrings(text);
+  async waivers(): Promise<{ committed: unknown | null; uncommitted: boolean }> {
+    const working = await readFile(join(this.root, WAIVERS), "utf8").catch(() => null);
+    const head = await runGit(["show", `HEAD:${WAIVERS}`], this.root);
+    const committed = head.exitCode === 0 ? head.stdout : null;
+    return {
+      committed: committed === null ? null : fromYamlStrings(committed),
+      uncommitted: working !== committed,
+    };
   }
 
   private async content(path: string, at: string | null): Promise<string | null> {

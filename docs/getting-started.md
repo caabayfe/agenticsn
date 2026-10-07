@@ -125,7 +125,8 @@ snagentic pull --instance dev && snagentic integrate dev
 `plan-push` compares the workspace with the instance as last pulled, and writes nothing. `push`
 writes only that plan, into the update set `snagentic: <branch> [<scope>]`, and stops if any
 record changed on the instance since the pull. Only development instances can be written.
-Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`:
+Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. Only committed waivers
+apply, agents cannot edit the file, and the path must name an instance and a scope:
 
 ```yaml
 waivers:

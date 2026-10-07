@@ -24,6 +24,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   the export over any file the user could write.
 - The Claude Code deny rules for protected files use `Edit(...)` only. Claude Code ignored the
   `Write(...)` rules. Existing `Write(...)` rules stay after an upgrade and are harmless.
+- Only committed waivers apply. `plan-push` reads `waivers.yaml` from `HEAD` and says when the
+  working copy differs. Agents can no longer edit `waivers.yaml`, and a waiver path must name
+  an instance and a scope (`instances/<name>/metadata/<scope>/...`). Before, an agent could
+  write a waiver for `**` and pass the push gate.
 
 ## [1.1.0] - 2026-10-07
 

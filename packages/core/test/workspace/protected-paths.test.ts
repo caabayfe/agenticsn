@@ -19,17 +19,17 @@ describe("protected paths", () => {
       "instances/pdi/metadata/global/sys_ui_policy_action/x--1.yaml",
       "instances/pdi/metadata/global/sys_script/default-children-rule--1.script.js",
       "AGENTS.md",
-      "waivers.yaml",
     ]) {
       expect(protectedReason(path)).toBeNull();
     }
   });
 
-  it("protects the hooks and permission rules that guard the agent", () => {
+  it("protects the hooks, permission rules and waivers that guard the agent", () => {
     for (const path of [
       ".claude/settings.json",
       ".claude/settings.local.json",
       ".github/hooks/snagentic.json",
+      "waivers.yaml",
     ]) {
       expect(protectedReason(path)).not.toBeNull();
     }

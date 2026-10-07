@@ -1,6 +1,7 @@
 # 004. Plan and push to development update sets
 
-- Status: Implemented (2026-10-06); decisions D1-D6 open to the owner's review
+- Status: Accepted (decisions reviewed by the owner on 2026-10-07; D3 changed to one batch per
+  pull request)
 - Implements: ADR-0010 phase 3, ADR-0013 item 1 (push ships with its gate), ADR-0007 (push
   mechanics), ADR-0006 (gate and waivers), ADR-0012 (development instances only)
 - Spec 003 step 5: `plan_push`, `push`, and the `servicenow-deliver` skill
@@ -56,8 +57,11 @@ with `confirm: true` and the plan id from `plan_push`.
 2. Write a **journal** (`.snagentic/<name>/push-journal.json`) before any instance write, and
    update it after each step. Credentials and field values never go in it (only names and
    hashes).
-3. Per scope: reuse or create the open update set `snagentic: <label> [<scope>]` (label: the
-   git branch, or `--label`); make it the user's current update set through
+3. Reuse or create the branch's **batch** (D3): the open global update set `snagentic: <label>`
+   (label: the git branch, or `--label`), which holds the global changes, and for every other
+   scope a child `snagentic: <label> [<scope>]` whose `parent` is the batch. With `--pr <url>`
+   the batch's description links the pull request. Per scope, make its update set the user's
+   current one through
    `sys_user_preference` (`sys_update_set`, or `updateSetForScope<scope id>`), remembering
    the previous value.
 4. Per record: read it, recompute its hash with the same rules as pull, and stop if it differs
@@ -83,20 +87,31 @@ already written then show as changed on the instance, which the hash check catch
 | `push` | as plan, plus each record | development instance only | destructive; `confirm` required |
 
 Both are MCP tools (budget: 12 → 14, D1 of spec 003). The CLI: `snagentic plan-push` and
-`snagentic push --plan <id> --confirm [--label <name>] [--allow-collisions]`.
+`snagentic push --plan <id> --confirm [--label <name>] [--pr <url>] [--allow-collisions]`.
 
-## 6. Decisions taken (owner may overrule)
+## 6. Decisions (reviewed by the owner, 2026-10-07)
 
 - **D1. Working tree, not only commits.** Agents push what they just validated; the plan id
   binds the exact content. Teams wanting "only reviewed commits" use governed mode (CI pushes
-  on merge, ADR-0004), which runs the same push from a clean checkout.
+  on merge, ADR-0004), which runs the same push from a clean checkout. "Tested" means the gate
+  (validate, waivers, collisions, base hashes); running ATF tests after a push is a candidate
+  for a later version and needs an ADR (it is outside ADR-0010).
 - **D2. No deletes in v1.1.** Deleting is destructive and rarely right for an agent; the
   platform's way is to deactivate. A deleted file blocks the plan with a hint to restore it
   and set `active: false`.
-- **D3. One update set per scope, named after the branch.** Reused while open, so repeated
-  pushes from one branch accumulate in one update set per scope, as a developer would.
+- **D3. One update-set batch per pull request (changed by the owner).** A branch is a pull
+  request, and its changes travel together: one batch named after the branch, reused while
+  open. The platform needs one update set per application scope, so the batch is the platform's
+  own grouping (update set batching): a global parent holding the global changes, with a child
+  per other scope. Two pull requests in one scope get two batches. The link is the name, found
+  on the instance, so a teammate or CI pushing the same branch reaches the same batch (an id
+  stored on one machine would not); renaming the batch on the instance breaks it. `--pr` adds
+  the pull request's link to the batch's description, for whoever reviews it on the instance.
 - **D4. Collisions block by default.** A planned record held in another open update set is
-  someone else's work in progress; `allowCollisions` overrides it explicitly.
+  someone else's work in progress; `allowCollisions` overrides it explicitly. Stricter than the
+  platform, which captures the record in both update sets without stopping anyone, so that
+  whichever is committed last on the target wins. A person sees at most a message; an agent
+  would create the conflict silently.
 - **D6. New records carry the mirror's file name (found by the evaluation baseline).** An
   agent stopped building a UI policy because it read "never edit child-row files" as "never
   create child records"; UI policy actions are ordinary records with their own folder. The

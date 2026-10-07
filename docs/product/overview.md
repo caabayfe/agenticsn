@@ -57,7 +57,8 @@ flowchart LR
 
 The agent gets all of this through one MCP server (12 tools), five workflow skills (design,
 build, review, explain, deliver) and short instructions. `snagentic agent install` installs
-them, and the team commits them so everyone gets the same setup.
+them and registers the MCP server for Claude Code and GitHub Copilot in VS Code; the team
+commits the result so everyone gets the same setup.
 
 ## Who it's for
 

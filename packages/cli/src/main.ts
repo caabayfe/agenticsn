@@ -7,6 +7,7 @@ import { instancePaths } from "@snagentic/core";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
+import { GhPullRequests } from "./adapters/delivery/gh-pull-requests";
 import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
 import { createTextFile } from "./adapters/fs/create-text-file";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
@@ -80,6 +81,7 @@ const context: UseCaseContext = {
   files: { create: createTextFile },
   workspaceFiles: fsWorkspaceFiles,
   delivery: (root, instance) => new GitDeliveryWorkspace(root, instance),
+  pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),
   clock: () => new Date(),

@@ -18,6 +18,7 @@ import type {
   MirrorMode,
   PluginActivator,
   ProfileStore,
+  PullRequests,
   PushJournalStore,
   ScriptChecker,
   ServerCostReader,
@@ -87,6 +88,8 @@ export interface UseCaseContext {
   ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
   // An instance's mirror branch and working tree, for plan and push.
   readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;
+  // The git platform, for the branch's pull request (ADR-0022).
+  readonly pullRequests: (root: string) => PullRequests;
   // Where push journals its progress (.snagentic/<name>/push-journal.json).
   readonly pushJournal: (root: string, instance: InstanceName) => PushJournalStore;
   // Text files inside the workspace (the agent pack).

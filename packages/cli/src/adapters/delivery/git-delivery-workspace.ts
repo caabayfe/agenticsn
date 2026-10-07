@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
+  BranchNotPublishedError,
   type DeliveryWorkspace,
   type InstanceName,
   instancePaths,
@@ -114,6 +115,20 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
       committed: committed === null ? null : fromYamlStrings(committed),
       uncommitted: working !== committed,
     };
+  }
+
+  async uncommittedFiles(): Promise<string[]> {
+    return this.changedFiles("HEAD");
+  }
+
+  async publishBranch(branch: string): Promise<void> {
+    const configured = await runGit(["config", "--get", `branch.${branch}.remote`], this.root);
+    const remote = configured.exitCode === 0 ? configured.stdout.trim() : "origin";
+    const pushed = await runGit(["push", "--quiet", "--set-upstream", remote, branch], this.root);
+    if (pushed.exitCode !== 0) {
+      const reason = pushed.stderr.trim().split("\n")[0] ?? "git push failed";
+      throw new BranchNotPublishedError(branch, remote, reason);
+    }
   }
 
   private async content(path: string, at: string | null): Promise<string | null> {

@@ -249,7 +249,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic push [options]
 ```
 
-Deliver a reviewed plan to the development instance: writes the planned records into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr to link the branch's pull request from the batch. Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace.
+Deliver a reviewed plan to the development instance: writes the planned records into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace.
 
 Changes the instance: **yes, development instances only**. MCP tool: `push`.
 
@@ -259,7 +259,8 @@ Options:
 - `--plan <value>`: the planId from plan_push
 - `--confirm`: true once the user approved the plan
 - `--label <value>`: names the update sets (default: the git branch)
-- `--pr <value>`: the branch's pull request, linked from the batch
+- `--pr <value>`: the branch's pull request (default: found with the GitHub CLI)
+- `--draft-pr`: open a draft pull request when the branch has none (needs committed changes)
 - `--allow-collisions`: 
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
@@ -422,12 +423,13 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `instance` (string, optional): default: the workspace's only instance
   - `label` (string, optional): names the update sets (default: the git branch)
   - `allowCollisions` (boolean, optional): accept records already held in someone else's open update set
-- `push`: Deliver a reviewed plan to the development instance: writes the planned records into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr to link the branch's pull request from the batch. Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. Destructive: hosts ask before running it.
+- `push`: Deliver a reviewed plan to the development instance: writes the planned records into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. Destructive: hosts ask before running it.
   - `instance` (string, required): the development instance
   - `plan` (string, required): the planId from plan_push
   - `confirm` (boolean, optional): true once the user approved the plan
   - `label` (string, optional): names the update sets (default: the git branch)
-  - `pr` (string, optional): the branch's pull request, linked from the batch
+  - `pr` (string, optional): the branch's pull request (default: found with the GitHub CLI)
+  - `draftPr` (boolean, optional): open a draft pull request when the branch has none (needs committed changes)
   - `allowCollisions` (boolean, optional)
 - `update_sets`: Read a ServiceNow instance's update sets. action=list: open and recently changed sets with update counts. show: one set's updates (needs id). collisions: records held by more than one open set. export: write a set as ServiceNow XML (needs id). Never changes the instance.
   - `instance` (string, required)

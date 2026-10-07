@@ -8,6 +8,10 @@ export {
   type PushPlan,
 } from "./application/plan-push";
 export {
+  type PullRequestOutcome,
+  pullRequestFor,
+} from "./application/pull-request";
+export {
   type PushDependencies,
   type PushQuery,
   type PushResult,
@@ -22,13 +26,17 @@ export {
   type PlanProblem,
 } from "./domain/change";
 export {
+  BranchNotPublishedError,
   IntegrationUserNotFoundError,
   MirrorNotIntegratedError,
   NothingPulledYetError,
   PlanChangedError,
   PlanNotReadyError,
+  PullRequestFromDefaultBranchError,
+  PullRequestUnavailableError,
   PushConfirmationRequiredError,
   RecordChangedOnInstanceError,
+  UncommittedPlannedChangesError,
   UnfinishedPushError,
 } from "./domain/errors";
 export { type GateFinding, type GateResult, gateOf, planId } from "./domain/gate";
@@ -42,6 +50,8 @@ export {
 export type {
   DeliveryWorkspace,
   InstanceWriter,
+  PullRequestLookup,
+  PullRequests,
   PushJournal,
   PushJournalStore,
   RecordFiles,

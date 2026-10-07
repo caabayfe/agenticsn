@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { computePlan, type PushDependencies, type PushJournal, push } from "@snagentic/core";
+import {
+  computePlan,
+  type PullRequestLookup,
+  type PushDependencies,
+  type PushJournal,
+  push,
+} from "@snagentic/core";
 import { NEW, RULE, record, type State, setup } from "../support/delivery-fixture";
 import { memoryWriter } from "../support/fake-instance";
 
@@ -26,6 +32,30 @@ function memoryJournal() {
   };
 }
 
+const PR = "https://github.com/acme/now/pull/7";
+
+// The git platform as the PullRequests port sees it (ADR-0022).
+function fakePullRequests(calls: string[]) {
+  const platform = {
+    lookup: { kind: "none" } as PullRequestLookup,
+    defaultBranch: "main",
+    lookups: 0,
+    opened: [] as { branch: string; title: string; body: string; instanceWrites: number }[],
+  };
+  const port = {
+    find: async () => {
+      platform.lookups += 1;
+      return platform.lookup;
+    },
+    defaultBranch: async () => platform.defaultBranch,
+    openDraft: async (request: { branch: string; title: string; body: string }) => {
+      platform.opened.push({ ...request, instanceWrites: calls.length });
+      return PR;
+    },
+  };
+  return { platform, port };
+}
+
 function pushSetup(overrides: Partial<State> = {}, options = { capture: true }) {
   const base = setup(overrides);
   base.tables["sys_user"] = [{ sys_id: "u1", user_name: "admin" }];
@@ -42,6 +72,7 @@ function pushSetup(overrides: Partial<State> = {}, options = { capture: true }) 
   const calls: string[] = [];
   const writer = memoryWriter(base.tables, calls, { on: options.capture });
   const journal = memoryJournal();
+  const pullRequests = fakePullRequests(calls);
   const deps: PushDependencies = {
     ...base.deps,
     reader: base.fake.reader,
@@ -50,8 +81,9 @@ function pushSetup(overrides: Partial<State> = {}, options = { capture: true }) 
     catalog: { parents: {}, scopes: {}, typedFields: {} },
     username: "admin",
     url: "https://dev.example.com",
+    pullRequests: pullRequests.port,
   };
-  return { ...base, deps, calls, journal };
+  return { ...base, deps, calls, journal, platform: pullRequests.platform };
 }
 
 const QUERY = { instance: "dev", allowCollisions: false, confirm: true };
@@ -232,5 +264,92 @@ describe("push", () => {
     await push(renamed, { ...QUERY, planId: await planned(deps) });
     const preference = (tables["sys_user_preference"] ?? [])[0];
     expect(preference).toMatchObject({ user: "u1", name: "sys_update_set" });
+  });
+});
+
+describe("push and the branch's pull request (ADR-0022)", () => {
+  const batchOf = (tables: Record<string, Record<string, string>[]>) =>
+    (tables["sys_update_set"] ?? []).find((row) => row["sys_id"] === "s2");
+
+  it("links the branch's open pull request from the batch", async () => {
+    const { deps, tables, platform } = pushSetup();
+    platform.lookup = { kind: "found", url: PR };
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(result.pullRequest).toEqual({ status: "found", url: PR });
+    expect(batchOf(tables)?.["description"]).toContain(`Pull request: ${PR}`);
+  });
+
+  it("uses the pull request it is given without asking the platform", async () => {
+    const { deps, platform } = pushSetup();
+    const given = "https://github.com/acme/now/pull/9";
+    const result = await push(deps, { ...QUERY, planId: await planned(deps), pr: given });
+    expect(result.pullRequest).toEqual({ status: "given", url: given });
+    expect(platform.lookups).toBe(0);
+  });
+
+  it("still pushes when the platform cannot be asked, and says why nothing is linked", async () => {
+    const { deps, platform } = pushSetup();
+    platform.lookup = { kind: "unavailable", reason: "gh is not installed" };
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(result.pullRequest).toEqual({ status: "unavailable", reason: "gh is not installed" });
+    expect(result.written).toHaveLength(1);
+  });
+
+  it("reports a branch without a pull request, and how to open one", async () => {
+    const { deps } = pushSetup();
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(result.pullRequest).toEqual({ status: "none" });
+  });
+
+  it("opens a draft pull request naming the batch before writing to the instance", async () => {
+    const { deps, tables, platform, state, calls } = pushSetup();
+    const result = await push(deps, { ...QUERY, planId: await planned(deps), draftPr: true });
+    expect(state.published).toEqual(["feature/p1"]);
+    expect(platform.opened).toEqual([
+      {
+        branch: "feature/p1",
+        title: "feature/p1",
+        body: expect.stringContaining("`snagentic: feature/p1`"),
+        instanceWrites: 0,
+      },
+    ]);
+    expect(platform.opened[0]?.body).toContain(
+      "https://dev.example.com/sys_update_set_list.do?sysparm_query=name%3Dsnagentic%3A%20feature%2Fp1",
+    );
+    expect(result.pullRequest).toEqual({ status: "created", url: PR });
+    expect(batchOf(tables)?.["description"]).toContain(`Pull request: ${PR}`);
+    expect(calls.length).toBeGreaterThan(0);
+  });
+
+  it("does not open another when the branch already has one", async () => {
+    const { deps, platform, state } = pushSetup();
+    platform.lookup = { kind: "found", url: PR };
+    const result = await push(deps, { ...QUERY, planId: await planned(deps), draftPr: true });
+    expect(result.pullRequest).toEqual({ status: "found", url: PR });
+    expect(platform.opened).toEqual([]);
+    expect(state.published).toEqual([]);
+  });
+
+  it("refuses a draft pull request while a planned record has uncommitted changes", async () => {
+    const { deps, calls, state } = pushSetup({ uncommitted: [`${RULE}.script.js`, "other.yaml"] });
+    await expect(
+      push(deps, { ...QUERY, planId: await planned(deps), draftPr: true }),
+    ).rejects.toMatchObject({ code: "uncommitted-planned-changes" });
+    expect(calls).toEqual([]);
+    expect(state.published).toEqual([]);
+  });
+
+  it("refuses a draft pull request from the default branch, or without the platform", async () => {
+    const onMain = pushSetup();
+    onMain.platform.defaultBranch = "feature/p1";
+    await expect(
+      push(onMain.deps, { ...QUERY, planId: await planned(onMain.deps), draftPr: true }),
+    ).rejects.toMatchObject({ code: "pull-request-from-default-branch" });
+    const offline = pushSetup();
+    offline.platform.lookup = { kind: "unavailable", reason: "gh is not signed in" };
+    await expect(
+      push(offline.deps, { ...QUERY, planId: await planned(offline.deps), draftPr: true }),
+    ).rejects.toMatchObject({ code: "pull-request-unavailable" });
+    expect([...onMain.calls, ...offline.calls]).toEqual([]);
   });
 });

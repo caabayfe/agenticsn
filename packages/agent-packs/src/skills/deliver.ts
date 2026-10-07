@@ -12,13 +12,14 @@ export const DELIVER: Skill = {
     "`status`: when `phase` is not `integrated`, run `pull` and ask the user to run snagentic integrate first.",
     "`plan_push` (with `label` if the user named the update set).",
     "Show the plan: each of the `changes` (operation, path, `fields`), the `updateSets`, the `gate`, any `collisions` and `problems`.",
-    "Once the plan is `ready` and the user approves it: `push` with `instance`, `plan` set to the `planId`, `confirm` true, and `pr` set to the branch's pull request URL when it has one.",
-    "Report the `batch` and `updateSets` with their `link` and what was `written`; then `pull`, and tell the user to integrate.",
+    "Once the plan is `ready` and the user approves it: `push` with `instance`, `plan` set to the `planId`, `confirm` true, and `draftPr` true when the user wants a pull request and the branch has none.",
+    "Report the `batch` and `updateSets` with their `link`, the `pullRequest`, and what was `written`; then `pull`, and tell the user to integrate.",
   ],
   decide: [
     "`ready` is false: fix what `problems`, the gate's `blocking` findings or `collisions` name, then `plan_push` again.",
     "`collisions`: say who holds each record (`heldBy`); set `allowCollisions` only when the user says so.",
     "`push` says the plan changed: run `plan_push` again and show the new plan before pushing.",
+    "`pullRequest` status `none`: offer to open a draft pull request (`draftPr`) on the next push; it needs the changes committed first.",
     "`notCaptured` is above 0: tell the user which records to add to the update set on the instance.",
   ],
   output:

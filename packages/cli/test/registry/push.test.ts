@@ -73,6 +73,7 @@ describe("push", () => {
     expect(output).toMatchObject({
       planId,
       batch: { name: "snagentic: main", created: true },
+      pullRequest: { status: "unavailable", reason: "no git platform in tests" },
       updateSets: [{ name: "snagentic: main", created: true }],
       written: [{ operation: "update", table: "sys_script_include", captured: true }],
       notCaptured: 0,
@@ -99,6 +100,7 @@ describe("push", () => {
         instance: "pdi",
         planId: "p",
         batch: set("snagentic: main", "b1"),
+        pullRequest: { status: "found", url: "https://github.com/a/b/pull/1" },
         updateSets: [
           { scope: "global", ...set("snagentic: main", "b1") },
           { scope: "x_acme", ...set("snagentic: main [x_acme]", "c1") },
@@ -109,10 +111,31 @@ describe("push", () => {
       },
       "text",
     );
-    expect(text.split("\n").slice(0, 2)).toEqual([
+    expect(text.split("\n").slice(0, 3)).toEqual([
       "batch reused: snagentic: main  l/b1",
+      "pull request: https://github.com/a/b/pull/1",
       "update set reused: snagentic: main [x_acme]  l/c1",
     ]);
+  });
+
+  it("says what the batch is linked to on the git platform", () => {
+    const base = {
+      instance: "pdi",
+      planId: "p",
+      batch: { name: "snagentic: main", sysId: "b1", created: false, link: "l" },
+      updateSets: [],
+      written: [],
+      notCaptured: 0,
+      next: [],
+    };
+    const line = (pullRequest: Parameters<typeof push.render>[0]["pullRequest"]) =>
+      push.render({ ...base, pullRequest }, "text").split("\n")[1];
+    expect(line({ status: "created", url: "https://g/pull/2" })).toBe(
+      "draft pull request opened: https://g/pull/2",
+    );
+    expect(line({ status: "unavailable", reason: "gh is not installed" })).toBe(
+      "no pull request linked: gh is not installed",
+    );
   });
 
   it("refuses without confirmation, and explains a capture problem", async () => {
@@ -127,6 +150,7 @@ describe("push", () => {
         instance: "pdi",
         planId: "p",
         batch: { name: "snagentic: main", sysId: "b1", created: false, link: "l" },
+        pullRequest: { status: "none" },
         updateSets: [],
         written: [{ operation: "update", table: "t", sysId: "s", path: "p.yaml", captured: false }],
         notCaptured: 1,
@@ -134,6 +158,7 @@ describe("push", () => {
       },
       "text",
     );
+    expect(text).toContain("push with --draft-pr to open one");
     expect(text).toContain("NOT captured");
     expect(text).toContain("1 write(s) were not captured");
   });

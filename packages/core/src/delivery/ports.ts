@@ -23,6 +23,29 @@ export interface DeliveryWorkspace {
   // waivers.yaml at the workspace root as committed (parsed, or null when there is none), and
   // whether the working tree differs. Only committed waivers apply: they are reviewed in git.
   waivers(): Promise<{ readonly committed: unknown | null; readonly uncommitted: boolean }>;
+  // Files under the metadata root whose working copy differs from HEAD, relative to it.
+  uncommittedFiles(): Promise<string[]>;
+  // Pushes the branch to its remote (origin when it has none), setting it as upstream.
+  publishBranch(branch: string): Promise<void>;
+}
+
+// A branch's pull request as the git platform reports it (ADR-0022). `unavailable`: the
+// platform could not be asked (CLI missing, not signed in, no remote on the platform).
+export type PullRequestLookup =
+  | { readonly kind: "found"; readonly url: string }
+  | { readonly kind: "none" }
+  | { readonly kind: "unavailable"; readonly reason: string };
+
+// The git platform, through its own CLI and sign-in: snagentic never handles its tokens.
+export interface PullRequests {
+  find(branch: string, signal: AbortSignal): Promise<PullRequestLookup>;
+  // The repository's default branch, or null when the platform cannot say.
+  defaultBranch(signal: AbortSignal): Promise<string | null>;
+  // Opens a draft pull request from an already published branch; returns its URL.
+  openDraft(
+    request: { readonly branch: string; readonly title: string; readonly body: string },
+    signal: AbortSignal,
+  ): Promise<string>;
 }
 
 // Writes to a development instance's tables (Table API). Never retried: a write whose outcome

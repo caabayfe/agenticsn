@@ -16,7 +16,9 @@ edit files → validate → plan_push → (user approves) → push → pull → 
 other open update sets, and returns a **plan id**. `push` takes that id, recomputes the plan,
 and writes only if the plan is unchanged, the gate passes, and every record on the instance
 still matches the base it was edited from. Afterwards `pull` and `integrate` bring the
-instance's version back into git, where it merges cleanly with the edit.
+instance's version back into git, where it merges cleanly with the edit. A new record is
+added on both sides, which git reports as a conflict; `integrate` takes the instance's copy
+when it holds every field set locally with the same value (found by the live PDI test).
 
 ## 2. What a plan contains
 

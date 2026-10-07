@@ -115,7 +115,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic integrate <instance> [options]
 ```
 
-Merge the latest pull of an instance into the workspace's current branch. Local work is never overwritten: conflicting changes get git conflict markers.
+Merge the latest pull of an instance into the workspace's current branch. Local work is never overwritten: conflicting changes get git conflict markers. A record created here and pushed takes the instance's copy when it holds every field set here with the same value.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

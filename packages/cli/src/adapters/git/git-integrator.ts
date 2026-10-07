@@ -1,11 +1,13 @@
 import {
   InstanceName,
   type IntegrationResult,
+  instanceConfirms,
   instancePaths,
   type MirrorIntegrator,
   NothingPulledError,
   SnagenticError,
 } from "@snagentic/core";
+import { fromYamlStrings } from "../yaml/own-style";
 import { runGit, runGitOrThrow } from "./run-git";
 
 class IntegrationBlockedError extends SnagenticError {
@@ -47,7 +49,47 @@ async function adopt(root: string, branch: string): Promise<IntegrationResult> {
   await runGitOrThrow(["checkout", "-q", "--", "."], root);
   const commit = (await runGitOrThrow(["rev-parse", "HEAD"], root)).trim();
   const files = lines(await runGitOrThrow(["ls-tree", "-r", "--name-only", "HEAD"], root));
-  return { commit, changedFiles: files.length };
+  return { commit, changedFiles: files.length, confirmed: [] };
+}
+
+// Files both sides added (index stages 2 and 3, no common ancestor), among the conflicts.
+async function addedOnBothSides(root: string): Promise<{ added: string[]; conflicted: string[] }> {
+  const stages = new Map<string, Set<string>>();
+  for (const line of lines(await runGitOrThrow(["ls-files", "-u"], root))) {
+    const [info = "", path = ""] = line.split("\t");
+    const stage = info.split(" ")[2] ?? "";
+    stages.set(path, (stages.get(path) ?? new Set()).add(stage));
+  }
+  const conflicted = [...stages.keys()];
+  const added = conflicted.filter((path) => {
+    const s = stages.get(path);
+    return s?.has("2") === true && s.has("3") && !s.has("1");
+  });
+  return { added, conflicted };
+}
+
+// A record created here and pushed comes back from the instance with what the platform fills
+// in. When the instance's copy confirms the local one (instanceConfirms) and none of the
+// record's other files conflict, take it: nothing local is lost.
+async function takeConfirmed(root: string, metadata: string): Promise<string[]> {
+  const { added, conflicted } = await addedOnBothSides(root);
+  const confirmed: string[] = [];
+  for (const path of added) {
+    const base = path.slice(0, -".yaml".length);
+    const own = path.startsWith(`${metadata}/`) && path.endsWith(".yaml");
+    const others = conflicted.some((other) => other !== path && other.startsWith(`${base}.`));
+    if (!own || path.includes(".children.") || others) {
+      continue;
+    }
+    const mine = fromYamlStrings(await runGitOrThrow(["show", `:2:${path}`], root));
+    const theirs = fromYamlStrings(await runGitOrThrow(["show", `:3:${path}`], root));
+    if (instanceConfirms(mine, theirs)) {
+      await runGitOrThrow(["checkout", "--theirs", "--", path], root);
+      await runGitOrThrow(["add", "--", path], root);
+      confirmed.push(path);
+    }
+  }
+  return confirmed;
 }
 
 async function merge(
@@ -58,23 +100,33 @@ async function merge(
 ): Promise<IntegrationResult> {
   const related = (await runGit(["merge-base", "HEAD", branch], root)).exitCode === 0;
   const configured = (await runGit(["config", "user.email"], root)).stdout.trim() !== "";
+  const identity = configured ? [] : FALLBACK_IDENTITY;
   const args = [
-    ...(configured ? [] : FALLBACK_IDENTITY),
+    ...identity,
     ...["merge", "--no-ff", "--no-edit", "-m", `snagentic integrate ${instance}`],
     ...(related ? [] : ["--allow-unrelated-histories"]),
     branch,
   ];
+  let confirmed: string[] = [];
   if ((await runGit(args, root)).exitCode !== 0) {
+    confirmed = await takeConfirmed(root, instancePaths(InstanceName.parse(instance)).metadata);
     const conflicts = lines(await runGitOrThrow(["diff", "--name-only", "--diff-filter=U"], root));
-    throw new IntegrationBlockedError(
-      "integration-conflicts",
-      `${conflicts.length} file(s) changed both locally and on the instance: ${conflicts.slice(0, 5).join(", ")}`,
-      "resolve the conflict markers, then run: git commit",
-    );
+    if (conflicts.length > 0) {
+      const taken =
+        confirmed.length === 0
+          ? ""
+          : `; took the instance's copy of ${confirmed.length} record(s) pushed from here`;
+      throw new IntegrationBlockedError(
+        "integration-conflicts",
+        `${conflicts.length} file(s) changed both locally and on the instance: ${conflicts.slice(0, 5).join(", ")}${taken}`,
+        "resolve the conflict markers, then run: git commit",
+      );
+    }
+    await runGitOrThrow([...identity, "commit", "-q", "--no-edit"], root);
   }
   const commit = (await runGitOrThrow(["rev-parse", "HEAD"], root)).trim();
   const changed = lines(await runGitOrThrow(["diff", "--name-only", before, commit], root));
-  return { commit, changedFiles: changed.length };
+  return { commit, changedFiles: changed.length, confirmed };
 }
 
 // `integrate` (ADR-0007): git's three-way merge reconciles remote changes with local work.
@@ -85,7 +137,7 @@ async function integrate(root: string, instance: string): Promise<IntegrationRes
     return adopt(root, branch);
   }
   if ((await runGit(["merge-base", "--is-ancestor", branch, "HEAD"], root)).exitCode === 0) {
-    return { commit: null, changedFiles: 0 };
+    return { commit: null, changedFiles: 0, confirmed: [] };
   }
   return merge(root, instance, branch, head.stdout.trim());
 }

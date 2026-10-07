@@ -4,20 +4,6 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
-### Changed
-
-- `push` links the branch's open pull request from its update set batch, found with the GitHub
-  CLI (`gh`) when it is installed and signed in; `--pr <url>` names it instead. `--draft-pr`
-  opens a draft pull request when the branch has none, before writing to the instance: it
-  pushes the branch and refuses while planned changes are uncommitted (ADR-0022). snagentic
-  never handles a GitHub token; `gh` stays optional.
-
-- `push` writes each branch, and so each pull request, into its own **update set batch**:
-  `snagentic: <branch>` holds the global changes, with a child `snagentic: <branch> [<scope>]`
-  per other application scope, so a pull request that spans scopes is promoted as one batch.
-  An update set an earlier
-  version opened as `snagentic: <branch> [global]` is not reused: complete or merge it.
-
 ## [1.2.0] - 2026-10-07
 
 ### ⚠️ Breaking: credentials are bound to their instance
@@ -36,8 +22,21 @@ To upgrade:
 
 Guide: [credentials and instance trust](docs/guides/credentials.md).
 
+### ⚠️ Changed: one update set batch per pull request
+
+`push` writes each branch, and so each pull request, into its own **update set batch**:
+`snagentic: <branch>` holds the global changes, with a child `snagentic: <branch> [<scope>]` per
+other application scope, so a pull request that spans scopes is promoted as one batch. An update
+set an earlier version opened as `snagentic: <branch> [global]` is not reused: complete or merge
+it on the instance.
+
 ### Added
 
+- `push` links the branch's open pull request from its update set batch, found with the GitHub
+  CLI (`gh`) when it is installed and signed in; `--pr <url>` names it instead. `--draft-pr`
+  opens a draft pull request when the branch has none, before writing to the instance: it
+  pushes the branch and refuses while planned changes are uncommitted (ADR-0022). snagentic
+  never handles a GitHub token; `gh` stays optional.
 - `agent install --host all|claude|copilot` installs only what the chosen host reads. GitHub
   Copilot (CLI and cloud agent) gets native hooks in `.github/hooks/snagentic.json`, with the
   same checks as Claude Code, and the `.agents/skills` workflows. Agents can't edit
@@ -46,6 +45,14 @@ Guide: [credentials and instance trust](docs/guides/credentials.md).
   `instance add --client-id <id> --username <OAuth application user>`, then `auth login`
   asks for the client secret. Tokens stay in memory and are renewed before they expire. Guide:
   [credentials](docs/guides/credentials.md#with-an-oauth-client-instead-of-a-password).
+
+### Known issue
+
+- After pushing a **new** record, `integrate` reports a conflict on its file: the instance's
+  version adds the fields the platform fills in (`api_name`, `sys_name`, defaults, `_meta`).
+  When every field you set has the same value in it, take the instance's version
+  (`git checkout --theirs <file>`, `git add`, `git commit`). Updates integrate cleanly. Fixed in
+  the next version.
 
 ### Security
 

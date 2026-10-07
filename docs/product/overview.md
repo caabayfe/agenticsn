@@ -1,6 +1,6 @@
 # snagentic: product overview
 
-*For stakeholders and decision makers. Version 1.1.0, October 2026.*
+*For stakeholders and decision makers. Version 1.2.0, October 2026.*
 
 ## In one sentence
 

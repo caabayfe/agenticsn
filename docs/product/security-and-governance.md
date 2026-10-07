@@ -1,6 +1,6 @@
 # snagentic: security and governance
 
-*For security, architecture and platform reviewers. Version 1.1.0.*
+*For security, architecture and platform reviewers. Version 1.2.0.*
 
 This document explains where instance data goes, how credentials are handled, what can
 write to ServiceNow, and which controls are enforced in code rather than left to an agent.

@@ -13,7 +13,7 @@ ServiceNow instance ──pull──▶ git workspace ──▶ agent + develope
         └──── push (development only) ◀── plan ◀── validate (24 platform rules)
 ```
 
-> Status: **v1.1.0**. Sync, knowledge, guardrails and delivery to development instances.
+> Status: **v1.2.0**. Sync, knowledge, guardrails and delivery to development instances.
 > See the [changelog](CHANGELOG.md) and the [roadmap](docs/product/overview.md#roadmap).
 
 ## Why

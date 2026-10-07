@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-07
+
 ### ⚠️ Breaking: credentials are bound to their instance
 
 Stored passwords from 1.1.0 and earlier are refused (`profile-not-trusted`), and CI needs two

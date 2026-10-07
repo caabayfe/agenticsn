@@ -9,8 +9,9 @@ import {
   PushConfirmationRequiredError,
   UnfinishedPushError,
 } from "../domain/errors";
-import type { InstanceWriter, PushJournal, PushJournalStore } from "../ports";
+import type { InstanceWriter, PullRequests, PushJournal, PushJournalStore } from "../ports";
 import { computePlan, type PlanDependencies, type PlanQuery } from "./plan-push";
+import { type PullRequestOutcome, pullRequestFor } from "./pull-request";
 import {
   captured,
   type InstanceSession,
@@ -31,13 +32,17 @@ export interface PushDependencies extends PlanDependencies {
   readonly username: string;
   // The instance's base URL, for links to the update sets.
   readonly url: string;
+  // The git platform, for the branch's pull request (ADR-0022).
+  readonly pullRequests: PullRequests;
 }
 
 export interface PushQuery extends PlanQuery {
   readonly planId: string;
   readonly confirm: boolean;
-  // The branch's pull request, linked from the batch's description.
+  // The branch's pull request, linked from the batch's description; looked up when absent.
   readonly pr?: string;
+  // Open a draft pull request when the branch has none (ADR-0022).
+  readonly draftPr?: boolean;
 }
 
 interface OpenedUpdateSet {
@@ -52,6 +57,7 @@ export interface PushResult {
   readonly planId: string;
   // The branch's batch (spec 004, D3); global changes are written into it.
   readonly batch: OpenedUpdateSet;
+  readonly pullRequest: PullRequestOutcome;
   // The update set each scope's changes were written into.
   readonly updateSets: readonly (OpenedUpdateSet & { readonly scope: string })[];
   readonly written: readonly {
@@ -139,12 +145,11 @@ async function preflight(deps: PushDependencies, query: PushQuery, session: Inst
 async function updateSetsFor(
   deps: PushDependencies,
   session: InstanceSession,
-  query: PushQuery,
-  plan: { readonly label: string; readonly scopes: readonly string[] },
+  plan: { readonly label: string; readonly scopes: readonly string[]; readonly pr?: string },
   catalog: Catalog,
 ) {
   const link = (set: { sysId: string }) => `${deps.url}/sys_update_set.do?sys_id=${set.sysId}`;
-  const opened = await openBatch(session, plan.label, query.pr);
+  const opened = await openBatch(session, plan.label, plan.pr);
   const batch = { ...opened, link: link(opened) };
   const sets: (OpenedUpdateSet & { scope: string; id: string })[] = [];
   for (const scope of plan.scopes) {
@@ -158,6 +163,32 @@ async function updateSetsFor(
   return { batch, sets };
 }
 
+// Each scope's writes into its update set, each checked for capture afterwards.
+async function writeAll(
+  deps: PushDependencies,
+  session: InstanceSession,
+  journal: { current: PushJournal },
+  run: {
+    readonly sets: readonly { id: string; scope: string; sysId: string }[];
+    readonly writes: readonly PlannedWrite[];
+    readonly user: string;
+  },
+  catalog: Catalog,
+) {
+  const written: PushResult["written"][number][] = [];
+  for (const { id, scope, sysId } of run.sets) {
+    const scoped = run.writes.filter((w) => w.scope === scope);
+    const target = { name: scope, id, setId: sysId, user: run.user, writes: scoped };
+    await pushScope(deps, session, journal, target, catalog);
+    for (const write of scoped) {
+      const { operation, table, sysId: record, path } = write;
+      const done = await captured(session, write, sysId);
+      written.push({ operation, table, sysId: record, path, captured: done });
+    }
+  }
+  return written;
+}
+
 // Writes a reviewed plan to the development instance, into the branch's batch of update sets.
 export async function push(deps: PushDependencies, query: PushQuery): Promise<PushResult> {
   const session: InstanceSession = {
@@ -166,6 +197,7 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
     signal: deps.signal,
   };
   const { plan, writes } = await preflight(deps, query, session);
+  const pullRequest = await pullRequestFor(deps, { ...query, label: plan.label, writes });
   const catalog = new Catalog(deps.catalog);
   const user = await userSysId(session, deps.username);
   const journal: { current: PushJournal } = {
@@ -179,28 +211,15 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
   };
   await deps.journal.write(journal.current);
   const scopes = [...new Set(writes.map((w) => w.scope))].sort();
-  const { batch, sets } = await updateSetsFor(deps, session, query, { ...plan, scopes }, catalog);
-  const written: PushResult["written"][number][] = [];
-  for (const { id, scope, sysId } of sets) {
-    const scoped = writes.filter((w) => w.scope === scope);
-    await pushScope(
-      deps,
-      session,
-      journal,
-      { name: scope, id, setId: sysId, user, writes: scoped },
-      catalog,
-    );
-    for (const write of scoped) {
-      const { operation, table, sysId: record, path } = write;
-      const done = await captured(session, write, sysId);
-      written.push({ operation, table, sysId: record, path, captured: done });
-    }
-  }
+  const pr = "url" in pullRequest ? { pr: pullRequest.url } : {};
+  const { batch, sets } = await updateSetsFor(deps, session, { ...plan, scopes, ...pr }, catalog);
+  const written = await writeAll(deps, session, journal, { sets, writes, user }, catalog);
   await deps.journal.clear();
   return {
     instance: query.instance,
     planId: plan.planId,
     batch,
+    pullRequest,
     updateSets: sets.map(({ id, ...set }) => set),
     written,
     notCaptured: written.filter((w) => !w.captured).length,

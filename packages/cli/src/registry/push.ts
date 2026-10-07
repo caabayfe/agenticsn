@@ -4,13 +4,33 @@ import { connect } from "./connect";
 import { NextCalls } from "./knowledge-schemas";
 import { defineUseCase } from "./use-case";
 
+// What the batch is linked to on the git platform (ADR-0022).
+function pullRequestLine(pr: {
+  readonly status: string;
+  readonly url?: string | undefined;
+  readonly reason?: string | undefined;
+}): string {
+  switch (pr.status) {
+    case "created":
+      return `draft pull request opened: ${pr.url ?? ""}`;
+    case "none":
+      return "no pull request for this branch yet: push with --draft-pr to open one";
+    case "unavailable":
+      return `no pull request linked: ${pr.reason ?? ""}`;
+    default:
+      return `pull request: ${pr.url ?? ""}`;
+  }
+}
+
 export const push = defineUseCase({
   name: "push",
   description:
     "Deliver a reviewed plan to the development instance: writes the planned records into " +
     "the branch's update set batch, 'snagentic: <label>' (global changes) with a child " +
     "'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr " +
-    "to link the branch's pull request from the batch. Only with the planId from plan_push and confirm=true, after the user approved " +
+    "to name the branch's pull request; otherwise its open one is linked when the GitHub CLI " +
+    "is signed in. draftPr opens a draft pull request first when there is none (the planned " +
+    "changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved " +
     "the plan. Refuses if anything changed since the plan, on the instance or in the workspace.",
   input: z.object({
     instance: z.string().describe("the development instance"),
@@ -21,12 +41,21 @@ export const push = defineUseCase({
       .string()
       .regex(/^https?:\/\/\S+$/, "a pull request URL")
       .optional()
-      .describe("the branch's pull request, linked from the batch"),
+      .describe("the branch's pull request (default: found with the GitHub CLI)"),
+    draftPr: z
+      .boolean()
+      .default(false)
+      .describe("open a draft pull request when the branch has none (needs committed changes)"),
     allowCollisions: z.boolean().default(false),
   }),
   output: z.object({
     instance: z.string(),
     planId: z.string(),
+    pullRequest: z.object({
+      status: z.enum(["given", "found", "created", "none", "unavailable"]),
+      url: z.string().optional(),
+      reason: z.string().optional(),
+    }),
     batch: z.object({
       name: z.string(),
       sysId: z.string(),
@@ -82,6 +111,7 @@ export const push = defineUseCase({
         catalog: catalog ?? { parents: {}, scopes: {}, typedFields: {} },
         username: profile.auth.username,
         url: profile.url,
+        pullRequests: context.pullRequests(root),
       },
       {
         instance: name,
@@ -90,12 +120,14 @@ export const push = defineUseCase({
         allowCollisions: input.allowCollisions,
         ...(input.label === undefined ? {} : { label: input.label }),
         ...(input.pr === undefined ? {} : { pr: input.pr }),
+        draftPr: input.draftPr,
       },
     );
   },
   render(output) {
     return [
       `batch ${output.batch.created ? "created" : "reused"}: ${output.batch.name}  ${output.batch.link}`,
+      pullRequestLine(output.pullRequest),
       ...output.updateSets
         .filter((set) => set.sysId !== output.batch.sysId)
         .map((set) => `update set ${set.created ? "created" : "reused"}: ${set.name}  ${set.link}`),

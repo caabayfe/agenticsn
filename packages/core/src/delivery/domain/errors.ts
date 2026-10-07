@@ -87,3 +87,47 @@ export class IntegrationUserNotFoundError extends SnagenticError {
     );
   }
 }
+
+export class UncommittedPlannedChangesError extends SnagenticError {
+  constructor(paths: readonly string[]) {
+    super(
+      "uncommitted-planned-changes",
+      "precondition",
+      `a pull request would not show what is pushed: uncommitted changes in ${paths.join(", ")}`,
+      "commit the changes, then push again with draftPr (or push without it)",
+    );
+  }
+}
+
+export class PullRequestFromDefaultBranchError extends SnagenticError {
+  constructor(branch: string) {
+    super(
+      "pull-request-from-default-branch",
+      "precondition",
+      `${branch} is the repository's default branch, so a pull request has nothing to merge into`,
+      "create a branch for this change (git switch -c <name>), then push again with draftPr",
+    );
+  }
+}
+
+export class PullRequestUnavailableError extends SnagenticError {
+  constructor(reason: string) {
+    super(
+      "pull-request-unavailable",
+      "precondition",
+      `cannot open a pull request: ${reason}`,
+      "install and sign in to the GitHub CLI (gh auth login), or push without draftPr",
+    );
+  }
+}
+
+export class BranchNotPublishedError extends SnagenticError {
+  constructor(branch: string, remote: string, reason: string) {
+    super(
+      "branch-not-published",
+      "remote",
+      `could not push ${branch} to ${remote}: ${reason}`,
+      "check the remote (git remote -v) and your access to it, then push again with draftPr",
+    );
+  }
+}

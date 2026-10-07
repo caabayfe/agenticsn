@@ -59,8 +59,9 @@ with `confirm: true` and the plan id from `plan_push`.
    hashes).
 3. Reuse or create the branch's **batch** (D3): the open global update set `snagentic: <label>`
    (label: the git branch, or `--label`), which holds the global changes, and for every other
-   scope a child `snagentic: <label> [<scope>]` whose `parent` is the batch. With `--pr <url>`
-   the batch's description links the pull request. Per scope, make its update set the user's
+   scope a child `snagentic: <label> [<scope>]` whose `parent` is the batch. The batch's
+   description links the branch's pull request (ADR-0022): `--pr <url>`, or the open one the
+   platform's CLI finds, or a draft one `--draft-pr` opens before any instance write. Per scope, make its update set the user's
    current one through
    `sys_user_preference` (`sys_update_set`, or `updateSetForScope<scope id>`), remembering
    the previous value.
@@ -105,8 +106,8 @@ Both are MCP tools (budget: 12 → 14, D1 of spec 003). The CLI: `snagentic plan
   own grouping (update set batching): a global parent holding the global changes, with a child
   per other scope. Two pull requests in one scope get two batches. The link is the name, found
   on the instance, so a teammate or CI pushing the same branch reaches the same batch (an id
-  stored on one machine would not); renaming the batch on the instance breaks it. `--pr` adds
-  the pull request's link to the batch's description, for whoever reviews it on the instance.
+  stored on one machine would not); renaming the batch on the instance breaks it. The batch's
+  description links the pull request, found or opened by push itself (ADR-0022).
 - **D4. Collisions block by default.** A planned record held in another open update set is
   someone else's work in progress; `allowCollisions` overrides it explicitly. Stricter than the
   platform, which captures the record in both update sets without stopping anyone, so that

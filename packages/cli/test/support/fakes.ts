@@ -86,6 +86,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
   pushJournal: () => {
     throw new Error("no push journal in this test");
   },
+  pullRequests: () => {
+    throw new Error("no git platform in this test");
+  },
   governance: () => {
     throw new Error("no governance in this test");
   },

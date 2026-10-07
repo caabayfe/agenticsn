@@ -59,6 +59,14 @@ export async function instanceWorkspace(
     }),
     workspaceFiles: fsWorkspaceFiles,
     delivery: (r, name) => new GitDeliveryWorkspace(r, name),
+    // Tests never reach a git platform.
+    pullRequests: () => ({
+      find: async () => ({ kind: "unavailable", reason: "no git platform in tests" }),
+      defaultBranch: async () => null,
+      openDraft: async () => {
+        throw new Error("no git platform in tests");
+      },
+    }),
     pushJournal: (r, name) => new JsonPushJournalStore(join(r, instancePaths(name).localState)),
     governance: (r, name) => ({
       records: new GitChangedRecords(r, instancePaths(name).metadata),

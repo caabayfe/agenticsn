@@ -6,10 +6,16 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Changed
 
+- `push` links the branch's open pull request from its update set batch, found with the GitHub
+  CLI (`gh`) when it is installed and signed in; `--pr <url>` names it instead. `--draft-pr`
+  opens a draft pull request when the branch has none, before writing to the instance: it
+  pushes the branch and refuses while planned changes are uncommitted (ADR-0022). snagentic
+  never handles a GitHub token; `gh` stays optional.
+
 - `push` writes each branch, and so each pull request, into its own **update set batch**:
   `snagentic: <branch>` holds the global changes, with a child `snagentic: <branch> [<scope>]`
   per other application scope, so a pull request that spans scopes is promoted as one batch.
-  `--pr <url>` links the pull request from the batch's description. An update set an earlier
+  An update set an earlier
   version opened as `snagentic: <branch> [global]` is not reused: complete or merge it.
 
 ## [1.2.0] - 2026-10-07

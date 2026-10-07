@@ -45,6 +45,10 @@ export interface State {
   texts: Record<string, string>;
   waivers: unknown;
   waiversUncommitted: boolean;
+  // Files with changes not committed on the branch, relative to the metadata root.
+  uncommitted: string[];
+  // Branches published to the remote.
+  published: string[];
 }
 
 function fakeWorkspace(state: State): DeliveryWorkspace {
@@ -57,6 +61,10 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
     read: async (base, at) => (at === null ? state.working : state.mirror)[base] ?? null,
     text: async (path) => state.texts[path] ?? null,
     waivers: async () => ({ committed: state.waivers, uncommitted: state.waiversUncommitted }),
+    uncommittedFiles: async () => state.uncommitted,
+    publishBranch: async (branch) => {
+      state.published.push(branch);
+    },
   };
 }
 
@@ -119,6 +127,8 @@ export function setup(overrides: Partial<State> = {}, held: Record<string, unkno
     texts: {},
     waivers: null,
     waiversUncommitted: false,
+    uncommitted: [],
+    published: [],
     ...overrides,
   };
   const tables: Record<string, Row[]> = {

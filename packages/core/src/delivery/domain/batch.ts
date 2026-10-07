@@ -32,3 +32,14 @@ export function batchDescription(existing: string | null, pr?: string): string {
   const base = existing ?? DESCRIPTION;
   return pr === undefined || base.includes(pr) ? base : `${base}\nPull request: ${pr}`;
 }
+
+// The draft pull request's body: which batch holds the branch's changes, and where.
+export function pullRequestBody(label: string, instanceUrl: string): string {
+  const name = batchName(label);
+  const list = `${instanceUrl}/sys_update_set_list.do?sysparm_query=${encodeURIComponent(`name=${name}`)}`;
+  return [
+    `ServiceNow update set batch \`${name}\` on ${instanceUrl}: ${list}`,
+    "",
+    "Opened by snagentic push. Each push from this branch goes into this batch.",
+  ].join("\n");
+}

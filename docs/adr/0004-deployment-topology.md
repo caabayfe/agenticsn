@@ -1,6 +1,6 @@
 # 0004. One binary, git as the distribution layer, three operating modes
 
-- Status: Accepted (amended by 0011, 0012)
+- Status: Accepted (amended by 0011, 0012, 0022)
 - Date: 2026-10-05
 - Requirements: ASR-02, ASR-03, ASR-05, ASR-06, ASR-07, ASR-08
 

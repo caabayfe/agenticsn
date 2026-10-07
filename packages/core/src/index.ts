@@ -54,7 +54,9 @@ export {
 export {
   DevelopmentInstanceRequiredError,
   ensureDevelopmentInstance,
+  ReadOnlyCredentialOnDevelopmentError,
   ReadOnlyCredentialRequiredError,
+  verifyCredentialMatchesKind,
   verifyReadOnlyCredential,
 } from "./instance/application/verify-access";
 export {
@@ -63,6 +65,7 @@ export {
   InstanceNotFoundError,
   InstanceUrlExistsError,
   InvalidInstanceUrlError,
+  ProfileNotTrustedError,
   ReadOnlyAcknowledgementRequiredError,
 } from "./instance/domain/errors";
 export { normalizeInstanceUrl } from "./instance/domain/instance-url";
@@ -80,6 +83,14 @@ export {
   type NewProfile,
   usernameProblem,
 } from "./instance/domain/profile";
+export {
+  type CredentialSource,
+  type StoredCredential,
+  type TrustedSettings,
+  trustedSecret,
+  trustProblems,
+  untrustedHint,
+} from "./instance/domain/trust";
 export type { CredentialStore, ProfileStore } from "./instance/ports";
 export { canonicalJson, type JsonValue } from "./kernel/canonical-json";
 export { canonicalText } from "./kernel/canonical-text";

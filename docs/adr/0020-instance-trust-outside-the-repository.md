@@ -1,6 +1,6 @@
 # 0020. Instance kind and address are trusted from outside the repository
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-07
 - Requirements: ASR-02, ASR-08, ASR-15
 - Amends: 0012 (production read-only by construction), 0014 (workspace layout)
@@ -26,29 +26,39 @@ still change it. The 2026-10 security review found:
 What is already fixed: the username is checked again on every read, requests never follow
 redirects, and protected paths include `instance.yaml` (agent edit tools only).
 
-## Decision (proposed)
+## Decision
 
-1. **A local trust record outside the repository.** `snagentic instance add` also writes
-   `<name>: {url, kind}` to the user's configuration directory (`~/.config/snagentic/trust.yaml`,
-   or the OS equivalent). Before any request, the profile read from the workspace must match
-   the trust record. When it doesn't, snagentic refuses with a hint to run
-   `snagentic instance trust <name>`, which shows the difference and asks the person to
-   confirm. Agents can't confirm it: the command is interactive-only and not exposed through
-   MCP.
-2. **Env and CI credentials are pinned to a host.** In env mode, `SNAGENTIC_<NAME>_URL` must
-   be set and equal the profile URL. Otherwise the secret is not read.
-3. **Probe every non-development credential, and the declared kind too.** Layer 4 already
-   probes test and production. In addition, a profile that says `development` but whose
-   credential holds `snc_read_only` is refused as inconsistent.
+A secret is released only together with the settings a person stored it for.
+
+1. **The keychain item binds the secret to the instance.** `snagentic auth login` stores, in
+   one OS keychain item (service `snagentic`, account `<username>@<host>`), the secret and the
+   profile's `url` and `kind`. Before any request, the profile read from the workspace must
+   match the item:
+   - a changed `url` finds no item, so the secret is never sent to another host;
+   - a changed `kind` is refused, so layers 3 and 4 of ADR-0012 cannot be switched off by an
+     edit;
+   - an item stored by an earlier version (secret only) is refused until the person logs in
+     again.
+2. **Logging in is how a person trusts new settings.** It needs the password, which the agent
+   does not have. Before storing anything, `auth login` makes one request with the typed
+   password (wrong passwords store nothing) and checks the credential matches the kind:
+   a test or production credential must hold `snc_read_only`, and a development credential
+   must not. So a person who logs in after an agent changed `kind` is refused too. The
+   pre-shell hook refuses `snagentic auth` from the agent's shell.
+3. **Environment credentials are pinned too.** With `SNAGENTIC_<NAME>_PASSWORD`, the
+   variables `SNAGENTIC_<NAME>_URL` and `SNAGENTIC_<NAME>_KIND` must also be set and match
+   the profile. The environment is set by whoever runs the job, not by the repository.
+4. `doctor --instance` applies the same check and never sends an untrusted secret.
 
 ## Consequences
 
-- Turning a production profile into a development one needs a person at a terminal, not just
-  a commit.
-- A clone on a new machine needs one `instance trust` per instance. That is one more step in
-  `docs/getting-started.md`.
-- CI needs one more variable per instance.
-- The trust file is user state outside git. It is not synced, and that is intended.
+- Turning a production profile into a development one needs a person with the password, and
+  that person is refused too while the credential holds `snc_read_only`.
+- Upgrading needs one `snagentic auth login <name>` per instance, because existing keychain
+  items hold only the secret. CI needs two more variables per instance.
+- `auth login` now needs the instance to be reachable.
+- Write use cases may still be listed for an edited profile (layer 3 reads the profile), but
+  they cannot obtain a secret, so they never reach the instance.
 
 ## Alternatives considered
 
@@ -56,5 +66,8 @@ redirects, and protected paths include `instance.yaml` (agent edit tools only).
   record, with more machinery.
 - **Ask the instance for its kind (`glide.installation.production`).** That property isn't set
   reliably, and an attacker-controlled host would answer whatever it likes.
+- **A separate trust file in the user's configuration folder.** Any process running as the
+  user, including the agent's shell, can edit a file. The keychain item is created by
+  snagentic and needs the password to replace.
 - **Rely on the agent hooks only.** Hooks are guidance (ADR-0011), and shell commands bypass
   them.

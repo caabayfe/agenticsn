@@ -6,6 +6,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Security
 
+- **Action needed after upgrading:** run `snagentic auth login <name>` once per instance, and
+  in CI also set `SNAGENTIC_<NAME>_URL` and `SNAGENTIC_<NAME>_KIND` (ADR-0020). The password
+  is now stored in the keychain together with the instance's URL and kind, and used only while
+  `instance.yaml` still matches. Before, editing that file could turn a production instance
+  into a development one, or send a CI password to another host.
+- `auth login` tries the password before storing it, and refuses a test or production
+  credential without `snc_read_only` and a development profile whose credential has it.
+  Agents may not run `snagentic auth` or set `SNAGENTIC_*` credential variables.
+
 - Host hooks now work under Copilot CLI, which reads `.claude/settings.json`: they understand
   its patch edits and `path` arguments, so protected files are refused there too. On hosts
   that run every hook for every tool (VS Code), the edit hooks ignore reads.

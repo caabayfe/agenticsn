@@ -34,6 +34,8 @@ export const CLAUDE_SETTINGS = {
       // Git hooks run validate; skipping them skips the checks.
       "Bash(git commit --no-verify:*)",
       "Bash(git push --no-verify:*)",
+      // Logging in is how a person trusts an instance's url and kind (ADR-0020).
+      "Bash(snagentic auth:*)",
       // Claude Code applies Edit rules to every file-writing tool; Write rules are ignored.
       ...PROTECTED.map((path) => `Edit(${path})`),
     ],
@@ -46,9 +48,12 @@ export const CLAUDE_SETTINGS = {
 // the push gate and CI still hold if a command slips through.
 const INSTANCE = "reach ServiceNow only through snagentic, which enforces the instance kind";
 const GIT_HOOKS = "git hooks run validate; skipping them skips the checks";
+const CREDENTIALS = "credentials and the instance they are for are set by a person (ADR-0020)";
 export const SHELL_DENY: readonly { readonly pattern: RegExp; readonly reason: string }[] = [
   { pattern: /(?:^|[\s;&|(`])(?:curl|wget)(?=\s|$)/, reason: INSTANCE },
   { pattern: /service-now\.com/i, reason: INSTANCE },
   { pattern: /--no-verify\b|core\.hooksPath/, reason: GIT_HOOKS },
   { pattern: /\bcommit\b[^;&|]*\s-[a-zA-Z]*n[a-zA-Z]*(?=\s|$)/, reason: GIT_HOOKS },
+  { pattern: /\bsnagentic\s+auth\b/, reason: CREDENTIALS },
+  { pattern: /\bSNAGENTIC_\w+_(?:PASSWORD|URL|KIND)\s*=/, reason: CREDENTIALS },
 ];

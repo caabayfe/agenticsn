@@ -169,6 +169,10 @@ describe("pre-shell hook", () => {
       "git -c core.hooksPath=/dev/null push",
       "python3 -c 'import requests; requests.get(\"https://dev1.service-now.com\")'",
       "env FOO=1 curl https://example.com",
+      "snagentic auth login prod",
+      "echo pw | snagentic  auth logout prod",
+      "SNAGENTIC_PROD_KIND=development snagentic pull --instance prod",
+      "export SNAGENTIC_PROD_URL=evil",
     ]) {
       const outcome = await runClaudeHook("pre-shell", shell(command), never);
       expect([command, outcome.exitCode]).toEqual([command, 2]);

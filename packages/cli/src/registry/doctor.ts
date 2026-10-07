@@ -8,6 +8,7 @@ import {
   runDoctor,
   runInstanceChecks,
   summarizeChecks,
+  trustedSecret,
   VERSION,
   WorkspaceNotFoundError,
 } from "@snagentic/core";
@@ -32,10 +33,10 @@ async function instanceChecks(
     InstanceName.parse(name),
     context.profiles,
   );
-  const secret = await context.credentials.read(profile);
+  const credential = await context.credentials.read(profile);
   run.progress({ message: `checking ${profile.url}` });
-  const reader = context.connections.open(profile, secret ?? "");
-  return runInstanceChecks(profile, secret, reader, run.signal);
+  const reader = context.connections.open(profile, trustedSecret(profile, credential) ?? "");
+  return runInstanceChecks(profile, credential, reader, run.signal);
 }
 
 // Checks of the workspace doctor runs in; none outside a workspace.

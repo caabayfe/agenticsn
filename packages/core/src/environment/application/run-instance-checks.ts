@@ -4,6 +4,7 @@ import {
   credentialVariable,
   type InstanceProfile,
 } from "../../instance/domain/profile";
+import { type StoredCredential, trustProblems, untrustedHint } from "../../instance/domain/trust";
 import { SnagenticError } from "../../kernel/errors";
 import { TableName } from "../../kernel/table-name";
 import type { Check, CheckStatus } from "../domain/check";
@@ -132,16 +133,22 @@ async function timestamps(user: Row, reader: InstanceReader, signal: AbortSignal
 
 export async function runInstanceChecks(
   profile: InstanceProfile,
-  secret: string | null,
+  credential: StoredCredential | null,
   reader: InstanceReader,
   signal: AbortSignal,
 ): Promise<Check[]> {
-  if (secret === null) {
+  if (credential === null) {
     const hint = `run: snagentic auth login ${profile.name} (or set ${credentialVariable(profile)})`;
     return [
       check("credentials", "fail", `no credentials for ${credentialAccount(profile)}`, hint),
       ...skipped(1),
     ];
+  }
+  // ADR-0020: an untrusted secret is never sent, so nothing else can be checked.
+  const problems = trustProblems(profile, credential.trusted);
+  if (problems.length > 0) {
+    const hint = untrustedHint(profile, credential.source);
+    return [check("credentials", "fail", problems.join("; "), hint), ...skipped(1)];
   }
   const credentials = check("credentials", "ok", `found for ${credentialAccount(profile)}`);
   const user = await connect(profile, reader, signal);

@@ -65,3 +65,14 @@ export class CredentialsMissingError extends SnagenticError {
     );
   }
 }
+
+export class ProfileNotTrustedError extends SnagenticError {
+  constructor(name: string, problems: readonly string[], hint: string) {
+    super(
+      "profile-not-trusted",
+      "not-permitted",
+      `instances/${name}/instance.yaml does not match the stored credential: ${problems.join("; ")}`,
+      hint,
+    );
+  }
+}

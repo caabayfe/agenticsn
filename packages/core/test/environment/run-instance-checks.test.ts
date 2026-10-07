@@ -9,6 +9,7 @@ import {
   InstanceUnreachableError,
   type Row,
   runInstanceChecks,
+  type StoredCredential,
   type TableQuery,
 } from "@snagentic/core";
 
@@ -53,6 +54,13 @@ function reader(
   };
 }
 
+const credentialFor = (stored: ReturnType<typeof profile>): StoredCredential => ({
+  secret: "pw",
+  source: "keychain",
+  trusted: { url: stored.url, kind: stored.kind },
+});
+const PW = credentialFor(profile());
+
 const USER = { sys_id: "u1", user_name: "admin", sys_updated_on: "2026-09-23 20:12:26" };
 const HEALTHY = { sys_user: [USER], sys_user_has_role: [{ "role.name": "admin" }], probe: [USER] };
 
@@ -62,7 +70,7 @@ function byName(checks: readonly Check[]): Record<string, Check> {
 
 describe("runInstanceChecks", () => {
   it("passes every check for a healthy instance and an admin user", async () => {
-    const checks = byName(await runInstanceChecks(profile(), "pw", reader(HEALTHY), LIVE));
+    const checks = byName(await runInstanceChecks(profile(), PW, reader(HEALTHY), LIVE));
     expect(Object.keys(checks)).toEqual([
       "credentials",
       "connection",
@@ -94,6 +102,23 @@ describe("runInstanceChecks", () => {
     expect(fake.queries).toEqual([]);
   });
 
+  it("fails when the profile no longer matches the stored credential, without sending it", async () => {
+    const fake = reader(HEALTHY);
+    const checks = await runInstanceChecks(
+      profile(),
+      credentialFor(profile("production")),
+      fake,
+      LIVE,
+    );
+    expect(checks[0]).toMatchObject({
+      name: "credentials",
+      status: "fail",
+      detail: expect.stringContaining("kind is development, but was production"),
+      hint: expect.stringContaining("snagentic auth login pdi"),
+    });
+    expect(fake.queries).toEqual([]);
+  });
+
   it.each([
     [new AuthenticationFailedError("pdi"), "snagentic auth login pdi"],
     [
@@ -102,7 +127,7 @@ describe("runInstanceChecks", () => {
     ],
   ])("fails the connection check with the error's hint (%p)", async (error, hint) => {
     const checks = byName(
-      await runInstanceChecks(profile(), "pw", reader({ sys_user: error }), LIVE),
+      await runInstanceChecks(profile(), PW, reader({ sys_user: error }), LIVE),
     );
     expect(checks["connection"]).toMatchObject({
       status: "fail",
@@ -113,25 +138,30 @@ describe("runInstanceChecks", () => {
 
   it("warns when the user is not an admin", async () => {
     const answers = { ...HEALTHY, sys_user_has_role: [{ "role.name": "snc_read_only" }] };
-    const checks = byName(await runInstanceChecks(profile(), "pw", reader(answers), LIVE));
+    const checks = byName(await runInstanceChecks(profile(), PW, reader(answers), LIVE));
     expect(checks["roles"]).toMatchObject({ status: "warn", detail: "has snc_read_only" });
   });
 
   it("asks only about the roles that matter, so long role lists cannot be truncated", async () => {
     const fake = reader(HEALTHY);
-    await runInstanceChecks(profile(), "pw", fake, LIVE);
+    await runInstanceChecks(profile(), PW, fake, LIVE);
     expect(fake.queries[1]?.query).toBe("user=u1^state=active^role.nameINadmin,snc_read_only");
   });
 
   it("says so when the user has neither role", async () => {
     const empty = { ...HEALTHY, sys_user_has_role: [] };
-    const checks = byName(await runInstanceChecks(profile(), "pw", reader(empty), LIVE));
+    const checks = byName(await runInstanceChecks(profile(), PW, reader(empty), LIVE));
     expect(checks["roles"]?.detail).toBe("has neither admin nor snc_read_only");
   });
 
   it("warns when a production credential lacks snc_read_only", async () => {
     const checks = byName(
-      await runInstanceChecks(profile("production"), "pw", reader(HEALTHY), LIVE),
+      await runInstanceChecks(
+        profile("production"),
+        credentialFor(profile("production")),
+        reader(HEALTHY),
+        LIVE,
+      ),
     );
     expect(checks["roles"]).toMatchObject({
       status: "warn",
@@ -141,7 +171,7 @@ describe("runInstanceChecks", () => {
 
   it("fails when the instance does not read query timestamps as UTC", async () => {
     const checks = byName(
-      await runInstanceChecks(profile(), "pw", reader({ ...HEALTHY, probe: [] }), LIVE),
+      await runInstanceChecks(profile(), PW, reader({ ...HEALTHY, probe: [] }), LIVE),
     );
     expect(checks["timestamps"]).toMatchObject({
       status: "fail",
@@ -151,7 +181,7 @@ describe("runInstanceChecks", () => {
 
   it("names only indexed fields and never asks for more than it needs", async () => {
     const fake = reader(HEALTHY);
-    await runInstanceChecks(profile(), "pw", fake, LIVE);
+    await runInstanceChecks(profile(), PW, fake, LIVE);
     expect(fake.queries.map((query) => [String(query.table), query.limit])).toEqual([
       ["sys_user", 1],
       ["sys_user_has_role", 10],

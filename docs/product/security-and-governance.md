@@ -45,6 +45,15 @@ that would set a secret, and lists them so they can be moved by hand.
 - Stored only in the **OS keychain** (macOS Keychain, Windows Credential Manager, Linux Secret
   Service) or in **environment variables** for CI. Never in files, logs, error messages or
   commits.
+- **Bound to the instance they are for**
+  ([ADR-0020](../adr/0020-instance-trust-outside-the-repository.md)). The keychain item holds
+  the password together with the instance's address and kind. The password is used only while
+  `instance.yaml` still matches, so editing the file (even from a shell) cannot send it to
+  another host or make a production instance writable. In CI, `SNAGENTIC_<NAME>_URL` and
+  `SNAGENTIC_<NAME>_KIND` pin the password the same way.
+- **Checked at login.** `auth login` tries the password before storing it, and refuses a test
+  or production credential without `snc_read_only`, or a development profile whose credential
+  has it. Agents are not allowed to run `snagentic auth`.
 - Each developer uses their **own** ServiceNow account, so update sets and audit history show
   real authorship.
 - `snagentic doctor --instance <name>` checks connection, roles and timestamp handling.
@@ -151,6 +160,3 @@ pull with no changes costs 22 requests and 3.2 s of server time.
   troubleshooting features are built.
 - Hooks for VS Code without `chat.useClaudeHooks`, the Copilot cloud agent and Codex.
 - Code signing.
-- **ADR-0020 (proposed):** trust an instance's kind and address from a record outside the
-  repository, and pin CI credentials to a host. Today a shell command that edits
-  `instance.yaml` could turn a production profile into a development one.

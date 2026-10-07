@@ -73,7 +73,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic auth login <instance> [options]
 ```
 
-Store the password for an instance in the OS keychain. Prompts without echo, or reads stdin.
+Check the password with the instance, then store it in the OS keychain together with the profile's url and kind; the password is used only while they match. Prompts without echo, or reads stdin.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

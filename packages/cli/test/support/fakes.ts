@@ -37,6 +37,17 @@ const NO_PROFILES: ProfileStore = {
   remove: async () => {},
 };
 
+// A stored password, bound to whichever profile asks (as if the person logged in to it).
+export const TRUSTED_PASSWORD: CredentialStore = {
+  read: async (profile) => ({
+    secret: "pw",
+    source: "keychain",
+    trusted: { url: profile.url, kind: profile.kind },
+  }),
+  write: async () => {},
+  remove: async () => false,
+};
+
 const NO_CREDENTIALS: CredentialStore = {
   read: async () => null,
   write: async () => {},

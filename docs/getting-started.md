@@ -48,12 +48,18 @@ Every command works from any folder inside the workspace (or pass `--workspace <
 
 ```sh
 snagentic instance add dev --url dev12345 --username svc_snagentic --kind development
-snagentic auth login dev            # stores the password in the OS keychain
+snagentic auth login dev            # checks the password, stores it in the OS keychain
 snagentic doctor --instance dev     # connection, roles, timestamps, load
 ```
 
-Secrets never go into the workspace: the keychain, or an environment variable such as
-`SNAGENTIC_DEV_PASSWORD` (handy in CI).
+Secrets never go into the workspace: the keychain, or environment variables in CI. The
+password is stored together with the instance's URL and kind, and is used only while
+`instance.yaml` still matches. If you change the URL or kind on purpose, run
+`snagentic auth login dev` again. In CI, set all three variables:
+
+```sh
+SNAGENTIC_DEV_PASSWORD=...  SNAGENTIC_DEV_URL=dev12345  SNAGENTIC_DEV_KIND=development
+```
 
 Test and production instances are **read-only by construction** (ADR-0012):
 

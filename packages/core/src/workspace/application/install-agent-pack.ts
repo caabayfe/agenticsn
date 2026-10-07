@@ -1,5 +1,6 @@
 import { withAgentsImport, withInstructions, withPreCommitHook } from "../domain/agent-pack";
 import { withClaudeSettings } from "../domain/claude-settings";
+import { withMcpServer } from "../domain/mcp-config";
 import type { WorkspaceFiles } from "../ports";
 
 export interface AgentPack {
@@ -10,6 +11,14 @@ export interface AgentPack {
   readonly files: readonly { readonly path: string; readonly content: string }[];
   // Hooks and permission rules merged into .claude/settings.json.
   readonly claudeSettings: Parameters<typeof withClaudeSettings>[1];
+  // The MCP server's entry in each host's project config, under that host's key.
+  readonly mcpConfigs: readonly McpConfig[];
+}
+
+export interface McpConfig {
+  readonly path: string;
+  readonly key: string;
+  readonly server: Readonly<Record<string, unknown>>;
 }
 
 // skipped: the file exists but could not be read (for example, settings that are not JSON).
@@ -58,6 +67,11 @@ export async function installAgentPack(
       withClaudeSettings(existing, pack.claudeSettings),
     ),
   );
+  for (const config of pack.mcpConfigs) {
+    results.push(
+      await write(config.path, (existing) => withMcpServer(existing, config.key, config.server)),
+    );
+  }
   results.push(await write(".git/hooks/pre-commit", withPreCommitHook, { executable: true }));
   return results;
 }

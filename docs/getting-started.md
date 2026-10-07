@@ -141,36 +141,26 @@ snagentic serves its tools over MCP: `find`, `describe`, `advise` and `validate`
 understanding and checking changes; `doctor`, `pull`, `status`, `update_sets`, `plugins`; and
 (when the workspace has a development instance) `plugin_activate`.
 
-First install the agent pack, once per workspace, and commit it so the whole team gets it:
+Install the agent pack, once per workspace, and commit it so the whole team gets it:
 
 ```sh
 snagentic agent install
-git add AGENTS.md CLAUDE.md .agents .claude && git commit -m "Add the snagentic agent pack"
+git add AGENTS.md CLAUDE.md .agents .claude .mcp.json .vscode
+git commit -m "Add the snagentic agent pack"
 ```
 
-It adds short instructions to `AGENTS.md` (your own text there is kept) and five workflow
-skills in `.agents/skills` (and `.claude/skills`, where Claude Code looks): `servicenow-design` (agree a design before editing),
-`servicenow-build` (edit, then `validate` until clean), `servicenow-review`,
-`servicenow-explain` and `servicenow-deliver` (plan, approval, push). Run it again after upgrading snagentic; `doctor` warns when the pack is
-from another version. In Claude Code the workflows are also slash commands:
-`/mcp__snagentic__design`, `/mcp__snagentic__review`, `/mcp__snagentic__explain`,
-`/mcp__snagentic__deliver`.
+That is the whole setup. It adds short instructions to `AGENTS.md` (your own text there is
+kept), five workflow skills in `.agents/skills` (and `.claude/skills`, where Claude Code
+looks), and registers the MCP server for **Claude Code** (`.mcp.json`) and **GitHub Copilot in
+VS Code** (`.vscode/mcp.json`), next to any servers you already have there. Claude Code asks
+each user once to approve the project's server; VS Code shows it in the MCP server list.
 
-**Claude Code**, from inside the workspace:
-
-```sh
-claude mcp add snagentic -- snagentic mcp
-```
-
-**GitHub Copilot in VS Code**: add `.vscode/mcp.json` to the workspace:
-
-```json
-{
-  "servers": {
-    "snagentic": { "type": "stdio", "command": "snagentic", "args": ["mcp"] }
-  }
-}
-```
+The skills are `servicenow-design` (agree a design before editing), `servicenow-build` (edit,
+then `validate` until clean), `servicenow-review`, `servicenow-explain` and
+`servicenow-deliver` (plan, approval, push). Run `agent install` again after upgrading
+snagentic; `doctor` warns when the pack is from another version. In Claude Code the workflows
+are also slash commands: `/mcp__snagentic__design`, `/mcp__snagentic__review`,
+`/mcp__snagentic__explain`, `/mcp__snagentic__deliver`.
 
 If your agent starts the server elsewhere, set `SNAGENTIC_WORKSPACE` to the workspace path.
 Agents can also run any command directly; `--format agent` gives compact output for them.

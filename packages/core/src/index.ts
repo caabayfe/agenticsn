@@ -269,5 +269,6 @@ export {
   manifestFor,
   type WorkspaceManifest,
 } from "./workspace/domain/manifest";
+export { withMcpServer } from "./workspace/domain/mcp-config";
 export { protectedReason } from "./workspace/domain/protected-paths";
 export type { WorkspaceFiles, WorkspaceStore } from "./workspace/ports";

@@ -7,6 +7,7 @@ import {
   withAgentsImport,
   withClaudeSettings,
   withInstructions,
+  withMcpServer,
 } from "@snagentic/core";
 
 const BLOCK = "# ServiceNow workspace\nrules";
@@ -74,6 +75,9 @@ const PACK: AgentPack = {
   instructions: BLOCK,
   files: [{ path: ".agents/skills/servicenow-explain/SKILL.md", content: "skill" }],
   claudeSettings: SETTINGS,
+  mcpConfigs: [
+    { path: ".mcp.json", key: "mcpServers", server: { command: "snagentic", args: ["mcp"] } },
+  ],
 };
 
 describe("installAgentPack", () => {
@@ -84,6 +88,7 @@ describe("installAgentPack", () => {
       { path: "AGENTS.md", status: "created" },
       { path: "CLAUDE.md", status: "updated" },
       { path: ".claude/settings.json", status: "created" },
+      { path: ".mcp.json", status: "created" },
       { path: ".git/hooks/pre-commit", status: "created" },
     ]);
     expect(files.get("/w/AGENTS.md")).toContain("<!-- snagentic:begin 1.1.0 -->");
@@ -106,6 +111,7 @@ describe("installAgentPack", () => {
     writes.length = 0;
     const second = await installAgentPack(port, "/w", PACK);
     expect(second.map((file) => file.status)).toEqual([
+      "unchanged",
       "unchanged",
       "unchanged",
       "unchanged",
@@ -149,5 +155,33 @@ describe("Claude Code settings", () => {
     const { port } = memoryFiles({ "/w/.claude/settings.json": "{ broken" });
     const results = await installAgentPack(port, "/w", PACK);
     expect(results).toContainEqual({ path: ".claude/settings.json", status: "skipped" });
+  });
+});
+
+describe("MCP server registration", () => {
+  const SERVER = { command: "snagentic", args: ["mcp"] };
+
+  it("registers the snagentic server so hosts start it without a manual step", () => {
+    expect(JSON.parse(withMcpServer(null, "mcpServers", SERVER) ?? "")).toEqual({
+      mcpServers: { snagentic: SERVER },
+    });
+  });
+
+  it("adds it beside the team's other servers and settings, keeping them", () => {
+    const theirs = JSON.stringify({ inputs: [], servers: { github: { url: "https://x" } } });
+    expect(JSON.parse(withMcpServer(theirs, "servers", SERVER) ?? "")).toEqual({
+      inputs: [],
+      servers: { github: { url: "https://x" }, snagentic: SERVER },
+    });
+  });
+
+  it("keeps a snagentic entry the team already configured, such as a binary path", () => {
+    const theirs = `${JSON.stringify({ mcpServers: { snagentic: { command: "/opt/snagentic" } } }, null, 2)}\n`;
+    expect(withMcpServer(theirs, "mcpServers", SERVER)).toBe(theirs);
+  });
+
+  it("leaves a config file it cannot read as it is", () => {
+    expect(withMcpServer("{ not json", "mcpServers", SERVER)).toBeNull();
+    expect(withMcpServer(JSON.stringify({ mcpServers: [] }), "mcpServers", SERVER)).toBeNull();
   });
 });

@@ -20,6 +20,13 @@ To upgrade:
 
 Guide: [credentials and instance trust](docs/guides/credentials.md).
 
+### Added
+
+- `agent install --host all|claude|copilot` installs only what the chosen host reads. GitHub
+  Copilot (CLI and cloud agent) gets native hooks in `.github/hooks/snagentic.json`, with the
+  same checks as Claude Code, and the `.agents/skills` workflows. Agents can't edit
+  `.github/hooks/`.
+
 ### Security
 
 - `auth login` tries the password before storing it, and refuses a test or production

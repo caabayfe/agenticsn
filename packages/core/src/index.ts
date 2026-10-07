@@ -250,6 +250,8 @@ export * from "./updatesets/index";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
 export {
+  AGENT_HOSTS,
+  type AgentHost,
   type AgentPack,
   type InstalledFile,
   type InstallStatus,

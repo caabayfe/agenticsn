@@ -1,3 +1,4 @@
+import { COPILOT_HOOKS, COPILOT_HOOKS_PATH } from "./copilot-hooks";
 import { instructions } from "./instructions";
 import { renderBody, renderSkill, type Skill } from "./skill";
 import { BUILD } from "./skills/build";
@@ -10,22 +11,43 @@ export const SKILLS: readonly Skill[] = [DESIGN, BUILD, REVIEW, EXPLAIN, DELIVER
 
 export const INSTRUCTIONS = instructions(SKILLS.map((skill) => skill.name));
 
+// "copilot" also stands for the other hosts that read AGENTS.md and .agents/skills.
+export type AgentHost = "claude" | "copilot";
+
 export interface PackFile {
   // Relative to the workspace root.
   readonly path: string;
   readonly content: string;
+  // The hosts that read it; it is written when one of them is installed.
+  readonly hosts: readonly AgentHost[];
 }
 
 // Where hosts look for skills: .agents/skills (the shared location: Codex, Copilot, Cursor) and
 // .claude/skills (Claude Code, which does not read .agents/skills; checked with 2.1.285).
-const SKILL_FOLDERS = [".agents/skills", ".claude/skills"];
+const SKILL_FOLDERS = [
+  { folder: ".agents/skills", hosts: ["copilot"] },
+  { folder: ".claude/skills", hosts: ["claude"] },
+] as const;
 
-// The files `agent install` writes, besides the instructions block in AGENTS.md.
+// The files `agent install` writes, besides the instructions block in AGENTS.md and the
+// hosts' settings.
 export function skillFiles(version: string): PackFile[] {
   return SKILLS.flatMap((skill) => {
     const content = renderSkill(skill, version);
-    return SKILL_FOLDERS.map((folder) => ({ path: `${folder}/${skill.name}/SKILL.md`, content }));
+    return SKILL_FOLDERS.map(({ folder, hosts }) => ({
+      path: `${folder}/${skill.name}/SKILL.md`,
+      content,
+      hosts,
+    }));
   });
+}
+
+export function copilotHookFile(): PackFile {
+  return {
+    path: COPILOT_HOOKS_PATH,
+    content: `${JSON.stringify(COPILOT_HOOKS, null, 2)}\n`,
+    hosts: ["copilot"],
+  };
 }
 
 export interface PackPrompt {

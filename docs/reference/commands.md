@@ -268,9 +268,13 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic agent install [options]
 ```
 
-Install the agent pack into the workspace: the workflow skills (.agents/skills, and .claude/skills for Claude Code), the instructions block in AGENTS.md and its import in CLAUDE.md, Claude Code hooks and permission rules in .claude/settings.json, the MCP server for Claude Code (.mcp.json) and VS Code (.vscode/mcp.json), and a git pre-commit hook that runs validate. Commit them so the whole team's agents work the same way. Run again after upgrading snagentic.
+Install the agent pack into the workspace: the instructions block in AGENTS.md, a git pre-commit hook that runs validate, and for each host its skills, hooks and MCP server. GitHub Copilot (CLI, VS Code, cloud agent): .agents/skills, .github/hooks/snagentic.json, .mcp.json and .vscode/mcp.json. Claude Code: .claude/skills, CLAUDE.md, .claude/settings.json (hooks and permission rules) and .mcp.json. Commit them so the whole team's agents work the same way. Run again after upgrading snagentic.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--host <value>`: the agent hosts to install for: all, claude or copilot (one of: all, claude, copilot)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 

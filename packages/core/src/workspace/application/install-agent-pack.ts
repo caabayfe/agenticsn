@@ -3,12 +3,20 @@ import { withClaudeSettings } from "../domain/claude-settings";
 import { withMcpServer } from "../domain/mcp-config";
 import type { WorkspaceFiles } from "../ports";
 
+export const AGENT_HOSTS = ["claude", "copilot"] as const;
+export type AgentHost = (typeof AGENT_HOSTS)[number];
+
 export interface AgentPack {
   readonly version: string;
   // The always-loaded instructions, written as a block in AGENTS.md.
   readonly instructions: string;
-  // Files owned by the pack (skills), relative to the workspace root.
-  readonly files: readonly { readonly path: string; readonly content: string }[];
+  // Files owned by the pack (skills, Copilot's hooks), relative to the workspace root, with
+  // the hosts that read each.
+  readonly files: readonly {
+    readonly path: string;
+    readonly content: string;
+    readonly hosts: readonly AgentHost[];
+  }[];
   // Hooks and permission rules merged into .claude/settings.json.
   readonly claudeSettings: Parameters<typeof withClaudeSettings>[1];
   // The MCP server's entry in each host's project config, under that host's key.
@@ -19,6 +27,7 @@ export interface McpConfig {
   readonly path: string;
   readonly key: string;
   readonly server: Readonly<Record<string, unknown>>;
+  readonly hosts: readonly AgentHost[];
 }
 
 // skipped: the file exists but could not be read (for example, settings that are not JSON).
@@ -29,13 +38,18 @@ export interface InstalledFile {
   readonly status: InstallStatus;
 }
 
-// Writes the pack into the workspace so the whole team gets it through git. Files whose
-// content would not change are left untouched.
+// Writes the pack for the given hosts into the workspace, so the whole team gets it through
+// git. AGENTS.md and the pre-commit hook serve every host. Files whose content would not
+// change are left untouched.
 export async function installAgentPack(
   files: WorkspaceFiles,
   root: string,
   pack: AgentPack,
+  hosts: readonly AgentHost[],
 ): Promise<InstalledFile[]> {
+  const wanted = (item: { readonly hosts: readonly AgentHost[] }) =>
+    item.hosts.some((host) => hosts.includes(host));
+  const claude = hosts.includes("claude");
   const write = async (
     path: string,
     next: (existing: string | null) => string | null,
@@ -53,7 +67,7 @@ export async function installAgentPack(
     return { path, status: existing === null ? ("created" as const) : ("updated" as const) };
   };
   const results: InstalledFile[] = [];
-  for (const file of pack.files) {
+  for (const file of pack.files.filter(wanted)) {
     results.push(await write(file.path, () => file.content));
   }
   results.push(
@@ -61,13 +75,15 @@ export async function installAgentPack(
       withInstructions(existing, pack.instructions, pack.version),
     ),
   );
-  results.push(await write("CLAUDE.md", withAgentsImport));
-  results.push(
-    await write(".claude/settings.json", (existing) =>
-      withClaudeSettings(existing, pack.claudeSettings),
-    ),
-  );
-  for (const config of pack.mcpConfigs) {
+  if (claude) {
+    results.push(await write("CLAUDE.md", withAgentsImport));
+    results.push(
+      await write(".claude/settings.json", (existing) =>
+        withClaudeSettings(existing, pack.claudeSettings),
+      ),
+    );
+  }
+  for (const config of pack.mcpConfigs.filter(wanted)) {
     results.push(
       await write(config.path, (existing) => withMcpServer(existing, config.key, config.server)),
     );

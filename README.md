@@ -79,7 +79,7 @@ snagentic init ~/snagentic/acme && cd ~/snagentic/acme
 snagentic instance add dev --url dev12345 --username svc_snagentic --kind development
 snagentic auth login dev
 snagentic pull dev && snagentic integrate dev
-snagentic agent install        # instructions, skills, hooks and MCP registration for your agent
+snagentic agent install        # instructions, skills, hooks and MCP (--host claude|copilot)
 ```
 
 Then ask your agent, for example: *"Why does the assignment group change when I save an

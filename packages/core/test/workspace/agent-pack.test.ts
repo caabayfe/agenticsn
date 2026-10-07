@@ -73,51 +73,92 @@ const SETTINGS = {
 const PACK: AgentPack = {
   version: "1.1.0",
   instructions: BLOCK,
-  files: [{ path: ".agents/skills/servicenow-explain/SKILL.md", content: "skill" }],
+  files: [
+    {
+      path: ".agents/skills/servicenow-explain/SKILL.md",
+      content: "skill",
+      hosts: ["copilot"],
+    },
+    {
+      path: ".claude/skills/servicenow-explain/SKILL.md",
+      content: "skill",
+      hosts: ["claude"],
+    },
+    { path: ".github/hooks/snagentic.json", content: "{}", hosts: ["copilot"] },
+  ],
   claudeSettings: SETTINGS,
   mcpConfigs: [
-    { path: ".mcp.json", key: "mcpServers", server: { command: "snagentic", args: ["mcp"] } },
+    {
+      path: ".mcp.json",
+      key: "mcpServers",
+      server: { command: "snagentic", args: ["mcp"] },
+      hosts: ["claude", "copilot"],
+    },
+    { path: ".vscode/mcp.json", key: "servers", server: { command: "x" }, hosts: ["copilot"] },
   ],
 };
+const BOTH = ["claude", "copilot"] as const;
 
 describe("installAgentPack", () => {
   it("writes the skills, the instructions block and the CLAUDE.md import", async () => {
     const { port, files } = memoryFiles({ "/w/CLAUDE.md": "# notes\n" });
-    expect(await installAgentPack(port, "/w", PACK)).toEqual([
+    expect(await installAgentPack(port, "/w", PACK, BOTH)).toEqual([
       { path: ".agents/skills/servicenow-explain/SKILL.md", status: "created" },
+      { path: ".claude/skills/servicenow-explain/SKILL.md", status: "created" },
+      { path: ".github/hooks/snagentic.json", status: "created" },
       { path: "AGENTS.md", status: "created" },
       { path: "CLAUDE.md", status: "updated" },
       { path: ".claude/settings.json", status: "created" },
       { path: ".mcp.json", status: "created" },
+      { path: ".vscode/mcp.json", status: "created" },
       { path: ".git/hooks/pre-commit", status: "created" },
     ]);
     expect(files.get("/w/AGENTS.md")).toContain("<!-- snagentic:begin 1.1.0 -->");
   });
 
+  it("writes no Claude Code files when only Copilot is installed", async () => {
+    const { port } = memoryFiles();
+    const paths = (await installAgentPack(port, "/w", PACK, ["copilot"])).map((f) => f.path);
+    expect(paths).toEqual([
+      ".agents/skills/servicenow-explain/SKILL.md",
+      ".github/hooks/snagentic.json",
+      "AGENTS.md",
+      ".mcp.json",
+      ".vscode/mcp.json",
+      ".git/hooks/pre-commit",
+    ]);
+  });
+
+  it("writes no Copilot files when only Claude Code is installed", async () => {
+    const { port } = memoryFiles();
+    const paths = (await installAgentPack(port, "/w", PACK, ["claude"])).map((f) => f.path);
+    expect(paths).toEqual([
+      ".claude/skills/servicenow-explain/SKILL.md",
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".claude/settings.json",
+      ".mcp.json",
+      ".git/hooks/pre-commit",
+    ]);
+  });
+
   it("installs an executable pre-commit hook that validates, never replacing the team's own", async () => {
     const fresh = memoryFiles();
-    await installAgentPack(fresh.port, "/w", PACK);
+    await installAgentPack(fresh.port, "/w", PACK, BOTH);
     expect(fresh.executables).toEqual(["/w/.git/hooks/pre-commit"]);
     expect(fresh.files.get("/w/.git/hooks/pre-commit")).toContain("snagentic validate");
     const theirs = memoryFiles({ "/w/.git/hooks/pre-commit": "#!/bin/sh\nnpm test\n" });
-    const results = await installAgentPack(theirs.port, "/w", PACK);
+    const results = await installAgentPack(theirs.port, "/w", PACK, BOTH);
     expect(results.at(-1)).toEqual({ path: ".git/hooks/pre-commit", status: "skipped" });
     expect(theirs.files.get("/w/.git/hooks/pre-commit")).toBe("#!/bin/sh\nnpm test\n");
   });
 
   it("writes nothing when the pack is already installed", async () => {
     const { port, writes } = memoryFiles();
-    await installAgentPack(port, "/w", PACK);
+    await installAgentPack(port, "/w", PACK, BOTH);
     writes.length = 0;
-    const second = await installAgentPack(port, "/w", PACK);
-    expect(second.map((file) => file.status)).toEqual([
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
-    ]);
+    const second = await installAgentPack(port, "/w", PACK, BOTH);
+    expect(second.every((file) => file.status === "unchanged")).toBe(true);
     expect(writes).toEqual([]);
   });
 });
@@ -153,7 +194,7 @@ describe("Claude Code settings", () => {
 
   it("reports the settings it could not merge", async () => {
     const { port } = memoryFiles({ "/w/.claude/settings.json": "{ broken" });
-    const results = await installAgentPack(port, "/w", PACK);
+    const results = await installAgentPack(port, "/w", PACK, BOTH);
     expect(results).toContainEqual({ path: ".claude/settings.json", status: "skipped" });
   });
 });

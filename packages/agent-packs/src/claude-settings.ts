@@ -12,6 +12,7 @@ const PROTECTED = [
   "waivers.yaml",
   ".claude/settings.json",
   ".claude/settings.local.json",
+  ".github/hooks/**",
 ];
 
 export const CLAUDE_SETTINGS = {

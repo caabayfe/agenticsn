@@ -41,10 +41,24 @@ describe("agent install", () => {
       // biome-ignore lint/suspicious/noTemplateCurlyInString: VS Code's variable, kept literal.
       SNAGENTIC_WORKSPACE: "${workspaceFolder}",
     });
+    const copilotHooks = JSON.parse(
+      await readFile(join(ws.root, ".github/hooks/snagentic.json"), "utf8"),
+    );
+    expect(copilotHooks.version).toBe(1);
     const hook = join(ws.root, ".git/hooks/pre-commit");
     expect(await readFile(hook, "utf8")).toContain("snagentic validate");
     expect((await stat(hook)).mode & 0o111).not.toBe(0);
     expect(agentInstall.render(output as never, "text")).toContain("commit these files");
+  });
+
+  it("installs only what GitHub Copilot reads, with no Claude Code files", async () => {
+    const ws = await instanceWorkspace({});
+    cleanups.push(ws.cleanup);
+    const { output } = await executeUseCase(agentInstall, { host: "copilot" }, ws.context);
+    const paths = (output as { files: { path: string }[] }).files.map((file) => file.path);
+    expect(paths).toContain(".github/hooks/snagentic.json");
+    expect(paths).toContain(".agents/skills/servicenow-explain/SKILL.md");
+    expect(paths.filter((path) => path.includes("claude") || path === "CLAUDE.md")).toEqual([]);
   });
 
   it("says when the pack is already installed", async () => {

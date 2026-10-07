@@ -3,7 +3,13 @@
 
 export const MCP_CONFIGS = [
   // Claude Code starts project servers in the project's folder, where the workspace is found.
-  { path: ".mcp.json", key: "mcpServers", server: { command: "snagentic", args: ["mcp"] } },
+  // Copilot CLI reads it too.
+  {
+    path: ".mcp.json",
+    key: "mcpServers",
+    server: { command: "snagentic", args: ["mcp"] },
+    hosts: ["claude", "copilot"],
+  },
   // VS Code (GitHub Copilot) does not promise a working folder, so it names the workspace.
   {
     path: ".vscode/mcp.json",
@@ -15,5 +21,6 @@ export const MCP_CONFIGS = [
       // biome-ignore lint/suspicious/noTemplateCurlyInString: VS Code's variable, expanded by VS Code.
       env: { SNAGENTIC_WORKSPACE: "${workspaceFolder}" },
     },
+    hosts: ["copilot"],
   },
 ] as const;

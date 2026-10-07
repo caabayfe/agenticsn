@@ -155,7 +155,7 @@ Install the agent pack, once per workspace, and commit it so the whole team gets
 
 ```sh
 snagentic agent install
-git add AGENTS.md CLAUDE.md .agents .claude .mcp.json .vscode
+git add AGENTS.md CLAUDE.md .agents .claude .github/hooks .mcp.json .vscode
 git commit -m "Add the snagentic agent pack"
 ```
 
@@ -171,6 +171,28 @@ then `validate` until clean), `servicenow-review`, `servicenow-explain` and
 snagentic; `doctor` warns when the pack is from another version. In Claude Code the workflows
 are also slash commands: `/mcp__snagentic__design`, `/mcp__snagentic__review`,
 `/mcp__snagentic__explain`, `/mcp__snagentic__deliver`.
+
+### Choosing the agent host
+
+By default `agent install` sets up every supported host (`--host all`). Pass `--host` to
+install only what one host reads, for example on a machine where only GitHub Copilot is
+allowed:
+
+```sh
+snagentic agent install --host copilot
+git add AGENTS.md .agents .github/hooks .mcp.json .vscode
+```
+
+| Host | Files |
+|---|---|
+| `claude` (Claude Code) | `CLAUDE.md`, `.claude/skills`, `.claude/settings.json` (hooks and deny rules), `.mcp.json` |
+| `copilot` (Copilot CLI, cloud agent, VS Code) | `.agents/skills`, `.github/hooks/snagentic.json`, `.mcp.json`, `.vscode/mcp.json` |
+
+`AGENTS.md` and the git pre-commit hook are always installed. Copilot CLI runs the hooks in
+`.github/hooks` only in folders you have trusted, so trust the workspace when it asks. Copilot
+CLI also reads `.claude/settings.json`, so with `--host all` it runs each check twice; that is
+harmless, but `--host copilot` avoids it. A hook that times out lets the action through, so
+the hooks allow two minutes; the pre-commit hook and the push gate still apply.
 
 If your agent starts the server elsewhere, set `SNAGENTIC_WORKSPACE` to the workspace path.
 Agents can also run any command directly; `--format agent` gives compact output for them.

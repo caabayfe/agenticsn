@@ -26,8 +26,16 @@ Guide: [credentials and instance trust](docs/guides/credentials.md).
   Copilot (CLI and cloud agent) gets native hooks in `.github/hooks/snagentic.json`, with the
   same checks as Claude Code, and the `.agents/skills` workflows. Agents can't edit
   `.github/hooks/`.
+- OAuth client credentials as an alternative to a password (ADR-0021):
+  `instance add --client-id <id> --username <OAuth application user>`, then `auth login`
+  asks for the client secret. Tokens stay in memory and are renewed before they expire. Guide:
+  [credentials](docs/guides/credentials.md#with-an-oauth-client-instead-of-a-password).
 
 ### Security
+
+- Role checks, the login check and push authorship now use the user the instance signed in,
+  not the username written in `instance.yaml`. snagentic refuses to operate when they differ
+  (`identity-mismatch`).
 
 - `auth login` tries the password before storing it, and refuses a test or production
   credential without `snc_read_only` and a development profile whose credential has it.

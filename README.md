@@ -45,7 +45,7 @@ advice, and enforces checks in code instead of trusting prompts.
   update set and verifies each write was captured.
 - **Light on the instance.** Keyset paging, named fields, an adaptive request scheduler.
   An incremental pull with no changes costs 22 small requests and about 4 seconds.
-- **No secrets on disk.** Credentials live in the OS keychain or environment variables, each
+- **No secrets on disk.** Credentials (a password or an OAuth client) live in the OS keychain or environment variables, each
   bound to the instance URL and kind it was stored for, so editing a file can't redirect it
   or make production writable ([credentials](docs/guides/credentials.md)).
   snagentic sends instance data nowhere except your machines and your git server; what your

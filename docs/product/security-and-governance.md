@@ -55,6 +55,13 @@ that would set a secret, and lists them so they can be moved by hand.
 - **Checked at login.** `auth login` tries the password before storing it, and refuses a test
   or production credential without `snc_read_only`, or a development profile whose credential
   has it. Agents are not allowed to run `snagentic auth`.
+- **Password or OAuth client.** Either a user password or an OAuth client id and secret
+  (client credentials grant,
+  [ADR-0021](../adr/0021-oauth-client-credentials.md)). Access tokens are kept in memory
+  only.
+- **Checked against the signed-in session.** Role checks, the login check and push
+  authorship use the user the instance actually signed in, and snagentic refuses to operate
+  when that user differs from the one in `instance.yaml`.
 - Each developer uses their **own** ServiceNow account, so update sets and audit history show
   real authorship.
 - `snagentic doctor --instance <name>` checks connection, roles and timestamp handling.

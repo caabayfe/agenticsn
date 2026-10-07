@@ -43,7 +43,16 @@ const update = (sys_id: string, updateSet: string, by: string): Row => ({
 async function workspace() {
   const ws = await instanceWorkspace({
     sys_update_set: [set(MINE, "Incident tweaks", "alice"), set(THEIRS, "Bob's fix", "bob")],
-    sys_update_xml: [update("u1", MINE, "alice"), update("u2", THEIRS, "bob")],
+    sys_update_xml: [
+      update("u1", MINE, "alice"),
+      update("u2", THEIRS, "bob"),
+      {
+        ...update("u3", MINE, "alice"),
+        name: "sys_properties_k",
+        target_name: "x.api_key",
+        payload: '<record_update table="sys_properties"><name>x.api_key</name></record_update>',
+      },
+    ],
     sys_scope: [{ sys_id: "global", name: "Global", scope: "global", version: "" }],
     sys_dictionary: [
       { sys_id: "d1", name: "sys_remote_update_set", element: "name", internal_type: "string" },
@@ -77,7 +86,7 @@ describe("update-sets commands", () => {
     );
     expect(exitCode).toBe(1);
     expect(updateSetsCollisions.render(output as never, "text")).toContain(
-      "1 collisions among 1 records in 2 open update sets",
+      "1 collisions among 2 records in 2 open update sets",
     );
   });
 
@@ -92,7 +101,8 @@ describe("update-sets commands", () => {
     expect(output).toMatchObject({ name: "Incident tweaks", updates: 1, path });
     expect(written.get(path)).toContain('<sys_remote_update_set action="INSERT_OR_UPDATE">');
     expect(updateSetsExport.render(output as never, "text")).toBe(
-      `exported "Incident tweaks" (1 updates, ${output["bytes"]} bytes) to ${path}`,
+      `exported "Incident tweaks" (1 updates, ${output["bytes"]} bytes) to ${path}\n` +
+        "withheld sys_properties_k (x.api_key): it sets a secret-like property; move it by hand",
     );
   });
 
@@ -104,6 +114,16 @@ describe("update-sets commands", () => {
       context,
     );
     expect([...written.keys()]).toEqual(["/tmp/out.xml"]);
+  });
+
+  it("never overwrites an existing file", async () => {
+    const { context, root, written } = await workspace();
+    const path = join(root, "x.xml");
+    written.set(path, "theirs");
+    await expect(
+      executeUseCase(updateSetsExport, { instance: "pdi", id: MINE, output: "x.xml" }, context),
+    ).rejects.toMatchObject({ code: "export-file-exists" });
+    expect(written.get(path)).toBe("theirs");
   });
 });
 
@@ -125,6 +145,34 @@ describe("the update_sets MCP tool", () => {
     expect(shown.output["show"]).toMatchObject({ updateSet: { name: "Incident tweaks" } });
     expect(updateSetsTool.cli).toBe(false);
     expect(updateSetsTool.render(listed.output as never, "text")).toContain('"action":"list"');
+  });
+
+  it("exports only to a new, unprotected file inside the workspace", async () => {
+    const { updateSetsTool } = await import("../../src/registry/update-sets-tool");
+    const { context, root, written } = await workspace();
+    for (const output of [
+      "/tmp/out.xml",
+      "../out.xml",
+      "instances/../../out.xml",
+      ".snagentic/out.xml",
+      ".git/hooks/pre-commit",
+      "snagentic.yaml",
+    ]) {
+      await expect(
+        executeUseCase(
+          updateSetsTool,
+          { instance: "pdi", action: "export", id: MINE, output },
+          context,
+        ),
+      ).rejects.toMatchObject({ code: "invalid-input" });
+    }
+    expect(written.size).toBe(0);
+    await executeUseCase(
+      updateSetsTool,
+      { instance: "pdi", action: "export", id: MINE, output: "exports/mine.xml" },
+      context,
+    );
+    expect([...written.keys()]).toEqual([join(root, "exports/mine.xml")]);
   });
 
   it("explains a missing id", async () => {

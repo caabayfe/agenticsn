@@ -16,6 +16,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   pre-edit hook failed open there. Each edited record is validated against its own instance.
 - Protected paths are compared case-insensitively and with either separator, and now include
   `.claude/settings.json`, `.claude/settings.local.json` and `.github/hooks/`.
+- `update-sets export` leaves out updates whose payload holds a secret: credential and
+  certificate classes, secret fields, and secret-like or password-typed properties. It lists
+  them as `withheld`, to move by hand. Before, payloads were written to disk unredacted.
+- `update-sets export` never overwrites a file and never follows a link. Through MCP, the
+  output must be a new, unprotected file inside the workspace. Before, an agent could write
+  the export over any file the user could write.
 - The Claude Code deny rules for protected files use `Edit(...)` only. Claude Code ignored the
   `Write(...)` rules. Existing `Write(...)` rules stay after an upgrade and are harmless.
 

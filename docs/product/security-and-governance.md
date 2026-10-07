@@ -37,7 +37,8 @@ flowchart LR
 | Push plans and a push journal (local state, not committed) | Credentials of any kind |
 
 Redaction happens before anything is written. A field that was redacted can't be pushed back;
-the plan tells the user to set it on the instance.
+the plan tells the user to set it on the instance. An update set export leaves out the updates
+that would set a secret, and lists them so they can be moved by hand.
 
 ## Credentials
 

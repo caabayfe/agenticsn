@@ -1,10 +1,29 @@
+import { isAbsolute, relative, resolve } from "node:path";
+import { InvalidInputError, protectedReason } from "@snagentic/core";
 import { z } from "zod";
 import { executeUseCase } from "./execute";
 import { updateSetsCollisions } from "./update-sets-collisions";
 import { updateSetsExport } from "./update-sets-export";
 import { updateSetsList } from "./update-sets-list";
 import { updateSetsShow } from "./update-sets-show";
-import { defineUseCase } from "./use-case";
+import { defineUseCase, type UseCaseContext } from "./use-case";
+import { workspaceRoot } from "./workspace-root";
+
+// An agent names the export file, so it may only be a new, unprotected file in the workspace;
+// the person's CLI may write anywhere.
+async function workspaceOutput(context: UseCaseContext, output: string): Promise<string> {
+  const root = await workspaceRoot(context);
+  const path = resolve(root, output);
+  const inside = relative(root, path);
+  if (isAbsolute(output) || inside.startsWith("..") || isAbsolute(inside)) {
+    throw new InvalidInputError(`export output must be a path inside the workspace: ${output}`);
+  }
+  const reason = protectedReason(inside);
+  if (reason !== null) {
+    throw new InvalidInputError(`export output may not be ${inside}: ${reason}`);
+  }
+  return path;
+}
 
 // The plan's single update-sets MCP tool: the four update-sets commands behind one `action`,
 // so they take one place in the tool budget (ADR-0002). Each action runs its command.
@@ -19,7 +38,10 @@ export const updateSetsTool = defineUseCase({
     action: z.enum(["list", "show", "collisions", "export"]),
     id: z.string().optional().describe("the update set's sys_id, for show and export"),
     days: z.number().int().min(0).default(30).describe("list: also sets changed in this many days"),
-    output: z.string().optional().describe("export: file to write"),
+    output: z
+      .string()
+      .optional()
+      .describe("export: new file to write, relative to the workspace root"),
   }),
   output: z.object({
     action: z.enum(["list", "show", "collisions", "export"]),
@@ -44,7 +66,7 @@ export const updateSetsTool = defineUseCase({
       instance,
       days,
       ...(id === undefined ? {} : { id }),
-      ...(output === undefined ? {} : { output }),
+      ...(output === undefined ? {} : { output: await workspaceOutput(context, output) }),
     };
     const result = await executeUseCase(selected, args, context, run);
     return { action, [action]: result.output };

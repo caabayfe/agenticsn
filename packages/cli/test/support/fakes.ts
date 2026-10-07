@@ -63,7 +63,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
     },
   },
   integrator: { integrate: async () => ({ commit: null, changedFiles: 0 }) },
-  files: { write: async () => {} },
+  files: { create: async () => "created" },
   inventory: { read: async () => null },
   knowledge: () => {
     throw new Error("no knowledge index in this test");

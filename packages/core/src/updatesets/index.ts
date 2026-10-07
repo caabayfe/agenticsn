@@ -2,6 +2,7 @@
 export {
   type ExportedUpdateSet,
   exportUpdateSet,
+  type WithheldUpdate,
 } from "./application/export-update-set";
 export { heldInOpenUpdateSets, type RecordHolder } from "./application/held-records";
 export type { UpdateSetDependencies } from "./application/update-set-reads";
@@ -20,7 +21,7 @@ export {
   type Holder,
   type OpenUpdateSet,
 } from "./domain/collisions";
-export { UpdateSetNotFoundError } from "./domain/errors";
+export { ExportFileExistsError, UpdateSetNotFoundError } from "./domain/errors";
 export {
   type Application,
   type ExportStamp,
@@ -35,3 +36,4 @@ export {
   type UnloadField,
   type UnloadRecord,
 } from "./domain/unload-xml";
+export { withheldReason } from "./domain/withheld";

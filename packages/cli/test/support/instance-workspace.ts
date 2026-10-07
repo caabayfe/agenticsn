@@ -65,8 +65,12 @@ export async function instanceWorkspace(
       checker: new EslintScriptChecker(),
     }),
     files: {
-      write: async (path, content) => {
+      create: async (path, content) => {
+        if (written.has(path)) {
+          return "exists";
+        }
         written.set(path, content);
+        return "created";
       },
     },
     host: { cwd: root, home: base, version: "test" },

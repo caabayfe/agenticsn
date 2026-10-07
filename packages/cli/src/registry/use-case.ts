@@ -91,8 +91,8 @@ export interface UseCaseContext {
   readonly pushJournal: (root: string, instance: InstanceName) => PushJournalStore;
   // Text files inside the workspace (the agent pack).
   readonly workspaceFiles: WorkspaceFiles;
-  // Files a use case writes for the person, such as an export.
-  readonly files: { write(path: string, content: string): Promise<void> };
+  // New files a use case writes for the person, such as an export; never overwrites.
+  readonly files: { create(path: string, content: string): Promise<"created" | "exists"> };
   readonly clock: () => Date;
   readonly sleep: (milliseconds: number, signal: AbortSignal) => Promise<void>;
   readonly host: HostEnvironment;

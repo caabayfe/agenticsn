@@ -10,3 +10,14 @@ export class UpdateSetNotFoundError extends SnagenticError {
     );
   }
 }
+
+export class ExportFileExistsError extends SnagenticError {
+  constructor(path: string) {
+    super(
+      "export-file-exists",
+      "precondition",
+      `${path} already exists; an export never overwrites a file`,
+      "choose another output file, or remove that one first",
+    );
+  }
+}

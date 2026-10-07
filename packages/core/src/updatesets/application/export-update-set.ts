@@ -9,6 +9,7 @@ import {
   remoteUpdateSet,
 } from "../domain/export-mapping";
 import { renderUnload } from "../domain/unload-xml";
+import { withheldReason } from "../domain/withheld";
 import {
   applications,
   listRows,
@@ -25,6 +26,14 @@ export interface ExportedUpdateSet {
   readonly name: string;
   readonly updates: number;
   readonly xml: string;
+  // Updates left out because their payload holds a secret; move these by hand.
+  readonly withheld: readonly WithheldUpdate[];
+}
+
+export interface WithheldUpdate {
+  readonly name: string;
+  readonly target: string;
+  readonly reason: string;
 }
 
 // The fields a record of `table` has on this instance, so the export follows its release.
@@ -63,9 +72,16 @@ export async function exportUpdateSet(
   }
   const remoteSpec = await fieldSpecs(deps, "sys_remote_update_set", signal);
   const updateSpec = await fieldSpecs(deps, "sys_update_xml", signal);
-  const updates = inRecordedOrder(
+  const all = inRecordedOrder(
     await listRows(deps, SYS_UPDATE_XML, `update_set=${id}`, "all", signal),
   );
+  const withheld = all.flatMap((update) => {
+    const reason = withheldReason(update["payload"] ?? "");
+    return reason === null
+      ? []
+      : [{ name: update["name"] ?? "", target: update["target_name"] ?? "", reason }];
+  });
+  const updates = all.filter((update) => withheldReason(update["payload"] ?? "") === null);
   const appIds = [
     set["application"] ?? "",
     ...updates.map((update) => update["application"] ?? ""),
@@ -85,5 +101,6 @@ export async function exportUpdateSet(
     name: set["name"] ?? "",
     updates: updates.length,
     xml: renderUnload(stamp.at, records),
+    withheld,
   };
 }

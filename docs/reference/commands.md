@@ -427,7 +427,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `action` (list | show | collisions | export, required)
   - `id` (string, optional): the update set's sys_id, for show and export
   - `days` (integer, optional): list: also sets changed in this many days
-  - `output` (string, optional): export: file to write
+  - `output` (string, optional): export: new file to write, relative to the workspace root
 - `plugins`: List installed and available plugins and store applications with their versions, from the inventory of the last pull (no call to the instance).
   - `instance` (string, required)
   - `text` (string, optional): only those whose id, scope or name contains this

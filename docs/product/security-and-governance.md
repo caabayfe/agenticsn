@@ -92,8 +92,8 @@ and CI:
 
 | # | Layer | What it stops | 1.1 |
 |---|---|---|---|
-| 1 | Host hooks: refuse edits to protected files, `check` after each edit, `validate` before the agent ends its turn | Agent mistakes, immediately | Claude Code |
-| 2 | Host permission rules: deny direct HTTP to the instance, deny `--no-verify`, ask before `push` | The agent working around snagentic | Claude Code |
+| 1 | Host hooks: refuse edits to protected files (including the hook settings themselves), `check` after each edit, `validate` before the agent ends its turn | Agent mistakes, immediately | Claude Code, Copilot CLI |
+| 2 | Host permission rules and a shell hook: deny direct HTTP to the instance, deny skipping git hooks, ask before `push` | The agent working around snagentic | Claude Code; Copilot CLI (shell hook, no `ask`) |
 | 3 | Push gate (above) | Unvalidated pushes through the tool | **Yes** |
 | 4 | Git pre-commit hook running `validate` | Bad commits | **Yes** |
 | 5 | Git server branch protection and CI checks | Anything merged, whoever wrote it | 1.3 (templates) |
@@ -103,7 +103,11 @@ and CI:
 | 9 | Optional promotion guard app on test and production | Everything, including manual promotion | Planned |
 
 Hooks fail open, so a broken hook never blocks a developer. That is acceptable because the
-push gate and the git hooks hold regardless.
+push gate and the git hooks hold regardless. Copilot CLI reads the hooks from
+`.claude/settings.json`; it does not apply Claude Code's permission rules, so the shell hook
+refuses the same commands. The shell hook matches command text, so it stops an agent's
+mistakes, not a determined bypass; layers 3 to 9 cover that. VS Code runs these hooks only
+with `chat.useClaudeHooks` enabled, and the Copilot cloud agent doesn't run them.
 
 ## Guardrail content
 
@@ -143,5 +147,5 @@ pull with no changes costs 22 requests and 3.2 s of server time.
 - **Spike S6:** an in-depth confirmation of `snc_read_only` behavior across ServiceNow
   releases. The check already ships, but this confirmation is needed before production
   troubleshooting features are built.
-- Hooks and permission rules for agent hosts other than Claude Code.
+- Hooks for VS Code without `chat.useClaudeHooks`, the Copilot cloud agent and Codex.
 - Code signing.

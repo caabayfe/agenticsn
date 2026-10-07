@@ -4,6 +4,21 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Security
+
+- Host hooks now work under Copilot CLI, which reads `.claude/settings.json`: they understand
+  its patch edits and `path` arguments, so protected files are refused there too. On hosts
+  that run every hook for every tool (VS Code), the edit hooks ignore reads.
+- New `pre-shell` hook refuses `curl`, `wget`, calls to `service-now.com` and skipping git
+  hooks (`--no-verify`, `commit -n`, `core.hooksPath`). It enforces the permission rules on
+  hosts that ignore them. Run `snagentic agent install` again to add it.
+- `check` reports protected files in workspaces with no instance or several. Before, the
+  pre-edit hook failed open there. Each edited record is validated against its own instance.
+- Protected paths are compared case-insensitively and with either separator, and now include
+  `.claude/settings.json`, `.claude/settings.local.json` and `.github/hooks/`.
+- The Claude Code deny rules for protected files use `Edit(...)` only. Claude Code ignored the
+  `Write(...)` rules. Existing `Write(...)` rules stay after an upgrade and are harmless.
+
 ## [1.1.0] - 2026-10-07
 
 Agents can now understand an instance, design and build changes with platform guardrails, and

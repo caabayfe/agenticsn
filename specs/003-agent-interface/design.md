@@ -461,3 +461,13 @@ on their own failure they let the agent continue and say why, since enforcement 
 gate and CI (ADR-0011). Checked with Claude Code 2.1.285: the permission rule refused an edit
 to a child-row file before the hook ran; an `eval` edit got SN-SEC-001 back from the
 after-edit hook; the stop hook kept the turn going once, then the agent explained.
+
+Other hosts (2026-10-07). Copilot CLI 1.0.92 runs the hooks in `.claude/settings.json` (in a
+trusted folder) with Claude-style payloads. Its edit tool is a patch, though: `tool_input` is
+the patch text (`*** Update File: <path>`), not `{file_path}`, so the edit hooks parse patch
+headers and also accept `path` and `filePath`. It ignores the permission rules, so a
+`pre-shell` hook on `Bash` refuses the same commands. VS Code runs every hook for every tool,
+so the edit hooks act only on edit tools. `check` no longer needs a single instance: protection
+is per path, and records are validated per the instance in their path. Checked with Copilot
+CLI 1.0.92 in a workspace with no instance: edits to `snagentic.yaml` and
+`.claude/settings.json` were refused, `curl` was refused, and an ordinary file was created.

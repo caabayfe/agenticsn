@@ -3,6 +3,7 @@ import {
   type DeliveryWorkspace,
   KeysetPager,
   type PlanDependencies,
+  type PushJournal,
   type RecordFiles,
   type Row,
   recordHash,
@@ -49,6 +50,8 @@ export interface State {
   uncommitted: string[];
   // Branches published to the remote.
   published: string[];
+  // A push that stopped part way.
+  journal: PushJournal | null;
 }
 
 function fakeWorkspace(state: State): DeliveryWorkspace {
@@ -133,6 +136,7 @@ export function setup(overrides: Partial<State> = {}, held: Record<string, unkno
     waiversUncommitted: false,
     uncommitted: [],
     published: [],
+    journal: null,
     ...overrides,
   };
   const tables: Record<string, Row[]> = {
@@ -156,6 +160,7 @@ export function setup(overrides: Partial<State> = {}, held: Record<string, unkno
       statistics: fake.reader,
       now: () => new Date(),
     },
+    journal: { read: async () => state.journal },
     now: () => new Date("2026-10-06T12:00:00Z"),
     signal: new AbortController().signal,
   };

@@ -85,6 +85,7 @@ export const planPush = defineUseCase({
     const { plan } = await computePlan(
       {
         workspace: context.delivery(root, name),
+        journal: context.pushJournal(root, name),
         governance: context.governance(root, name),
         updateSets: { pager, statistics: reader, now: context.clock },
         now: context.clock,

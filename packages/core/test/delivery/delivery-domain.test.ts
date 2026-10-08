@@ -7,11 +7,13 @@ import {
   globMatches,
   type PlannedWrite,
   planId,
+  pushUnfinished,
   readWaivers,
   recordHash,
   ScopeName,
   SysId,
   TableName,
+  writeOrder,
 } from "@snagentic/core";
 
 const SYS_ID = "0123456789abcdef0123456789abcdef";
@@ -263,5 +265,102 @@ describe("the gate and the plan id", () => {
     expect(planId("c1", [write], gateOf([finding("SN-SEC-001", "block")], [], [], "p"))).not.toBe(
       id,
     );
+  });
+});
+
+describe("changeOf, for records push cannot write", () => {
+  const created = (className: string) =>
+    version(
+      { name: "x" },
+      {
+        identity: {
+          sysId: SysId.parse(SYS_ID),
+          className: TableName.parse(className),
+          scope: ScopeName.fromInstance("global"),
+          domain: "global",
+        },
+      },
+    );
+
+  it("refuses ACLs: writing them needs the elevated security_admin role", () => {
+    for (const className of ["sys_security_acl", "sys_security_acl_role"]) {
+      const path = `global/${className}/x--${SYS_ID}.yaml`;
+      expect(changeOf(path, null, created(className))).toMatchObject({
+        kind: "problem",
+        problem: { reason: expect.stringContaining("security_admin") },
+      });
+    }
+  });
+
+  it("refuses choices: pull does not mirror them yet, so they could not be planned again", () => {
+    const path = `global/sys_choice/x--${SYS_ID}.yaml`;
+    expect(changeOf(path, null, created("sys_choice"))).toMatchObject({
+      kind: "problem",
+      problem: { reason: expect.stringContaining("not mirrored") },
+    });
+  });
+});
+
+describe("writeOrder", () => {
+  const write = (table: string, path: string): PlannedWrite => ({
+    operation: "create",
+    table,
+    sysId: SYS_ID,
+    scope: "global",
+    path,
+    values: {},
+    baseHash: null,
+  });
+
+  it("writes what others refer to first: tables, fields, roles, then the rest", () => {
+    const writes = [
+      write("sys_choice", "global/sys_choice/a.yaml"),
+      write("sys_script", "global/sys_script/a.yaml"),
+      write("sys_dictionary", "global/sys_dictionary/a.yaml"),
+      write("sys_ui_policy_action", "global/sys_ui_policy_action/a.yaml"),
+      write("sys_db_object", "global/sys_db_object/a.yaml"),
+      write("sysevent_email_action", "global/sysevent_email_action/a.yaml"),
+      write("sys_user_role", "global/sys_user_role/a.yaml"),
+      write("sys_ui_policy", "global/sys_ui_policy/a.yaml"),
+      write("sysevent_register", "global/sysevent_register/a.yaml"),
+    ];
+    expect(writeOrder(writes).map((w) => w.table)).toEqual([
+      "sys_db_object",
+      "sys_dictionary",
+      "sys_choice",
+      "sys_user_role",
+      "sys_script",
+      "sys_ui_policy",
+      "sysevent_register",
+      "sys_ui_policy_action",
+      "sysevent_email_action",
+    ]);
+  });
+
+  it("keeps path order within a rank, so the plan id stays stable", () => {
+    const writes = [
+      write("sys_script", "global/sys_script/b.yaml"),
+      write("sys_script", "global/sys_script/a.yaml"),
+    ];
+    expect(writeOrder(writes).map((w) => w.path)).toEqual([
+      "global/sys_script/a.yaml",
+      "global/sys_script/b.yaml",
+    ]);
+  });
+});
+
+describe("pushUnfinished", () => {
+  const journal = {
+    planId: "p1",
+    mirrorCommit: "c0ffee",
+    startedAt: "2026-10-08T18:17:40Z",
+    preference: null,
+    steps: [],
+  };
+
+  it("is unfinished until a pull moves the mirror past the push", () => {
+    expect(pushUnfinished(journal, "c0ffee")).toBe(true);
+    expect(pushUnfinished(journal, "beef")).toBe(false);
+    expect(pushUnfinished(null, "c0ffee")).toBe(false);
   });
 });

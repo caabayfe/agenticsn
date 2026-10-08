@@ -5,6 +5,7 @@ import {
   type InstanceProfile,
   instanceStatus,
   listInstances,
+  pushUnfinished,
 } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase, type UseCaseContext } from "./use-case";
@@ -24,6 +25,8 @@ const InstanceStatusOutput = z.object({
   remoteCommit: z.string().nullable(),
   unintegratedPulls: z.number(),
   localChanges: z.array(z.string()),
+  // The plan id of a push that stopped part way, until a pull shows what it wrote.
+  unfinishedPush: z.string().nullable(),
   next: z.string(),
 });
 type InstanceStatusOutput = z.output<typeof InstanceStatusOutput>;
@@ -40,11 +43,19 @@ async function statusOf(root: string, profile: InstanceProfile, context: UseCase
     inspector: context.inspector,
     now: context.clock,
   });
+  const journal = await context.pushJournal(root, profile.name).read();
+  const stopped =
+    status.remoteCommit !== null && pushUnfinished(journal, status.remoteCommit) ? journal : null;
   return {
     ...status,
     kind: profile.kind,
     url: profile.url,
     localChanges: [...status.localChanges],
+    unfinishedPush: stopped?.planId ?? null,
+    next:
+      stopped === null
+        ? status.next
+        : `snagentic pull ${profile.name}, then snagentic integrate ${profile.name}`,
   };
 }
 
@@ -73,6 +84,11 @@ function renderOne(status: InstanceStatusOutput): string {
   return [
     `${status.instance} (${status.kind}) ${status.url}`,
     pullLine(status),
+    ...(status.unfinishedPush === null
+      ? []
+      : [
+          `  push ${status.unfinishedPush} stopped part way: the instance may hold some of its writes`,
+        ]),
     ...(status.unintegratedPulls > 0
       ? [`  ${status.unintegratedPulls} pull(s) not integrated yet`]
       : []),

@@ -83,9 +83,14 @@ export const FAKE_CONTEXT: UseCaseContext = {
   delivery: () => {
     throw new Error("no delivery in this test");
   },
-  pushJournal: () => {
-    throw new Error("no push journal in this test");
-  },
+  // No push ever ran: status reads this; writing a journal is a push's job.
+  pushJournal: () => ({
+    read: async () => null,
+    write: async () => {
+      throw new Error("no push in this test");
+    },
+    clear: async () => {},
+  }),
   pullRequests: () => {
     throw new Error("no git platform in this test");
   },

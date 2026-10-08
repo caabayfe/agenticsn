@@ -179,7 +179,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     const url = new URL(path, this.profile.url);
     const headers = { ...this.headers, "Content-Type": "application/json" };
     const request = { method, url: url.href, headers, body: JSON.stringify(body) };
-    return this.result(await this.scheduler.send(request, signal), what);
+    return this.result(await this.scheduler.send(request, signal), what, "write");
   }
 
   // Any other API of the instance, as JSON: the parsed `result`, with the same error handling.
@@ -197,7 +197,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       { method, url: url.href, headers, ...(method === "POST" ? { body: "{}" } : {}) },
       signal,
     );
-    return this.result(response, what);
+    return this.result(response, what, method === "POST" ? "write" : "read");
   }
 
   private async aggregate(
@@ -249,13 +249,17 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   }
 
   // The parsed `result` of a successful response; undefined when the body is not JSON.
-  private async result(response: HttpResponse, what: string): Promise<unknown> {
+  private async result(
+    response: HttpResponse,
+    what: string,
+    access: "read" | "write" = "read",
+  ): Promise<unknown> {
     const body = await response.text();
     if (response.status === 401) {
       throw new AuthenticationFailedError(this.profile.name);
     }
     if (response.status === 403) {
-      throw new AccessDeniedError(what, errorMessage(body));
+      throw new AccessDeniedError(what, errorMessage(body), access);
     }
     const transaction = response.headers.get("x-transaction-id") ?? "unknown";
     if (response.status < 200 || response.status >= 300) {

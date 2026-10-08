@@ -6,7 +6,7 @@ export class NothingPulledYetError extends SnagenticError {
       "nothing-pulled-yet",
       "precondition",
       `${instance} has never been pulled, so there is no base to plan against`,
-      `run snagentic pull --instance ${instance}, then integrate`,
+      `run snagentic pull ${instance}, then snagentic integrate ${instance}`,
     );
   }
 }
@@ -17,7 +17,7 @@ export class MirrorNotIntegratedError extends SnagenticError {
       "mirror-not-integrated",
       "precondition",
       `the latest pull of ${instance} is not integrated into this branch; pushing would revert the instance's newer changes`,
-      `run snagentic integrate --instance ${instance}, resolve any conflicts, then plan again`,
+      `run snagentic integrate ${instance}, resolve any conflicts, then plan again`,
     );
   }
 }

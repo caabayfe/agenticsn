@@ -227,10 +227,34 @@ describe("computePlan", () => {
   it("needs a pull, integrated into the branch", async () => {
     await expect(computePlan(setup({ mirror: {} }).deps, QUERY)).rejects.toMatchObject({
       code: "nothing-pulled-yet",
+      hint: "run snagentic pull dev, then snagentic integrate dev",
     });
     await expect(computePlan(setup({ integrated: false }).deps, QUERY)).rejects.toMatchObject({
       code: "mirror-not-integrated",
+      hint: "run snagentic integrate dev, resolve any conflicts, then plan again",
     });
+  });
+
+  it("is not ready while a push that stopped part way is not pulled back yet", async () => {
+    const stopped = {
+      planId: "p1",
+      mirrorCommit: "c0ffee",
+      startedAt: "t",
+      preference: null,
+      steps: [],
+    };
+    const { plan } = await computePlan(setup({ journal: stopped }).deps, QUERY);
+    expect(plan.ready).toBe(false);
+    expect(plan.problems).toContainEqual({
+      path: "",
+      reason:
+        "push p1 stopped part way: run snagentic pull dev, then integrate, before planning again",
+    });
+    const pulled = await computePlan(
+      setup({ journal: { ...stopped, mirrorCommit: "old" } }).deps,
+      QUERY,
+    );
+    expect(pulled.plan.ready).toBe(true);
   });
 
   it("is not ready when nothing changed", async () => {

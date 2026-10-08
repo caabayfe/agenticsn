@@ -81,6 +81,13 @@ function update(path: string, base: ParsedRecord, target: ParsedRecord): ChangeO
   };
 }
 
+// ACLs need the elevated security_admin role, which a Table API session cannot take on.
+const NEEDS_SECURITY_ADMIN = new Set(["sys_security_acl", "sys_security_acl_role"]);
+const SECURITY_ADMIN =
+  "writing ACLs needs the elevated security_admin role, which push cannot use: create it on the instance (elevated) in this branch's update set, remove this file, then pull and integrate";
+const NOT_MIRRORED =
+  "choices are not mirrored by pull yet, so the next plan would create them again: set them on the instance, then remove this file";
+
 // What one record's edit means for the instance (spec 004, section 2).
 export function changeOf(
   path: string,
@@ -95,10 +102,16 @@ export function changeOf(
           "deleting records is not supported: restore the file and set active to false",
         );
   }
+  if (NEEDS_SECURITY_ADMIN.has(target.artifact.identity.className)) {
+    return problem(path, SECURITY_ADMIN);
+  }
   if (base !== null) {
     return update(path, base, target);
   }
   const { identity, fields } = target.artifact;
+  if (identity.className === "sys_choice") {
+    return problem(path, NOT_MIRRORED);
+  }
   if (isDeniedClass(identity.className)) {
     return problem(path, `${identity.className} records are never synced or pushed`);
   }

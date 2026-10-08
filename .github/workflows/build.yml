@@ -28,13 +28,10 @@ jobs:
       matrix:
         include:
           - { target: macos-arm64, runner: macos-15 }
-          # Allowed to fail until the keychain issue is understood: docs/spikes/S3-single-binary.md
-          - { target: macos-x64, runner: macos-15-intel, known_issue: true }
           - { target: windows-x64, runner: windows-latest }
           - { target: linux-x64, runner: ubuntu-24.04 }
           - { target: linux-arm64, runner: ubuntu-24.04-arm }
     runs-on: ${{ matrix.runner }}
-    continue-on-error: ${{ matrix.known_issue == true }}
     timeout-minutes: 20
     defaults:
       run:

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { CLAUDE_SETTINGS, INSTRUCTIONS, SKILLS, skillFiles } from "@snagentic/agent-packs";
+import {
+  CLAUDE_SETTINGS,
+  INSTRUCTIONS,
+  SHELL_DENY,
+  SKILLS,
+  skillFiles,
+} from "@snagentic/agent-packs";
 import { z } from "zod";
 import { CLAUDE_HOOK_EVENTS } from "../src/hooks/claude-hooks";
 import { USE_CASES } from "../src/registry/registry";
@@ -82,6 +88,17 @@ describe("the Claude Code settings' contract with snagentic", () => {
     const rules = [...CLAUDE_SETTINGS.permissions.ask, ...CLAUDE_SETTINGS.permissions.deny];
     for (const rule of rules.filter((r) => r.startsWith("mcp__snagentic__"))) {
       expect(toolNames.has(rule.replace("mcp__snagentic__", ""))).toBe(true);
+    }
+  });
+
+  it("refuses in the shell hook every command its Bash deny rules name, for hosts that ignore them", () => {
+    const commands = CLAUDE_SETTINGS.permissions.deny
+      .filter((rule) => rule.startsWith("Bash("))
+      .map((rule) => rule.slice("Bash(".length, -":*)".length));
+    expect(commands).toContain("security find-generic-password");
+    for (const command of commands) {
+      const refused = SHELL_DENY.some((rule) => rule.pattern.test(`${command} x`));
+      expect([command, refused]).toEqual([command, true]);
     }
   });
 });

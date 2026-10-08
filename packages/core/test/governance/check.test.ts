@@ -4,12 +4,15 @@ import { type ChangedRecords, checkFiles, type ScriptChecker } from "@snagentic/
 const records: ChangedRecords = {
   resolve: async () => "c0ffee",
   changedSince: async () => [],
-  current: async (base) => ({
-    className: "sys_script_include",
-    scope: "global",
-    fields: { description: "d", script: base.includes("bad") ? "eval(x);" : "ok();" },
-    files: { script: `${base}.script.js` },
-  }),
+  current: async (base) =>
+    base.includes("gone")
+      ? null
+      : {
+          className: "sys_script_include",
+          scope: "global",
+          fields: { description: "d", script: base.includes("bad") ? "eval(x);" : "ok();" },
+          files: { script: `${base}.script.js` },
+        },
   at: async () => ({
     className: "sys_script_include",
     scope: "global",
@@ -31,6 +34,22 @@ const depsFor = (instance: string) => {
 const ROOT = "instances/pdi/metadata";
 
 describe("checkFiles", () => {
+  it("fails on an edited record file that does not exist, instead of passing on nothing", async () => {
+    const result = await checkFiles(depsFor, {
+      paths: [`${ROOT}/global/sys_script_include/gone--1.yaml`, "notes-deleted.md"],
+      validate: true,
+    });
+    expect(result).toMatchObject({
+      missing: [`${ROOT}/global/sys_script_include/gone--1.yaml`],
+      passed: false,
+    });
+    const before = await checkFiles(depsFor, {
+      paths: [`${ROOT}/global/sys_script_include/gone--1.yaml`],
+      validate: false,
+    });
+    expect(before).toMatchObject({ missing: [], passed: true });
+  });
+
   it("reports protected files without validating anything before an edit", async () => {
     const result = await checkFiles(depsFor, {
       paths: [".snagentic/pdi/state.json", `${ROOT}/global/sys_script_include/bad--1.script.js`],
@@ -57,7 +76,7 @@ describe("checkFiles", () => {
       paths: ["AGENTS.md"],
       validate: true,
     });
-    expect(clean).toEqual({ protected: [], findings: [], passed: true });
+    expect(clean).toEqual({ protected: [], missing: [], findings: [], passed: true });
   });
 
   it("needs no instance to report protected files, in a workspace with several or none", async () => {
@@ -102,6 +121,6 @@ describe("checkFiles", () => {
       validate: true,
       instance: "pdi",
     });
-    expect(result).toEqual({ protected: [], findings: [], passed: true });
+    expect(result).toEqual({ protected: [], missing: [], findings: [], passed: true });
   });
 });

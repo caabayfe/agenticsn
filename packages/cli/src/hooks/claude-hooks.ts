@@ -28,6 +28,9 @@ const Findings = z
   .catch([]);
 type Finding = z.infer<typeof Findings>[number];
 const Protected = z.array(z.object({ path: z.string(), reason: z.string() })).catch([]);
+const Missing = z.array(z.string()).catch([]);
+const NO_RECORD_FILE =
+  "no such record file; deleting records is not supported: restore the file and set active to false";
 
 // Runs a use case by name with an input, returning its output.
 export type RunUseCase = (
@@ -66,13 +69,15 @@ async function preEdit(paths: readonly string[], run: RunUseCase): Promise<HookO
 }
 
 async function postEdit(paths: readonly string[], run: RunUseCase): Promise<HookOutcome> {
-  const findings = findingsOf(await run("check", { paths, edited: true }));
-  const blocking = findings.filter((f) => f.severity === "block");
+  const output = await run("check", { paths, edited: true });
+  const findings = findingsOf(output);
+  const missing = Missing.parse(output["missing"]).map((path) => `${path}: ${NO_RECORD_FILE}`);
+  const blocking = [...missing, ...findings.filter((f) => f.severity === "block").map(line)];
   if (blocking.length > 0) {
     return {
       exitCode: 2,
       stdout: "",
-      stderr: `snagentic check found blocking problems:\n${blocking.map(line).join("\n")}`,
+      stderr: `snagentic check found blocking problems:\n${blocking.join("\n")}`,
     };
   }
   if (findings.length === 0) {

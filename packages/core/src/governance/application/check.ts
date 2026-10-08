@@ -1,3 +1,4 @@
+import { baseOfFile } from "../../knowledge/index";
 import { protectedReason } from "../../workspace/domain/protected-paths";
 import type { Finding } from "../domain/findings";
 import { type ValidateDependencies, validate } from "./validate";
@@ -13,8 +14,11 @@ export interface CheckQuery {
 
 export interface CheckResult {
   readonly protected: readonly { readonly path: string; readonly reason: string }[];
+  // After an edit: record files that do not exist (deleted, or a wrong path). Nothing could be
+  // checked for them, which must not read as a pass.
+  readonly missing: readonly string[];
   readonly findings: readonly Finding[];
-  // Nothing protected touched, and no block finding.
+  // Nothing protected touched, nothing missing, and no block finding.
   readonly passed: boolean;
 }
 
@@ -48,15 +52,25 @@ export async function checkFiles(
     return reason === null ? [] : [{ path, reason }];
   });
   const findings: Finding[] = [];
+  const missing: string[] = [];
   if (query.validate) {
     for (const [instance, paths] of recordsByInstance(query)) {
-      findings.push(...(await validate(depsFor(instance), { base: "HEAD", paths })).findings);
+      const deps = depsFor(instance);
+      for (const path of paths) {
+        if ((await deps.records.current(baseOfFile(path))) === null) {
+          missing.push(`instances/${instance}/metadata/${path}`);
+        }
+      }
+      findings.push(...(await validate(deps, { base: "HEAD", paths })).findings);
     }
   }
   return {
     protected: protectedFiles,
+    missing,
     findings,
     passed:
-      protectedFiles.length === 0 && findings.every((finding) => finding.severity !== "block"),
+      protectedFiles.length === 0 &&
+      missing.length === 0 &&
+      findings.every((finding) => finding.severity !== "block"),
   };
 }

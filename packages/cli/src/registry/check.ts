@@ -4,6 +4,9 @@ import { z } from "zod";
 import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
+const NO_RECORD_FILE =
+  "no such record file; deleting records is not supported: restore the file and set active to false";
+
 export const check = defineUseCase({
   name: "check",
   description:
@@ -20,6 +23,7 @@ export const check = defineUseCase({
   }),
   output: z.object({
     protected: z.array(z.object({ path: z.string(), reason: z.string() })).readonly(),
+    missing: z.array(z.string()).readonly(),
     findings: z
       .array(
         z.object({
@@ -49,6 +53,7 @@ export const check = defineUseCase({
   render(output) {
     return [
       ...output.protected.map((p) => `protected: ${p.path}: ${p.reason}`),
+      ...output.missing.map((path) => `missing: ${path}: ${NO_RECORD_FILE}`),
       ...output.findings.map(
         (f) =>
           `${f.severity} ${f.ruleId} ${f.path}${f.line === null ? "" : `:${f.line}`} ${f.message} (fix: ${f.remediation})`,

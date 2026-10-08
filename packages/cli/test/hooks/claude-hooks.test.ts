@@ -42,6 +42,17 @@ describe("Claude Code hooks", () => {
     ).toMatchObject({ exitCode: 0 });
   });
 
+  it("blocks after an edit that removed a record's file: records are deactivated, not deleted", async () => {
+    const removed = await runClaudeHook("post-edit", edit, async () => ({
+      missing: ["instances/pdi/metadata/global/x.yaml"],
+      findings: [],
+    }));
+    expect(removed.exitCode).toBe(2);
+    expect(removed.stderr).toContain(
+      "instances/pdi/metadata/global/x.yaml: no such record file; deleting records is not supported: restore the file and set active to false",
+    );
+  });
+
   it("feeds blocking findings back after an edit, and other findings as context", async () => {
     const blocked = await runClaudeHook("post-edit", edit, async () => ({
       findings: [finding("block")],
@@ -175,6 +186,10 @@ describe("pre-shell hook", () => {
       "export SNAGENTIC_PROD_URL=evil",
       "snagentic upgrade",
       "cd ~ && snagentic upgrade --version 1.0.0",
+      "security find-generic-password -s snagentic -w",
+      "security dump-keychain",
+      "secret-tool lookup service snagentic",
+      "cmdkey /list",
     ]) {
       const outcome = await runClaudeHook("pre-shell", shell(command), never);
       expect([command, outcome.exitCode]).toEqual([command, 2]);

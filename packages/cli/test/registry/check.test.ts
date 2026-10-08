@@ -32,6 +32,7 @@ describe("check", () => {
     const text = check.render(
       {
         protected: [],
+        missing: [],
         findings: [
           {
             ruleId: "SN-MNT-001",
@@ -47,5 +48,20 @@ describe("check", () => {
       "text",
     );
     expect(text).toBe("warn SN-MNT-001 a.js:3 m (fix: r)\ncheck passed");
+  });
+
+  it("renders a missing record file as a failure with what to do", () => {
+    const text = check.render(
+      {
+        protected: [],
+        missing: ["instances/pdi/metadata/global/x.yaml"],
+        findings: [],
+        passed: false,
+      },
+      "text",
+    );
+    expect(text).toBe(
+      "missing: instances/pdi/metadata/global/x.yaml: no such record file; deleting records is not supported: restore the file and set active to false\ncheck failed",
+    );
   });
 });

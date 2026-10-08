@@ -32,6 +32,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - The hints after `push` and on plan errors name `snagentic pull <instance>` and
   `snagentic integrate <instance>`. Before, they used an `--instance` option those commands
   do not have.
+- `check` after an edit fails on a record file that does not exist, and the post-edit hook
+  says deleting records is not supported. Before, it reported "check passed" having checked
+  nothing.
+
+### Security
+
+- Agents may not run commands that read stored credentials (`security find-generic-password`,
+  `security dump-keychain`, `secret-tool lookup`, `cmdkey`): deny rules for Claude Code and
+  the pre-shell hook for other hosts. Run `snagentic agent install` again to add them.
 
 ## [1.3.0] - 2026-10-08
 

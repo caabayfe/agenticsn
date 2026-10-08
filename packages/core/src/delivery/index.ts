@@ -47,6 +47,7 @@ export {
   type WaiverProblem,
   waiverFor,
 } from "./domain/waivers";
+export { pushUnfinished, writeOrder } from "./domain/write-order";
 export type {
   DeliveryWorkspace,
   InstanceWriter,

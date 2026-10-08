@@ -85,7 +85,7 @@ describe("push", () => {
     const text = push.render(output as never, "text");
     expect(text).toContain("batch created: snagentic: main ");
     expect(text).not.toContain("update set created");
-    expect(text).toContain("next: snagentic pull --instance pdi, then integrate");
+    expect(text).toContain("next: snagentic pull pdi, then snagentic integrate pdi");
   });
 
   it("shows the batch once, then each other scope's child update set", () => {

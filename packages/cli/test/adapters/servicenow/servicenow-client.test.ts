@@ -174,6 +174,25 @@ describe("ServiceNowClient.fingerprint", () => {
     },
   );
 
+  it("reports a refused write as refused, with what to do instead of a read hint", async () => {
+    const { client } = clientWith(async () =>
+      response(403, '{"error":{"message":"Insert Failed due to security constraints"}}'),
+    );
+    const write = client.sendJson(
+      "POST",
+      "/api/now/table/sys_security_acl",
+      { name: "x" },
+      "creating a sys_security_acl record",
+      new AbortController().signal,
+    );
+    await expect(write).rejects.toMatchObject({
+      code: "access-denied",
+      message:
+        "the instance refused creating a sys_security_acl record: Insert Failed due to security constraints",
+      hint: expect.stringContaining("security_admin"),
+    });
+  });
+
   it("reports a table the user may not aggregate as not permitted", async () => {
     const { client } = clientWith(async () => response(403, '{"error":{"message":"no"}}'));
     await expect(client.fingerprint(TABLE, LIVE)).rejects.toMatchObject({

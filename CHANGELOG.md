@@ -17,6 +17,21 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   and names both files.
 - `integrate` compares a pushed record's scripts and HTML too, ignoring a trailing newline, and
   ignores the fields pull withholds, such as a property's value. Before, these conflicted.
+- `push` writes what other records refer to first: a table before its fields and choices, a
+  role before its ACLs, a UI policy before its actions, an event before its notification.
+  Before, records were written in file order.
+- `plan-push` refuses ACLs (`sys_security_acl`, `sys_security_acl_role`): writing them needs
+  the elevated `security_admin` role, which push cannot use. Before, the push stopped part way
+  with the records before it already written.
+- `plan-push` refuses choices (`sys_choice`): pull does not mirror them yet, so every later
+  plan would have created them again.
+- `plan-push` and `status` say when a push stopped part way, until a pull shows what it wrote.
+  Before, the plan said "ready" and listed records already written as new.
+- A write the instance refuses says "the instance refused …" with what to do. Before, it said
+  the user "may not read" it and suggested excluding it from the sync.
+- The hints after `push` and on plan errors name `snagentic pull <instance>` and
+  `snagentic integrate <instance>`. Before, they used an `--instance` option those commands
+  do not have.
 
 ## [1.3.0] - 2026-10-08
 

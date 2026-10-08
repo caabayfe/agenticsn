@@ -136,7 +136,7 @@ export const push = defineUseCase({
           `${w.operation.padEnd(6)} ${w.table}  ${w.path}${w.captured ? "" : "  NOT captured in the update set"}`,
       ),
       output.notCaptured === 0
-        ? `pushed ${output.written.length} record(s); next: snagentic pull --instance ${output.instance}, then integrate`
+        ? `pushed ${output.written.length} record(s); next: snagentic pull ${output.instance}, then snagentic integrate ${output.instance}`
         : `${output.notCaptured} write(s) were not captured in the update set: add them to it on the instance before moving it`,
     ].join("\n");
   },

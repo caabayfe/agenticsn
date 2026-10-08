@@ -34,12 +34,16 @@ export class AuthenticationFailedError extends SnagenticError {
 }
 
 export class AccessDeniedError extends SnagenticError {
-  constructor(what: string, detail: string) {
+  constructor(what: string, detail: string, access: "read" | "write" = "read") {
     super(
       "access-denied",
       "not-permitted",
-      `the integration user may not read ${what}: ${detail}`,
-      "grant the user read access (ACL or role) to it, or exclude it from the sync",
+      access === "read"
+        ? `the integration user may not read ${what}: ${detail}`
+        : `the instance refused ${what}: ${detail}`,
+      access === "read"
+        ? "grant the user read access (ACL or role) to it, or exclude it from the sync"
+        : "the signed-in user lacks a role this write needs (ACLs need the elevated security_admin role, which snagentic cannot use): make the change on the instance, then pull",
     );
   }
 }

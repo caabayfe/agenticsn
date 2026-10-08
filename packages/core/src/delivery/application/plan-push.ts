@@ -13,7 +13,8 @@ import { changeOf, type ParsedRecord, type PlannedWrite, type PlanProblem } from
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
 import { type GateResult, gateOf, planId } from "../domain/gate";
 import { readWaivers, UNCOMMITTED_WAIVERS } from "../domain/waivers";
-import type { DeliveryWorkspace } from "../ports";
+import { pushUnfinished, writeOrder } from "../domain/write-order";
+import type { DeliveryWorkspace, PushJournalStore } from "../ports";
 
 export interface PlanQuery {
   readonly instance: string;
@@ -24,6 +25,8 @@ export interface PlanQuery {
 
 export interface PlanDependencies {
   readonly workspace: DeliveryWorkspace;
+  // A push that stopped part way leaves its journal until a pull shows what it wrote.
+  readonly journal: Pick<PushJournalStore, "read">;
   readonly governance: ValidateDependencies;
   readonly updateSets: UpdateSetDependencies;
   readonly now: () => Date;
@@ -86,7 +89,7 @@ async function pulledCopy(
   return moved === undefined ? null : parsed(deps, moved.mirror, commit);
 }
 
-async function writesAndProblems(deps: PlanDependencies, commit: string) {
+async function writesAndProblems(deps: PlanDependencies, commit: string, instance: string) {
   const files = await deps.workspace.changedFiles(commit);
   const problems: PlanProblem[] = files.filter(isChildRows).map((path) => ({
     path,
@@ -114,7 +117,14 @@ async function writesAndProblems(deps: PlanDependencies, commit: string) {
       problems.push({ path: `${base}.yaml`, reason: `cannot read the record: ${String(error)}` });
     }
   }
-  return { writes, problems };
+  const journal = await deps.journal.read();
+  if (pushUnfinished(journal, commit)) {
+    problems.push({
+      path: "",
+      reason: `push ${journal?.planId} stopped part way: run snagentic pull ${instance}, then integrate, before planning again`,
+    });
+  }
+  return { writes: writeOrder(writes), problems };
 }
 
 async function collisionsOf(
@@ -153,7 +163,7 @@ export async function computePlan(
     throw new MirrorNotIntegratedError(query.instance);
   }
   const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
-  const { writes, problems } = await writesAndProblems(deps, commit);
+  const { writes, problems } = await writesAndProblems(deps, commit, query.instance);
   const validation = await validate(deps.governance, { base: commit });
   const waiverFile = await deps.workspace.waivers();
   const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());

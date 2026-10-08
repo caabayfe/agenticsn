@@ -6,6 +6,7 @@ import type {
   DeliveryWorkspace,
   EnvironmentProbe,
   IncrementalMirror,
+  InstalledBinary,
   InstanceName,
   InstanceProfile,
   InstanceReader,
@@ -20,6 +21,7 @@ import type {
   ProfileStore,
   PullRequests,
   PushJournalStore,
+  ReleaseSource,
   ScriptChecker,
   ServerCostReader,
   SyncStateStore,
@@ -99,6 +101,13 @@ export interface UseCaseContext {
   readonly clock: () => Date;
   readonly sleep: (milliseconds: number, signal: AbortSignal) => Promise<void>;
   readonly host: HostEnvironment;
+  // The running binary and the project's releases, for `upgrade` (ADR-0023).
+  readonly upgrade: {
+    readonly releases: ReleaseSource;
+    readonly binary: InstalledBinary;
+    readonly platform: string;
+    readonly arch: string;
+  };
 }
 
 export interface ProgressEvent {

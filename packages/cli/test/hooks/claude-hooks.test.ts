@@ -173,6 +173,8 @@ describe("pre-shell hook", () => {
       "echo pw | snagentic  auth logout prod",
       "SNAGENTIC_PROD_KIND=development snagentic pull --instance prod",
       "export SNAGENTIC_PROD_URL=evil",
+      "snagentic upgrade",
+      "cd ~ && snagentic upgrade --version 1.0.0",
     ]) {
       const outcome = await runClaudeHook("pre-shell", shell(command), never);
       expect([command, outcome.exitCode]).toEqual([command, 2]);

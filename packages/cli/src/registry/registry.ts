@@ -22,6 +22,7 @@ import { updateSetsExport } from "./update-sets-export";
 import { updateSetsList } from "./update-sets-list";
 import { updateSetsShow } from "./update-sets-show";
 import { updateSetsTool } from "./update-sets-tool";
+import { upgrade } from "./upgrade";
 import type { UseCase } from "./use-case";
 import { validate } from "./validate";
 
@@ -53,4 +54,5 @@ export const USE_CASES: readonly UseCase[] = [
   pluginsList,
   pluginsActivate,
   doctor,
+  upgrade,
 ];

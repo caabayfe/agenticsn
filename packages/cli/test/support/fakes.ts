@@ -89,6 +89,24 @@ export const FAKE_CONTEXT: UseCaseContext = {
   pullRequests: () => {
     throw new Error("no git platform in this test");
   },
+  upgrade: {
+    releases: {
+      latest: async () => {
+        throw new Error("no releases in this test");
+      },
+      list: async () => [],
+      download: async () => {
+        throw new Error("no releases in this test");
+      },
+    },
+    binary: {
+      path: null,
+      replace: async () => {},
+      run: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
+    },
+    platform: "darwin",
+    arch: "arm64",
+  },
   governance: () => {
     throw new Error("no governance in this test");
   },

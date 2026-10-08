@@ -25,13 +25,13 @@ The owner chose an explicit upgrade command and a notice, and no version pin per
 
 ## Decision
 
-1. **`snagentic upgrade [--version <x.y.z>]`, run by a person.** It downloads the release's
+1. **`snagentic upgrade [--to <x.y.z>]`, run by a person.** It downloads the release's
    binary for this platform and `SHA256SUMS` from the project's GitHub releases over HTTPS,
    refuses unless the binary's SHA-256 matches, checks that the new binary runs and reports
    the expected version, and only then replaces the running executable in place (an atomic
-   rename next to it; on Windows the running file is renamed aside first). Without
-   `--version` it installs the latest release and does nothing when already current;
-   `--version` also allows going back. A binary not installed from a release (run from
+   rename next to it; on Windows the running file is renamed aside first). Without `--to` it
+   installs the latest release and does nothing when already current; `--to` also allows going
+   back. A binary not installed from a release (run from
    source) is refused.
 2. **It finishes the upgrade in the workspace.** Run inside a workspace whose agent pack is
    installed, it runs the new binary's `agent install` and lists the files to commit. It

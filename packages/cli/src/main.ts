@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { INSTRUCTIONS, PROMPTS } from "@snagentic/agent-packs";
-import { instancePaths } from "@snagentic/core";
+import { instancePaths, noticeAllowed, updateNotice, VERSION } from "@snagentic/core";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
@@ -30,6 +30,9 @@ import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
 import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
 import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
+import { ExecutableBinary, installedPath } from "./adapters/upgrade/executable-binary";
+import { GitHubReleases } from "./adapters/upgrade/github-releases";
+import { JsonUpdateCheckStore, updateCheckFile } from "./adapters/upgrade/json-update-check-store";
 import { FsWorkspaceStore } from "./adapters/workspace/fs-workspace-store";
 import { runCli } from "./cli/run-cli";
 import { createMcpServer } from "./mcp/create-mcp-server";
@@ -48,6 +51,7 @@ process.on("SIGINT", () => {
 });
 
 const workspaceOverride = process.env["SNAGENTIC_WORKSPACE"];
+const releases = new GitHubReleases({ userAgent: `snagentic/${VERSION}` });
 const context: UseCaseContext = {
   environmentProbes: [gitProbe(), keychainProbe(), searchIndexProbe()],
   workspaces: new FsWorkspaceStore(),
@@ -86,6 +90,12 @@ const context: UseCaseContext = {
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,
+  upgrade: {
+    releases,
+    binary: new ExecutableBinary(installedPath(process.execPath)),
+    platform: process.platform,
+    arch: process.arch,
+  },
   host: {
     cwd: process.cwd(),
     home: homedir(),
@@ -115,3 +125,28 @@ process.exitCode = await runCli(
     },
   },
 );
+
+// The update notice (ADR-0023): after a person's command, never for agents, at most one
+// check a day, bounded so it never holds the terminal; any failure is silent.
+const argv = process.argv.slice(2);
+const formatAt = argv.indexOf("--format");
+const surface = {
+  command: argv[0],
+  format: formatAt === -1 ? "text" : (argv[formatAt + 1] ?? "text"),
+  interactive: process.stderr.isTTY === true,
+  env: process.env,
+};
+if (noticeAllowed(surface)) {
+  const store = new JsonUpdateCheckStore(updateCheckFile(process.env, homedir(), process.platform));
+  const quick = new GitHubReleases({ userAgent: `snagentic/${VERSION}`, timeoutMs: 1500 });
+  const line = await updateNotice({
+    releases: quick,
+    store,
+    current: VERSION,
+    now: () => new Date(),
+    signal: cancellation.signal,
+  }).catch(() => null);
+  if (line !== null) {
+    process.stderr.write(`\n${line}\n`);
+  }
+}

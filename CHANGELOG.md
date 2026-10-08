@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- `integrate` no longer stops on a record created in the workspace and pushed. The instance's
+  copy comes back with the fields the platform fills in, so git saw the same file added on both
+  sides. When that copy holds every field set locally with the same value, `integrate` takes it
+  and says so; any other conflict is still left for you to resolve.
+
 ## [1.2.0] - 2026-10-07
 
 ### ⚠️ Breaking: credentials are bound to their instance

@@ -94,6 +94,8 @@ export interface IntegrationResult {
   // The commit now checked out, or null when the workspace was already up to date.
   readonly commit: string | null;
   readonly changedFiles: number;
+  // Records created here and pushed, whose instance copy was taken (instanceConfirms).
+  readonly confirmed: readonly string[];
 }
 
 // Brings an instance's remote branch into the workspace's current branch with a git merge.

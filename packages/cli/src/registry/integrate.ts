@@ -7,12 +7,14 @@ export const integrate = defineUseCase({
   name: "integrate",
   description:
     "Merge the latest pull of an instance into the workspace's current branch. Local work is never " +
-    "overwritten: conflicting changes get git conflict markers.",
+    "overwritten: conflicting changes get git conflict markers. A record created here and pushed " +
+    "takes the instance's copy when it holds every field set here with the same value.",
   input: z.object({ instance: z.string() }),
   output: z.object({
     instance: z.string(),
     commit: z.string().nullable(),
     changedFiles: z.number(),
+    confirmed: z.array(z.string()).readonly(),
   }),
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: false,
@@ -25,9 +27,13 @@ export const integrate = defineUseCase({
     return { instance: name, ...result };
   },
   render(output) {
-    return output.commit === null
-      ? `${output.instance}: already up to date`
-      : `${output.instance}: integrated ${output.changedFiles} changed file(s) -> ${output.commit.slice(0, 10)}`;
+    if (output.commit === null) {
+      return `${output.instance}: already up to date`;
+    }
+    return [
+      ...output.confirmed.map((path) => `took the instance's copy of pushed record ${path}`),
+      `${output.instance}: integrated ${output.changedFiles} changed file(s) -> ${output.commit.slice(0, 10)}`,
+    ].join("\n");
   },
   exitCode: () => 0,
 });

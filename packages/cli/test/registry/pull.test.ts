@@ -190,8 +190,16 @@ describe("pull and integrate", () => {
     );
     expect(text).toContain("not readable by this user: sys_x");
     expect(text).toContain("next: snagentic integrate pdi");
-    expect(integrate.render({ instance: "pdi", commit: null, changedFiles: 0 }, "text")).toBe(
-      "pdi: already up to date",
+    expect(
+      integrate.render({ instance: "pdi", commit: null, changedFiles: 0, confirmed: [] }, "text"),
+    ).toBe("pdi: already up to date");
+    expect(
+      integrate.render(
+        { instance: "pdi", commit: "abcdef0123456", changedFiles: 2, confirmed: ["a/b.yaml"] },
+        "text",
+      ),
+    ).toBe(
+      "took the instance's copy of pushed record a/b.yaml\npdi: integrated 2 changed file(s) -> abcdef0123",
     );
   });
 

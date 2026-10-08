@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-08
+
 ### Fixed
 
 - `integrate` no longer stops on a record created in the workspace and pushed. The instance's

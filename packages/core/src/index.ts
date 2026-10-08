@@ -255,6 +255,7 @@ export type {
   SyncStateStore,
 } from "./sync/ports";
 export * from "./updatesets/index";
+export * from "./upgrade/index";
 export { VERSION } from "./version";
 export { initWorkspace } from "./workspace/application/init-workspace";
 export {

@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- `snagentic upgrade [--to <version>]` replaces snagentic with the latest release (or the one
+  named), after checking it against the release's `SHA256SUMS` and that it runs. Inside a
+  workspace it also refreshes the agent pack, and it shows the upgrade steps of every release
+  skipped over (ADR-0023). Agents cannot run it.
+- After a command, at most once a day, snagentic says when a newer release exists. Never in CI,
+  in MCP, hook, agent or JSON output, or with `SNAGENTIC_NO_UPDATE_CHECK=1`.
+
 ## [1.2.1] - 2026-10-08
 
 ### Fixed

@@ -385,6 +385,22 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `upgrade`
+
+```
+snagentic upgrade [options]
+```
+
+Replace this snagentic with the latest release (or --to <version>), after checking it against the release's SHA256SUMS and that it runs. Inside a workspace, also refreshes its agent pack. Lists the upgrade steps of the releases skipped over. Run by a person, never by an agent.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--to <value>`: the version to install (default: the latest)
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ## MCP tools
 
 `snagentic mcp` serves these tools over stdio. Tools that change an instance are only offered

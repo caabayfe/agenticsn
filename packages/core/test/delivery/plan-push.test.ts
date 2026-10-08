@@ -56,6 +56,43 @@ describe("computePlan", () => {
     ]);
   });
 
+  it("plans an edit to a record the mirror names differently as an update, not a create", async () => {
+    // Created here as util--<id>, pushed, then pulled back under the name the platform gave it.
+    const id = "fedcba9876543210fedcba9876543210";
+    const pulled = `global/sys_script_include/escalation-helpers--${id}`;
+    const { plan } = await computePlan(
+      setup({
+        mirror: {
+          ...setup().state.mirror,
+          [pulled]: record("sys_script_include", id, { name: "Util", active: "true" }),
+        },
+        working: { [NEW]: record("sys_script_include", id, { name: "Util", active: "false" }) },
+        changed: [`${NEW}.yaml`],
+      }).deps,
+      QUERY,
+    );
+    expect(plan.changes).toEqual([
+      expect.objectContaining({ operation: "update", path: `${NEW}.yaml`, fields: ["active"] }),
+    ]);
+  });
+
+  it("plans nothing for a local copy of a record the mirror holds under another name", async () => {
+    const id = "fedcba9876543210fedcba9876543210";
+    const same = record("sys_script_include", id, { name: "Util" });
+    const { plan } = await computePlan(
+      setup({
+        mirror: {
+          ...setup().state.mirror,
+          [`global/sys_script_include/escalation-helpers--${id}`]: same,
+        },
+        working: { [NEW]: same },
+        changed: [`${NEW}.yaml`],
+      }).deps,
+      QUERY,
+    );
+    expect(plan.changes).toEqual([]);
+  });
+
   it("is not ready when validate blocks, unless a waiver in force covers the finding", async () => {
     const risky = record(
       "sys_script",

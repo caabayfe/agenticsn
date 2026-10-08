@@ -2,7 +2,7 @@ import { type ValidateDependencies, validate } from "../../governance/index";
 import { InvalidInputError } from "../../kernel/errors";
 import type { NextCall } from "../../knowledge/index";
 import { baseOfFile } from "../../knowledge/index";
-import { parseRecord } from "../../metadata/domain/record-layout";
+import { parseRecord, recordAddress, relocatedRecords } from "../../metadata/domain/record-layout";
 import {
   heldInOpenUpdateSets,
   type RecordHolder,
@@ -70,6 +70,22 @@ async function parsed(
   return stored === null ? null : parseRecord(stored.document, stored.files);
 }
 
+// The record as last pulled: at the same path, or under the name the platform gave it when a
+// record created here was pushed and pulled back (same folder and sys_id).
+async function pulledCopy(
+  deps: PlanDependencies,
+  base: string,
+  commit: string,
+): Promise<ParsedRecord | null> {
+  const same = await parsed(deps, base, commit);
+  const address = recordAddress(base);
+  if (same !== null || address === null) {
+    return same;
+  }
+  const [moved] = relocatedRecords([base], await deps.workspace.recordsIn(address.folder, commit));
+  return moved === undefined ? null : parsed(deps, moved.mirror, commit);
+}
+
 async function writesAndProblems(deps: PlanDependencies, commit: string) {
   const files = await deps.workspace.changedFiles(commit);
   const problems: PlanProblem[] = files.filter(isChildRows).map((path) => ({
@@ -86,7 +102,7 @@ async function writesAndProblems(deps: PlanDependencies, commit: string) {
     try {
       const outcome = changeOf(
         `${base}.yaml`,
-        await parsed(deps, base, commit),
+        await pulledCopy(deps, base, commit),
         await parsed(deps, base, null),
       );
       if (outcome.kind === "write") {

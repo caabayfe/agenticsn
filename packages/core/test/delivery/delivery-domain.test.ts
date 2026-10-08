@@ -84,14 +84,27 @@ describe("changeOf", () => {
     });
   });
 
-  it("asks a new record's file to have the name the next pull will give it", () => {
-    expect(changeOf(PATH, null, version({ name: "New" }))).toEqual({
-      kind: "problem",
-      problem: {
-        path: PATH,
-        reason: `rename it to global/sys_script/new--${SYS_ID}.yaml, the name the next pull gives this record`,
-      },
+  it("accepts any name for a new record's file: the platform chooses the one pull will use", () => {
+    expect(changeOf(PATH, null, version({ name: "New" }))).toMatchObject({
+      kind: "write",
+      write: { operation: "create", path: PATH },
     });
+  });
+
+  it("asks a new record's file to sit in its scope and class folder, named after its sys_id", () => {
+    for (const path of [
+      `global/sys_script/new--${"f".repeat(32)}.yaml`,
+      `global/sys_script_include/new--${SYS_ID}.yaml`,
+      `x_acme/sys_script/new--${SYS_ID}.yaml`,
+    ]) {
+      expect(changeOf(path, null, version({ name: "New" }))).toEqual({
+        kind: "problem",
+        problem: {
+          path,
+          reason: `name it global/sys_script/<name>--${SYS_ID}.yaml: a record is found by its scope, class and sys_id`,
+        },
+      });
+    }
   });
 
   it("refuses deletes, identity changes, redacted fields and denied classes", () => {

@@ -4,6 +4,20 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A record created in the workspace may have any file name in its scope and class folder, as
+  long as it ends with its sys_id. `plan-push` no longer asks to rename it: pull names files
+  after `sys_name`, which the platform sets when the record is created, so no name chosen
+  before the push was reliably right, and following the advice left two files for one record.
+- `plan-push` finds a record the mirror holds under another file name by its sys_id, and plans
+  an edit to it as an update. Before, it planned creating the record again.
+- `integrate` keeps the instance's file name for a record pushed from here and removes the
+  local file, when the instance's copy holds every field set locally. When they differ, it stops
+  and names both files.
+- `integrate` compares a pushed record's scripts and HTML too, ignoring a trailing newline, and
+  ignores the fields pull withholds, such as a property's value. Before, these conflicted.
+
 ## [1.3.0] - 2026-10-08
 
 ### Added

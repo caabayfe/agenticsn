@@ -80,3 +80,20 @@ describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
     });
   });
 });
+
+describe("GitDeliveryWorkspace record listings", () => {
+  it("lists a folder's records at a commit and in the working tree, without field files or child rows", async () => {
+    const { root, write, workspace } = await repository();
+    const head = (await git(root, "rev-parse", "HEAD")).trim();
+    await write(`${META}/global/c.yaml`, "c: 1\n");
+    await write(`${META}/global/c.script.js`, "c();\n");
+    await write(`${META}/global/c.children.sys_ui_element.yaml`, "[]\n");
+    expect(await workspace.recordsIn("global", head)).toEqual(["global/a", "global/b"]);
+    expect((await workspace.recordsIn("global", null)).sort()).toEqual([
+      "global/a",
+      "global/b",
+      "global/c",
+    ]);
+    expect(await workspace.recordsIn("missing", head)).toEqual([]);
+  });
+});

@@ -1,6 +1,6 @@
 import type { Artifact } from "../../metadata/domain/artifact";
 import { isDeniedClass } from "../../metadata/domain/field-rules";
-import { recordBase } from "../../metadata/domain/record-layout";
+import { recordAddress, recordBase } from "../../metadata/domain/record-layout";
 
 export type Operation = "update" | "create";
 
@@ -102,11 +102,18 @@ export function changeOf(
   if (isDeniedClass(identity.className)) {
     return problem(path, `${identity.className} records are never synced or pushed`);
   }
-  // Pull names files after the record's display name; a different name would leave two files
-  // for one record after the next pull, and plan it as new again.
-  const expected = `${recordBase(target.artifact)}.yaml`;
-  if (expected !== path) {
-    return problem(path, `rename it to ${expected}, the name the next pull gives this record`);
+  // Pull names the file after sys_name, which the platform sets on insert, so any name will do;
+  // the folder and sys_id are what find the record again after the push.
+  const expected = recordAddress(recordBase(target.artifact));
+  const actual = recordAddress(path.replace(/\.yaml$/, ""));
+  if (
+    expected !== null &&
+    (actual?.folder !== expected.folder || actual.sysId !== expected.sysId)
+  ) {
+    return problem(
+      path,
+      `name it ${expected.folder}/<name>--${expected.sysId}.yaml: a record is found by its scope, class and sys_id`,
+    );
   }
   return {
     kind: "write",

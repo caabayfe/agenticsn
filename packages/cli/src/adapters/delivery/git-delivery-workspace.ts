@@ -103,6 +103,13 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
     return { document: fromYamlStrings(yaml), files };
   }
 
+  async recordsIn(folder: string, at: string | null): Promise<string[]> {
+    const names = at === null ? await this.folderNow(folder) : await this.folderAt(at, folder);
+    return names
+      .filter((name) => name.endsWith(".yaml") && !name.includes(".children."))
+      .map((name) => `${folder}/${name.slice(0, -".yaml".length)}`);
+  }
+
   async text(path: string): Promise<string | null> {
     return this.content(path, null);
   }

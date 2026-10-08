@@ -48,6 +48,43 @@ export function recordBase(artifact: Artifact): string {
   return `${prefix}${scope}/${className}/${leaf}`;
 }
 
+const SYS_ID_LEAF = /--([0-9a-f]{32})$/;
+
+// A record's folder ([domains/<domain>/]<scope>/<class>) and sys_id, from its base path. The
+// slug before the sys_id comes from sys_name, which the platform sets: only these identify it.
+export function recordAddress(base: string): { folder: string; sysId: string } | null {
+  const slash = base.lastIndexOf("/");
+  const sysId = SYS_ID_LEAF.exec(base.slice(slash + 1))?.[1];
+  return sysId === undefined || slash < 0 ? null : { folder: base.slice(0, slash), sysId };
+}
+
+export interface RelocatedRecord {
+  // Record bases (paths without extension), relative to the metadata root.
+  readonly local: string;
+  readonly mirror: string;
+}
+
+// Records the workspace holds under one name and the mirror under another: the same sys_id in
+// the same scope and class folder. Pull names files after sys_name, which the platform sets
+// when the record is created, so a record created here usually comes back renamed.
+export function relocatedRecords(
+  localBases: readonly string[],
+  mirrorBases: readonly string[],
+): RelocatedRecord[] {
+  const mirror = new Map<string, string>();
+  for (const base of mirrorBases) {
+    const address = recordAddress(base);
+    if (address !== null) {
+      mirror.set(`${address.folder}/${address.sysId}`, base);
+    }
+  }
+  return localBases.flatMap((local) => {
+    const address = recordAddress(local);
+    const match = address === null ? undefined : mirror.get(`${address.folder}/${address.sysId}`);
+    return match === undefined || match === local ? [] : [{ local, mirror: match }];
+  });
+}
+
 export function renderRecord(artifact: Artifact, catalog: Catalog): RenderedRecord {
   const base = recordBase(artifact);
   const exploded = fileFields(catalog, artifact.identity.className);

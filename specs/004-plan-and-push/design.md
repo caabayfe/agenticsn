@@ -120,8 +120,12 @@ Both are MCP tools (budget: 12 → 14, D1 of spec 003). The CLI: `snagentic plan
   create child records"; UI policy actions are ordinary records with their own folder. The
   instructions now name child-row files exactly (`<record>.children.<table>.yaml`). A second
   agent created the action correctly, but under a file name pull would not give it, which would
-  leave two files for one record after the next pull and plan it as new again: plan now
-  reports a new record whose file name is not the one pull would write, with the right name.
+  leave two files for one record after the next pull and plan it as new again. Plan first asked
+  for the name pull would give; the PDI end-to-end test (2026-10-08) showed no local prediction
+  can be right, as pull names files after `sys_name`, which the platform sets on insert (at
+  most 40 characters). Now a record is identified by its scope, class folder and sys_id: any
+  name will do, the plan matches the mirror's copy by sys_id, and `integrate` keeps the
+  instance's file when its copy confirms the local one.
 - **D5. Push does not pull.** The deliver skill runs `pull` and `integrate` after `push`;
   push stays the smallest possible write path.
 

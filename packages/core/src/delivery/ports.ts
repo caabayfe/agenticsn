@@ -18,6 +18,9 @@ export interface DeliveryWorkspace {
   changedFiles(commit: string): Promise<string[]>;
   // A record's files in the working tree (`at` null) or at a commit; null when it has none.
   read(base: string, at: string | null): Promise<RecordFiles | null>;
+  // The record bases (paths without extension) in a folder, at a commit or in the working tree
+  // (`at` null), relative to the metadata root.
+  recordsIn(folder: string, at: string | null): Promise<string[]>;
   // A file's text in the working tree, or null when it does not exist.
   text(path: string): Promise<string | null>;
   // waivers.yaml at the workspace root as committed (parsed, or null when there is none), and

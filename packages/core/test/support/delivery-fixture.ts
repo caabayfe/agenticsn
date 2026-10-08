@@ -59,6 +59,10 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
     branch: async () => "feature/p1",
     changedFiles: async () => state.changed,
     read: async (base, at) => (at === null ? state.working : state.mirror)[base] ?? null,
+    recordsIn: async (folder, at) =>
+      Object.keys(at === null ? state.working : state.mirror).filter(
+        (base) => base.slice(0, base.lastIndexOf("/")) === folder,
+      ),
     text: async (path) => state.texts[path] ?? null,
     waivers: async () => ({ committed: state.waivers, uncommitted: state.waiversUncommitted }),
     uncommittedFiles: async () => state.uncommitted,

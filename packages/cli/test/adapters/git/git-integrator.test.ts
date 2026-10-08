@@ -22,7 +22,12 @@ afterEach(async () => {
 
 const PDI = InstanceName.parse("pdi");
 const catalog = new Catalog({
-  parents: { sys_metadata: null, sys_script: "sys_metadata", sys_script_include: "sys_metadata" },
+  parents: {
+    sys_metadata: null,
+    sys_script: "sys_metadata",
+    sys_script_include: "sys_metadata",
+    sys_properties: "sys_metadata",
+  },
   scopes: {},
   typedFields: {
     sys_script: { script: "script_server" },
@@ -69,7 +74,7 @@ const NEW_ID = "4944d956393ce479c7b489974061fefd";
 const NEW_BASE = `instances/pdi/metadata/global/sys_script_include/util--${NEW_ID}`;
 
 // A script include as an agent creates it before pushing: identity and the fields it sets.
-async function createLocally(root: string, description: string): Promise<void> {
+async function createLocally(root: string, description: string, script = "var Util;\n") {
   await mkdir(join(root, NEW_BASE, ".."), { recursive: true });
   await writeFile(
     join(root, `${NEW_BASE}.yaml`),
@@ -80,7 +85,7 @@ async function createLocally(root: string, description: string): Promise<void> {
       name: "Util",
     }),
   );
-  await writeFile(join(root, `${NEW_BASE}.script.js`), "var Util;\n");
+  await writeFile(join(root, `${NEW_BASE}.script.js`), script);
   await git(root, "add", "instances");
   await git(root, "commit", "-q", "-m", "new script include");
 }
@@ -245,5 +250,68 @@ describe("GitIntegrator", () => {
     expect(String((error as Error).message)).toContain("1 file(s) changed both locally");
     expect(String((error as Error).message)).toContain("took the instance's copy of 1 record");
     expect((await git(root, "diff", "--name-only", "--diff-filter=U")).trim()).toBe(SCRIPT_PATH);
+  });
+
+  it("takes the instance's copy when only a script's trailing newline differs", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await createLocally(root, "Helpers", "var Util;");
+    await pullRows(root, [ruleRow("one();"), pushedRow("Helpers")]);
+    const result = await integrator.integrate(root, "pdi");
+    expect(result.confirmed).toEqual([`${NEW_BASE}.yaml`]);
+    expect(await readFile(join(root, `${NEW_BASE}.script.js`), "utf8")).toBe("var Util;\n");
+    expect((await git(root, "status", "--porcelain")).trim()).toBe("");
+  });
+
+  it("takes the instance's copy of a pushed property whose value pull withholds", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    const base = `instances/pdi/metadata/global/sys_properties/u-reminder-minutes--${NEW_ID}`;
+    await mkdir(join(root, base, ".."), { recursive: true });
+    const property = { name: "u.reminder_minutes", type: "integer", value: "15" };
+    const meta = { scope: "global", sys_class_name: "sys_properties", sys_id: NEW_ID };
+    await writeFile(join(root, `${base}.yaml`), toYaml({ _meta: meta, ...property }));
+    await git(root, "add", "instances");
+    await git(root, "commit", "-q", "-m", "new property");
+    const row = { sys_id: NEW_ID, sys_class_name: "sys_properties", ...property };
+    await pullRows(root, [ruleRow("one();"), { ...row, sys_name: "u.reminder_minutes" }]);
+    const result = await integrator.integrate(root, "pdi");
+    expect(result.confirmed).toEqual([`${base}.yaml`]);
+    expect(await readFile(join(root, `${base}.yaml`), "utf8")).not.toContain("15");
+  });
+
+  it("keeps the instance's file name for a record pushed from here under another name", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await createLocally(root, "Helpers");
+    const renamed = `instances/pdi/metadata/global/sys_script_include/escalation-helpers--${NEW_ID}`;
+    await pullRows(root, [
+      ruleRow("one();"),
+      { ...pushedRow("Helpers"), sys_name: "Escalation helpers" },
+    ]);
+    const result = await integrator.integrate(root, "pdi");
+    expect(result.confirmed).toEqual([`${renamed}.yaml`]);
+    const files = await git(root, "ls-files", "instances/pdi/metadata/global/sys_script_include");
+    expect(files.trim().split("\n")).toEqual([`${renamed}.script.js`, `${renamed}.yaml`]);
+    expect((await git(root, "status", "--porcelain")).trim()).toBe("");
+    expect((await git(root, "log", "-1", "--format=%s")).trim()).toBe("snagentic integrate pdi");
+  });
+
+  it("stops, naming both files, when a record pulled under another name differs locally", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await createLocally(root, "Helpers");
+    await pullRows(root, [
+      ruleRow("one();"),
+      { ...pushedRow("Changed there"), sys_name: "Escalation helpers" },
+    ]);
+    const error = await integrator.integrate(root, "pdi").catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: "integration-conflicts" });
+    expect(String((error as Error).message)).toContain(`util--${NEW_ID}.yaml`);
+    expect(String((error as Error).message)).toContain(`escalation-helpers--${NEW_ID}.yaml`);
   });
 });

@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-08
+
 ### Added
 
 - `snagentic upgrade [--to <version>]` replaces snagentic with the latest release (or the one

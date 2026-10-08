@@ -44,18 +44,20 @@ starts in p95 31 ms. Shared CI machines are 2–4× slower.
      adding it to the user search list.
    - **Not yet known** whether this is the CI image or a real problem with the x64 build
      of the keychain add-on.
-   - **Next step:** run `snagentic doctor` on a real Intel Mac. Until then the
-     `macos-x64` job is allowed to fail in CI, and Intel macOS is not a supported
-     platform.
+   - **Next step:** run `snagentic doctor` on a real Intel Mac. Until then Intel macOS
+     is not a supported platform, and it is not built in CI (decision 3).
    - Context: macOS 26 is the last release Apple ships for Intel Macs, so this platform
      will shrink.
 
 ## Decisions (product owner, 2026-10-05)
 
 1. **macOS x64 (Intel) is unsupported.** No Intel Mac is available to tell a CI-image
-   problem from a product problem. The CI job keeps running, allowed to fail, so a fix in
-   the image or the add-on becomes visible. Support can be added later by anyone who
-   verifies `snagentic doctor` on real Intel hardware.
+   problem from a product problem. Support can be added later by anyone who verifies
+   `snagentic doctor` on real Intel hardware.
 2. **No separate start-up target.** The spec's < 100 ms start-up criterion is retired.
    Start-up is measured as part of ASR-04 (post-edit check < 300 ms p95 end to end),
    which is what users experience. On developer hardware start-up is about 31 ms.
+3. **The `macos-x64` CI job is removed (2026-10-08).** It was kept running, allowed to
+   fail, so a fix in the image or the add-on would show. In practice it marked every pull
+   request as failing and hid real failures, while nothing in it changed. Re-add it with
+   the Intel support work above.

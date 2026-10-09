@@ -28,6 +28,9 @@ export interface ChangedRecords {
     sysId: string,
     commit: string | null,
   ): Promise<number>;
+  // The instance's commit while integrate merges it (a merge of the instance's
+  // servicenow-remote branch is in progress), or null.
+  mirrorMerge(): Promise<string | null>;
 }
 
 // What a rule pack needs to know about the record a script belongs to.

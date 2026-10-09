@@ -18,6 +18,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- `integrate` is no longer blocked by findings the instance already had. The pre-commit hook
+  validated every record the pull brought in, so a pull that activated a plugin with vendor
+  code could never be integrated. During integrate's merge, validate now checks only records
+  that differ from the instance's version; a conflict resolved by hand is still checked.
 - A record created in the workspace may have any file name in its scope and class folder, as
   long as it ends with its sys_id. `plan-push` no longer asks to rename it: pull names files
   after `sys_name`, which the platform sets when the record is created, so no name chosen

@@ -37,7 +37,7 @@ async function workspace() {
   await write(`${INCLUDE}.children.sys_x.yaml`, "rows: []\n");
   await git(repo, "add", ".");
   await git(repo, "commit", "-qm", "pull");
-  return { repo, write, records: new GitChangedRecords(repo, ROOT) };
+  return { repo, write, records: new GitChangedRecords(repo, ROOT, "servicenow-remote/pdi") };
 }
 
 describe("GitChangedRecords", () => {
@@ -45,6 +45,28 @@ describe("GitChangedRecords", () => {
     const { records } = await workspace();
     expect(await records.resolve("HEAD")).toMatch(/^[0-9a-f]{40}$/);
     expect(await records.resolve("no-such-branch")).toBeNull();
+  });
+
+  it("names the instance's commit while integrate merges it, and nothing otherwise", async () => {
+    const { repo, records, write } = await workspace();
+    expect(await records.mirrorMerge()).toBeNull();
+    await git(repo, "branch", "servicenow-remote/pdi");
+    await git(repo, "branch", "feature");
+    await git(repo, "switch", "-q", "servicenow-remote/pdi");
+    await write("global/sys_script/pulled--b3.yaml", "name: Pulled\n");
+    await git(repo, "add", ".");
+    await git(repo, "commit", "-qm", "pull");
+    const pulled = await records.resolve("HEAD");
+    await git(repo, "switch", "-q", "feature");
+    await write("global/sys_script/mine--b4.yaml", "name: Mine\n");
+    await git(repo, "add", ".");
+    await git(repo, "commit", "-qm", "mine");
+    await git(repo, "switch", "-q", "main");
+    await git(repo, "merge", "--no-ff", "--no-commit", "feature");
+    expect(await records.mirrorMerge()).toBeNull();
+    await git(repo, "merge", "--abort");
+    await git(repo, "merge", "--no-ff", "--no-commit", "servicenow-remote/pdi");
+    expect(await records.mirrorMerge()).toBe(pulled);
   });
 
   it("lists records edited or added since a commit", async () => {

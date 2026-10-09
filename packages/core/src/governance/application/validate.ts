@@ -204,19 +204,37 @@ async function checkRecord(deps: ValidateDependencies, commit: string, base: str
   };
 }
 
+// What to check, and against which commit. While integrate merges the instance (the
+// pre-commit hook runs on its merge commit), what the instance already holds is not this
+// change's doing: only records that also differ from the instance's version are checked,
+// against that version. A named base or explicit paths are taken as asked.
+async function scope(
+  records: ChangedRecords,
+  query: ValidateQuery,
+  resolved: string,
+): Promise<{ commit: string; bases: readonly string[] }> {
+  if (query.paths !== undefined) {
+    return { commit: resolved, bases: [...new Set(query.paths.map(baseOfFile))].sort() };
+  }
+  const mirror = query.base === "HEAD" ? await records.mirrorMerge() : null;
+  if (mirror === null) {
+    return { commit: resolved, bases: await records.changedSince(resolved) };
+  }
+  const local = new Set(await records.changedSince(mirror));
+  const bases = (await records.changedSince(resolved)).filter((base) => local.has(base));
+  return { commit: mirror, bases };
+}
+
 // Checks the changed records against the rules, reporting only what the change introduced.
 export async function validate(
   deps: ValidateDependencies,
   query: ValidateQuery,
 ): Promise<Validation> {
-  const commit = await deps.records.resolve(query.base);
-  if (commit === null) {
+  const resolved = await deps.records.resolve(query.base);
+  if (resolved === null) {
     throw new UnknownBaseError(query.base);
   }
-  const bases =
-    query.paths === undefined
-      ? await deps.records.changedSince(commit)
-      : [...new Set(query.paths.map(baseOfFile))].sort();
+  const { commit, bases } = await scope(deps.records, query, resolved);
   const results = [];
   for (const base of bases) {
     results.push(await checkRecord(deps, commit, base));

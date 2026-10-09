@@ -35,7 +35,13 @@ export class GitChangedRecords implements ChangedRecords {
   constructor(
     private readonly workspace: string,
     private readonly root: string,
+    private readonly mirrorBranch: string,
   ) {}
+
+  async mirrorMerge(): Promise<string | null> {
+    const merging = await this.resolve("MERGE_HEAD");
+    return merging !== null && merging === (await this.resolve(this.mirrorBranch)) ? merging : null;
+  }
 
   async resolve(ref: string): Promise<string | null> {
     const result = await runGit(

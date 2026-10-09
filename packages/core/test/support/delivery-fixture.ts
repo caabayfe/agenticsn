@@ -79,6 +79,7 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
 function governance(state: State) {
   const records: ChangedRecords = {
     resolve: async () => "c0ffee",
+    mirrorMerge: async () => null,
     changedSince: async () => [...new Set(state.changed.map((p) => p.replace(/\..*$/, "")))],
     current: async (base) => {
       const stored = state.working[base];

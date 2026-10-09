@@ -82,7 +82,11 @@ const context: UseCaseContext = {
     };
   },
   governance: (root, instance) => ({
-    records: new GitChangedRecords(root, instancePaths(instance).metadata),
+    records: new GitChangedRecords(
+      root,
+      instancePaths(instance).metadata,
+      instancePaths(instance).remoteBranch,
+    ),
     checker: new EslintScriptChecker(),
   }),
   files: { create: createTextFile },

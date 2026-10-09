@@ -3,6 +3,7 @@ import { type ChangedRecords, checkFiles, type ScriptChecker } from "@snagentic/
 
 const records: ChangedRecords = {
   resolve: async () => "c0ffee",
+  mirrorMerge: async () => null,
   changedSince: async () => [],
   current: async (base) =>
     base.includes("gone")

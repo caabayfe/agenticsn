@@ -27,6 +27,8 @@ const BoundSecret = z.object({
   secret: z.string(),
   url: z.string(),
   kind: z.enum(INSTANCE_KINDS),
+  // ADR-0024: present (true) only when the person opted into elevated writes.
+  elevation: z.literal(true).optional(),
 });
 
 function parseItem(value: string): StoredCredential {
@@ -41,7 +43,11 @@ function parseItem(value: string): StoredCredential {
     ? {
         secret: bound.data.secret,
         source: "keychain",
-        trusted: { url: bound.data.url, kind: bound.data.kind },
+        trusted: {
+          url: bound.data.url,
+          kind: bound.data.kind,
+          ...(bound.data.elevation === true ? { elevation: true } : {}),
+        },
       }
     : { secret: value, source: "keychain", trusted: null };
 }
@@ -74,9 +80,14 @@ export class KeychainCredentialStore implements CredentialStore {
     }
   }
 
-  async write(profile: InstanceProfile, secret: string): Promise<void> {
+  async write(
+    profile: InstanceProfile,
+    secret: string,
+    options?: { readonly elevation: boolean },
+  ): Promise<void> {
     try {
-      const item = { snagentic: 1, secret, url: profile.url, kind: profile.kind };
+      const elevation = options?.elevation === true ? { elevation: true } : {};
+      const item = { snagentic: 1, secret, url: profile.url, kind: profile.kind, ...elevation };
       await this.entry(profile).setPassword(JSON.stringify(item));
     } catch (error) {
       throw new KeychainUnavailableError(

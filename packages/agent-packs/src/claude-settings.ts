@@ -66,7 +66,7 @@ export const SHELL_DENY: readonly { readonly pattern: RegExp; readonly reason: s
   { pattern: /--no-verify\b|core\.hooksPath/, reason: GIT_HOOKS },
   { pattern: /\bcommit\b[^;&|]*\s-[a-zA-Z]*n[a-zA-Z]*(?=\s|$)/, reason: GIT_HOOKS },
   { pattern: /\bsnagentic\s+auth\b/, reason: CREDENTIALS },
-  { pattern: /\bSNAGENTIC_\w+_(?:PASSWORD|URL|KIND)\s*=/, reason: CREDENTIALS },
+  { pattern: /\bSNAGENTIC_\w+_(?:PASSWORD|URL|KIND|ALLOW_ELEVATION)\s*=/, reason: CREDENTIALS },
   { pattern: /\bsnagentic\s+upgrade\b/, reason: UPGRADE },
   {
     pattern:

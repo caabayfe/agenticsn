@@ -15,7 +15,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0007](0007-disk-format-and-hash-contract.md) | Keep the v1 disk format, mirror branch and hash contract | Accepted (amended by 0014, 0015, 0017) |
 | [0008](0008-commercial-boundary.md) | Open core with a sealed premium engine behind the `Validator` port | Proposed |
 | [0009](0009-engineering-practices.md) | Engineering practices: TDD, strict typing, enforced boundaries | Accepted |
-| [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013) |
+| [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013, 0024) |
 | [0011](0011-enforcement-layers.md) | Enforcement layers: what each control stops and who can bypass it | Accepted (amended by 0019) |
 | [0012](0012-production-read-only-by-construction.md) | Production access is read-only by construction | Accepted, pending spike (amended by 0013, 0021) |
 | [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted (amended by 0018) |
@@ -29,6 +29,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0021](0021-oauth-client-credentials.md) | OAuth client credentials, with checks bound to the authenticated session | Accepted |
 | [0022](0022-pull-requests-through-the-platform-cli.md) | Pull requests are linked and opened through the git platform's CLI | Accepted |
 | [0023](0023-upgrade-and-update-notice.md) | `snagentic upgrade` and an update notice, with no silent self-update | Accepted |
+| [0024](0024-elevated-session-for-acl-writes.md) | ACLs are written through an elevated browser session | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

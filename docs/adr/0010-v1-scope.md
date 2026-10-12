@@ -1,6 +1,6 @@
 # 0010. v1 scope and explicit exclusions
 
-- Status: Accepted (amended by 0011, 0012, 0013)
+- Status: Accepted (amended by 0011, 0012, 0013, 0024)
 - Date: 2026-10-05
 - Requirements: all
 

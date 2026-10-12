@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { recordHash } from "@snagentic/core";
+import { type InstanceProfile, recordHash } from "@snagentic/core";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { toYaml } from "../../src/adapters/yaml/own-style";
 import { executeUseCase } from "../../src/registry/execute";
@@ -136,6 +136,67 @@ describe("push", () => {
     expect(line({ status: "unavailable", reason: "gh is not installed" })).toBe(
       "no pull request linked: gh is not installed",
     );
+  });
+
+  it("writes ACLs through an elevated session on an instance opted in at login (ADR-0024)", async () => {
+    const { context, write } = await workspace();
+    const ACL_ID = "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0";
+    const fields = { name: "incident", operation: "read", type: "record" };
+    await write(
+      `global/sys_security_acl/incident--${ACL_ID}.yaml`,
+      toYaml({
+        _meta: {
+          sys_class_name: "sys_security_acl",
+          sys_id: ACL_ID,
+          scope: "global",
+          hash: recordHash("sys_security_acl", fields),
+        },
+        ...fields,
+      }),
+    );
+    const blocked = await executeUseCase(planPush, {}, context);
+    expect(JSON.stringify(blocked.output["problems"])).toContain("--allow-elevation");
+
+    const elevated: string[] = [];
+    const opted = {
+      ...context,
+      credentials: {
+        ...context.credentials,
+        read: async (profile: InstanceProfile) => ({
+          secret: "pw",
+          source: "keychain" as const,
+          trusted: { url: profile.url, kind: profile.kind, elevation: true },
+        }),
+      },
+      elevatedSessions: () => ({
+        open: async () => ({
+          username: "admin",
+          writer: {
+            insert: async (table: string) => {
+              elevated.push(`insert ${table}`);
+              return { sys_id: ACL_ID };
+            },
+            update: async () => ({}),
+          },
+          close: async () => {
+            elevated.push("close");
+          },
+        }),
+      }),
+    };
+    const plan = await executeUseCase(planPush, {}, opted);
+    expect(plan.output).toMatchObject({
+      ready: true,
+      changes: [{ table: "sys_security_acl", elevated: true }],
+    });
+    const { output } = await executeUseCase(
+      push,
+      { instance: "pdi", plan: String(plan.output["planId"]), confirm: true },
+      opted,
+    );
+    expect(elevated).toEqual(["insert sys_security_acl", "close"]);
+    expect(output).toMatchObject({ written: [{ table: "sys_security_acl", elevated: true }] });
+    expect(push.render(output as never, "text")).toContain("elevated: security_admin");
   });
 
   it("refuses without confirmation, and explains a capture problem", async () => {

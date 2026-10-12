@@ -60,7 +60,7 @@ export function aclHits(before: AclState | null, now: AclState | null): AclHit[]
     hits.push({
       ruleId: "SN-SEC-006",
       field: null,
-      message: `the ${nameOf(now.fields)} has no role, condition or script: every user passes it`,
+      message: `the ${nameOf(now.fields)} has no role, condition or script, so it restricts nothing`,
     });
   }
   const removed = denyRemoved(before, now);

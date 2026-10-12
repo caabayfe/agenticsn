@@ -55,7 +55,7 @@ describe("validate: ACL records (ADR-0024)", () => {
         ruleId: "SN-SEC-006",
         severity: "block",
         path: `${BASE}.yaml`,
-        message: "the write ACL incident has no role, condition or script: every user passes it",
+        message: "the write ACL incident has no role, condition or script, so it restricts nothing",
       }),
     ]);
     expect(lookups).toEqual(["sys_security_acl_role.sys_security_acl=a1c at workspace"]);

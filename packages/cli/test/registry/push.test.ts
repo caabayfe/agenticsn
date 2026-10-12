@@ -152,7 +152,16 @@ describe("push", () => {
         batch: { name: "snagentic: main", sysId: "b1", created: false, link: "l" },
         pullRequest: { status: "none" },
         updateSets: [],
-        written: [{ operation: "update", table: "t", sysId: "s", path: "p.yaml", captured: false }],
+        written: [
+          {
+            operation: "update",
+            table: "t",
+            sysId: "s",
+            path: "p.yaml",
+            captured: false,
+            elevated: false,
+          },
+        ],
         notCaptured: 1,
         next: [],
       },

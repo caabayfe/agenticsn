@@ -161,6 +161,7 @@ export function setup(overrides: Partial<State> = {}, held: Record<string, unkno
       now: () => new Date(),
     },
     journal: { read: async () => state.journal },
+    elevation: false,
     now: () => new Date("2026-10-06T12:00:00Z"),
     signal: new AbortController().signal,
   };

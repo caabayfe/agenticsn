@@ -81,6 +81,7 @@ export const push = defineUseCase({
           sysId: z.string(),
           path: z.string(),
           captured: z.boolean(),
+          elevated: z.boolean(),
         }),
       )
       .readonly(),
@@ -112,6 +113,8 @@ export const push = defineUseCase({
         username: profile.auth.username,
         url: profile.url,
         pullRequests: context.pullRequests(root),
+        elevation: false,
+        elevatedSessions: null,
       },
       {
         instance: name,

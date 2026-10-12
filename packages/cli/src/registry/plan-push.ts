@@ -29,6 +29,7 @@ export const PlanOutput = z.object({
         scope: z.string(),
         path: z.string(),
         fields: z.array(z.string()).readonly(),
+        elevated: z.boolean(),
       }),
     )
     .readonly(),
@@ -88,6 +89,7 @@ export const planPush = defineUseCase({
         journal: context.pushJournal(root, name),
         governance: context.governance(root, name),
         updateSets: { pager, statistics: reader, now: context.clock },
+        elevation: false,
         now: context.clock,
         signal: run.signal,
       },

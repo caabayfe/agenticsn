@@ -81,10 +81,15 @@ function update(path: string, base: ParsedRecord, target: ParsedRecord): ChangeO
   };
 }
 
-// ACLs need the elevated security_admin role, which a Table API session cannot take on.
+// ACLs need the elevated security_admin role, which a Table API session cannot take on: push
+// writes them through an elevated browser session, on instances a person opted in (ADR-0024).
 const NEEDS_SECURITY_ADMIN = new Set(["sys_security_acl", "sys_security_acl_role"]);
 const SECURITY_ADMIN =
-  "writing ACLs needs the elevated security_admin role, which push cannot use: create it on the instance (elevated) in this branch's update set, remove this file, then pull and integrate";
+  "writing ACLs needs a session elevated to security_admin: a person opts the instance in with snagentic auth login <instance> --allow-elevation (ADR-0024); otherwise create it on the instance (elevated) in this branch's update set, remove this file, then pull and integrate";
+
+export function needsElevation(table: string): boolean {
+  return NEEDS_SECURITY_ADMIN.has(table);
+}
 const NOT_MIRRORED =
   "choices are not mirrored by pull yet, so the next plan would create them again: set them on the instance, then remove this file";
 
@@ -93,6 +98,7 @@ export function changeOf(
   path: string,
   base: ParsedRecord | null,
   target: ParsedRecord | null,
+  options: { readonly elevation: boolean } = { elevation: false },
 ): ChangeOutcome {
   if (target === null) {
     return base === null
@@ -102,7 +108,7 @@ export function changeOf(
           "deleting records is not supported: restore the file and set active to false",
         );
   }
-  if (NEEDS_SECURITY_ADMIN.has(target.artifact.identity.className)) {
+  if (needsElevation(target.artifact.identity.className) && !options.elevation) {
     return problem(path, SECURITY_ADMIN);
   }
   if (base !== null) {

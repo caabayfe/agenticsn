@@ -20,6 +20,7 @@ export {
 export {
   type ChangeOutcome,
   changeOf,
+  needsElevation,
   type Operation,
   type ParsedRecord,
   type PlannedWrite,
@@ -27,6 +28,8 @@ export {
 } from "./domain/change";
 export {
   BranchNotPublishedError,
+  ElevatedUserMismatchError,
+  ElevationUnavailableError,
   IntegrationUserNotFoundError,
   MirrorNotIntegratedError,
   NothingPulledYetError,
@@ -50,6 +53,8 @@ export {
 export { pushUnfinished, writeOrder } from "./domain/write-order";
 export type {
   DeliveryWorkspace,
+  ElevatedSession,
+  ElevatedSessions,
   InstanceWriter,
   PullRequestLookup,
   PullRequests,

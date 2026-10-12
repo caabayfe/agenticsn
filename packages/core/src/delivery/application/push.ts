@@ -2,14 +2,22 @@ import type { InstanceReader } from "../../connection/ports";
 import type { NextCall } from "../../knowledge/index";
 import { Catalog, type CatalogData } from "../../metadata/domain/catalog";
 import { GLOBAL } from "../domain/batch";
-import type { PlannedWrite } from "../domain/change";
+import { needsElevation, type PlannedWrite } from "../domain/change";
 import {
   PlanChangedError,
   PlanNotReadyError,
   PushConfirmationRequiredError,
   UnfinishedPushError,
 } from "../domain/errors";
-import type { InstanceWriter, PullRequests, PushJournal, PushJournalStore } from "../ports";
+import type {
+  ElevatedSession,
+  ElevatedSessions,
+  InstanceWriter,
+  PullRequests,
+  PushJournal,
+  PushJournalStore,
+} from "../ports";
+import { elevatedSessionFor, ensureElevationAvailable } from "./elevated-writes";
 import { computePlan, type PlanDependencies, type PlanQuery } from "./plan-push";
 import { type PullRequestOutcome, pullRequestFor } from "./pull-request";
 import {
@@ -34,6 +42,8 @@ export interface PushDependencies extends PlanDependencies {
   readonly url: string;
   // The git platform, for the branch's pull request (ADR-0022).
   readonly pullRequests: PullRequests;
+  // Opens sessions elevated to security_admin for ACLs; null unless opted in (ADR-0024).
+  readonly elevatedSessions: ElevatedSessions | null;
 }
 
 export interface PushQuery extends PlanQuery {
@@ -66,6 +76,8 @@ export interface PushResult {
     sysId: string;
     path: string;
     captured: boolean;
+    // Written through a session elevated to security_admin (ADR-0024).
+    elevated: boolean;
   }[];
   // Writes the platform did not record in the update set: they will not travel with it.
   readonly notCaptured: number;
@@ -103,14 +115,25 @@ async function pushScope(
     return deps.journal.write(next);
   };
   await save({ ...journal.current, preference });
+  let elevated: ElevatedSession | null = null;
   try {
+    elevated = await elevatedSessionFor(
+      deps.elevatedSessions,
+      scope.writes,
+      deps.username,
+      session.signal,
+    );
     for (const write of scope.writes) {
+      const through =
+        elevated !== null && needsElevation(write.table)
+          ? { ...session, writer: elevated.writer }
+          : session;
       const step = { operation: write.operation, table: write.table, sysId: write.sysId };
       await save({
         ...journal.current,
         steps: [...journal.current.steps, { ...step, state: "sending" }],
       });
-      await writeRecord(session, catalog, write, scope.id, journal.current.steps.length - 1);
+      await writeRecord(through, catalog, write, scope.id, journal.current.steps.length - 1);
       await save({
         ...journal.current,
         steps: journal.current.steps.map((s) =>
@@ -119,8 +142,12 @@ async function pushScope(
       });
     }
   } finally {
-    await restorePreference(session, preference);
-    await save({ ...journal.current, preference: null });
+    try {
+      await elevated?.close();
+    } finally {
+      await restorePreference(session, preference);
+      await save({ ...journal.current, preference: null });
+    }
   }
 }
 
@@ -138,6 +165,7 @@ async function preflight(deps: PushDependencies, query: PushQuery, session: Inst
   if (!planned.plan.ready) {
     throw new PlanNotReadyError();
   }
+  ensureElevationAvailable(deps.elevatedSessions, planned.writes);
   return planned;
 }
 
@@ -183,7 +211,8 @@ async function writeAll(
     for (const write of scoped) {
       const { operation, table, sysId: record, path } = write;
       const done = await captured(session, write, sysId);
-      written.push({ operation, table, sysId: record, path, captured: done });
+      const elevated = needsElevation(table);
+      written.push({ operation, table, sysId: record, path, captured: done, elevated });
     }
   }
   return written;

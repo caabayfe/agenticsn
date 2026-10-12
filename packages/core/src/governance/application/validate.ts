@@ -6,6 +6,7 @@ import {
   scriptFieldsOf,
 } from "../../advice/index";
 import { BEHAVIOR_CLASSES, baseOfFile } from "../../knowledge/index";
+import { type AclState, aclHits, opensWithoutRoles } from "../domain/acl-checks";
 import { UnknownBaseError } from "../domain/errors";
 import {
   evidenceOf,
@@ -145,18 +146,59 @@ function undescribed(base: string, version: RecordVersion): Finding[] {
   ];
 }
 
-async function checkRecord(deps: ValidateDependencies, commit: string, base: string) {
-  const now = await deps.records.current(base);
-  if (now === null) {
+const ACL_CLASS = "sys_security_acl";
+
+// An ACL's roles are counted only when nothing else restricts it: a lookup over every role.
+async function aclState(
+  records: ChangedRecords,
+  version: RecordVersion | null,
+  base: string,
+  commit: string | null,
+): Promise<AclState | null> {
+  if (version?.className !== ACL_CLASS) {
     return null;
   }
+  const sysId = base.slice(base.lastIndexOf("--") + 2);
+  const roles = opensWithoutRoles(version.fields)
+    ? await records.countReferences("sys_security_acl_role", ACL_CLASS, sysId, commit)
+    : null;
+  return { fields: version.fields, roles };
+}
+
+async function aclFindings(
+  deps: ValidateDependencies,
+  commit: string,
+  base: string,
+  versions: { readonly before: RecordVersion | null; readonly now: RecordVersion | null },
+): Promise<Finding[]> {
+  if (versions.before?.className !== ACL_CLASS && versions.now?.className !== ACL_CLASS) {
+    return [];
+  }
+  const hits = aclHits(
+    await aclState(deps.records, versions.before, base, commit),
+    await aclState(deps.records, versions.now, base, null),
+  );
+  return hits.flatMap((hit) => {
+    const rule = ruleById(hit.ruleId);
+    const at = { path: `${base}.yaml`, field: hit.field, line: null, message: hit.message };
+    return rule === undefined ? [] : [finding(rule, { ...at, evidence: "" })];
+  });
+}
+
+async function checkRecord(deps: ValidateDependencies, commit: string, base: string) {
+  const now = await deps.records.current(base);
   const before = await deps.records.at(commit, base);
+  const acl = await aclFindings(deps, commit, base, { before, now });
+  if (now === null) {
+    return acl.length === 0 ? null : { findings: acl, skipped: [] };
+  }
   const current = checkVersion(deps.checker, now);
   const previous = before === null ? [] : checkVersion(deps.checker, before).findings;
   return {
     findings: [
       ...introduced(current.findings, previous),
       ...(before === null ? undescribed(base, now) : []),
+      ...acl,
     ],
     skipped: current.skipped,
   };

@@ -1,9 +1,10 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { baseOfFile, type ChangedRecords, type RecordVersion } from "@snagentic/core";
-import { runGit, runGitOrThrow } from "../git/run-git";
+import { gitLines, runGit, runGitOrThrow } from "../git/run-git";
 import { fromYamlStrings } from "../yaml/own-style";
 
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const lines = (text: string) => text.split("\n").filter(Boolean);
 
 // A record's script fields among its files: <base>.<field>.js.
@@ -74,6 +75,35 @@ export class GitChangedRecords implements ChangedRecords {
       const result = await runGit(["show", `${commit}:${this.root}/${path}`], this.workspace);
       return result.exitCode === 0 ? result.stdout : null;
     });
+  }
+
+  // `git grep` for the field's line in the class folders: one process, whatever the number of
+  // records (an instance has tens of thousands of ACL roles).
+  async countReferences(
+    className: string,
+    field: string,
+    sysId: string,
+    commit: string | null,
+  ): Promise<number> {
+    const where = commit === null ? ["--untracked"] : [commit];
+    let count = 0;
+    for await (const line of gitLines(
+      [
+        "grep",
+        "-l",
+        "-E",
+        "-e",
+        `^${escaped(field)}: ${escaped(sysId)}$`,
+        ...where,
+        "--",
+        `${this.root}/*/${className}/*.yaml`,
+      ],
+      this.workspace,
+      [0, 1],
+    )) {
+      count += line === "" ? 0 : 1;
+    }
+    return count;
   }
 
   private async version(

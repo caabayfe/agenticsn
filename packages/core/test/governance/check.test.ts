@@ -19,6 +19,7 @@ const records: ChangedRecords = {
     fields: { description: "d", script: "ok();" },
     files: {},
   }),
+  countReferences: async () => 0,
 };
 const checker: ScriptChecker = {
   check: (source) => ({

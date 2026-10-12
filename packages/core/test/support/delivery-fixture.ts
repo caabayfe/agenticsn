@@ -101,6 +101,7 @@ function governance(state: State) {
             fields: { description: "d" },
             files: {},
           },
+    countReferences: async () => 0,
   };
   const checker: ScriptChecker = {
     check: (source) => ({

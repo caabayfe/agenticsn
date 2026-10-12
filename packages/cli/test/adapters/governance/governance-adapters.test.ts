@@ -74,6 +74,39 @@ describe("GitChangedRecords", () => {
   });
 });
 
+describe("GitChangedRecords: references", () => {
+  const ROLE = "global/sys_security_acl_role/incident-itil--r1";
+  const role = (acl: string) =>
+    toYaml({
+      _meta: { sys_id: "r1", sys_class_name: "sys_security_acl_role", scope: "global" },
+      sys_security_acl: acl,
+      sys_user_role: "itil1",
+    });
+
+  it("counts the records pointing at a sys_id, now and at a commit", async () => {
+    const { records, write } = await workspace();
+    await write(`${ROLE}.yaml`, role("a1c"));
+    const head = (await records.resolve("HEAD")) ?? "";
+    // Not committed yet: the workspace has the role, the commit does not.
+    expect(
+      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", null),
+    ).toBe(1);
+    expect(
+      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", head),
+    ).toBe(0);
+    expect(
+      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1", null),
+    ).toBe(0);
+  });
+
+  it("reports a git failure instead of counting nothing", async () => {
+    const { records } = await workspace();
+    await expect(
+      records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", "f".repeat(40)),
+    ).rejects.toThrow();
+  });
+});
+
 describe("EslintScriptChecker", () => {
   const context = {
     className: "sys_script",

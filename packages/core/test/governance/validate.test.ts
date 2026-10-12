@@ -49,6 +49,7 @@ function fakeRecords(
     changedSince: async () => Object.keys(now).sort(),
     current: async (base) => now[base] ?? null,
     at: async (_commit, base) => before[base] ?? null,
+    countReferences: async () => 0,
   };
 }
 

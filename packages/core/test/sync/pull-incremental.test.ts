@@ -16,6 +16,15 @@ describe("pullIncremental: nothing changed", () => {
     expect(summary.next.lastFullPull).toBe("2026-10-05 10:00:00");
   });
 
+  it("goes on when an inventory signal times out, keeping that source as it was", async () => {
+    const { incremental, timeOut, state } = await pulledInstance();
+    const before = state.saved.state?.inventory?.["plugins"];
+    timeOut("v_plugin");
+    const { summary } = await incremental();
+    expect(summary.inventoryRefreshed).toEqual([]);
+    expect(summary.next.inventory?.["plugins"]).toBe(before);
+  });
+
   it("does not read the mirrored tree when nothing changed", async () => {
     const { incremental, prepared } = await pulledInstance();
     const before = prepared();

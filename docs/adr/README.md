@@ -30,6 +30,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0022](0022-pull-requests-through-the-platform-cli.md) | Pull requests are linked and opened through the git platform's CLI | Accepted |
 | [0023](0023-upgrade-and-update-notice.md) | `snagentic upgrade` and an update notice, with no silent self-update | Accepted |
 | [0024](0024-elevated-session-for-acl-writes.md) | ACLs are written through an elevated browser session | Accepted |
+| [0025](0025-choices-and-layouts-as-editable-child-rows.md) | Choice lists, form and list layouts, and applications are delivered from files | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

@@ -16,6 +16,7 @@ import {
   type PlannedWrite,
   type PlanProblem,
 } from "../domain/change";
+import { childRowChanges, type RowOwner } from "../domain/child-rows";
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
 import { type GateResult, gateOf, planId } from "../domain/gate";
 import { readWaivers, UNCOMMITTED_WAIVERS } from "../domain/waivers";
@@ -72,7 +73,8 @@ export interface PushPlan {
 }
 
 const CONFLICT = /^(<{7}|>{7}|={7})( |$)/m;
-const isChildRows = (path: string) => /\.children\.[^/]+\.yaml$/.test(path);
+const CHILD_SUFFIX = /\.children\.[^/]+\.yaml$/;
+const isChildRows = (path: string) => CHILD_SUFFIX.test(path);
 
 async function parsed(
   deps: PlanDependencies,
@@ -99,18 +101,48 @@ async function pulledCopy(
   return moved === undefined ? null : parsed(deps, moved.mirror, commit);
 }
 
+// The record whose file holds a child-row file's rows, as it is in the working tree.
+async function rowOwner(deps: PlanDependencies, path: string): Promise<RowOwner | null> {
+  const owner = await parsed(deps, path.replace(CHILD_SUFFIX, ""), null).catch(() => null);
+  if (owner === null) {
+    return null;
+  }
+  const { identity, fields } = owner.artifact;
+  return {
+    table: identity.className,
+    sysId: identity.sysId,
+    scope: identity.scope,
+    name: fields["name"] ?? "",
+  };
+}
+
+// Child rows the user edited (ADR-0025), compared with the file as last pulled.
+async function childRowWrites(deps: PlanDependencies, files: readonly string[], commit: string) {
+  const writes: PlannedWrite[] = [];
+  const problems: PlanProblem[] = [];
+  for (const path of files.filter(isChildRows)) {
+    const outcome = childRowChanges(
+      path,
+      await rowOwner(deps, path),
+      await deps.workspace.document(path, commit),
+      await deps.workspace.document(path, null),
+    );
+    writes.push(...outcome.writes);
+    problems.push(...outcome.problems);
+  }
+  return { writes, problems };
+}
+
 async function writesAndProblems(deps: PlanDependencies, commit: string, instance: string) {
   const files = await deps.workspace.changedFiles(commit);
-  const problems: PlanProblem[] = files.filter(isChildRows).map((path) => ({
-    path,
-    reason: "child rows are read-only: change the record that owns them",
-  }));
+  const rows = await childRowWrites(deps, files, commit);
+  const problems: PlanProblem[] = [...rows.problems];
   for (const path of files) {
     if (CONFLICT.test((await deps.workspace.text(path)) ?? "")) {
       problems.push({ path, reason: "conflict markers remain: resolve the merge first" });
     }
   }
-  const writes: PlannedWrite[] = [];
+  const writes: PlannedWrite[] = [...rows.writes];
   for (const base of [...new Set(files.filter((p) => !isChildRows(p)).map(baseOfFile))].sort()) {
     try {
       const outcome = changeOf(

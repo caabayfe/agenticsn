@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { instanceConfirms, relocatedRecords } from "@snagentic/core";
+import { instanceConfirms, instanceConfirmsRows, relocatedRecords } from "@snagentic/core";
 
 const SYS_ID = "4944d956393ce479c7b489974061fefd";
 
@@ -150,5 +150,26 @@ describe("relocatedRecords", () => {
 
   it("ignores files that are not named after a sys_id", () => {
     expect(relocatedRecords(["global/sys_script/a"], ["global/sys_script/b"])).toEqual([]);
+  });
+});
+
+describe("instanceConfirmsRows (ADR-0025)", () => {
+  const row = { sys_id: "a".repeat(32), name: "u_review", element: "decision", value: "keep" };
+  const pulled = { ...row, sys_created_on: "2026-10-13 10:00:00", sys_mod_count: "0", hint: "" };
+
+  it("accepts the instance's rows when each local row came back with its fields unchanged", () => {
+    expect(instanceConfirmsRows([row], [pulled, { ...row, sys_id: "b".repeat(32) }])).toBe(true);
+  });
+
+  it("ignores provenance a pulled row carries locally, and line endings", () => {
+    const local = { ...pulled, sys_mod_count: "3", value: "keep\r\n" };
+    expect(instanceConfirmsRows([local], [pulled])).toBe(true);
+  });
+
+  it("rejects a row missing on the instance or changed there, and what is not rows", () => {
+    expect(instanceConfirmsRows([row], [])).toBe(false);
+    expect(instanceConfirmsRows([row], [{ ...pulled, value: "revoke" }])).toBe(false);
+    expect(instanceConfirmsRows({ x: 1 }, [pulled])).toBe(false);
+    expect(instanceConfirmsRows([row], "rows")).toBe(false);
   });
 });

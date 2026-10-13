@@ -9,6 +9,8 @@ export const BUILD: Skill = {
     "`advise` with the same `intent` and `tables`, and `phase` build: follow its `guidance` and `rules` for the classes you touch.",
     "For each record to change, `describe` it (`target`: its path) and read the `files` it lists.",
     "Edit the YAML and script files. For a new record, follow an existing record of the same class (`find` with `class`): a new 32-character hex sys_id, and the file named after its name in lowercase with dashes, then --<sys_id>.yaml.",
+    "A new application (when the design asks for a new scope): add <scope>/sys_app/<name>--<sys_id>.yaml with name, scope and version 1.0.0; the scope is x_ then the instance's company code (the value of the property glide.appcreator.company.code in the mirror) then _ and a short name. Its sys_id is the scope's: every record of the application sits in the <scope> folder with that scope in _meta.",
+    "For choices and form or list layouts, add rows to the owner's child-row file (create it if missing): a new 32-character hex sys_id, the parent field naming the owner (for a choice, name holds the table; for layouts, sys_ui_section, list_id or sys_ui_form holds the owner's sys_id), and only content fields. Copy an existing row of the same table (`find` with `class`) for the fields to set.",
     "`validate` (no arguments: everything changed since the last commit).",
     "Fix every finding whose `severity` is block, and each warn unless the user accepts it. Repeat `validate` until it has `passed`.",
   ],
@@ -23,6 +25,6 @@ export const BUILD: Skill = {
     "When a fix would change the approved design, or a finding looks wrong (say which `ruleId` and why).",
   never: [
     "Never silence or work around a finding to make `validate` pass.",
-    "Never edit records outside the approved design, .snagentic/, or child-row files (<record>.children.<table>.yaml); child records with their own folder are records like any other.",
+    "Never edit records outside the approved design or .snagentic/; never edit flow, workflow or variable-value child rows; never remove a row from a child-row file (set a choice inactive instead).",
   ],
 };

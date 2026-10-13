@@ -121,6 +121,15 @@ describe("GitChangedRecords: references", () => {
     ).toBe(0);
   });
 
+  it("counts a reference however the YAML quotes it", async () => {
+    const { records, write } = await workspace();
+    await write(`${ROLE}.yaml`, "sys_security_acl: 'a1c'\n");
+    await write("global/sys_security_acl_role/other--r2.yaml", 'sys_security_acl: "a1c"\n');
+    expect(
+      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", null),
+    ).toBe(2);
+  });
+
   it("reports a git failure instead of counting nothing", async () => {
     const { records } = await workspace();
     await expect(

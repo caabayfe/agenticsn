@@ -6,7 +6,11 @@ const hook = (event: string) => [{ type: "command", command: `snagentic hook cla
 const EDITS = "Edit|Write|MultiEdit|NotebookEdit";
 const PROTECTED = [
   ".snagentic/**",
-  "**/*.children.*.yaml",
+  // Flow, workflow and variable-value child rows stay read-only; choices and layouts are
+  // edited (ADR-0025). The pre-edit hook checks every child table by name.
+  "**/*.children.sys_hub_*.yaml",
+  "**/*.children.wf_*.yaml",
+  "**/*.children.sys_variable_value.yaml",
   "instances/*/instance.yaml",
   "snagentic.yaml",
   "waivers.yaml",

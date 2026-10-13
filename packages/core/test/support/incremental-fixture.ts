@@ -115,9 +115,10 @@ function memoryState() {
 // A fully pulled instance; `incremental()` then pulls what changed since, at 11:00.
 export async function pulledInstance(shape: (tables: Record<string, Row[]>) => void = () => {}) {
   const denied: string[] = [];
+  const slow: string[] = [];
   const tables = instanceTables();
   shape(tables);
-  const instance = fakeInstance(tables, denied);
+  const instance = fakeInstance(tables, denied, slow);
   const { mirror, files, prepared } = memoryMirror();
   const state = memoryState();
   let now = new Date("2026-10-05T10:00:00Z");
@@ -141,6 +142,10 @@ export async function pulledInstance(shape: (tables: Record<string, Row[]>) => v
     // Takes read access away from tables, as an ACL would.
     deny(...tables: string[]) {
       denied.push(...tables);
+    },
+    // Makes aggregate requests on tables time out, as a busy instance does.
+    timeOut(...tables: string[]) {
+      slow.push(...tables);
     },
     async incremental(options: PullOptions = {}) {
       now = new Date("2026-10-05T11:00:00Z");

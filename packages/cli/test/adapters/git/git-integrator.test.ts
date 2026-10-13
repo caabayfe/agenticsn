@@ -66,6 +66,37 @@ async function pullRows(root: string, rows: readonly Record<string, string>[]): 
 
 const pullScript = (root: string, script: string) => pullRows(root, [ruleRow(script)]);
 
+const RULE_BASE = "global/sys_script/rule--00000000000000000000000000000001";
+const FIELDS_FILE = `${RULE_BASE}.children.sys_ui_element.yaml`;
+const fieldRow = (n: number, element: string) => ({
+  sys_id: `${n}`.repeat(32),
+  sys_ui_section: "00000000000000000000000000000001",
+  element,
+});
+// As pull writes a row: with the platform's provenance.
+const pulledField = (n: number, element: string) => ({
+  ...fieldRow(n, element),
+  sys_created_on: "2026-10-13 10:00:00",
+  sys_mod_count: "0",
+});
+
+// A pull that finds the rule and these child rows (ADR-0025).
+async function pullWithFields(root: string, rows: readonly Record<string, string>[]) {
+  const mirror = await GitMirror.open(root, PDI, "fresh");
+  await mirror.write(
+    "instances/pdi/metadata",
+    renderRecord(artifactFromRow(ruleRow("one();"), catalog, DEFAULT_REDACTION), catalog),
+  );
+  await mirror.writeDocument("instances/pdi/metadata", FIELDS_FILE, rows);
+  await mirror.finish("pull");
+}
+
+async function addFieldsLocally(root: string, rows: readonly Record<string, string>[]) {
+  await writeFile(join(root, "instances/pdi/metadata", FIELDS_FILE), toYaml(rows));
+  await git(root, "add", "instances");
+  await git(root, "commit", "-q", "-m", "fields");
+}
+
 const git = (root: string, ...args: string[]) =>
   runGitOrThrow(["-c", "user.name=t", "-c", "user.email=t@t", ...args], root);
 const integrator = gitIntegrator;
@@ -354,5 +385,81 @@ describe("GitIntegrator", () => {
     expect(error).toMatchObject({
       hint: expect.stringContaining("keep the instance's file, copy any local change into it"),
     });
+  });
+
+  it("takes the instance's child rows when they confirm the rows added here (ADR-0025)", async () => {
+    const root = await workspace();
+    await pullWithFields(root, [pulledField(1, "number")]);
+    await integrator.integrate(root, "pdi");
+    await addFieldsLocally(root, [pulledField(1, "number"), fieldRow(2, "decision")]);
+    await pullWithFields(root, [pulledField(1, "number"), pulledField(2, "decision")]);
+    const result = await integrator.integrate(root, "pdi");
+    expect(result.confirmed).toEqual([`instances/pdi/metadata/${FIELDS_FILE}`]);
+    expect(await readFile(join(root, "instances/pdi/metadata", FIELDS_FILE), "utf8")).toContain(
+      "sys_created_on",
+    );
+    expect((await git(root, "status", "--porcelain")).trim()).toBe("");
+  });
+
+  it("takes a new child file the instance confirms, added on both sides", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await addFieldsLocally(root, [fieldRow(2, "decision")]);
+    await pullWithFields(root, [pulledField(2, "decision")]);
+    const result = await integrator.integrate(root, "pdi");
+    expect(result.confirmed).toEqual([`instances/pdi/metadata/${FIELDS_FILE}`]);
+  });
+
+  it("keeps the conflict when the instance's rows differ from the rows set here", async () => {
+    const root = await workspace();
+    await pullWithFields(root, [pulledField(1, "number")]);
+    await integrator.integrate(root, "pdi");
+    await addFieldsLocally(root, [pulledField(1, "number"), fieldRow(2, "decision")]);
+    await pullWithFields(root, [pulledField(1, "number"), pulledField(2, "state")]);
+    await expect(integrator.integrate(root, "pdi")).rejects.toMatchObject({
+      code: "integration-conflicts",
+    });
+  });
+
+  it("moves a renamed record's child rows with it only when the instance confirms them", async () => {
+    const renamed = `global/sys_script_include/escalation-helpers--${NEW_ID}`;
+    const local = `${NEW_BASE}.children.sys_ui_element.yaml`;
+    const pullRenamed = async (root: string, element: string) => {
+      const mirror = await GitMirror.open(root, PDI, "fresh");
+      for (const row of [
+        ruleRow("one();"),
+        { ...pushedRow("Helpers"), sys_name: "Escalation helpers" },
+      ]) {
+        await mirror.write(
+          "instances/pdi/metadata",
+          renderRecord(artifactFromRow(row, catalog, DEFAULT_REDACTION), catalog),
+        );
+      }
+      await mirror.writeDocument(
+        "instances/pdi/metadata",
+        `${renamed}.children.sys_ui_element.yaml`,
+        [pulledField(2, element)],
+      );
+      await mirror.finish("pull");
+    };
+    for (const [element, confirmed] of [
+      ["decision", true],
+      ["state", false],
+    ] as const) {
+      const root = await workspace();
+      await pullScript(root, "one();");
+      await integrator.integrate(root, "pdi");
+      await createLocally(root, "Helpers");
+      await writeFile(join(root, local), toYaml([fieldRow(2, "decision")]));
+      await git(root, "add", "instances");
+      await git(root, "commit", "-q", "-m", "fields");
+      await pullRenamed(root, element);
+      const outcome = await integrator.integrate(root, "pdi").catch((e: unknown) => e);
+      expect(outcome).toMatchObject(
+        confirmed ? { confirmed: [expect.any(String)] } : { code: "integration-conflicts" },
+      );
+      expect(await Bun.file(join(root, local)).exists()).toBe(!confirmed);
+    }
   });
 });

@@ -23,6 +23,8 @@ export interface DeliveryWorkspace {
   recordsIn(folder: string, at: string | null): Promise<string[]>;
   // A file's text in the working tree, or null when it does not exist.
   text(path: string): Promise<string | null>;
+  // A YAML file parsed, in the working tree (`at` null) or at a commit; null when absent.
+  document(path: string, at: string | null): Promise<unknown | null>;
   // waivers.yaml at the workspace root as committed (parsed, or null when there is none), and
   // whether the working tree differs. Only committed waivers apply: they are reviewed in git.
   waivers(): Promise<{ readonly committed: unknown | null; readonly uncommitted: boolean }>;
@@ -81,18 +83,22 @@ export interface ElevatedSessions {
   open(signal: AbortSignal): Promise<ElevatedSession>;
 }
 
+export interface SwitchedPreference {
+  readonly sysId: string;
+  readonly user: string;
+  readonly name: string;
+  readonly previousValue: string;
+}
+
 // What a push has done so far, written before every instance write, so an interrupted push
 // can be recovered: names and hashes only, never field values or credentials.
 export interface PushJournal {
   readonly planId: string;
   readonly mirrorCommit: string;
   readonly startedAt: string;
-  // The current-update-set preference while it is switched, to restore it.
-  readonly preference: {
-    readonly sysId: string;
-    readonly name: string;
-    readonly previousValue: string;
-  } | null;
+  // The user's preferences push switched (current update set, current application), still to
+  // be restored.
+  readonly preferences: readonly SwitchedPreference[];
   readonly steps: readonly {
     readonly operation: string;
     readonly table: string;

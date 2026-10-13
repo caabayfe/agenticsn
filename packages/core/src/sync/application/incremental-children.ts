@@ -139,7 +139,7 @@ async function refreshTable(
   signal: AbortSignal,
   totals: Totals,
 ): Promise<void> {
-  const owners = await childOwners(deps, child);
+  const owners = await childOwners(deps, child, signal);
   const bases = await changedOwners(deps, child, owners, since, signal);
   if (change === "shrunk") {
     for (const base of await ownersWithOtherCounts(deps, child, owners, signal)) {
@@ -179,13 +179,18 @@ async function relistFamily(
   return unreadable;
 }
 
-// Families to list again: a nested table resolves owners only through its parent rows. The
-// nested families are small (workflow structure).
-function familiesToRelist(changes: ReadonlyMap<string, FingerprintChange>): ChildTable[][] {
+// Families to list again: a nested table resolves owners only through its parent rows (the
+// nested families are small: workflow structure), and a table the last pull did not read has
+// no rows to refresh from (ADR-0025).
+function familiesToRelist(
+  changes: ReadonlyMap<string, FingerprintChange>,
+  neverRead: ReadonlySet<string>,
+): ChildTable[][] {
   const roots = new Map<string, ChildTable[]>();
   for (const child of CHILD_TABLES) {
     const change = changes.get(child.table) ?? "unchanged";
-    if (change !== "unchanged" && child.parentTable !== undefined) {
+    const nested = change !== "unchanged" && child.parentTable !== undefined;
+    if (nested || neverRead.has(child.table)) {
       const family = childFamily(child.table);
       roots.set(family[0]?.table ?? child.table, family);
     }
@@ -197,12 +202,13 @@ export async function applyChildChanges(
   deps: IncrementalDependencies,
   catalog: Catalog,
   changes: ReadonlyMap<string, FingerprintChange>,
-  since: string,
+  window: { readonly since: string; readonly neverRead: ReadonlySet<string> },
   signal: AbortSignal,
 ): Promise<ChildOutcome> {
+  const { since, neverRead } = window;
   const totals: Totals = { childFiles: 0, removedChildFiles: 0 };
   const unreadable: string[] = [];
-  const families = familiesToRelist(changes);
+  const families = familiesToRelist(changes, neverRead);
   const relisted = new Set(families.flat().map((child) => child.table));
   for (const family of families) {
     unreadable.push(...(await relistFamily(deps, catalog, family, signal, totals)));

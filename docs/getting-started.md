@@ -163,6 +163,34 @@ With the [GitHub CLI](https://cli.github.com) installed and signed in (`gh auth 
 description. `--draft-pr` opens a draft pull request when the branch has none: commit your
 changes first, since it pushes the branch and the pull request must show what was pushed.
 Without `gh`, push works the same and says that no pull request is linked.
+
+### Choices, forms and lists
+
+A table's choices are mirrored beside its table record, in
+`<scope>/sys_db_object/<table>--<sys_id>.children.sys_choice.yaml`. Form and list layouts are
+the child rows of their section, list or form (`sys_ui_element`, `sys_ui_list_element`,
+`sys_ui_form_section`, `sys_ui_related_list_entry`). These five files can be edited and pushed
+(ADR-0025):
+
+- add a row with a new 32-character sys_id and the field that names its owner (`name` for a
+  choice; `sys_ui_section`, `list_id` or `sys_ui_form` for layouts), or change a row's fields;
+- push never removes a row: set `inactive: 'true'` on a choice, and remove a form or list
+  field on the instance.
+
+Push writes each row after its owner, and stops if the row changed on the instance since the
+pull. Flow, workflow and variable-value child rows stay read-only. Choices arrive on the first
+pull after upgrading to this version.
+
+### A new application
+
+A new feature belongs in its own scoped application. Create it from a file: add
+`<scope>/sys_app/<name>--<sys_id>.yaml` with `name`, `scope` and `version`, and put the
+application's records in the `<scope>` folder. The scope starts with `x_`, the instance's
+company code and `_`; the code is the value of `glide.appcreator.company.code`, which pull
+mirrors (`pull --full` once on a workspace pulled before this version). Push creates the
+application before anything else in its scope, in the scope's update set of the batch, and
+the next pull mirrors it (ADR-0025).
+
 ### ACLs
 
 Writing ACLs (`sys_security_acl`, `sys_security_acl_role`) needs the elevated

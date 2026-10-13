@@ -56,6 +56,8 @@ describe("changeOf", () => {
         path: PATH,
         values: { script: "b();" },
         baseHash: "base-hash",
+        owner: null,
+        updateName: null,
       },
     });
   });
@@ -82,6 +84,8 @@ describe("changeOf", () => {
         sysId: SYS_ID,
         values: { name: "New", script: "x();" },
         baseHash: null,
+        owner: null,
+        updateName: null,
       },
     });
   });
@@ -255,6 +259,8 @@ describe("the gate and the plan id", () => {
       path: PATH,
       values: { a: "1" },
       baseHash: "h",
+      owner: null,
+      updateName: null,
     };
     const gate = gateOf([], [], [], "p");
     const id = planId("c1", [write], gate);
@@ -320,6 +326,8 @@ describe("writeOrder", () => {
     path,
     values: {},
     baseHash: null,
+    owner: null,
+    updateName: null,
   });
 
   it("writes what others refer to first: tables, fields, roles, then the rest", () => {
@@ -364,7 +372,7 @@ describe("pushUnfinished", () => {
     planId: "p1",
     mirrorCommit: "c0ffee",
     startedAt: "2026-10-08T18:17:40Z",
-    preference: null,
+    preferences: [],
     steps: [],
   };
 

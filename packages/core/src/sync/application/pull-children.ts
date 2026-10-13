@@ -35,6 +35,38 @@ export async function owners(deps: PullDependencies): Promise<Map<string, string
   return map;
 }
 
+// Table name -> the sys_id of its sys_db_object record, in one listing of two fields.
+export async function tableIds(
+  deps: PullDependencies,
+  signal: AbortSignal,
+): Promise<Map<string, string>> {
+  const listing = {
+    table: TableName.parse("sys_db_object"),
+    fields: ["sys_id", "name"],
+    kind: "snapshot" as const,
+    base: "",
+  };
+  const ids = new Map<string, string>();
+  for await (const row of deps.pager.rows(listing, signal)) {
+    ids.set(row["name"] ?? "", row["sys_id"] ?? "");
+  }
+  return ids;
+}
+
+// Lets rows keyed by table name find their table's record: names and sys_ids never collide.
+async function addTableNames(
+  deps: PullDependencies,
+  owners: Map<string, string>,
+  signal: AbortSignal,
+): Promise<void> {
+  for (const [name, sysId] of await tableIds(deps, signal)) {
+    const base = owners.get(sysId);
+    if (base !== undefined && name !== "") {
+      owners.set(name, base);
+    }
+  }
+}
+
 // Streams one child table straight into its groups: rows are cleaned as they arrive and the
 // table is never held twice. Returns null when the user may not read the table.
 export async function groupTable(
@@ -53,6 +85,9 @@ export async function groupTable(
     base: "",
   };
   try {
+    if (child.ownedByTableName === true) {
+      await addTableNames(deps, owners, signal);
+    }
     for await (const row of deps.pager.rows(listing, signal)) {
       grouper.add(cleaned(row, redact));
     }

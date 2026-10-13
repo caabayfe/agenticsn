@@ -114,6 +114,11 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
     return this.content(path, null);
   }
 
+  async document(path: string, at: string | null): Promise<unknown | null> {
+    const yaml = await this.content(path, at);
+    return yaml === null ? null : fromYamlStrings(yaml);
+  }
+
   async waivers(): Promise<{ committed: unknown | null; uncommitted: boolean }> {
     const working = await readFile(join(this.root, WAIVERS), "utf8").catch(() => null);
     const head = await runGit(["show", `HEAD:${WAIVERS}`], this.root);

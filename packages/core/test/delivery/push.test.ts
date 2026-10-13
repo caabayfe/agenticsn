@@ -119,14 +119,22 @@ describe("push", () => {
         { tool: "status", args: { instance: "dev" } },
       ],
     });
+    // The current application is made global for the batch and the scope, the update set
+    // switched, the record written, then each preference put back in reverse order.
     expect(calls).toEqual([
       "insert sys_user_preference name,user,value",
+      "update sys_user_preference value=global",
+      "insert sys_user_preference name,user,value",
       "update sys_script order=200",
+      "update sys_user_preference value=",
+      "update sys_user_preference value=global",
       "update sys_user_preference value=",
     ]);
     expect(tables["sys_script"]?.[0]?.["order"]).toBe("200");
     expect(journal.current).toBeNull();
-    expect(journal.history.some((j) => j.preference !== null && j.steps.length === 0)).toBe(true);
+    expect(journal.history.some((j) => j.preferences.length === 3 && j.steps.length === 0)).toBe(
+      true,
+    );
     expect(JSON.stringify(journal.history)).not.toContain('"200"');
   });
 
@@ -169,12 +177,13 @@ describe("push", () => {
     ];
     tables["sys_update_set"] = [];
     const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    const batchId = tables["sys_update_set"]?.[0]?.["sys_id"];
     expect(tables["sys_update_set"]).toMatchObject([
       { name: "snagentic: feature/p1", application: "global", state: "in progress" },
-      { name: "snagentic: feature/p1 [x_acme]", application: "a1", parent: "new1" },
+      { name: "snagentic: feature/p1 [x_acme]", application: "a1", parent: batchId },
     ]);
     expect(result).toMatchObject({
-      batch: { name: "snagentic: feature/p1", sysId: "new1", created: true },
+      batch: { name: "snagentic: feature/p1", sysId: batchId, created: true },
       updateSets: [{ scope: "x_acme", name: "snagentic: feature/p1 [x_acme]", created: true }],
       written: [{ path: `${path}.yaml`, captured: true }],
     });
@@ -213,7 +222,7 @@ describe("push", () => {
       code: "record-changed-on-instance",
     });
     expect(calls.at(-1)).toBe("update sys_user_preference value=");
-    expect(journal.current).toMatchObject({ preference: null });
+    expect(journal.current).toMatchObject({ preferences: [] });
     // Until a pull shows what reached the instance, the next push refuses.
     await expect(push(deps, { ...QUERY, planId: await planned(deps) })).rejects.toMatchObject({
       code: "unfinished-push",
@@ -232,7 +241,7 @@ describe("push", () => {
       planId: "p",
       mirrorCommit: "c0ffee",
       startedAt: "t",
-      preference: { sysId: "pref1", name: "sys_update_set", previousValue: "mine" },
+      preferences: [{ sysId: "pref1", user: "u1", name: "sys_update_set", previousValue: "mine" }],
       steps: [],
     });
     deps.writer.update = async (table, sysId, values) => {
@@ -263,8 +272,10 @@ describe("push", () => {
     const { deps, tables } = pushSetup();
     const renamed = { ...deps, username: "someone_else" };
     await push(renamed, { ...QUERY, planId: await planned(deps) });
-    const preference = (tables["sys_user_preference"] ?? [])[0];
-    expect(preference).toMatchObject({ user: "u1", name: "sys_update_set" });
+    const preference = (tables["sys_user_preference"] ?? []).find(
+      (row) => row["name"] === "sys_update_set",
+    );
+    expect(preference).toMatchObject({ user: "u1" });
   });
 });
 
@@ -352,5 +363,245 @@ describe("push and the branch's pull request (ADR-0022)", () => {
       push(offline.deps, { ...QUERY, planId: await planned(offline.deps), draftPr: true }),
     ).rejects.toMatchObject({ code: "pull-request-unavailable" });
     expect([...onMain.calls, ...offline.calls]).toEqual([]);
+  });
+});
+
+describe("push: child rows (ADR-0025)", () => {
+  const SECTION_ID = "fedcba9876543210fedcba9876543210";
+  const SECTION = `global/sys_ui_section/u-review--${SECTION_ID}`;
+  const FIELDS = `${SECTION}.children.sys_ui_element.yaml`;
+  const ROW = "1".repeat(32);
+  const pulledRow = {
+    sys_id: ROW,
+    sys_ui_section: SECTION_ID,
+    element: "number",
+    position: "0",
+    sys_mod_count: "0",
+    sys_updated_on: "2026-10-13 10:00:00",
+  };
+  const section = record("sys_ui_section", SECTION_ID, { name: "u_review", view: "Default" });
+
+  // The platform records a section's fields as the section, under its sys_update_name.
+  function sectionSetup(overrides: Partial<State>, onInstance: Record<string, string>[] = []) {
+    const run = pushSetup(overrides);
+    run.tables["sys_ui_section"] = [
+      { sys_id: SECTION_ID, sys_update_name: `sys_ui_section_${SECTION_ID}` },
+    ];
+    run.tables["sys_ui_element"] = onInstance;
+    const writer = memoryWriter(run.tables, run.calls, {
+      on: true,
+      name: (table, row) =>
+        table === "sys_ui_element"
+          ? `sys_ui_section_${row["sys_ui_section"] ?? ""}`
+          : (row["sys_update_name"] ?? `${table}_${row["sys_id"] ?? ""}`),
+    });
+    return { ...run, deps: { ...run.deps, writer } };
+  }
+
+  it("creates a row with its content fields and finds it captured as its owner", async () => {
+    const row = { sys_id: ROW, sys_ui_section: SECTION_ID, element: "decision", position: "1" };
+    const { deps, calls } = sectionSetup({
+      mirror: { ...setup().state.mirror, [SECTION]: section },
+      working: { ...setup().state.working, [SECTION]: section },
+      changed: [FIELDS],
+      documents: { mirror: {}, working: { [FIELDS]: [row] } },
+    });
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(calls).toContain("insert sys_ui_element element,position,sys_id,sys_ui_section");
+    expect(result.written).toEqual([
+      expect.objectContaining({ table: "sys_ui_element", sysId: ROW, captured: true }),
+    ]);
+    expect(result.notCaptured).toBe(0);
+  });
+
+  it("updates a changed row, and stops when the instance changed it since the pull", async () => {
+    const overrides = {
+      mirror: { ...setup().state.mirror, [SECTION]: section },
+      working: { ...setup().state.working, [SECTION]: section },
+      changed: [FIELDS],
+      documents: {
+        mirror: { [FIELDS]: [pulledRow] },
+        working: { [FIELDS]: [{ ...pulledRow, position: "4" }] },
+      },
+    };
+    const fresh = sectionSetup(overrides, [{ ...pulledRow }]);
+    await push(fresh.deps, { ...QUERY, planId: await planned(fresh.deps) });
+    expect(fresh.calls).toContain("update sys_ui_element position=4");
+    const moved = sectionSetup(overrides, [{ ...pulledRow, sys_mod_count: "1" }]);
+    await expect(
+      push(moved.deps, { ...QUERY, planId: await planned(moved.deps) }),
+    ).rejects.toMatchObject({ code: "record-changed-on-instance" });
+  });
+
+  it("finds a record captured under the name the platform gave it", async () => {
+    const run = pushSetup();
+    run.tables["sys_script"] = (run.tables["sys_script"] ?? []).map((row) => ({
+      ...row,
+      sys_update_name: "sys_script_named_by_the_platform",
+    }));
+    const result = await push(run.deps, { ...QUERY, planId: await planned(run.deps) });
+    expect(result.notCaptured).toBe(0);
+    expect(run.tables["sys_update_xml"]?.map((row) => row["name"])).toEqual([
+      "sys_script_named_by_the_platform",
+    ]);
+  });
+});
+
+describe("push: a new application (ADR-0025)", () => {
+  const APP_ID = "abcdefabcdefabcdefabcdefabcdef12";
+  const SCOPE = "x_acme_access_rev";
+  const APP = `${SCOPE}/sys_app/access-review--${APP_ID}`;
+  const INCLUDE = `${SCOPE}/sys_script_include/generator--${"9".repeat(32)}`;
+
+  it("creates the application first, in its scope's update set opened with its sys_id", async () => {
+    const application = record(
+      "sys_app",
+      APP_ID,
+      { name: "Access Review", scope: SCOPE, version: "1.0.0" },
+      undefined,
+      SCOPE,
+    );
+    const include = record(
+      "sys_script_include",
+      "9".repeat(32),
+      { name: "Gen" },
+      "var Gen;",
+      SCOPE,
+    );
+    const { deps, calls, tables } = pushSetup({
+      working: { ...setup().state.working, [APP]: application, [INCLUDE]: include },
+      changed: [`${RULE}.yaml`, `${INCLUDE}.yaml`, `${APP}.yaml`],
+    });
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    const child = tables["sys_update_set"]?.find((set) => set["name"]?.endsWith(`[${SCOPE}]`));
+    expect(child?.["application"]).toBe(APP_ID);
+    const scoped = calls.filter(
+      (call) => call.includes("sys_app ") || call.includes("sys_script_include"),
+    );
+    expect(scoped).toEqual([
+      "insert sys_app name,scope,sys_id,sys_scope,version",
+      "insert sys_script_include name,script,sys_id,sys_scope",
+    ]);
+    expect(calls).toContain("insert sys_user_preference name,user,value");
+    expect(
+      tables["sys_user_preference"]?.some((p) => p["name"] === `updateSetForScope${APP_ID}`),
+    ).toBe(true);
+    expect(result.notCaptured).toBe(0);
+    // The platform creates records in the current application, whatever sys_scope says.
+    expect(tables["sys_script_include"]?.[0]?.["sys_scope"]).toBe(APP_ID);
+    const current = tables["sys_user_preference"]?.find((p) => p["name"] === "apps.current_app");
+    expect(current?.["value"]).toBe("");
+  });
+});
+
+describe("push: update sets in their application", () => {
+  it("stops before writing when the instance creates a scope's update set elsewhere", async () => {
+    const scoped = record(
+      "sys_script_include",
+      "9".repeat(32),
+      { name: "Gen" },
+      "var Gen;",
+      "x_acme",
+    );
+    const path = `x_acme/sys_script_include/gen--${"9".repeat(32)}`;
+    const { deps, calls, tables } = pushSetup({
+      working: { ...setup().state.working, [path]: scoped },
+      changed: [`${RULE}.yaml`, `${path}.yaml`],
+    });
+    const writer = deps.writer;
+    // An instance that keeps new update sets in global whatever the current application.
+    const stubborn = {
+      ...writer,
+      insert: async (
+        table: string,
+        values: Readonly<Record<string, string>>,
+        signal: AbortSignal,
+      ) => {
+        const row = await writer.insert(table, values, signal);
+        if (table === "sys_update_set") {
+          tables["sys_update_set"] = (tables["sys_update_set"] ?? []).map((set) =>
+            set["sys_id"] === row["sys_id"] ? { ...set, application: "global" } : set,
+          );
+        }
+        return row;
+      },
+    };
+    const run = {
+      ...deps,
+      writer: stubborn,
+      catalog: { parents: {}, scopes: { a1: "x_acme" }, typedFields: {} },
+    };
+    await expect(push(run, { ...QUERY, planId: await planned(run) })).rejects.toMatchObject({
+      code: "update-set-scope",
+    });
+    expect(calls.some((call) => call.includes("sys_script_include"))).toBe(false);
+  });
+});
+
+describe("push: the user's preferences", () => {
+  it("makes each scope's application current while writing it, then restores it", async () => {
+    const { deps, tables } = pushSetup();
+    tables["sys_user_preference"] = [
+      { sys_id: "app1", user: "u1", name: "apps.current_app", value: "some_other_app" },
+    ];
+    await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(tables["sys_update_xml"]?.[0]?.["update_set"]).toBe("s2");
+    expect(tables["sys_user_preference"]?.find((p) => p["sys_id"] === "app1")?.["value"]).toBe(
+      "some_other_app",
+    );
+  });
+
+  it("restores a preference the instance replaced while the push ran, by user and name", async () => {
+    const { deps, tables, journal } = pushSetup();
+    const writer = deps.writer;
+    const replacing = {
+      ...writer,
+      update: async (
+        table: string,
+        sysId: string,
+        values: Readonly<Record<string, string>>,
+        signal: AbortSignal,
+      ) => {
+        if (table === "sys_script") {
+          // The platform swaps the preference row for another one.
+          tables["sys_user_preference"] = (tables["sys_user_preference"] ?? []).map((p) =>
+            p["name"] === "sys_update_set" ? { ...p, sys_id: "replaced" } : p,
+          );
+        }
+        return writer.update(table, sysId, values, signal);
+      },
+    };
+    await push({ ...deps, writer: replacing }, { ...QUERY, planId: await planned(deps) });
+    expect(tables["sys_user_preference"]?.find((p) => p["sys_id"] === "replaced")?.["value"]).toBe(
+      "",
+    );
+    expect(journal.current).toBeNull();
+  });
+
+  it("reports the write that failed, even when restoring a preference fails too", async () => {
+    const { deps, journal } = pushSetup();
+    const writer = deps.writer;
+    const failing = {
+      ...writer,
+      update: async (
+        table: string,
+        sysId: string,
+        values: Readonly<Record<string, string>>,
+        signal: AbortSignal,
+      ) => {
+        if (table === "sys_script") {
+          throw new Error("the write failed");
+        }
+        if (table === "sys_user_preference" && values["value"] === "") {
+          throw new Error("restoring failed");
+        }
+        return writer.update(table, sysId, values, signal);
+      },
+    };
+    await expect(
+      push({ ...deps, writer: failing }, { ...QUERY, planId: await planned(deps) }),
+    ).rejects.toThrow("the write failed");
+    // What was not restored stays in the journal, for the next push to restore.
+    expect(journal.current?.preferences.length).toBeGreaterThan(0);
   });
 });

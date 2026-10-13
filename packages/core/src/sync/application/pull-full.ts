@@ -3,6 +3,7 @@ import { classesToPull } from "../domain/pull-scope";
 import type { SyncState, SyncStateStore } from "../ports";
 import { fetchCatalog } from "./fetch-catalog";
 import { fetchFingerprints } from "./fetch-fingerprints";
+import { pullApplications } from "./pull-applications";
 import { pullChildren } from "./pull-children";
 import { type PullDependencies, type PullProgress, rawTimestamp } from "./pull-dependencies";
 import { inventorySignatures, pullOperational } from "./pull-operational";
@@ -54,6 +55,7 @@ export async function pullFull(
   await deps.state.writeCheckpoint(checkpoint);
   const classes = classesToPull(catalog);
   const records = await pullRecords(deps, catalog, classes, checkpoint, signal, progress);
+  const applications = await pullApplications(deps, catalog, signal);
   const recordsSeconds = clock.lap();
   progress({ message: "child rows" });
   const children = await pullChildren(deps, catalog, signal);
@@ -61,13 +63,19 @@ export async function pullFull(
   progress({ message: "operational inventory" });
   const operational = await pullOperational(deps, signal);
   const operationalSeconds = clock.lap();
+  const unreadable = [
+    ...records.unreadable,
+    ...applications.unreadable,
+    ...children.unreadable,
+    ...operational.unreadable,
+  ];
   return {
     next: {
       watermark: checkpoint.startedAt,
       lastFullPull: checkpoint.startedAt,
       fingerprints: checkpoint.fingerprints ?? {},
       inventory: checkpoint.inventory ?? {},
-      unreadable: [...records.unreadable, ...children.unreadable, ...operational.unreadable],
+      unreadable,
     },
     classes: classes.length,
     resumedClasses: checkpoint.completedClasses.length,
@@ -76,7 +84,7 @@ export async function pullFull(
     childRows: children.childRows,
     orphanChildRows: children.orphanChildRows,
     operationalRows: operational.operationalRows,
-    unreadable: [...records.unreadable, ...children.unreadable, ...operational.unreadable],
+    unreadable,
     watermark: checkpoint.startedAt,
     phaseSeconds: {
       catalog: catalogSeconds,

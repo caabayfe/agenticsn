@@ -1,6 +1,7 @@
 import {
   AccessDeniedError,
   type ConnectionStats,
+  InstanceError,
   type InstanceReader,
   type InstanceWriter,
   type PluginActivator,
@@ -90,10 +91,12 @@ export function evaluate(rows: readonly Row[], query: string, limit: number): Ro
 
 // Applies writes to the tables. Like the platform, a change to a record (not to an update set
 // or a preference) is captured in the user's current update set; `capture.on` turns it off.
+// `name` decides the update set entry a write lands in, as the platform does (a form section's
+// fields are recorded as the section); by default the row's sys_update_name or <table>_<sys_id>.
 export function memoryWriter(
   tables: Record<string, Row[]>,
   writes: string[],
-  capture = { on: true },
+  capture: { on: boolean; name?: (table: string, row: Row) => string } = { on: true },
 ) {
   let created = 0;
   // As the platform does: a scoped record goes to the user's update set for its scope.
@@ -105,17 +108,35 @@ export function memoryWriter(
   };
   const captureFor = (table: string, sysId: string, scope: string) => {
     if (capture.on && !["sys_user_preference", "sys_update_set"].includes(table)) {
-      const row = { sys_id: `x${sysId}`, name: `${table}_${sysId}`, update_set: current(scope) };
+      const written = (tables[table] ?? []).find((r) => r["sys_id"] === sysId) ?? {};
+      const name =
+        capture.name?.(table, written) ?? written["sys_update_name"] ?? `${table}_${sysId}`;
+      const row = { sys_id: `x${sysId}`, name, update_set: current(scope) };
       tables["sys_update_xml"] = [...(tables["sys_update_xml"] ?? []), row];
     }
   };
+  // As the platform does: an insert ignores the sys_scope it is given and lands in the user's
+  // current application; an application is its own scope.
+  const currentApplication = () =>
+    (tables["sys_user_preference"] ?? []).find((row) => row["name"] === "apps.current_app")?.[
+      "value"
+    ] || "global";
+  const PLUMBING = ["sys_user_preference", "sys_update_set"];
   const writer: InstanceWriter = {
     insert: async (table, values) => {
       created += 1;
-      const row = { sys_id: values["sys_id"] ?? `new${created}`, ...values };
+      const sysId = values["sys_id"] ?? `new${created}`;
+      const scope = table === "sys_app" ? sysId : currentApplication();
+      // An update set, too, is created in the current application, whatever it is sent.
+      const row: Row =
+        table === "sys_update_set"
+          ? { sys_id: sysId, ...values, application: currentApplication() }
+          : PLUMBING.includes(table)
+            ? { sys_id: sysId, ...values }
+            : { sys_id: sysId, ...values, sys_scope: scope };
       tables[table] = [...(tables[table] ?? []), row];
       writes.push(`insert ${table} ${Object.keys(values).sort().join(",")}`);
-      captureFor(table, row.sys_id, values["sys_scope"] ?? "");
+      captureFor(table, sysId, row["sys_scope"] ?? "");
       return row;
     },
     update: async (table, sysId, values) => {
@@ -138,7 +159,13 @@ export function memoryWriter(
 
 // An in-memory instance. Rows of metadata classes are stored under their class and also
 // answer queries on sys_metadata, as the real instance does.
-export function fakeInstance(tables: Record<string, Row[]>, denied: readonly string[] = []) {
+// `slow` tables time out on aggregate requests, as a busy instance does (HTTP 500, maximum
+// execution time exceeded).
+export function fakeInstance(
+  tables: Record<string, Row[]>,
+  denied: readonly string[] = [],
+  slow: readonly string[] = [],
+) {
   const queries: TableQuery[] = [];
   const fingerprints: string[] = [];
   // Plugin activations started, by plugin id. Activations succeed at once unless told otherwise.
@@ -182,6 +209,9 @@ export function fakeInstance(tables: Record<string, Row[]>, denied: readonly str
       return evaluate(rowsOf(table), query, Number.MAX_SAFE_INTEGER).length;
     },
     countBy: async (table: TableName, field: string, _signal?: AbortSignal, query = "") => {
+      if (slow.includes(String(table))) {
+        throw new InstanceError(`counts of ${table} by ${field}: maximum execution time exceeded`);
+      }
       counted.push(`${table} by ${field}${query === "" ? "" : ` where ${query}`}`);
       const counts = new Map<string, number>();
       for (const row of evaluate(rowsOf(table), query, Number.MAX_SAFE_INTEGER)) {

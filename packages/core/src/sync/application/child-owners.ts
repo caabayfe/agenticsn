@@ -1,6 +1,7 @@
 import { TableName } from "../../kernel/table-name";
 import { CHILD_TABLES, type ChildTable, ownerOfBase } from "../domain/pull-scope";
 import type { IncrementalDependencies } from "./incremental-dependencies";
+import { tableIds } from "./pull-children";
 
 // Which mirrored record owns the child rows whose parent field holds a given key, and which
 // keys belong to a record. The key is usually the record's own sys_id; for tables owned
@@ -11,10 +12,37 @@ export interface ChildOwners {
   keysOf(base: string): readonly string[];
 }
 
+// Rows keyed by table name (choices): each table's record owns the rows that name it.
+async function tableNameOwners(
+  deps: IncrementalDependencies,
+  signal: AbortSignal,
+): Promise<ChildOwners> {
+  const byName = new Map<string, string>();
+  const names = new Map<string, string>();
+  for (const [name, sysId] of await tableIds(deps, signal)) {
+    const base = deps.records.baseOf(deps.metadataRoot, sysId);
+    if (base !== undefined && name !== "") {
+      byName.set(name, base);
+      names.set(base, name);
+    }
+  }
+  return {
+    baseOf: (key) => byName.get(key),
+    keysOf: (base) => {
+      const name = names.get(base);
+      return name === undefined ? [] : [name];
+    },
+  };
+}
+
 export async function childOwners(
   deps: IncrementalDependencies,
   child: ChildTable,
+  signal: AbortSignal,
 ): Promise<ChildOwners> {
+  if (child.ownedByTableName === true) {
+    return tableNameOwners(deps, signal);
+  }
   const root = deps.metadataRoot;
   const earlier = CHILD_TABLES.slice(0, CHILD_TABLES.indexOf(child)).map((table) => table.table);
   const rows =

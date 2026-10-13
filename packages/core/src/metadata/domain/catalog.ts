@@ -52,6 +52,14 @@ export class Catalog {
     return found?.[0] ?? null;
   }
 
+  // The same catalog, knowing one more scope (an application listed before the catalog saw it).
+  withScope(scopeSysId: string, namespace: string): Catalog {
+    return new Catalog({
+      ...this.data,
+      scopes: { ...this.data.scopes, [scopeSysId]: namespace },
+    });
+  }
+
   knowsScope(scopeSysId: string): boolean {
     return scopeSysId === "" || scopeSysId === "global" || scopeSysId in this.data.scopes;
   }

@@ -10,25 +10,24 @@ import {
   UnfinishedPushError,
 } from "../domain/errors";
 import type {
-  ElevatedSession,
   ElevatedSessions,
   InstanceWriter,
   PullRequests,
   PushJournal,
   PushJournalStore,
+  SwitchedPreference,
 } from "../ports";
-import { elevatedSessionFor, ensureElevationAvailable } from "./elevated-writes";
+import { ensureElevationAvailable } from "./elevated-writes";
 import { computePlan, type PlanDependencies, type PlanQuery } from "./plan-push";
 import { type PullRequestOutcome, pullRequestFor } from "./pull-request";
+import { settle, switchFor } from "./push-preferences";
+import { pushScope } from "./push-scope";
 import {
   captured,
   type InstanceSession,
   openBatch,
-  openChild,
   restorePreference,
-  switchPreference,
   userSysId,
-  writeRecord,
 } from "./push-steps";
 
 export interface PushDependencies extends PlanDependencies {
@@ -91,64 +90,16 @@ async function recover(deps: PushDependencies, session: InstanceSession): Promis
   if (unfinished === null) {
     return;
   }
-  if (unfinished.preference !== null) {
-    await restorePreference(session, unfinished.preference);
-    await deps.journal.write({ ...unfinished, preference: null });
+  if (unfinished.preferences.length > 0) {
+    for (const preference of [...unfinished.preferences].reverse()) {
+      await restorePreference(session, preference);
+    }
+    await deps.journal.write({ ...unfinished, preferences: [] });
   }
   if ((await deps.workspace.mirrorCommit()) === unfinished.mirrorCommit) {
     throw new UnfinishedPushError(unfinished.planId);
   }
   await deps.journal.clear();
-}
-
-async function pushScope(
-  deps: PushDependencies,
-  session: InstanceSession,
-  journal: { current: PushJournal },
-  scope: { name: string; id: string; setId: string; user: string; writes: readonly PlannedWrite[] },
-  catalog: Catalog,
-) {
-  const preferenceName = scope.id === "global" ? "sys_update_set" : `updateSetForScope${scope.id}`;
-  const preference = await switchPreference(session, scope.user, preferenceName, scope.setId);
-  const save = (next: PushJournal) => {
-    journal.current = next;
-    return deps.journal.write(next);
-  };
-  await save({ ...journal.current, preference });
-  let elevated: ElevatedSession | null = null;
-  try {
-    elevated = await elevatedSessionFor(
-      deps.elevatedSessions,
-      scope.writes,
-      deps.username,
-      session.signal,
-    );
-    for (const write of scope.writes) {
-      const through =
-        elevated !== null && needsElevation(write.table)
-          ? { ...session, writer: elevated.writer }
-          : session;
-      const step = { operation: write.operation, table: write.table, sysId: write.sysId };
-      await save({
-        ...journal.current,
-        steps: [...journal.current.steps, { ...step, state: "sending" }],
-      });
-      await writeRecord(through, catalog, write, scope.id, journal.current.steps.length - 1);
-      await save({
-        ...journal.current,
-        steps: journal.current.steps.map((s) =>
-          s.sysId === write.sysId ? { ...s, state: "written" } : s,
-        ),
-      });
-    }
-  } finally {
-    try {
-      await elevated?.close();
-    } finally {
-      await restorePreference(session, preference);
-      await save({ ...journal.current, preference: null });
-    }
-  }
 }
 
 // Everything checked before the first write: confirmation, an interrupted push, and the plan
@@ -169,53 +120,71 @@ async function preflight(deps: PushDependencies, query: PushQuery, session: Inst
   return planned;
 }
 
-// The update set for each scope's writes: the batch for global, otherwise its child.
-async function updateSetsFor(
-  deps: PushDependencies,
-  session: InstanceSession,
-  plan: { readonly label: string; readonly scopes: readonly string[]; readonly pr?: string },
-  catalog: Catalog,
-) {
-  const link = (set: { sysId: string }) => `${deps.url}/sys_update_set.do?sys_id=${set.sysId}`;
-  const opened = await openBatch(session, plan.label, plan.pr);
-  const batch = { ...opened, link: link(opened) };
-  const sets: (OpenedUpdateSet & { scope: string; id: string })[] = [];
-  for (const scope of plan.scopes) {
-    const id = catalog.scopeSysId(scope) ?? scope;
-    const set =
-      scope === GLOBAL
-        ? batch
-        : await openChild(session, plan.label, { name: scope, id }, batch.sysId);
-    sets.push({ scope, id, ...set, link: link(set) });
-  }
-  return { batch, sets };
+// A scope's sys_id: known from the last pull, or the sys_id of the application this push
+// creates for it (ADR-0025), so its update set can be opened before the application exists.
+function scopeId(catalog: Catalog, scope: string, writes: readonly PlannedWrite[]): string {
+  const created = writes.find(
+    (write) => write.table === "sys_app" && write.operation === "create" && write.scope === scope,
+  );
+  return catalog.scopeSysId(scope) ?? created?.sysId ?? scope;
 }
 
-// Each scope's writes into its update set, each checked for capture afterwards.
+// The branch's batch, a global update set: opened while global is the current application,
+// as the platform creates an update set in the current application (ADR-0025).
+async function openGlobalBatch(
+  deps: PushDependencies,
+  session: InstanceSession,
+  journal: { current: PushJournal },
+  run: { readonly label: string; readonly user: string; readonly pr: string | undefined },
+): Promise<OpenedUpdateSet> {
+  const save = (preferences: readonly SwitchedPreference[]) => {
+    journal.current = { ...journal.current, preferences };
+    return deps.journal.write(journal.current);
+  };
+  const current = { user: run.user, name: "apps.current_app", value: GLOBAL };
+  try {
+    await switchFor(session, current, journal, save);
+    const opened = await openBatch(session, run.label, run.pr);
+    return { ...opened, link: `${deps.url}/sys_update_set.do?sys_id=${opened.sysId}` };
+  } catch (error) {
+    await settle(session, null, journal, save).catch(() => {});
+    throw error;
+  }
+}
+
+// Each scope's writes into its update set (the batch for global, otherwise its child), each
+// checked for capture afterwards.
 async function writeAll(
   deps: PushDependencies,
   session: InstanceSession,
   journal: { current: PushJournal },
   run: {
-    readonly sets: readonly { id: string; scope: string; sysId: string }[];
+    readonly label: string;
+    readonly batch: OpenedUpdateSet;
     readonly writes: readonly PlannedWrite[];
     readonly user: string;
   },
   catalog: Catalog,
 ) {
+  const link = (set: { sysId: string }) => `${deps.url}/sys_update_set.do?sys_id=${set.sysId}`;
   const written: PushResult["written"][number][] = [];
-  for (const { id, scope, sysId } of run.sets) {
+  const updateSets: PushResult["updateSets"][number][] = [];
+  for (const scope of [...new Set(run.writes.map((w) => w.scope))].sort()) {
     const scoped = run.writes.filter((w) => w.scope === scope);
-    const target = { name: scope, id, setId: sysId, user: run.user, writes: scoped };
-    await pushScope(deps, session, journal, target, catalog);
+    const target = { name: scope, id: scopeId(catalog, scope, run.writes), user: run.user };
+    const set = await pushScope(
+      { deps, session, journal, catalog },
+      { ...target, writes: scoped, label: run.label, batch: run.batch },
+    );
+    updateSets.push({ scope, ...set, link: link(set) });
     for (const write of scoped) {
       const { operation, table, sysId: record, path } = write;
-      const done = await captured(session, write, sysId);
+      const done = await captured(session, write, set.sysId);
       const elevated = needsElevation(table);
       written.push({ operation, table, sysId: record, path, captured: done, elevated });
     }
   }
-  return written;
+  return { written, updateSets };
 }
 
 // Writes a reviewed plan to the development instance, into the branch's batch of update sets.
@@ -234,22 +203,27 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
       planId: plan.planId,
       mirrorCommit: plan.mirrorCommit,
       startedAt: deps.now().toISOString(),
-      preference: null,
+      preferences: [],
       steps: [],
     },
   };
   await deps.journal.write(journal.current);
-  const scopes = [...new Set(writes.map((w) => w.scope))].sort();
-  const pr = "url" in pullRequest ? { pr: pullRequest.url } : {};
-  const { batch, sets } = await updateSetsFor(deps, session, { ...plan, scopes, ...pr }, catalog);
-  const written = await writeAll(deps, session, journal, { sets, writes, user }, catalog);
+  const pr = "url" in pullRequest ? pullRequest.url : undefined;
+  const batch = await openGlobalBatch(deps, session, journal, { label: plan.label, user, pr });
+  const { written, updateSets } = await writeAll(
+    deps,
+    session,
+    journal,
+    { label: plan.label, batch, writes, user },
+    catalog,
+  );
   await deps.journal.clear();
   return {
     instance: query.instance,
     planId: plan.planId,
     batch,
     pullRequest,
-    updateSets: sets.map(({ id, ...set }) => set),
+    updateSets,
     written,
     notCaptured: written.filter((w) => !w.captured).length,
     next: [

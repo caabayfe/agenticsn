@@ -44,6 +44,8 @@ export interface State {
   changed: string[];
   integrated: boolean;
   texts: Record<string, string>;
+  // Child-row files (ADR-0025) as last pulled and in the working tree.
+  documents: { mirror: Record<string, unknown>; working: Record<string, unknown> };
   waivers: unknown;
   waiversUncommitted: boolean;
   // Files with changes not committed on the branch, relative to the metadata root.
@@ -67,6 +69,8 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
         (base) => base.slice(0, base.lastIndexOf("/")) === folder,
       ),
     text: async (path) => state.texts[path] ?? null,
+    document: async (path, at) =>
+      (at === null ? state.documents.working : state.documents.mirror)[path] ?? null,
     waivers: async () => ({ committed: state.waivers, uncommitted: state.waiversUncommitted }),
     uncommittedFiles: async () => state.uncommitted,
     publishBranch: async (branch) => {
@@ -134,6 +138,7 @@ export function setup(overrides: Partial<State> = {}, held: Record<string, unkno
     changed: [`${RULE}.yaml`],
     integrated: true,
     texts: {},
+    documents: { mirror: {}, working: {} },
     waivers: null,
     waiversUncommitted: false,
     uncommitted: [],

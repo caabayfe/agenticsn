@@ -7,8 +7,12 @@ import type { Catalog } from "../../metadata/domain/catalog";
 import { DEFAULT_REDACTION } from "../../metadata/domain/redaction";
 import { batchDescription, batchName, GLOBAL, updateSetName } from "../domain/batch";
 import type { PlannedWrite } from "../domain/change";
-import { IntegrationUserNotFoundError, RecordChangedOnInstanceError } from "../domain/errors";
-import type { InstanceWriter, PushJournal } from "../ports";
+import {
+  IntegrationUserNotFoundError,
+  RecordChangedOnInstanceError,
+  UpdateSetScopeError,
+} from "../domain/errors";
+import type { InstanceWriter, SwitchedPreference } from "../ports";
 
 export interface InstanceSession {
   readonly reader: InstanceReader;
@@ -90,7 +94,28 @@ export async function openChild(
     },
     session.signal,
   );
-  return { sysId: created["sys_id"] ?? "", name, created: true };
+  const sysId = created["sys_id"] ?? "";
+  // The platform creates an update set in the user's current application, whatever it is
+  // sent: push makes the scope's application current first, and checks.
+  const stored = await first(session, "sys_update_set", `sys_id=${sysId}`, ["application"]);
+  if (stored?.["application"] !== scope.id) {
+    throw new UpdateSetScopeError(name, scope.name);
+  }
+  return { sysId, name, created: true };
+}
+
+// Moves a record's update into an update set: a new application is written before its
+// scope's update set can exist in it, so its update lands elsewhere first (ADR-0025).
+export async function moveUpdate(
+  session: InstanceSession,
+  name: string,
+  updateSet: string,
+): Promise<void> {
+  const update = await first(session, "sys_update_xml", `name=${name}`, ["sys_id", "update_set"]);
+  if (update !== null && update["update_set"] !== updateSet) {
+    const sysId = update["sys_id"] ?? "";
+    await session.writer.update("sys_update_xml", sysId, { update_set: updateSet }, session.signal);
+  }
 }
 
 // Makes `value` the user's current update set for the scope, returning what to restore.
@@ -99,7 +124,7 @@ export async function switchPreference(
   user: string,
   name: string,
   value: string,
-): Promise<NonNullable<PushJournal["preference"]>> {
+): Promise<SwitchedPreference> {
   const existing = await first(session, "sys_user_preference", `user=${user}^name=${name}`, [
     "sys_id",
     "value",
@@ -107,7 +132,7 @@ export async function switchPreference(
   if (existing !== null) {
     const sysId = existing["sys_id"] ?? "";
     await session.writer.update("sys_user_preference", sysId, { value }, session.signal);
-    return { sysId, name, previousValue: existing["value"] ?? "" };
+    return { sysId, user, name, previousValue: existing["value"] ?? "" };
   }
   const created = await session.writer.insert(
     "sys_user_preference",
@@ -115,19 +140,51 @@ export async function switchPreference(
     session.signal,
   );
   // A preference that did not exist is restored as empty: the platform then uses the default.
-  return { sysId: created["sys_id"] ?? "", name, previousValue: "" };
+  return { sysId: created["sys_id"] ?? "", user, name, previousValue: "" };
 }
 
+// Puts a preference back. The instance may replace the row while push runs: it is then found
+// again by user and name; when it is gone, there is nothing left to restore.
 export async function restorePreference(
   session: InstanceSession,
-  preference: NonNullable<PushJournal["preference"]>,
+  preference: SwitchedPreference,
 ): Promise<void> {
-  await session.writer.update(
-    "sys_user_preference",
-    preference.sysId,
-    { value: preference.previousValue },
-    session.signal,
-  );
+  const value = { value: preference.previousValue };
+  try {
+    await session.writer.update("sys_user_preference", preference.sysId, value, session.signal);
+  } catch (error) {
+    const query = `user=${preference.user}^name=${preference.name}`;
+    const row = await first(session, "sys_user_preference", query, ["sys_id"]);
+    if (row === null) {
+      return;
+    }
+    if (row["sys_id"] === preference.sysId) {
+      throw error;
+    }
+    await session.writer.update("sys_user_preference", row["sys_id"] ?? "", value, session.signal);
+  }
+}
+
+// One child row (ADR-0025): refuse if the row moved on since the pull, then write it.
+async function writeRow(session: InstanceSession, write: PlannedWrite, written: number) {
+  const fields = ["sys_id", "sys_mod_count", "sys_updated_on"];
+  const current = await first(session, write.table, `sys_id=${write.sysId}`, fields);
+  const version =
+    current === null
+      ? null
+      : `${current["sys_mod_count"] ?? ""}|${current["sys_updated_on"] ?? ""}`;
+  if (write.operation === "create" ? current !== null : version !== write.baseHash) {
+    throw new RecordChangedOnInstanceError(write.path, written);
+  }
+  if (write.operation === "create") {
+    await session.writer.insert(
+      write.table,
+      { ...write.values, sys_id: write.sysId },
+      session.signal,
+    );
+  } else {
+    await session.writer.update(write.table, write.sysId, write.values, session.signal);
+  }
 }
 
 // One record: refuse if the instance's copy moved on since the pull, then write.
@@ -138,6 +195,9 @@ export async function writeRecord(
   scopeId: string,
   written: number,
 ): Promise<void> {
+  if (write.owner !== null) {
+    return writeRow(session, write, written);
+  }
   const current: Row | null = await first(session, write.table, `sys_id=${write.sysId}`, "all");
   if (write.operation === "create") {
     if (current !== null) {
@@ -158,12 +218,24 @@ export async function writeRecord(
   await session.writer.update(write.table, write.sysId, write.values, session.signal);
 }
 
+// The update set entry a write lands in: named by the platform, after the record itself or,
+// for a child row, the record that owns it (a list is sys_ui_list_<table>_<view>).
+async function updateNameOf(session: InstanceSession, write: PlannedWrite): Promise<string> {
+  if (write.updateName !== null) {
+    return write.updateName;
+  }
+  const { table, sysId } = write.owner ?? write;
+  const row = await first(session, table, `sys_id=${sysId}`, ["sys_update_name"]);
+  const name = row?.["sys_update_name"] ?? "";
+  return name === "" ? `${table}_${sysId}` : name;
+}
+
 // The platform recorded the write in the target update set.
 export async function captured(
   session: InstanceSession,
   write: PlannedWrite,
   updateSet: string,
 ): Promise<boolean> {
-  const query = `name=${write.table}_${write.sysId}^update_set=${updateSet}`;
+  const query = `name=${await updateNameOf(session, write)}^update_set=${updateSet}`;
   return (await first(session, "sys_update_xml", query, ["sys_id"])) !== null;
 }

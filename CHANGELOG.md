@@ -4,6 +4,51 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-13
+
+### Added
+
+- Choice lists are mirrored and pushed. Pull writes a table's choices beside its table record
+  (`<table>.children.sys_choice.yaml`); the first pull after upgrading reads them all. Push
+  creates new choices and updates changed ones (ADR-0025).
+- Form and list layouts are pushed: rows of `sys_ui_element`, `sys_ui_list_element`,
+  `sys_ui_form_section` and `sys_ui_related_list_entry` can be added and changed in their
+  owner's file, and push writes them after the owner. A table built by an agent can ship with
+  its choices, form and list. Removed rows are refused with the way to retire them.
+- Scoped applications are created from files: add a `sys_app` record in the new scope's
+  folder and push writes it first, in the scope's update set, then the application's other
+  records. Pull mirrors custom applications as records of their own scope, and keeps the
+  vendor prefix (`glide.appcreator.company.code`) so agents can name the scope.
+- Agents may edit those five child-row files; flow, workflow and variable-value rows stay
+  read-only.
+
+### Fixed
+
+- Push creates records in their own application. The Table API ignores the `sys_scope` an
+  insert is sent and uses the user's current application, so a new record in a scoped app was
+  created in global (tables renamed `u_...`). Push now makes each scope's application current
+  while writing it, and restores the user's current application and update set afterwards.
+- Push opens each update set in its own application. The instance creates an update set in
+  the user's current application and will not move it afterwards, so a scope's child update
+  set was created as global and its writes fell into the application's Default update set.
+  Push now makes global current to open the batch, and each scope's application current to
+  open its child, checks the result, and stops before writing anything when it is wrong. A new
+  application is written first, as its update set can only be created once it exists, and its
+  update is moved into that update set.
+- A push that fails reports the write that failed; a preference it could not restore stays in
+  the push journal and is restored by the next push. A preference the instance replaced while
+  the push ran is found again by user and name.
+- A pull goes on when an inventory signal times out on a busy instance (seen on pdi2: the
+  plugin count exceeded the instance's maximum execution time). That source counts as
+  unchanged, keeps its last signature and is checked again by the next pull.
+- An ACL's roles are counted however the YAML quotes the reference, so `validate` no longer
+  blocks an ACL whose role records were written with quoted values.
+- Push checks capture under the update name the platform gives a record. A list
+  (`sys_ui_list_<table>_<view>`) and other records not named `<table>_<sys_id>` were reported
+  as not captured.
+- Integrate takes the instance's child-row file when it confirms every row added or changed
+  here, and moves a record's child files with it only when they are confirmed.
+
 ## [1.4.1] - 2026-10-13
 
 ### Fixed

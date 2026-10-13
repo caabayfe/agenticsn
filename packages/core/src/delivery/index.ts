@@ -26,6 +26,7 @@ export {
   type PlannedWrite,
   type PlanProblem,
 } from "./domain/change";
+export { childRowChanges, type RowOwner } from "./domain/child-rows";
 export {
   BranchNotPublishedError,
   ElevatedUserMismatchError,
@@ -41,6 +42,7 @@ export {
   RecordChangedOnInstanceError,
   UncommittedPlannedChangesError,
   UnfinishedPushError,
+  UpdateSetScopeError,
 } from "./domain/errors";
 export { type GateFinding, type GateResult, gateOf, planId } from "./domain/gate";
 export {

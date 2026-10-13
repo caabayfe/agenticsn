@@ -11,9 +11,17 @@ export class JsonPushJournalStore implements PushJournalStore {
     this.path = join(directory, "push-journal.json");
   }
 
+  // Journals written before 1.5 hold one preference, without its user.
   async read(): Promise<PushJournal | null> {
     const text = await readFile(this.path, "utf8").catch(() => null);
-    return text === null ? null : JSON.parse(text);
+    if (text === null) {
+      return null;
+    }
+    const { preference, preferences, ...journal } = JSON.parse(text);
+    return {
+      ...journal,
+      preferences: preferences ?? (preference ? [{ user: "", ...preference }] : []),
+    };
   }
 
   async write(journal: PushJournal): Promise<void> {

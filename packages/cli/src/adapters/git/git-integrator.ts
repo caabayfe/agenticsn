@@ -10,6 +10,7 @@ import {
   SnagenticError,
 } from "@snagentic/core";
 import { fromYamlStrings } from "../yaml/own-style";
+import { childFilesConfirmed, takeConfirmedRows } from "./confirmed-rows";
 import { runGit, runGitOrThrow } from "./run-git";
 
 class IntegrationBlockedError extends SnagenticError {
@@ -152,7 +153,10 @@ async function takeRelocated(
   const unresolved: string[] = [];
   for (const { local, mirror } of relocatedRecords(await added("HEAD"), await added(branch))) {
     const [mine, theirs] = [`${metadata}/${local}`, `${metadata}/${mirror}`];
-    if (instanceConfirms(await read("HEAD", mine), await read(branch, theirs))) {
+    if (
+      instanceConfirms(await read("HEAD", mine), await read(branch, theirs)) &&
+      (await childFilesConfirmed(root, { mine, theirs, branch }))
+    ) {
       await runGitOrThrow(["rm", "-q", "--", `${mine}.yaml`, `${mine}.*`], root);
       confirmed.push(`${theirs}.yaml`);
     } else {
@@ -238,8 +242,11 @@ async function merge(
   }
   const pushed = clean ? [] : await takeConfirmed(root, read, where);
   const moved = related ? await takeRelocated(root, read, where) : NOTHING_MOVED;
-  const confirmed = [...pushed, ...moved.confirmed];
-  const conflicts = lines(await runGitOrThrow(["diff", "--name-only", "--diff-filter=U"], root));
+  const unmerged = async () =>
+    lines(await runGitOrThrow(["diff", "--name-only", "--diff-filter=U"], root));
+  const rows = await takeConfirmedRows(root, branch, await unmerged());
+  const confirmed = [...pushed, ...moved.confirmed, ...rows];
+  const conflicts = await unmerged();
   if (conflicts.length > 0 || moved.unresolved.length > 0) {
     throw blocked(conflicts, moved.unresolved, confirmed.length);
   }

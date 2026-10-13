@@ -6,6 +6,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- An incremental pull reads the child rows of a record new to the mirror, though they are older
+  than it: choices created before their table, or layout rows before their section, were never
+  pulled. Only the child tables that record's class owns are asked (spec 006, B4).
 - After a scoped push, the user's global current update set is what it was. A scoped write
   makes the instance switch it to the scope's update set; push now takes and restores that
   preference too (found by spike S11 on pdi2).

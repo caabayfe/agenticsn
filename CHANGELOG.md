@@ -6,6 +6,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Push moves its own update into the batch when the instance recorded it in the application's
+  Default update set instead (seen on pdi2 while another session switched the user's
+  preferences). Only updates made by the pushing user are moved; one someone else made stays
+  where it is and is reported as not captured (spec 006, B5).
 - An incremental pull reads the child rows of a record new to the mirror, though they are older
   than it: choices created before their table, or layout rows before their section, were never
   pulled. Only the child tables that record's class owns are asked (spec 006, B4).

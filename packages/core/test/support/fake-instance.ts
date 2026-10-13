@@ -114,13 +114,24 @@ export function memoryWriter(
       tables["sys_update_xml"] = [...(tables["sys_update_xml"] ?? []), row];
     }
   };
+  // As the platform does: an insert ignores the sys_scope it is given and lands in the user's
+  // current application; an application is its own scope.
+  const currentApplication = () =>
+    (tables["sys_user_preference"] ?? []).find((row) => row["name"] === "apps.current_app")?.[
+      "value"
+    ] || "global";
+  const PLUMBING = ["sys_user_preference", "sys_update_set"];
   const writer: InstanceWriter = {
     insert: async (table, values) => {
       created += 1;
-      const row = { sys_id: values["sys_id"] ?? `new${created}`, ...values };
+      const sysId = values["sys_id"] ?? `new${created}`;
+      const scope = table === "sys_app" ? sysId : currentApplication();
+      const row: Row = PLUMBING.includes(table)
+        ? { sys_id: sysId, ...values }
+        : { sys_id: sysId, ...values, sys_scope: scope };
       tables[table] = [...(tables[table] ?? []), row];
       writes.push(`insert ${table} ${Object.keys(values).sort().join(",")}`);
-      captureFor(table, row.sys_id, values["sys_scope"] ?? "");
+      captureFor(table, sysId, row["sys_scope"] ?? "");
       return row;
     },
     update: async (table, sysId, values) => {

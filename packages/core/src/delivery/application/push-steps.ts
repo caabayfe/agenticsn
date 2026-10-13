@@ -8,7 +8,7 @@ import { DEFAULT_REDACTION } from "../../metadata/domain/redaction";
 import { batchDescription, batchName, GLOBAL, updateSetName } from "../domain/batch";
 import type { PlannedWrite } from "../domain/change";
 import { IntegrationUserNotFoundError, RecordChangedOnInstanceError } from "../domain/errors";
-import type { InstanceWriter, PushJournal } from "../ports";
+import type { InstanceWriter, SwitchedPreference } from "../ports";
 
 export interface InstanceSession {
   readonly reader: InstanceReader;
@@ -99,7 +99,7 @@ export async function switchPreference(
   user: string,
   name: string,
   value: string,
-): Promise<NonNullable<PushJournal["preference"]>> {
+): Promise<SwitchedPreference> {
   const existing = await first(session, "sys_user_preference", `user=${user}^name=${name}`, [
     "sys_id",
     "value",
@@ -107,7 +107,7 @@ export async function switchPreference(
   if (existing !== null) {
     const sysId = existing["sys_id"] ?? "";
     await session.writer.update("sys_user_preference", sysId, { value }, session.signal);
-    return { sysId, name, previousValue: existing["value"] ?? "" };
+    return { sysId, user, name, previousValue: existing["value"] ?? "" };
   }
   const created = await session.writer.insert(
     "sys_user_preference",
@@ -115,19 +115,29 @@ export async function switchPreference(
     session.signal,
   );
   // A preference that did not exist is restored as empty: the platform then uses the default.
-  return { sysId: created["sys_id"] ?? "", name, previousValue: "" };
+  return { sysId: created["sys_id"] ?? "", user, name, previousValue: "" };
 }
 
+// Puts a preference back. The instance may replace the row while push runs: it is then found
+// again by user and name; when it is gone, there is nothing left to restore.
 export async function restorePreference(
   session: InstanceSession,
-  preference: NonNullable<PushJournal["preference"]>,
+  preference: SwitchedPreference,
 ): Promise<void> {
-  await session.writer.update(
-    "sys_user_preference",
-    preference.sysId,
-    { value: preference.previousValue },
-    session.signal,
-  );
+  const value = { value: preference.previousValue };
+  try {
+    await session.writer.update("sys_user_preference", preference.sysId, value, session.signal);
+  } catch (error) {
+    const query = `user=${preference.user}^name=${preference.name}`;
+    const row = await first(session, "sys_user_preference", query, ["sys_id"]);
+    if (row === null) {
+      return;
+    }
+    if (row["sys_id"] === preference.sysId) {
+      throw error;
+    }
+    await session.writer.update("sys_user_preference", row["sys_id"] ?? "", value, session.signal);
+  }
 }
 
 // One child row (ADR-0025): refuse if the row moved on since the pull, then write it.

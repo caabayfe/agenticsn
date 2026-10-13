@@ -121,12 +121,16 @@ describe("push", () => {
     });
     expect(calls).toEqual([
       "insert sys_user_preference name,user,value",
+      "insert sys_user_preference name,user,value",
       "update sys_script order=200",
+      "update sys_user_preference value=",
       "update sys_user_preference value=",
     ]);
     expect(tables["sys_script"]?.[0]?.["order"]).toBe("200");
     expect(journal.current).toBeNull();
-    expect(journal.history.some((j) => j.preference !== null && j.steps.length === 0)).toBe(true);
+    expect(journal.history.some((j) => j.preferences.length === 2 && j.steps.length === 0)).toBe(
+      true,
+    );
     expect(JSON.stringify(journal.history)).not.toContain('"200"');
   });
 
@@ -213,7 +217,7 @@ describe("push", () => {
       code: "record-changed-on-instance",
     });
     expect(calls.at(-1)).toBe("update sys_user_preference value=");
-    expect(journal.current).toMatchObject({ preference: null });
+    expect(journal.current).toMatchObject({ preferences: [] });
     // Until a pull shows what reached the instance, the next push refuses.
     await expect(push(deps, { ...QUERY, planId: await planned(deps) })).rejects.toMatchObject({
       code: "unfinished-push",
@@ -232,7 +236,7 @@ describe("push", () => {
       planId: "p",
       mirrorCommit: "c0ffee",
       startedAt: "t",
-      preference: { sysId: "pref1", name: "sys_update_set", previousValue: "mine" },
+      preferences: [{ sysId: "pref1", user: "u1", name: "sys_update_set", previousValue: "mine" }],
       steps: [],
     });
     deps.writer.update = async (table, sysId, values) => {
@@ -476,5 +480,77 @@ describe("push: a new application (ADR-0025)", () => {
       tables["sys_user_preference"]?.some((p) => p["name"] === `updateSetForScope${APP_ID}`),
     ).toBe(true);
     expect(result.notCaptured).toBe(0);
+    // The platform creates records in the current application, whatever sys_scope says.
+    expect(tables["sys_script_include"]?.[0]?.["sys_scope"]).toBe(APP_ID);
+    const current = tables["sys_user_preference"]?.find((p) => p["name"] === "apps.current_app");
+    expect(current?.["value"]).toBe("");
+  });
+});
+
+describe("push: the user's preferences", () => {
+  it("makes each scope's application current while writing it, then restores it", async () => {
+    const { deps, tables } = pushSetup();
+    tables["sys_user_preference"] = [
+      { sys_id: "app1", user: "u1", name: "apps.current_app", value: "some_other_app" },
+    ];
+    await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(tables["sys_update_xml"]?.[0]?.["update_set"]).toBe("s2");
+    expect(tables["sys_user_preference"]?.find((p) => p["sys_id"] === "app1")?.["value"]).toBe(
+      "some_other_app",
+    );
+  });
+
+  it("restores a preference the instance replaced while the push ran, by user and name", async () => {
+    const { deps, tables, journal } = pushSetup();
+    const writer = deps.writer;
+    const replacing = {
+      ...writer,
+      update: async (
+        table: string,
+        sysId: string,
+        values: Readonly<Record<string, string>>,
+        signal: AbortSignal,
+      ) => {
+        if (table === "sys_script") {
+          // The platform swaps the preference row for another one.
+          tables["sys_user_preference"] = (tables["sys_user_preference"] ?? []).map((p) =>
+            p["name"] === "sys_update_set" ? { ...p, sys_id: "replaced" } : p,
+          );
+        }
+        return writer.update(table, sysId, values, signal);
+      },
+    };
+    await push({ ...deps, writer: replacing }, { ...QUERY, planId: await planned(deps) });
+    expect(tables["sys_user_preference"]?.find((p) => p["sys_id"] === "replaced")?.["value"]).toBe(
+      "",
+    );
+    expect(journal.current).toBeNull();
+  });
+
+  it("reports the write that failed, even when restoring a preference fails too", async () => {
+    const { deps, journal } = pushSetup();
+    const writer = deps.writer;
+    const failing = {
+      ...writer,
+      update: async (
+        table: string,
+        sysId: string,
+        values: Readonly<Record<string, string>>,
+        signal: AbortSignal,
+      ) => {
+        if (table === "sys_script") {
+          throw new Error("the write failed");
+        }
+        if (table === "sys_user_preference" && values["value"] === "") {
+          throw new Error("restoring failed");
+        }
+        return writer.update(table, sysId, values, signal);
+      },
+    };
+    await expect(
+      push({ ...deps, writer: failing }, { ...QUERY, planId: await planned(deps) }),
+    ).rejects.toThrow("the write failed");
+    // What was not restored stays in the journal, for the next push to restore.
+    expect(journal.current?.preferences.length).toBeGreaterThan(0);
   });
 });

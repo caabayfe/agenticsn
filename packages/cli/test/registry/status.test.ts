@@ -118,7 +118,7 @@ describe("status and a push that stopped part way", () => {
     await git("commit", "-q", "--allow-empty", "-m", "pull");
     await git("branch", "servicenow-remote/pdi");
     const mirror = (await git("rev-parse", "servicenow-remote/pdi")).trim();
-    const journal = { planId: "p1", startedAt: "t", preference: null, steps: [] };
+    const journal = { planId: "p1", startedAt: "t", preferences: [], steps: [] };
     await ws.context
       .pushJournal(ws.root, InstanceName.parse("pdi"))
       .write({ ...journal, mirrorCommit: mirror });

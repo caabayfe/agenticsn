@@ -267,7 +267,7 @@ describe("computePlan", () => {
       planId: "p1",
       mirrorCommit: "c0ffee",
       startedAt: "t",
-      preference: null,
+      preferences: [],
       steps: [],
     };
     const { plan } = await computePlan(setup({ journal: stopped }).deps, QUERY);

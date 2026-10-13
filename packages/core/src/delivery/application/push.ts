@@ -16,10 +16,12 @@ import type {
   PullRequests,
   PushJournal,
   PushJournalStore,
+  SwitchedPreference,
 } from "../ports";
 import { elevatedSessionFor, ensureElevationAvailable } from "./elevated-writes";
 import { computePlan, type PlanDependencies, type PlanQuery } from "./plan-push";
 import { type PullRequestOutcome, pullRequestFor } from "./pull-request";
+import { settle, switchTo } from "./push-preferences";
 import {
   captured,
   type InstanceSession,
@@ -91,9 +93,11 @@ async function recover(deps: PushDependencies, session: InstanceSession): Promis
   if (unfinished === null) {
     return;
   }
-  if (unfinished.preference !== null) {
-    await restorePreference(session, unfinished.preference);
-    await deps.journal.write({ ...unfinished, preference: null });
+  if (unfinished.preferences.length > 0) {
+    for (const preference of [...unfinished.preferences].reverse()) {
+      await restorePreference(session, preference);
+    }
+    await deps.journal.write({ ...unfinished, preferences: [] });
   }
   if ((await deps.workspace.mirrorCommit()) === unfinished.mirrorCommit) {
     throw new UnfinishedPushError(unfinished.planId);
@@ -108,15 +112,15 @@ async function pushScope(
   scope: { name: string; id: string; setId: string; user: string; writes: readonly PlannedWrite[] },
   catalog: Catalog,
 ) {
-  const preferenceName = scope.id === "global" ? "sys_update_set" : `updateSetForScope${scope.id}`;
-  const preference = await switchPreference(session, scope.user, preferenceName, scope.setId);
   const save = (next: PushJournal) => {
     journal.current = next;
     return deps.journal.write(next);
   };
-  await save({ ...journal.current, preference });
+  const savePreferences = (preferences: readonly SwitchedPreference[]) =>
+    save({ ...journal.current, preferences });
   let elevated: ElevatedSession | null = null;
   try {
+    await switchTo(session, scope, savePreferences);
     elevated = await elevatedSessionFor(
       deps.elevatedSessions,
       scope.writes,
@@ -141,14 +145,12 @@ async function pushScope(
         ),
       });
     }
-  } finally {
-    try {
-      await elevated?.close();
-    } finally {
-      await restorePreference(session, preference);
-      await save({ ...journal.current, preference: null });
-    }
+  } catch (error) {
+    // The write that failed is what the user needs to see; a failed restore stays journaled.
+    await settle(session, elevated, journal, savePreferences).catch(() => {});
+    throw error;
   }
+  await settle(session, elevated, journal, savePreferences);
 }
 
 // Everything checked before the first write: confirmation, an interrupted push, and the plan
@@ -248,7 +250,7 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
       planId: plan.planId,
       mirrorCommit: plan.mirrorCommit,
       startedAt: deps.now().toISOString(),
-      preference: null,
+      preferences: [],
       steps: [],
     },
   };

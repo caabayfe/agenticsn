@@ -83,18 +83,22 @@ export interface ElevatedSessions {
   open(signal: AbortSignal): Promise<ElevatedSession>;
 }
 
+export interface SwitchedPreference {
+  readonly sysId: string;
+  readonly user: string;
+  readonly name: string;
+  readonly previousValue: string;
+}
+
 // What a push has done so far, written before every instance write, so an interrupted push
 // can be recovered: names and hashes only, never field values or credentials.
 export interface PushJournal {
   readonly planId: string;
   readonly mirrorCommit: string;
   readonly startedAt: string;
-  // The current-update-set preference while it is switched, to restore it.
-  readonly preference: {
-    readonly sysId: string;
-    readonly name: string;
-    readonly previousValue: string;
-  } | null;
+  // The user's preferences push switched (current update set, current application), still to
+  // be restored.
+  readonly preferences: readonly SwitchedPreference[];
   readonly steps: readonly {
     readonly operation: string;
     readonly table: string;

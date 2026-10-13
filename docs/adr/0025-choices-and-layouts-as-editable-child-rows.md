@@ -84,6 +84,12 @@ showed these two gaps block a best-practice data model before anything else.
      scope's update set with the application's sys_id before the application exists, and makes
      it the current update set for that scope, so the application record itself is captured
      in the batch with the rest of the scope's records.
+   - The Table API ignores the `sys_scope` an insert is sent: the platform creates the record in
+     the user's current application. Found live on pdi2, where a first push created the
+     application's tables in global (renamed `u_x_...`). Push therefore makes each scope's
+     application current (`apps.current_app`) while it writes that scope, as it does the
+     update set, and restores both preferences afterwards. This holds for every create in a
+     scope, not only for new applications.
    - Only creating an application is in scope. Editing an existing application's record
      (version, vendor) through push works like any record, but deleting one is refused as all
      deletes are.

@@ -372,7 +372,7 @@ describe("pushUnfinished", () => {
     planId: "p1",
     mirrorCommit: "c0ffee",
     startedAt: "2026-10-08T18:17:40Z",
-    preference: null,
+    preferences: [],
     steps: [],
   };
 

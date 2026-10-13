@@ -22,6 +22,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Push creates records in their own application. The Table API ignores the `sys_scope` an
+  insert is sent and uses the user's current application, so a new record in a scoped app was
+  created in global (tables renamed `u_...`). Push now makes each scope's application current
+  while writing it, and restores the user's current application and update set afterwards.
+- A push that fails reports the write that failed; a preference it could not restore stays in
+  the push journal and is restored by the next push. A preference the instance replaced while
+  the push ran is found again by user and name.
 - Push checks capture under the update name the platform gives a record. A list
   (`sys_ui_list_<table>_<view>`) and other records not named `<table>_<sys_id>` were reported
   as not captured.

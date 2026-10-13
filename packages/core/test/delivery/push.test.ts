@@ -487,6 +487,45 @@ describe("push: a new application (ADR-0025)", () => {
   });
 });
 
+describe("push: update sets in their application", () => {
+  it("stops before writing when the instance will not move a new update set into its scope", async () => {
+    const scoped = record(
+      "sys_script_include",
+      "9".repeat(32),
+      { name: "Gen" },
+      "var Gen;",
+      "x_acme",
+    );
+    const path = `x_acme/sys_script_include/gen--${"9".repeat(32)}`;
+    const { deps, calls } = pushSetup({
+      working: { ...setup().state.working, [path]: scoped },
+      changed: [`${RULE}.yaml`, `${path}.yaml`],
+    });
+    const writer = deps.writer;
+    const stubborn = {
+      ...writer,
+      update: async (
+        table: string,
+        sysId: string,
+        values: Readonly<Record<string, string>>,
+        signal: AbortSignal,
+      ) =>
+        table === "sys_update_set"
+          ? { sys_id: sysId, application: "global" }
+          : writer.update(table, sysId, values, signal),
+    };
+    const run = {
+      ...deps,
+      writer: stubborn,
+      catalog: { parents: {}, scopes: { a1: "x_acme" }, typedFields: {} },
+    };
+    await expect(push(run, { ...QUERY, planId: await planned(run) })).rejects.toMatchObject({
+      code: "update-set-scope",
+    });
+    expect(calls.some((call) => call.includes("sys_script"))).toBe(false);
+  });
+});
+
 describe("push: the user's preferences", () => {
   it("makes each scope's application current while writing it, then restores it", async () => {
     const { deps, tables } = pushSetup();

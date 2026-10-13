@@ -26,6 +26,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   insert is sent and uses the user's current application, so a new record in a scoped app was
   created in global (tables renamed `u_...`). Push now makes each scope's application current
   while writing it, and restores the user's current application and update set afterwards.
+- Push opens a scope's update set in that scope. The instance creates an update set in the
+  user's current application, so a scope's child update set was created as global; push now
+  moves it, and stops before writing anything if the instance refuses.
 - A push that fails reports the write that failed; a preference it could not restore stays in
   the push journal and is restored by the next push. A preference the instance replaced while
   the push ran is found again by user and name.

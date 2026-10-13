@@ -126,9 +126,13 @@ export function memoryWriter(
       created += 1;
       const sysId = values["sys_id"] ?? `new${created}`;
       const scope = table === "sys_app" ? sysId : currentApplication();
-      const row: Row = PLUMBING.includes(table)
-        ? { sys_id: sysId, ...values }
-        : { sys_id: sysId, ...values, sys_scope: scope };
+      // An update set, too, is created in the current application, whatever it is sent.
+      const row: Row =
+        table === "sys_update_set"
+          ? { sys_id: sysId, ...values, application: currentApplication() }
+          : PLUMBING.includes(table)
+            ? { sys_id: sysId, ...values }
+            : { sys_id: sysId, ...values, sys_scope: scope };
       tables[table] = [...(tables[table] ?? []), row];
       writes.push(`insert ${table} ${Object.keys(values).sort().join(",")}`);
       captureFor(table, sysId, row["sys_scope"] ?? "");

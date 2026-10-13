@@ -66,6 +66,17 @@ export class RecordChangedOnInstanceError extends SnagenticError {
   }
 }
 
+export class UpdateSetScopeError extends SnagenticError {
+  constructor(name: string, scope: string) {
+    super(
+      "update-set-scope",
+      "precondition",
+      `the instance created the update set "${name}" outside the application ${scope} and would not move it; no record was written`,
+      "open the update set on the instance, set its application to the scope, then push again",
+    );
+  }
+}
+
 export class UnfinishedPushError extends SnagenticError {
   constructor(planId: string) {
     super(

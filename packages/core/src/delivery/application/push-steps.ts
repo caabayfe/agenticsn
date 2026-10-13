@@ -7,7 +7,11 @@ import type { Catalog } from "../../metadata/domain/catalog";
 import { DEFAULT_REDACTION } from "../../metadata/domain/redaction";
 import { batchDescription, batchName, GLOBAL, updateSetName } from "../domain/batch";
 import type { PlannedWrite } from "../domain/change";
-import { IntegrationUserNotFoundError, RecordChangedOnInstanceError } from "../domain/errors";
+import {
+  IntegrationUserNotFoundError,
+  RecordChangedOnInstanceError,
+  UpdateSetScopeError,
+} from "../domain/errors";
 import type { InstanceWriter, SwitchedPreference } from "../ports";
 
 export interface InstanceSession {
@@ -90,7 +94,20 @@ export async function openChild(
     },
     session.signal,
   );
-  return { sysId: created["sys_id"] ?? "", name, created: true };
+  const sysId = created["sys_id"] ?? "";
+  // The platform creates an update set in the user's current application, whatever it is sent.
+  if (created["application"] !== undefined && created["application"] !== scope.id) {
+    const moved = await session.writer.update(
+      "sys_update_set",
+      sysId,
+      { application: scope.id },
+      session.signal,
+    );
+    if (moved["application"] !== scope.id) {
+      throw new UpdateSetScopeError(name, scope.name);
+    }
+  }
+  return { sysId, name, created: true };
 }
 
 // Makes `value` the user's current update set for the scope, returning what to restore.

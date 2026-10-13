@@ -42,6 +42,7 @@ export {
   RecordChangedOnInstanceError,
   UncommittedPlannedChangesError,
   UnfinishedPushError,
+  UpdateSetScopeError,
 } from "./domain/errors";
 export { type GateFinding, type GateResult, gateOf, planId } from "./domain/gate";
 export {

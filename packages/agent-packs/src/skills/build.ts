@@ -16,6 +16,9 @@ export const BUILD: Skill = {
     "Fix every finding whose `severity` is block, and each warn unless the user accepts it. Repeat `validate` until it has `passed`.",
   ],
   decide: [
+    "A script in a scoped application reads or writes a global table or API: add a cross-scope privilege record for it in the application's folder (class sys_scope_privilege, as the mirror shows them), since runtime access tracking grants it only in interactive sessions and background scripts then fail silently.",
+    "A scoped script must change a platform table the platform protects from scopes (role assignments, group memberships): put the change in a narrow global script include that checks its caller's record, and call that.",
+    "An operation the platform can refuse (a delete, a cross-scope write): check its result, and never record it as done when it was refused.",
     "A finding is on a line you did not mean to change: `validate` reports only what the change introduced, so check your edit.",
     "`notChecked` is not empty: tell the user which files were not checked and why.",
     "A fix would change the approved design: stop and go back to the user.",

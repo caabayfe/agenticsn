@@ -29,6 +29,7 @@ export const DELIVER: Skill = {
   never: [
     "Never push without the user's approval of the plan shown, or with a plan id you did not show.",
     "Never write to the instance any other way (REST calls, background scripts).",
+    "Never create, move, rename or delete update sets by hand: push owns the branch's batch.",
   ],
   prompt: { name: "deliver", description: "Plan and push changes to the development instance" },
 };

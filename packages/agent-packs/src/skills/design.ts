@@ -24,6 +24,7 @@ export const DESIGN: Skill = {
     "A `related` record already does most of it: propose changing or reusing it instead of adding one.",
   ],
   output: [
+    "For a feature with new tables and logic, plan its delivery in phases: the application and data model first (push, pull, integrate), then logic and security, then forms and lists.",
     "The design record: the requirement, the option chosen and why less custom ones do not fit,",
     "the records to create or change (paths), the existing behavior it interacts with (from",
     "`describe`), and the `rules` that will apply.",

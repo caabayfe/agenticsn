@@ -64,9 +64,10 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
     branch: async () => "feature/p1",
     changedFiles: async () => state.changed,
     read: async (base, at) => (at === null ? state.working : state.mirror)[base] ?? null,
+    // Any domain's copy of the folder, as the port promises.
     recordsIn: async (folder, at) =>
       Object.keys(at === null ? state.working : state.mirror).filter(
-        (base) => base.slice(0, base.lastIndexOf("/")) === folder,
+        (base) => base.slice(0, base.lastIndexOf("/")).replace(/^domains\/[^/]+\//, "") === folder,
       ),
     text: async (path) => state.texts[path] ?? null,
     document: async (path, at) =>

@@ -478,4 +478,18 @@ describe("GitIntegrator", () => {
     expect(String((error as Error).message)).toContain("SN-SEC-001");
     expect(await Bun.file(join(root, ".git", "MERGE_HEAD")).exists()).toBe(true);
   });
+
+  it("keeps one file for a record the instance put in a domain (domain-separated instance)", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await createLocally(root, "Helpers");
+    const domain = "d".repeat(32);
+    await pullRows(root, [ruleRow("one();"), { ...pushedRow("Helpers"), sys_domain: domain }]);
+    const result = await integrator.integrate(root, "pdi");
+    const moved = `instances/pdi/metadata/domains/${domain}/global/sys_script_include/util--${NEW_ID}`;
+    expect(result.confirmed).toEqual([`${moved}.yaml`]);
+    expect(await Bun.file(join(root, `${NEW_BASE}.yaml`)).exists()).toBe(false);
+    expect(await Bun.file(join(root, `${moved}.yaml`)).exists()).toBe(true);
+  });
 });

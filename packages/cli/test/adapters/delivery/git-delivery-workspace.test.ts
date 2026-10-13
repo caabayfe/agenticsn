@@ -96,4 +96,24 @@ describe("GitDeliveryWorkspace record listings", () => {
     ]);
     expect(await workspace.recordsIn("missing", head)).toEqual([]);
   });
+
+  it("lists the same folder in every domain, as the instance may put a record in one", async () => {
+    const { root, write, workspace } = await repository();
+    await write(`${META}/domains/d1/global/x.yaml`, "x: 1\n");
+    await git(root, "add", ".");
+    await git(root, "commit", "-qm", "domain");
+    const head = (await git(root, "rev-parse", "HEAD")).trim();
+    await write(`${META}/domains/d2/global/y.yaml`, "y: 1\n");
+    expect(await workspace.recordsIn("global", head)).toEqual([
+      "global/a",
+      "global/b",
+      "domains/d1/global/x",
+    ]);
+    expect((await workspace.recordsIn("global", null)).sort()).toEqual([
+      "domains/d1/global/x",
+      "domains/d2/global/y",
+      "global/a",
+      "global/b",
+    ]);
+  });
 });

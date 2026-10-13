@@ -76,6 +76,25 @@ describe("computePlan", () => {
     ]);
   });
 
+  it("plans an edit to a record the instance put in a domain as an update, not a create", async () => {
+    const id = "fedcba9876543210fedcba9876543210";
+    const pulled = `domains/${"d".repeat(32)}/global/sys_script_include/util--${id}`;
+    const { plan } = await computePlan(
+      setup({
+        mirror: {
+          ...setup().state.mirror,
+          [pulled]: record("sys_script_include", id, { name: "Util", active: "true" }),
+        },
+        working: { [NEW]: record("sys_script_include", id, { name: "Util", active: "false" }) },
+        changed: [`${NEW}.yaml`],
+      }).deps,
+      QUERY,
+    );
+    expect(plan.changes).toEqual([
+      expect.objectContaining({ operation: "update", fields: ["active"] }),
+    ]);
+  });
+
   it("plans nothing for a local copy of a record the mirror holds under another name", async () => {
     const id = "fedcba9876543210fedcba9876543210";
     const same = record("sys_script_include", id, { name: "Util" });

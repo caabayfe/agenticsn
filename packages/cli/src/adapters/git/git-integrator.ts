@@ -173,10 +173,18 @@ function blocked(conflicts: readonly string[], unresolved: readonly string[], ta
   ];
   const note =
     taken === 0 ? "" : `; took the instance's copy of ${taken} record(s) pushed from here`;
+  const steps = [
+    ...(conflicts.length === 0 ? [] : ["resolve the conflict markers"]),
+    ...(unresolved.length === 0
+      ? []
+      : [
+          "for a record in two files, keep the instance's file, copy any local change into it and delete the other",
+        ]),
+  ];
   return new IntegrationBlockedError(
     "integration-conflicts",
     `${parts.join("; ")}${note}`,
-    "resolve the conflict markers and keep one file per record, then run: git commit",
+    `${steps.join("; ")}, then run: git commit`,
   );
 }
 

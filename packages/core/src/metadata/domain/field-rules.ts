@@ -38,6 +38,16 @@ const KNOWN_FILE_FIELDS: Readonly<Record<string, Readonly<Record<string, string>
   sp_angular_provider: { script: "js" },
 };
 
+// Fields the platform rewrites on save, whatever was sent: ServiceNow generates an ACL's
+// description from its operation, table and roles.
+const PLATFORM_WRITTEN_FIELDS: Readonly<Record<string, ReadonlySet<string>>> = {
+  sys_security_acl: new Set(["description"]),
+};
+
+export function platformWritten(className: string, field: string): boolean {
+  return PLATFORM_WRITTEN_FIELDS[className]?.has(field) === true;
+}
+
 export const SECRET_TYPES: ReadonlySet<string> = new Set([
   "password",
   "password2",

@@ -4,6 +4,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-13
+
+### Fixed
+
+- `integrate` takes the instance's copy of an ACL pushed from here, even though ServiceNow
+  replaced its description. The platform generates an ACL's description from its operation,
+  table and roles, so the description pushed never comes back. Integrate no longer counts that
+  as a local change and no longer stops with "one record in two files that differ".
+- When integrate does stop on a record in two files, its hint says which file to keep instead
+  of naming conflict markers that are not there.
+
 ## [1.4.0] - 2026-10-13
 
 ### Added

@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-13
+
 ### Fixed
 
 - The pre-commit hook checks what is being committed: `validate --staged` reads the index, so

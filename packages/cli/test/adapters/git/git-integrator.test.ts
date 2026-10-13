@@ -351,5 +351,8 @@ describe("GitIntegrator", () => {
     expect(error).toMatchObject({ code: "integration-conflicts" });
     expect(String((error as Error).message)).toContain(`util--${NEW_ID}.yaml`);
     expect(String((error as Error).message)).toContain(`escalation-helpers--${NEW_ID}.yaml`);
+    expect(error).toMatchObject({
+      hint: expect.stringContaining("keep the instance's file, copy any local change into it"),
+    });
   });
 });

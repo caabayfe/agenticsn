@@ -102,6 +102,23 @@ describe("instanceConfirms", () => {
     expect(instanceConfirms(stored(property), stored(pulled))).toBe(true);
   });
 
+  it("ignores the description the platform writes for an ACL, and only that", () => {
+    const acl = {
+      _meta: { scope: "global", sys_class_name: "sys_security_acl", sys_id: SYS_ID },
+      active: "false",
+      description: "Live check, safe to delete.",
+      name: "incident",
+      operation: "read",
+    };
+    const pulled = {
+      ...acl,
+      _meta: { ...acl._meta, sys_mod_count: "1" },
+      description: "Allow read for records in incident, for users with role itil.",
+    };
+    expect(instanceConfirms(stored(acl), stored(pulled))).toBe(true);
+    expect(instanceConfirms(stored(acl), stored({ ...pulled, operation: "write" }))).toBe(false);
+  });
+
   it("rejects what is not a record", () => {
     expect(instanceConfirms(stored({ name: "x" }), stored(fromInstance))).toBe(false);
     expect(instanceConfirms(stored(local), stored("not a record"))).toBe(false);

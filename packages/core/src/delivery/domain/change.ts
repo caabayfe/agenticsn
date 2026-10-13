@@ -14,7 +14,13 @@ export interface PlannedWrite {
   readonly path: string;
   readonly values: Readonly<Record<string, string>>;
   // The record's hash when last pulled; push stops if the instance's differs. Null for creates.
+  // For a child row, its modification count and update time as pulled.
   readonly baseHash: string | null;
+  // Set for a child row (ADR-0025): the record whose file holds it.
+  readonly owner: { readonly table: string; readonly sysId: string } | null;
+  // The update set entry the write lands in, when known before writing (a table's choices);
+  // otherwise push reads the sys_update_name of the record, or of its owner.
+  readonly updateName: string | null;
 }
 
 export interface PlanProblem {
@@ -77,6 +83,8 @@ function update(path: string, base: ParsedRecord, target: ParsedRecord): ChangeO
       path,
       values,
       baseHash: base.storedHash,
+      owner: null,
+      updateName: null,
     },
   };
 }
@@ -144,6 +152,8 @@ export function changeOf(
       path,
       values: fields,
       baseHash: null,
+      owner: null,
+      updateName: null,
     },
   };
 }

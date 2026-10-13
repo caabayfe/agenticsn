@@ -142,6 +142,33 @@ describe("computePlan", () => {
     ]);
   });
 
+  it("plans a new form section and its fields, the fields after the section (ADR-0025)", async () => {
+    const id = "fedcba9876543210fedcba9876543210";
+    const section = `global/sys_ui_section/u-review--${id}`;
+    const fields = `${section}.children.sys_ui_element.yaml`;
+    const row = (n: number, element: string) => ({
+      sys_id: `${n}`.repeat(32),
+      sys_ui_section: id,
+      element,
+      position: `${n}`,
+    });
+    const { plan, writes } = await computePlan(
+      setup({
+        working: { [section]: record("sys_ui_section", id, { name: "u_review", view: "Default" }) },
+        changed: [`${section}.yaml`, fields],
+        documents: { mirror: {}, working: { [fields]: [row(1, "number"), row(2, "decision")] } },
+      }).deps,
+      QUERY,
+    );
+    expect(plan.problems).toEqual([]);
+    expect(plan.changes.map((c) => [c.operation, c.table, c.path])).toEqual([
+      ["create", "sys_ui_section", `${section}.yaml`],
+      ["create", "sys_ui_element", fields],
+      ["create", "sys_ui_element", fields],
+    ]);
+    expect(writes[1]?.owner).toEqual({ table: "sys_ui_section", sysId: id });
+  });
+
   it("reports deletes, child rows and conflict markers as problems", async () => {
     const { plan } = await computePlan(
       setup({
@@ -152,7 +179,7 @@ describe("computePlan", () => {
       QUERY,
     );
     expect(plan.problems.map((p) => p.reason)).toEqual([
-      expect.stringContaining("child rows are read-only"),
+      expect.stringContaining("child rows of sys_x are read-only"),
       expect.stringContaining("conflict markers"),
       expect.stringContaining("deleting records is not supported"),
     ]);

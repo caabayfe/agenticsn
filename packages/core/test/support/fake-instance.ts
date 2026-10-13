@@ -90,10 +90,12 @@ export function evaluate(rows: readonly Row[], query: string, limit: number): Ro
 
 // Applies writes to the tables. Like the platform, a change to a record (not to an update set
 // or a preference) is captured in the user's current update set; `capture.on` turns it off.
+// `name` decides the update set entry a write lands in, as the platform does (a form section's
+// fields are recorded as the section); by default the row's sys_update_name or <table>_<sys_id>.
 export function memoryWriter(
   tables: Record<string, Row[]>,
   writes: string[],
-  capture = { on: true },
+  capture: { on: boolean; name?: (table: string, row: Row) => string } = { on: true },
 ) {
   let created = 0;
   // As the platform does: a scoped record goes to the user's update set for its scope.
@@ -105,7 +107,10 @@ export function memoryWriter(
   };
   const captureFor = (table: string, sysId: string, scope: string) => {
     if (capture.on && !["sys_user_preference", "sys_update_set"].includes(table)) {
-      const row = { sys_id: `x${sysId}`, name: `${table}_${sysId}`, update_set: current(scope) };
+      const written = (tables[table] ?? []).find((r) => r["sys_id"] === sysId) ?? {};
+      const name =
+        capture.name?.(table, written) ?? written["sys_update_name"] ?? `${table}_${sysId}`;
+      const row = { sys_id: `x${sysId}`, name, update_set: current(scope) };
       tables["sys_update_xml"] = [...(tables["sys_update_xml"] ?? []), row];
     }
   };

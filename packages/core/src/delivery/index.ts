@@ -26,6 +26,7 @@ export {
   type PlannedWrite,
   type PlanProblem,
 } from "./domain/change";
+export { childRowChanges, type RowOwner } from "./domain/child-rows";
 export {
   BranchNotPublishedError,
   ElevatedUserMismatchError,

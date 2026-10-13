@@ -23,6 +23,8 @@ export interface DeliveryWorkspace {
   recordsIn(folder: string, at: string | null): Promise<string[]>;
   // A file's text in the working tree, or null when it does not exist.
   text(path: string): Promise<string | null>;
+  // A YAML file parsed, in the working tree (`at` null) or at a commit; null when absent.
+  document(path: string, at: string | null): Promise<unknown | null>;
   // waivers.yaml at the workspace root as committed (parsed, or null when there is none), and
   // whether the working tree differs. Only committed waivers apply: they are reviewed in git.
   waivers(): Promise<{ readonly committed: unknown | null; readonly uncommitted: boolean }>;

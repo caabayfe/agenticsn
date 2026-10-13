@@ -130,6 +130,28 @@ export async function restorePreference(
   );
 }
 
+// One child row (ADR-0025): refuse if the row moved on since the pull, then write it.
+async function writeRow(session: InstanceSession, write: PlannedWrite, written: number) {
+  const fields = ["sys_id", "sys_mod_count", "sys_updated_on"];
+  const current = await first(session, write.table, `sys_id=${write.sysId}`, fields);
+  const version =
+    current === null
+      ? null
+      : `${current["sys_mod_count"] ?? ""}|${current["sys_updated_on"] ?? ""}`;
+  if (write.operation === "create" ? current !== null : version !== write.baseHash) {
+    throw new RecordChangedOnInstanceError(write.path, written);
+  }
+  if (write.operation === "create") {
+    await session.writer.insert(
+      write.table,
+      { ...write.values, sys_id: write.sysId },
+      session.signal,
+    );
+  } else {
+    await session.writer.update(write.table, write.sysId, write.values, session.signal);
+  }
+}
+
 // One record: refuse if the instance's copy moved on since the pull, then write.
 export async function writeRecord(
   session: InstanceSession,
@@ -138,6 +160,9 @@ export async function writeRecord(
   scopeId: string,
   written: number,
 ): Promise<void> {
+  if (write.owner !== null) {
+    return writeRow(session, write, written);
+  }
   const current: Row | null = await first(session, write.table, `sys_id=${write.sysId}`, "all");
   if (write.operation === "create") {
     if (current !== null) {
@@ -158,12 +183,24 @@ export async function writeRecord(
   await session.writer.update(write.table, write.sysId, write.values, session.signal);
 }
 
+// The update set entry a write lands in: named by the platform, after the record itself or,
+// for a child row, the record that owns it (a list is sys_ui_list_<table>_<view>).
+async function updateNameOf(session: InstanceSession, write: PlannedWrite): Promise<string> {
+  if (write.updateName !== null) {
+    return write.updateName;
+  }
+  const { table, sysId } = write.owner ?? write;
+  const row = await first(session, table, `sys_id=${sysId}`, ["sys_update_name"]);
+  const name = row?.["sys_update_name"] ?? "";
+  return name === "" ? `${table}_${sysId}` : name;
+}
+
 // The platform recorded the write in the target update set.
 export async function captured(
   session: InstanceSession,
   write: PlannedWrite,
   updateSet: string,
 ): Promise<boolean> {
-  const query = `name=${write.table}_${write.sysId}^update_set=${updateSet}`;
+  const query = `name=${await updateNameOf(session, write)}^update_set=${updateSet}`;
   return (await first(session, "sys_update_xml", query, ["sys_id"])) !== null;
 }

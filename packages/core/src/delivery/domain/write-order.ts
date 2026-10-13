@@ -2,7 +2,7 @@ import type { PlannedWrite } from "./change";
 
 // What other records refer to is written first: a table before its fields and choices, a
 // role before the ACLs that grant it, a UI policy before its actions, an event before the
-// notification it sends. ACLs come last: they are written through an elevated session
+// notification it sends, a form section, list or form before its rows (ADR-0025). ACLs come last: they are written through an elevated session
 // (ADR-0024), and nothing refers to them. Everything else keeps path order, so the plan id
 // stays stable.
 const RANK: Readonly<Record<string, number>> = {
@@ -13,6 +13,10 @@ const RANK: Readonly<Record<string, number>> = {
   sys_user_role: 3,
   sys_user_role_contains: 4,
   sys_ui_policy_action: 7,
+  sys_ui_element: 7,
+  sys_ui_list_element: 7,
+  sys_ui_form_section: 7,
+  sys_ui_related_list_entry: 7,
   sys_ui_action_view: 7,
   sysevent_email_action: 7,
   sys_security_acl: 8,

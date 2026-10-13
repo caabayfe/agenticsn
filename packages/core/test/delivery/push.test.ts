@@ -354,3 +354,84 @@ describe("push and the branch's pull request (ADR-0022)", () => {
     expect([...onMain.calls, ...offline.calls]).toEqual([]);
   });
 });
+
+describe("push: child rows (ADR-0025)", () => {
+  const SECTION_ID = "fedcba9876543210fedcba9876543210";
+  const SECTION = `global/sys_ui_section/u-review--${SECTION_ID}`;
+  const FIELDS = `${SECTION}.children.sys_ui_element.yaml`;
+  const ROW = "1".repeat(32);
+  const pulledRow = {
+    sys_id: ROW,
+    sys_ui_section: SECTION_ID,
+    element: "number",
+    position: "0",
+    sys_mod_count: "0",
+    sys_updated_on: "2026-10-13 10:00:00",
+  };
+  const section = record("sys_ui_section", SECTION_ID, { name: "u_review", view: "Default" });
+
+  // The platform records a section's fields as the section, under its sys_update_name.
+  function sectionSetup(overrides: Partial<State>, onInstance: Record<string, string>[] = []) {
+    const run = pushSetup(overrides);
+    run.tables["sys_ui_section"] = [
+      { sys_id: SECTION_ID, sys_update_name: `sys_ui_section_${SECTION_ID}` },
+    ];
+    run.tables["sys_ui_element"] = onInstance;
+    const writer = memoryWriter(run.tables, run.calls, {
+      on: true,
+      name: (table, row) =>
+        table === "sys_ui_element"
+          ? `sys_ui_section_${row["sys_ui_section"] ?? ""}`
+          : (row["sys_update_name"] ?? `${table}_${row["sys_id"] ?? ""}`),
+    });
+    return { ...run, deps: { ...run.deps, writer } };
+  }
+
+  it("creates a row with its content fields and finds it captured as its owner", async () => {
+    const row = { sys_id: ROW, sys_ui_section: SECTION_ID, element: "decision", position: "1" };
+    const { deps, calls } = sectionSetup({
+      mirror: { ...setup().state.mirror, [SECTION]: section },
+      working: { ...setup().state.working, [SECTION]: section },
+      changed: [FIELDS],
+      documents: { mirror: {}, working: { [FIELDS]: [row] } },
+    });
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(calls).toContain("insert sys_ui_element element,position,sys_id,sys_ui_section");
+    expect(result.written).toEqual([
+      expect.objectContaining({ table: "sys_ui_element", sysId: ROW, captured: true }),
+    ]);
+    expect(result.notCaptured).toBe(0);
+  });
+
+  it("updates a changed row, and stops when the instance changed it since the pull", async () => {
+    const overrides = {
+      mirror: { ...setup().state.mirror, [SECTION]: section },
+      working: { ...setup().state.working, [SECTION]: section },
+      changed: [FIELDS],
+      documents: {
+        mirror: { [FIELDS]: [pulledRow] },
+        working: { [FIELDS]: [{ ...pulledRow, position: "4" }] },
+      },
+    };
+    const fresh = sectionSetup(overrides, [{ ...pulledRow }]);
+    await push(fresh.deps, { ...QUERY, planId: await planned(fresh.deps) });
+    expect(fresh.calls).toContain("update sys_ui_element position=4");
+    const moved = sectionSetup(overrides, [{ ...pulledRow, sys_mod_count: "1" }]);
+    await expect(
+      push(moved.deps, { ...QUERY, planId: await planned(moved.deps) }),
+    ).rejects.toMatchObject({ code: "record-changed-on-instance" });
+  });
+
+  it("finds a record captured under the name the platform gave it", async () => {
+    const run = pushSetup();
+    run.tables["sys_script"] = (run.tables["sys_script"] ?? []).map((row) => ({
+      ...row,
+      sys_update_name: "sys_script_named_by_the_platform",
+    }));
+    const result = await push(run.deps, { ...QUERY, planId: await planned(run.deps) });
+    expect(result.notCaptured).toBe(0);
+    expect(run.tables["sys_update_xml"]?.map((row) => row["name"])).toEqual([
+      "sys_script_named_by_the_platform",
+    ]);
+  });
+});

@@ -6,6 +6,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Push finds a form section's changes where the instance records them, as the form that shows
+  the section, so sections and their fields are no longer reported as not captured.
 - Push moves its own update into the batch when the instance recorded it in the application's
   Default update set instead (seen on pdi2 while another session switched the user's
   preferences). Only updates made by the pushing user are moved; one someone else made stays

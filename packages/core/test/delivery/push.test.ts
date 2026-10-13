@@ -381,18 +381,23 @@ describe("push: child rows (ADR-0025)", () => {
   };
   const section = record("sys_ui_section", SECTION_ID, { name: "u_review", view: "Default" });
 
-  // The platform records a section's fields as the section, under its sys_update_name.
+  // As pdi2 does: a section and its fields are recorded as the form that shows the section.
+  const FORM = "f".repeat(32);
   function sectionSetup(overrides: Partial<State>, onInstance: Record<string, string>[] = []) {
     const run = pushSetup(overrides);
     run.tables["sys_ui_section"] = [
       { sys_id: SECTION_ID, sys_update_name: `sys_ui_section_${SECTION_ID}` },
     ];
+    run.tables["sys_ui_form"] = [{ sys_id: FORM, sys_update_name: `sys_ui_form_sections_${FORM}` }];
+    run.tables["sys_ui_form_section"] = [
+      { sys_id: "e".repeat(32), sys_ui_form: FORM, sys_ui_section: SECTION_ID },
+    ];
     run.tables["sys_ui_element"] = onInstance;
     const writer = memoryWriter(run.tables, run.calls, {
       on: true,
       name: (table, row) =>
-        table === "sys_ui_element"
-          ? `sys_ui_section_${row["sys_ui_section"] ?? ""}`
+        table === "sys_ui_element" || table === "sys_ui_section"
+          ? `sys_ui_form_sections_${FORM}`
           : (row["sys_update_name"] ?? `${table}_${row["sys_id"] ?? ""}`),
     });
     return { ...run, deps: { ...run.deps, writer } };

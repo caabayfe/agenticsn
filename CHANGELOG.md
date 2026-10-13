@@ -18,6 +18,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- `integrate` stops when git refuses to start the merge, naming the untracked files in the way
+  (an interrupted integrate leaves copies of the pulled files). Before, it committed anyway and
+  the pre-commit hook checked every one of those files, which took hours on a full pull.
 - `integrate` is no longer blocked by findings the instance already had. The pre-commit hook
   validated every record the pull brought in, so a pull that activated a plugin with vendor
   code could never be integrated. During integrate's merge, validate now checks only records

@@ -1,6 +1,6 @@
 # 005. Flows: test plan for ADR-0028
 
-- Status: Draft, for the product owner's review
+- Status: Approved by the product owner (2026-10-13)
 - Date: 2026-10-13
 - Validates: ADR-0028 (flows authored in Fluent, SDK embedded, delivered by push)
 - Evidence so far: spikes S11 (`tools/spikes/s11-flow-delivery/`) and S13
@@ -35,7 +35,7 @@ instance (AGENTS.md).
 
 | ID | Test | Pass when | Where | When |
 |---|---|---|---|---|
-| A1 | **Type declarations from the binary.** Build the S11 fixture project from the compiled binary in a temporary folder with no `node_modules`, the declarations supplied by snagentic (try the `fileSystem` overlay first, then an ignored workspace folder) | Build succeeds; flow records equal the reference build after normalization (A4) | binary | before track A |
+| A1 | **Passed 2026-10-13 (spike S13, macOS arm64; overlay `fileSystem`).** **Type declarations from the binary.** Build the S11 fixture project from the compiled binary in a temporary folder with no `node_modules`, the declarations supplied by snagentic (try the `fileSystem` overlay first, then an ignored workspace folder) | Build succeeds; flow records equal the reference build after normalization (A4) | binary | before track A |
 | A2 | **Fluent coverage fixtures.** One fixture project per kind: flow with flow logic (if, for each), subflow with inputs and outputs, custom action with a script step, stages, scheduled trigger, inbound email trigger, script include and business rule (server modules: the path that may need `@swc/core` or Rollup), cross-scope privilege, a record type the accelerator uses (system property, ACL) | Each builds from the binary; output equals the `now-sdk` CLI's after normalization | binary | before track A |
 | A3 | **Platforms.** A1 and A2 on macOS arm64, Linux x64, Linux arm64, Windows x64 (ASR-05) | All pass on every platform | binary, CI matrix | before track A |
 | A4 | **Determinism.** Normalization: decompress `values`/`trigger_inputs` and compare JSON; drop the SBOM's serial and timestamp. Two builds on one machine, and builds on two platforms | Normalized outputs byte-identical; plan id identical; a property test over fixture edits shows any source change changes the plan id | unit + binary | before track A |

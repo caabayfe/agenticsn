@@ -37,7 +37,7 @@ binary with `Bun.build`.
    in the project's `node_modules`; without them the build fails (`TS213: Failed to cast
    UnresolvedShape to Record`). They are 13 MB, 1 MB compressed. snagentic would embed them and
    supply them, either through the `fileSystem` the API accepts (an overlay) or by writing them
-   to an ignored folder in the workspace on first use. Not yet tried.
+   to an ignored folder in the workspace on first use. **Solved by A1, below.**
 7. **Size.** Today's snagentic binary is 66 MB (68 MB of it is Bun's runtime baseline for an empty
    program). The spike binary is 165 MB: the SDK adds about 97 MB, including parts a flow build
    does not need (language server, ESLint, Prettier, UI bundling). Trimming is possible but not
@@ -48,5 +48,20 @@ binary with `Bun.build`.
 - Server modules (`sys_module` scripts) and UI pages, which may load `@swc/core` or Rollup paths
   the flow build did not touch.
 - Windows and Linux binaries (ASR-05 platforms).
-- Supplying the type declarations from inside the binary (result 6).
 - Keeping the embedded SDK current: its version would follow snagentic releases.
+
+## A1: type declarations from the binary (flows test plan, 2026-10-13)
+
+- **Every read the build makes under `node_modules` goes through the `fileSystem` passed to
+  `Project`** (`trace-fs.ts`): about 800 files of `@servicenow/sdk-core`, 4 of
+  `@servicenow/sdk`, 1 of `@servicenow/sdk-build-plugins`, and `@types/estree` and
+  `@types/json-schema`. TypeScript's own library files come from inside the bundle.
+- `make-types.ts` collects those five packages' `.d.ts`, `.ts` and `package.json` files: 1,347
+  files, 8.3 MB, **1.2 MB gzipped**, embedded with Bun's `file` loader.
+- `overlay.ts` serves `<project>/node_modules/**` from that asset (`existsSync`, `accessSync`,
+  `statSync`, `lstatSync`, `readFileSync`, `readdirSync`, `realpathSync`) and passes every other
+  path to the real fs.
+- **Result: pass.** A copy of the S11 project with only `package.json`, `now.config.json` and
+  `src` (never installed, outside any folder with `node_modules`), built by the compiled binary
+  with no `node_modules` anywhere on the machine's paths: success in 0.8 s, output identical to
+  the reference after normalizing the SBOM's serial number and timestamp. Binary: 166 MB.

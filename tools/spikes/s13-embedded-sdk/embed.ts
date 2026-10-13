@@ -2,11 +2,24 @@
 //   bun embed.ts <project dir>
 import * as fs from "node:fs";
 import { resolve } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { Orchestrator, Project } from "@servicenow/sdk-api";
 import { NoOpTelemetry, NowConfig } from "@servicenow/sdk-build-core";
+import { overlayFs } from "./overlay";
+// @ts-expect-error spike: Bun embeds the asset and returns its path
+import typesAsset from "./types.json.gz" with { type: "file" };
+
+// The spike calls the SDK through narrow local types; the SDK ships its own, richer ones.
+type BuildOutput = { success: boolean; files?: unknown[] };
+type OrchestratorCtor = new (project: unknown) => { build(options: object): Promise<BuildOutput> };
+type ProjectCtor = new (options: object) => unknown;
+type ConfigParser = { parseFromDirectory(dir: string, fs: unknown, logger: unknown): unknown };
+type TelemetryCtor = new () => unknown;
 
 process.env["NO_TELEMETRY"] = "1";
 const rootDir = resolve(process.argv[2] ?? ".");
+const files = JSON.parse(gunzipSync(fs.readFileSync(typesAsset)).toString("utf8"));
+const fileSystem = overlayFs(rootDir, files);
 const logger = {
   info: (m: string) => console.log("info", m),
   warn: (m: string) => console.log("warn", m),
@@ -16,15 +29,21 @@ const logger = {
   trace: () => {},
   log: (m: string) => console.log(m),
 };
-// biome-ignore lint/suspicious/noExplicitAny: the spike calls the SDK without its types
-const telemetryClient = new (NoOpTelemetry as any)();
+const telemetryClient = new (NoOpTelemetry as unknown as TelemetryCtor)();
 const started = performance.now();
-// biome-ignore lint/suspicious/noExplicitAny: the spike calls the SDK without its types
-const config = (NowConfig as any).parseFromDirectory(rootDir, fs, logger);
-// biome-ignore lint/suspicious/noExplicitAny: the spike calls the SDK without its types
-const project = new (Project as any)({ config, fileSystem: fs, rootDir, logger, telemetryClient });
-// biome-ignore lint/suspicious/noExplicitAny: the spike calls the SDK without its types
-const output = await new (Orchestrator as any)(project).build({});
+const config = (NowConfig as unknown as ConfigParser).parseFromDirectory(
+  rootDir,
+  fileSystem,
+  logger,
+);
+const project = new (Project as unknown as ProjectCtor)({
+  config,
+  fileSystem,
+  rootDir,
+  logger,
+  telemetryClient,
+});
+const output = await new (Orchestrator as unknown as OrchestratorCtor)(project).build({});
 console.log(
   "success:",
   output.success,

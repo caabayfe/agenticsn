@@ -99,7 +99,8 @@ export class GitChangedRecords implements ChangedRecords {
         "-l",
         "-E",
         "-e",
-        `^${escaped(field)}: ${escaped(sysId)}$`,
+        // Plain, single- or double-quoted: agents write YAML their own way.
+        `^${escaped(field)}: (${escaped(sysId)}|'${escaped(sysId)}'|"${escaped(sysId)}")$`,
         ...where,
         "--",
         `${this.root}/*/${className}/*.yaml`,

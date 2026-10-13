@@ -119,16 +119,20 @@ describe("push", () => {
         { tool: "status", args: { instance: "dev" } },
       ],
     });
+    // The current application is made global for the batch and the scope, the update set
+    // switched, the record written, then each preference put back in reverse order.
     expect(calls).toEqual([
       "insert sys_user_preference name,user,value",
+      "update sys_user_preference value=global",
       "insert sys_user_preference name,user,value",
       "update sys_script order=200",
       "update sys_user_preference value=",
+      "update sys_user_preference value=global",
       "update sys_user_preference value=",
     ]);
     expect(tables["sys_script"]?.[0]?.["order"]).toBe("200");
     expect(journal.current).toBeNull();
-    expect(journal.history.some((j) => j.preferences.length === 2 && j.steps.length === 0)).toBe(
+    expect(journal.history.some((j) => j.preferences.length === 3 && j.steps.length === 0)).toBe(
       true,
     );
     expect(JSON.stringify(journal.history)).not.toContain('"200"');
@@ -173,12 +177,13 @@ describe("push", () => {
     ];
     tables["sys_update_set"] = [];
     const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    const batchId = tables["sys_update_set"]?.[0]?.["sys_id"];
     expect(tables["sys_update_set"]).toMatchObject([
       { name: "snagentic: feature/p1", application: "global", state: "in progress" },
-      { name: "snagentic: feature/p1 [x_acme]", application: "a1", parent: "new1" },
+      { name: "snagentic: feature/p1 [x_acme]", application: "a1", parent: batchId },
     ]);
     expect(result).toMatchObject({
-      batch: { name: "snagentic: feature/p1", sysId: "new1", created: true },
+      batch: { name: "snagentic: feature/p1", sysId: batchId, created: true },
       updateSets: [{ scope: "x_acme", name: "snagentic: feature/p1 [x_acme]", created: true }],
       written: [{ path: `${path}.yaml`, captured: true }],
     });
@@ -267,8 +272,10 @@ describe("push", () => {
     const { deps, tables } = pushSetup();
     const renamed = { ...deps, username: "someone_else" };
     await push(renamed, { ...QUERY, planId: await planned(deps) });
-    const preference = (tables["sys_user_preference"] ?? [])[0];
-    expect(preference).toMatchObject({ user: "u1", name: "sys_update_set" });
+    const preference = (tables["sys_user_preference"] ?? []).find(
+      (row) => row["name"] === "sys_update_set",
+    );
+    expect(preference).toMatchObject({ user: "u1" });
   });
 });
 
@@ -488,7 +495,7 @@ describe("push: a new application (ADR-0025)", () => {
 });
 
 describe("push: update sets in their application", () => {
-  it("stops before writing when the instance will not move a new update set into its scope", async () => {
+  it("stops before writing when the instance creates a scope's update set elsewhere", async () => {
     const scoped = record(
       "sys_script_include",
       "9".repeat(32),
@@ -497,22 +504,27 @@ describe("push: update sets in their application", () => {
       "x_acme",
     );
     const path = `x_acme/sys_script_include/gen--${"9".repeat(32)}`;
-    const { deps, calls } = pushSetup({
+    const { deps, calls, tables } = pushSetup({
       working: { ...setup().state.working, [path]: scoped },
       changed: [`${RULE}.yaml`, `${path}.yaml`],
     });
     const writer = deps.writer;
+    // An instance that keeps new update sets in global whatever the current application.
     const stubborn = {
       ...writer,
-      update: async (
+      insert: async (
         table: string,
-        sysId: string,
         values: Readonly<Record<string, string>>,
         signal: AbortSignal,
-      ) =>
-        table === "sys_update_set"
-          ? { sys_id: sysId, application: "global" }
-          : writer.update(table, sysId, values, signal),
+      ) => {
+        const row = await writer.insert(table, values, signal);
+        if (table === "sys_update_set") {
+          tables["sys_update_set"] = (tables["sys_update_set"] ?? []).map((set) =>
+            set["sys_id"] === row["sys_id"] ? { ...set, application: "global" } : set,
+          );
+        }
+        return row;
+      },
     };
     const run = {
       ...deps,
@@ -522,7 +534,7 @@ describe("push: update sets in their application", () => {
     await expect(push(run, { ...QUERY, planId: await planned(run) })).rejects.toMatchObject({
       code: "update-set-scope",
     });
-    expect(calls.some((call) => call.includes("sys_script"))).toBe(false);
+    expect(calls.some((call) => call.includes("sys_script_include"))).toBe(false);
   });
 });
 

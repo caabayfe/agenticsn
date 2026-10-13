@@ -170,12 +170,14 @@ describe("pushing ACLs through an elevated session (ADR-0024)", () => {
     const result = await push(deps, { ...QUERY, planId: plan.planId });
     expect(events).toEqual([
       "insert sys_user_preference",
+      "preference global",
       "insert sys_user_preference",
       "open while current update set is s2",
       "update sys_script",
       "elevated insert sys_security_acl",
       "close",
       "preference ",
+      "preference global",
       "preference ",
     ]);
     expect(result.written).toEqual([
@@ -191,7 +193,7 @@ describe("pushing ACLs through an elevated session (ADR-0024)", () => {
     const { deps, events } = elevatedSetup({}, { failClose: true });
     const { plan } = await computePlan(deps, QUERY);
     await expect(push(deps, { ...QUERY, planId: plan.planId })).rejects.toThrow("sign-out failed");
-    expect(events.slice(-3)).toEqual(["close", "preference ", "preference "]);
+    expect(events.slice(-4)).toEqual(["close", "preference ", "preference global", "preference "]);
   });
 
   it("never opens an elevated session for a plan without ACLs", async () => {
@@ -207,9 +209,11 @@ describe("pushing ACLs through an elevated session (ADR-0024)", () => {
     await expect(push(deps, { ...QUERY, planId: plan.planId })).rejects.toThrow("sign-in failed");
     expect(events).toEqual([
       "insert sys_user_preference",
+      "preference global",
       "insert sys_user_preference",
       "open while current update set is s2",
       "preference ",
+      "preference global",
       "preference ",
     ]);
   });
@@ -223,10 +227,12 @@ describe("pushing ACLs through an elevated session (ADR-0024)", () => {
     });
     expect(events).toEqual([
       "insert sys_user_preference",
+      "preference global",
       "insert sys_user_preference",
       "open while current update set is s2",
       "close",
       "preference ",
+      "preference global",
       "preference ",
     ]);
   });

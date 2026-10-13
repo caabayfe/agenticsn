@@ -95,19 +95,27 @@ export async function openChild(
     session.signal,
   );
   const sysId = created["sys_id"] ?? "";
-  // The platform creates an update set in the user's current application, whatever it is sent.
-  if (created["application"] !== undefined && created["application"] !== scope.id) {
-    const moved = await session.writer.update(
-      "sys_update_set",
-      sysId,
-      { application: scope.id },
-      session.signal,
-    );
-    if (moved["application"] !== scope.id) {
-      throw new UpdateSetScopeError(name, scope.name);
-    }
+  // The platform creates an update set in the user's current application, whatever it is
+  // sent: push makes the scope's application current first, and checks.
+  const stored = await first(session, "sys_update_set", `sys_id=${sysId}`, ["application"]);
+  if (stored?.["application"] !== scope.id) {
+    throw new UpdateSetScopeError(name, scope.name);
   }
   return { sysId, name, created: true };
+}
+
+// Moves a record's update into an update set: a new application is written before its
+// scope's update set can exist in it, so its update lands elsewhere first (ADR-0025).
+export async function moveUpdate(
+  session: InstanceSession,
+  name: string,
+  updateSet: string,
+): Promise<void> {
+  const update = await first(session, "sys_update_xml", `name=${name}`, ["sys_id", "update_set"]);
+  if (update !== null && update["update_set"] !== updateSet) {
+    const sysId = update["sys_id"] ?? "";
+    await session.writer.update("sys_update_xml", sysId, { update_set: updateSet }, session.signal);
+  }
 }
 
 // Makes `value` the user's current update set for the scope, returning what to restore.

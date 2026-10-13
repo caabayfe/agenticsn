@@ -26,12 +26,18 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   insert is sent and uses the user's current application, so a new record in a scoped app was
   created in global (tables renamed `u_...`). Push now makes each scope's application current
   while writing it, and restores the user's current application and update set afterwards.
-- Push opens a scope's update set in that scope. The instance creates an update set in the
-  user's current application, so a scope's child update set was created as global; push now
-  moves it, and stops before writing anything if the instance refuses.
+- Push opens each update set in its own application. The instance creates an update set in
+  the user's current application and will not move it afterwards, so a scope's child update
+  set was created as global and its writes fell into the application's Default update set.
+  Push now makes global current to open the batch, and each scope's application current to
+  open its child, checks the result, and stops before writing anything when it is wrong. A new
+  application is written first, as its update set can only be created once it exists, and its
+  update is moved into that update set.
 - A push that fails reports the write that failed; a preference it could not restore stays in
   the push journal and is restored by the next push. A preference the instance replaced while
   the push ran is found again by user and name.
+- An ACL's roles are counted however the YAML quotes the reference, so `validate` no longer
+  blocks an ACL whose role records were written with quoted values.
 - Push checks capture under the update name the platform gives a record. A list
   (`sys_ui_list_<table>_<view>`) and other records not named `<table>_<sys_id>` were reported
   as not captured.

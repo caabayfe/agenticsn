@@ -1,23 +1,19 @@
 import type { ElevatedSession, PushJournal, SwitchedPreference } from "../ports";
 import { type InstanceSession, restorePreference, switchPreference } from "./push-steps";
 
-// Makes the scope's update set and application current for the user: the platform records a
-// write in the current update set of the record's scope, and creates a record in the user's
-// current application, whatever sys_scope it is sent (ADR-0025).
-export async function switchTo(
+// Makes `value` the user's preference `name`, journaled so it is restored even after a crash.
+// The platform creates a record in the user's current application (apps.current_app),
+// whatever sys_scope it is sent, and records it in that application's current update set
+// (ADR-0025).
+export async function switchFor(
   session: InstanceSession,
-  scope: { id: string; setId: string; user: string },
+  preference: { readonly user: string; readonly name: string; readonly value: string },
+  journal: { current: PushJournal },
   save: (preferences: readonly SwitchedPreference[]) => Promise<void>,
-) {
-  const switched: SwitchedPreference[] = [];
-  const updateSet = scope.id === "global" ? "sys_update_set" : `updateSetForScope${scope.id}`;
-  for (const [name, value] of [
-    [updateSet, scope.setId],
-    ["apps.current_app", scope.id],
-  ] as const) {
-    switched.push(await switchPreference(session, scope.user, name, value));
-    await save(switched);
-  }
+): Promise<void> {
+  const { user, name, value } = preference;
+  const switched = await switchPreference(session, user, name, value);
+  await save([...journal.current.preferences, switched]);
 }
 
 // Closes the elevated session and restores each preference, trying all of them. What is

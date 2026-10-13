@@ -96,6 +96,19 @@ describe("GitChangedRecords", () => {
   });
 });
 
+describe("GitChangedRecords: staged (the pre-commit hook)", () => {
+  it("checks what is being committed: the index, not untracked files or unstaged edits", async () => {
+    const { repo, write } = await workspace();
+    const staged = new GitChangedRecords(repo, ROOT, "servicenow-remote/pdi", { staged: true });
+    await write(`${INCLUDE}.script.js`, "var Util = Class.create(); // staged\n");
+    await git(repo, "add", ".");
+    await write(`${INCLUDE}.script.js`, "var Util = Class.create(); // not staged\n");
+    await write("global/sys_script/untracked--u1.yaml", "name: Untracked\n");
+    expect(await staged.changedSince("HEAD")).toEqual([INCLUDE]);
+    expect((await staged.current(INCLUDE))?.fields["script"]).toContain("// staged");
+  });
+});
+
 describe("GitChangedRecords: references", () => {
   const ROLE = "global/sys_security_acl_role/incident-itil--r1";
   const role = (acl: string) =>

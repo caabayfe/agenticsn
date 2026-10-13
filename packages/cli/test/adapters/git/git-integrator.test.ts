@@ -462,4 +462,20 @@ describe("GitIntegrator", () => {
       expect(await Bun.file(join(root, local)).exists()).toBe(!confirmed);
     }
   });
+
+  it("says the pre-commit check blocked the merge, leaving the merge to finish", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await pullScript(root, "two();");
+    const hook = join(root, ".git", "hooks", "pre-commit");
+    await mkdir(join(hook, ".."), { recursive: true });
+    await writeFile(hook, "#!/bin/sh\necho 'block SN-SEC-001 eval found'\nexit 1\n", {
+      mode: 0o755,
+    });
+    const error = await integrator.integrate(root, "pdi").catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: "commit-refused" });
+    expect(String((error as Error).message)).toContain("SN-SEC-001");
+    expect(await Bun.file(join(root, ".git", "MERGE_HEAD")).exists()).toBe(true);
+  });
 });

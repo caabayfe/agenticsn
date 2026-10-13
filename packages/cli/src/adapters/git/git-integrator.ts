@@ -217,6 +217,22 @@ function refused(stderr: string): IntegrationBlockedError {
   );
 }
 
+// The pre-commit hook (validate) refused the merge commit: the merge stays in progress, for the
+// user to fix what it reports and commit.
+function commitRefused(output: string): IntegrationBlockedError {
+  const reported = output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 5)
+    .join("; ");
+  return new IntegrationBlockedError(
+    "commit-refused",
+    `the pre-commit check blocked the merge commit: ${reported}`,
+    "fix what it reports (snagentic validate --staged lists it), then run: git commit",
+  );
+}
+
 async function merge(
   root: string,
   instance: string,
@@ -250,7 +266,10 @@ async function merge(
   if (conflicts.length > 0 || moved.unresolved.length > 0) {
     throw blocked(conflicts, moved.unresolved, confirmed.length);
   }
-  await runGitOrThrow([...identity, "commit", "-q", "--no-edit"], root);
+  const committed = await runGit([...identity, "commit", "-q", "--no-edit"], root);
+  if (committed.exitCode !== 0) {
+    throw commitRefused(`${committed.stdout}\n${committed.stderr}`);
+  }
   const commit = (await runGitOrThrow(["rev-parse", "HEAD"], root)).trim();
   const changed = lines(await runGitOrThrow(["diff", "--name-only", before, commit], root));
   return { commit, changedFiles: changed.length, confirmed };

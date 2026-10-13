@@ -24,6 +24,12 @@ export const validate = defineUseCase({
       .default("HEAD")
       .describe("commit, branch or tag to compare with; findings already there are not reported"),
     instance: z.string().optional().describe("default: the workspace's only instance"),
+    staged: z
+      .boolean()
+      .default(false)
+      .describe(
+        "check only what is staged for commit, as the index holds it (the pre-commit hook)",
+      ),
   }),
   output: z.object({
     instance: z.string(),
@@ -57,7 +63,8 @@ export const validate = defineUseCase({
     const root = await workspaceRoot(context);
     const instance = await instanceFor(root, context, input.instance);
     run.progress({ message: "checking changed records" });
-    const result = await validateRecords(context.governance(root, instance), {
+    const governance = context.governance(root, instance, { staged: input.staged });
+    const result = await validateRecords(governance, {
       base: input.base,
       ...(input.paths === undefined
         ? {}

@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-13
+
 ### Fixed
 
 - `integrate` takes the instance's copy of an ACL pushed from here, even though ServiceNow

@@ -25,6 +25,9 @@ export interface ChildTable {
   // The parent field may name a row of any earlier child table, not only a record
   // (sys_variable_value.document_key usually names a flow step or action instance).
   readonly ownedThroughChildRows?: true;
+  // The parent field holds a table's name, not a sys_id: the rows belong to that table's
+  // sys_db_object record (choices, ADR-0025).
+  readonly ownedByTableName?: true;
 }
 
 const FLOW_CHILDREN = [
@@ -46,6 +49,7 @@ export const CHILD_TABLES: readonly ChildTable[] = [
   { table: "sys_ui_list_element", parentField: "list_id" },
   { table: "sys_ui_related_list_entry", parentField: "list_id" },
   { table: "sys_ui_form_section", parentField: "sys_ui_form" },
+  { table: "sys_choice", parentField: "name", ownedByTableName: true },
   { table: "wf_workflow_version", parentField: "workflow" },
   { table: "wf_stage", parentField: "workflow_version", parentTable: "wf_workflow_version" },
   { table: "wf_activity", parentField: "workflow_version", parentTable: "wf_workflow_version" },
@@ -53,6 +57,16 @@ export const CHILD_TABLES: readonly ChildTable[] = [
   { table: "wf_transition", parentField: "from", parentTable: "wf_activity" },
   { table: "sys_variable_value", parentField: "document_key", ownedThroughChildRows: true },
 ];
+
+// Child rows an agent may edit and push, one row at a time (ADR-0025). Flow and workflow rows
+// stay read-only: the platform compiles those records.
+export const EDITABLE_CHILD_TABLES: ReadonlySet<string> = new Set([
+  "sys_choice",
+  "sys_ui_element",
+  "sys_ui_list_element",
+  "sys_ui_form_section",
+  "sys_ui_related_list_entry",
+]);
 
 function rootOf(child: ChildTable): string {
   const parent = CHILD_TABLES.find((other) => other.table === child.parentTable);

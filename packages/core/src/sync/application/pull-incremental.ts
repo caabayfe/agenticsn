@@ -7,6 +7,7 @@ import {
   type FingerprintChange,
 } from "../domain/fingerprint";
 import { INVENTORY } from "../domain/inventory";
+import { CHILD_TABLES } from "../domain/pull-scope";
 import { unexplainedLoss } from "../domain/record-changes";
 import type { Fingerprints, SyncState } from "../ports";
 import { applyWithCatalog } from "./apply-with-catalog";
@@ -246,11 +247,14 @@ export async function pullIncremental(
     ? await verifyAndRepairRecords(deps, step.catalog, previous, signal, progress)
     : null;
   progress({ message: "child rows" });
+  const neverRead = new Set(
+    CHILD_TABLES.map((child) => child.table).filter((table) => !state.fingerprints?.[table]),
+  );
   const children = await applyChildChanges(
     deps,
     verified?.catalog ?? step.catalog,
     changes,
-    since,
+    { since, neverRead },
     signal,
   );
   const operational = await pullOperational(deps, signal, stale);

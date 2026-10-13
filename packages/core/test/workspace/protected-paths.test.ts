@@ -2,11 +2,12 @@ import { describe, expect, it } from "bun:test";
 import { protectedReason } from "@snagentic/core";
 
 describe("protected paths", () => {
-  it("protects local state, git, child rows and workspace configuration", () => {
+  it("protects local state, git, read-only child rows and workspace configuration", () => {
     for (const path of [
       ".snagentic/pdi/knowledge.sqlite",
       ".git/config",
-      "instances/pdi/metadata/global/sys_ui_form/form--1.children.sys_ui_form_section.yaml",
+      "instances/pdi/metadata/global/sys_hub_flow/flow--1.children.sys_hub_flow_stage.yaml",
+      "instances/pdi/metadata/global/wf_workflow/w--1.children.wf_activity.yaml",
       "./instances/pdi/instance.yaml",
       "snagentic.yaml",
     ]) {
@@ -14,9 +15,12 @@ describe("protected paths", () => {
     }
   });
 
-  it("lets records, scripts and the team's own files be edited", () => {
+  it("lets records, scripts, choices, layouts and the team's own files be edited", () => {
     for (const path of [
       "instances/pdi/metadata/global/sys_ui_policy_action/x--1.yaml",
+      "instances/pdi/metadata/global/sys_ui_form/form--1.children.sys_ui_form_section.yaml",
+      "instances/pdi/metadata/global/sys_db_object/u-review--1.children.sys_choice.yaml",
+      "instances/pdi/metadata/x_acme/sys_ui_section/s--1.children.sys_ui_element.yaml",
       "instances/pdi/metadata/global/sys_script/default-children-rule--1.script.js",
       "AGENTS.md",
     ]) {

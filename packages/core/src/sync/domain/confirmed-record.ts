@@ -1,3 +1,5 @@
+import { canonicalText } from "../../kernel/canonical-text";
+import { HASH_EXCLUDED_FIELDS } from "../../kernel/record-hash";
 import { platformWritten } from "../../metadata/domain/field-rules";
 import { parseRecord } from "../../metadata/domain/record-layout";
 
@@ -35,4 +37,44 @@ export function instanceConfirms(local: RecordCopy, remote: RecordCopy): boolean
       ([field, value]) => ignored(field) || theirs.fields[field] === value,
     )
   );
+}
+
+type Rows = readonly Readonly<Record<string, unknown>>[];
+
+function rowsOf(document: unknown): Rows | null {
+  if (!Array.isArray(document)) {
+    return null;
+  }
+  const rows: Readonly<Record<string, unknown>>[] = [];
+  for (const row of document) {
+    if (typeof row !== "object" || row === null) {
+      return null;
+    }
+    rows.push(Object.fromEntries(Object.entries(row)));
+  }
+  return rows;
+}
+
+const text = (value: unknown) =>
+  canonicalText(value === null || value === undefined ? "" : String(value));
+
+// A child-row file pushed from here comes back with the platform's provenance on each row
+// (ADR-0025). The instance's rows confirm the local ones when every local row is there, by
+// sys_id, with each of its content fields unchanged.
+export function instanceConfirmsRows(local: unknown, remote: unknown): boolean {
+  const mine = rowsOf(local);
+  const theirs = rowsOf(remote);
+  if (mine === null || theirs === null) {
+    return false;
+  }
+  const byId = new Map(theirs.map((row) => [text(row["sys_id"]), row]));
+  return mine.every((row) => {
+    const match = byId.get(text(row["sys_id"]));
+    return (
+      match !== undefined &&
+      Object.entries(row).every(
+        ([field, value]) => HASH_EXCLUDED_FIELDS.has(field) || text(match[field]) === text(value),
+      )
+    );
+  });
 }

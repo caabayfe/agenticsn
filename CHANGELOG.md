@@ -4,6 +4,26 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- Choice lists are mirrored and pushed. Pull writes a table's choices beside its table record
+  (`<table>.children.sys_choice.yaml`); the first pull after upgrading reads them all. Push
+  creates new choices and updates changed ones (ADR-0025).
+- Form and list layouts are pushed: rows of `sys_ui_element`, `sys_ui_list_element`,
+  `sys_ui_form_section` and `sys_ui_related_list_entry` can be added and changed in their
+  owner's file, and push writes them after the owner. A table built by an agent can ship with
+  its choices, form and list. Removed rows are refused with the way to retire them.
+- Agents may edit those five child-row files; flow, workflow and variable-value rows stay
+  read-only.
+
+### Fixed
+
+- Push checks capture under the update name the platform gives a record. A list
+  (`sys_ui_list_<table>_<view>`) and other records not named `<table>_<sys_id>` were reported
+  as not captured.
+- Integrate takes the instance's child-row file when it confirms every row added or changed
+  here, and moves a record's child files with it only when they are confirmed.
+
 ## [1.4.1] - 2026-10-13
 
 ### Fixed

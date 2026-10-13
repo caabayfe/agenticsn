@@ -144,4 +144,18 @@ describe("status and a push that stopped part way", () => {
     const later = await executeUseCase(status, { instance: "pdi" }, ws.context);
     expect(later.output).toMatchObject({ instances: [{ unfinishedPush: null }] });
   });
+
+  it("lists the instance's domains besides global, from the operational inventory", async () => {
+    const ws = await instanceWorkspace({});
+    cleanups.push(ws.cleanup);
+    const rows = [
+      { sys_id: "global", name: "global" },
+      { sys_id: "d".repeat(32), name: "Default" },
+    ];
+    const context = { ...ws.context, inventory: { read: async () => rows } };
+    const { output } = await executeUseCase(status, { instance: "pdi" }, context);
+    expect(output).toMatchObject({
+      instances: [{ domains: [{ name: "Default", sysId: "d".repeat(32) }] }],
+    });
+  });
 });

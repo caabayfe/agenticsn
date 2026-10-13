@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- After a scoped push, the user's global current update set is what it was. A scoped write
+  makes the instance switch it to the scope's update set; push now takes and restores that
+  preference too (found by spike S11 on pdi2).
+
 ### Added
 
 - Domains (ADR-0027). Push writes a record's domain on every create: its `_meta.sys_domain`,

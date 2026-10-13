@@ -7,7 +7,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-modular-monolith-hexagonal.md) | Modular monolith with hexagonal architecture and bounded contexts | Accepted |
-| [0002](0002-agent-interface-model.md) | Agent interface model: files and CLI first, one small MCP, task-level skills | Accepted (amended by 0011, 0012, 0019) |
+| [0002](0002-agent-interface-model.md) | Agent interface model: files and CLI first, one small MCP, task-level skills | Accepted (amended by 0011, 0012, 0019, 0026) |
 | [0003](0003-use-case-registry.md) | One use-case registry generates CLI, MCP and hook interfaces | Accepted (amended by 0012) |
 | [0004](0004-deployment-topology.md) | One binary, git as the distribution layer, three operating modes | Accepted (amended by 0011, 0012, 0022) |
 | [0005](0005-typescript-and-bun.md) | TypeScript compiled to a single binary with Bun | Accepted |
@@ -15,7 +15,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0007](0007-disk-format-and-hash-contract.md) | Keep the v1 disk format, mirror branch and hash contract | Accepted (amended by 0014, 0015, 0017) |
 | [0008](0008-commercial-boundary.md) | Open core with a sealed premium engine behind the `Validator` port | Proposed |
 | [0009](0009-engineering-practices.md) | Engineering practices: TDD, strict typing, enforced boundaries | Accepted |
-| [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013, 0024) |
+| [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013, 0024, 0026) |
 | [0011](0011-enforcement-layers.md) | Enforcement layers: what each control stops and who can bypass it | Accepted (amended by 0019) |
 | [0012](0012-production-read-only-by-construction.md) | Production access is read-only by construction | Accepted, pending spike (amended by 0013, 0021) |
 | [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted (amended by 0018) |
@@ -31,6 +31,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0023](0023-upgrade-and-update-notice.md) | `snagentic upgrade` and an update notice, with no silent self-update | Accepted |
 | [0024](0024-elevated-session-for-acl-writes.md) | ACLs are written through an elevated browser session | Accepted |
 | [0025](0025-choices-and-layouts-as-editable-child-rows.md) | Choice lists, form and list layouts, and applications are delivered from files | Accepted |
+| [0026](0026-accelerators-as-content-packs.md) | Accelerators are versioned content packs, installed through the existing flow | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

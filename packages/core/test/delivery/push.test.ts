@@ -435,3 +435,46 @@ describe("push: child rows (ADR-0025)", () => {
     ]);
   });
 });
+
+describe("push: a new application (ADR-0025)", () => {
+  const APP_ID = "abcdefabcdefabcdefabcdefabcdef12";
+  const SCOPE = "x_acme_access_rev";
+  const APP = `${SCOPE}/sys_app/access-review--${APP_ID}`;
+  const INCLUDE = `${SCOPE}/sys_script_include/generator--${"9".repeat(32)}`;
+
+  it("creates the application first, in its scope's update set opened with its sys_id", async () => {
+    const application = record(
+      "sys_app",
+      APP_ID,
+      { name: "Access Review", scope: SCOPE, version: "1.0.0" },
+      undefined,
+      SCOPE,
+    );
+    const include = record(
+      "sys_script_include",
+      "9".repeat(32),
+      { name: "Gen" },
+      "var Gen;",
+      SCOPE,
+    );
+    const { deps, calls, tables } = pushSetup({
+      working: { ...setup().state.working, [APP]: application, [INCLUDE]: include },
+      changed: [`${RULE}.yaml`, `${INCLUDE}.yaml`, `${APP}.yaml`],
+    });
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    const child = tables["sys_update_set"]?.find((set) => set["name"]?.endsWith(`[${SCOPE}]`));
+    expect(child?.["application"]).toBe(APP_ID);
+    const scoped = calls.filter(
+      (call) => call.includes("sys_app ") || call.includes("sys_script_include"),
+    );
+    expect(scoped).toEqual([
+      "insert sys_app name,scope,sys_id,sys_scope,version",
+      "insert sys_script_include name,script,sys_id,sys_scope",
+    ]);
+    expect(calls).toContain("insert sys_user_preference name,user,value");
+    expect(
+      tables["sys_user_preference"]?.some((p) => p["name"] === `updateSetForScope${APP_ID}`),
+    ).toBe(true);
+    expect(result.notCaptured).toBe(0);
+  });
+});

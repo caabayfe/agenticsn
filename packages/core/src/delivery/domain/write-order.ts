@@ -6,6 +6,8 @@ import type { PlannedWrite } from "./change";
 // (ADR-0024), and nothing refers to them. Everything else keeps path order, so the plan id
 // stays stable.
 const RANK: Readonly<Record<string, number>> = {
+  // A new application is its scope: everything else in it comes after (ADR-0025).
+  sys_app: -1,
   sys_db_object: 0,
   sys_dictionary: 1,
   sys_documentation: 2,

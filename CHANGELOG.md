@@ -13,6 +13,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   `sys_ui_form_section` and `sys_ui_related_list_entry` can be added and changed in their
   owner's file, and push writes them after the owner. A table built by an agent can ship with
   its choices, form and list. Removed rows are refused with the way to retire them.
+- Scoped applications are created from files: add a `sys_app` record in the new scope's
+  folder and push writes it first, in the scope's update set, then the application's other
+  records. Pull mirrors custom applications as records of their own scope, and keeps the
+  vendor prefix (`glide.appcreator.company.code`) so agents can name the scope.
 - Agents may edit those five child-row files; flow, workflow and variable-value rows stay
   read-only.
 

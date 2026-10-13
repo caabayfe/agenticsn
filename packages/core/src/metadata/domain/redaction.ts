@@ -10,7 +10,8 @@ export interface RedactionPolicy {
 
 export const DEFAULT_REDACTION: RedactionPolicy = {
   redactFields: { sys_properties: ["value"] },
-  propertyValueAllowlist: [],
+  // The vendor prefix new application scopes must start with: not a secret (ADR-0025).
+  propertyValueAllowlist: ["glide.appcreator.company.code"],
 };
 
 export const SECRET_PROPERTY_NAME =

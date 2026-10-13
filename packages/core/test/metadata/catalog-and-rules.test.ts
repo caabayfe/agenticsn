@@ -94,6 +94,17 @@ describe("field rules", () => {
 });
 
 describe("fieldsToRedact", () => {
+  it("keeps the vendor prefix, which new application scopes start with (ADR-0025)", () => {
+    expect(
+      fieldsToRedact(
+        catalog,
+        "sys_properties",
+        "glide.appcreator.company.code",
+        DEFAULT_REDACTION,
+      ).has("value"),
+    ).toBe(false);
+  });
+
   it("redacts property values unless the property is allowlisted", () => {
     expect(
       fieldsToRedact(catalog, "sys_properties", "glide.ui.title", DEFAULT_REDACTION).has("value"),

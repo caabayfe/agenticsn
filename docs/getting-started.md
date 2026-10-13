@@ -181,6 +181,16 @@ Push writes each row after its owner, and stops if the row changed on the instan
 pull. Flow, workflow and variable-value child rows stay read-only. Choices arrive on the first
 pull after upgrading to this version.
 
+### A new application
+
+A new feature belongs in its own scoped application. Create it from a file: add
+`<scope>/sys_app/<name>--<sys_id>.yaml` with `name`, `scope` and `version`, and put the
+application's records in the `<scope>` folder. The scope starts with `x_`, the instance's
+company code and `_`; the code is the value of `glide.appcreator.company.code`, which pull
+mirrors (`pull --full` once on a workspace pulled before this version). Push creates the
+application before anything else in its scope, in the scope's update set of the batch, and
+the next pull mirrors it (ADR-0025).
+
 ### ACLs
 
 Writing ACLs (`sys_security_acl`, `sys_security_acl_role`) needs the elevated

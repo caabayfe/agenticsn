@@ -169,11 +169,25 @@ async function preflight(deps: PushDependencies, query: PushQuery, session: Inst
   return planned;
 }
 
+// A scope's sys_id: known from the last pull, or the sys_id of the application this push
+// creates for it (ADR-0025), so its update set can be opened before the application exists.
+function scopeId(catalog: Catalog, scope: string, writes: readonly PlannedWrite[]): string {
+  const created = writes.find(
+    (write) => write.table === "sys_app" && write.operation === "create" && write.scope === scope,
+  );
+  return catalog.scopeSysId(scope) ?? created?.sysId ?? scope;
+}
+
 // The update set for each scope's writes: the batch for global, otherwise its child.
 async function updateSetsFor(
   deps: PushDependencies,
   session: InstanceSession,
-  plan: { readonly label: string; readonly scopes: readonly string[]; readonly pr?: string },
+  plan: {
+    readonly label: string;
+    readonly scopes: readonly string[];
+    readonly writes: readonly PlannedWrite[];
+    readonly pr?: string;
+  },
   catalog: Catalog,
 ) {
   const link = (set: { sysId: string }) => `${deps.url}/sys_update_set.do?sys_id=${set.sysId}`;
@@ -181,7 +195,7 @@ async function updateSetsFor(
   const batch = { ...opened, link: link(opened) };
   const sets: (OpenedUpdateSet & { scope: string; id: string })[] = [];
   for (const scope of plan.scopes) {
-    const id = catalog.scopeSysId(scope) ?? scope;
+    const id = scopeId(catalog, scope, plan.writes);
     const set =
       scope === GLOBAL
         ? batch
@@ -241,7 +255,12 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
   await deps.journal.write(journal.current);
   const scopes = [...new Set(writes.map((w) => w.scope))].sort();
   const pr = "url" in pullRequest ? { pr: pullRequest.url } : {};
-  const { batch, sets } = await updateSetsFor(deps, session, { ...plan, scopes, ...pr }, catalog);
+  const { batch, sets } = await updateSetsFor(
+    deps,
+    session,
+    { label: plan.label, scopes, writes, ...pr },
+    catalog,
+  );
   const written = await writeAll(deps, session, journal, { sets, writes, user }, catalog);
   await deps.journal.clear();
   return {

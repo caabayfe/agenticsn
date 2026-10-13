@@ -6,7 +6,7 @@ import {
   FINGERPRINT_SOURCES,
   type FingerprintChange,
 } from "../domain/fingerprint";
-import { INVENTORY } from "../domain/inventory";
+import { INVENTORY, type InventorySource } from "../domain/inventory";
 import { CHILD_TABLES } from "../domain/pull-scope";
 import { unexplainedLoss } from "../domain/record-changes";
 import type { Fingerprints, SyncState } from "../ports";
@@ -15,6 +15,7 @@ import { fetchFingerprints } from "./fetch-fingerprints";
 import { applyChildChanges, type ChildOutcome } from "./incremental-children";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { type ChangeWindow, type RecordOutcome, readRecordChanges } from "./incremental-records";
+import { pullApplications } from "./pull-applications";
 import { type PullProgress, rawTimestamp } from "./pull-dependencies";
 import { inventorySignatures, pullOperational } from "./pull-operational";
 import {
@@ -190,6 +191,18 @@ async function detectChanges(
   return { current, fingerprintChanges, changes, inventory, stale };
 }
 
+// An application is a sys_scope row: the inventory's sys_scope fingerprint moves with it.
+async function applicationsIfMoved(
+  deps: IncrementalDependencies,
+  catalog: Catalog,
+  stale: readonly { readonly table: string }[],
+  signal: AbortSignal,
+) {
+  return stale.some((source) => source.table === "sys_scope")
+    ? pullApplications(deps, catalog, signal, deps.records)
+    : { applications: 0, unreadable: [] };
+}
+
 function nextState(
   state: SyncState,
   startedAt: string,
@@ -206,6 +219,28 @@ function nextState(
     unreadable: [...new Set([...(state.unreadable ?? []), ...unreadable])].sort(),
     ...(verified === null ? {} : { hiddenCounts: verified.hidden }),
   };
+}
+
+// Child rows, applications and the operational inventory: what the record feeds do not carry.
+async function pullBesideRecords(
+  deps: IncrementalDependencies,
+  catalog: Catalog,
+  moved: {
+    readonly state: SyncState;
+    readonly changes: ReadonlyMap<string, FingerprintChange>;
+    readonly stale: readonly InventorySource[];
+    readonly since: string;
+  },
+  signal: AbortSignal,
+) {
+  const { state, changes, stale, since } = moved;
+  const neverRead = new Set(
+    CHILD_TABLES.map((child) => child.table).filter((table) => !state.fingerprints?.[table]),
+  );
+  const children = await applyChildChanges(deps, catalog, changes, { since, neverRead }, signal);
+  const applications = await applicationsIfMoved(deps, catalog, stale, signal);
+  const operational = await pullOperational(deps, signal, stale);
+  return { children, unreadable: [...applications.unreadable, ...operational.unreadable] };
 }
 
 export async function pullIncremental(
@@ -247,21 +282,16 @@ export async function pullIncremental(
     ? await verifyAndRepairRecords(deps, step.catalog, previous, signal, progress)
     : null;
   progress({ message: "child rows" });
-  const neverRead = new Set(
-    CHILD_TABLES.map((child) => child.table).filter((table) => !state.fingerprints?.[table]),
-  );
-  const children = await applyChildChanges(
+  const rest = await pullBesideRecords(
     deps,
     verified?.catalog ?? step.catalog,
-    changes,
-    { since, neverRead },
+    { state, changes, stale, since },
     signal,
   );
-  const operational = await pullOperational(deps, signal, stale);
   const recordUnreadable = [...step.records.unreadable, ...(verified?.records.unreadable ?? [])];
-  const unreadable = [...current.unreadable, ...recordUnreadable, ...operational.unreadable];
+  const unreadable = [...current.unreadable, ...recordUnreadable, ...rest.unreadable];
   return {
-    ...summarize(fingerprintChanges, step, verified, children, unreadable),
+    ...summarize(fingerprintChanges, step, verified, rest.children, unreadable),
     inventoryRefreshed: stale.map((source) => source.file),
     watermark: startedAt,
     next: nextState(state, startedAt, current.fingerprints, inventory, recordUnreadable, verified),

@@ -23,10 +23,20 @@ const BASE = {
   unintegratedPulls: 0,
   localChanges: [],
   unfinishedPush: null,
+  domains: [],
   next: "snagentic pull pdi",
 };
 
 describe("status rendering", () => {
+  it("names the instance's domains when it is domain-separated (ADR-0027)", () => {
+    const text = status.render(
+      { instances: [{ ...BASE, domains: [{ name: "Default", sysId: "d".repeat(32) }] }] },
+      "text",
+    );
+    expect(text).toContain(`domains: Default (${"d".repeat(32)})`);
+    expect(status.render({ instances: [BASE] }, "text")).not.toContain("domains:");
+  });
+
   it("shows freshness, pending pulls and the next step", () => {
     const text = status.render(
       {

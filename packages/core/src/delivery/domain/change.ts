@@ -63,6 +63,10 @@ function update(path: string, base: ParsedRecord, target: ParsedRecord): ChangeO
     return problem(path, "the record's class or sys_id changed; edit fields, not identity");
   }
   const values = changedFields(base.artifact, target.artifact);
+  // A domain change is an update the plan shows (ADR-0027).
+  if (was.domain !== now.domain) {
+    values["sys_domain"] = now.domain;
+  }
   const redacted = Object.keys(values).filter((name) => base.artifact.redacted.includes(name));
   if (redacted.length > 0) {
     return problem(
@@ -150,7 +154,8 @@ export function changeOf(
       sysId: identity.sysId,
       scope: identity.scope,
       path,
-      values: fields,
+      // The domain the file names, or global: never the session's (ADR-0027).
+      values: { ...fields, sys_domain: identity.domain },
       baseHash: null,
       owner: null,
       updateName: null,

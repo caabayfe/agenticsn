@@ -152,7 +152,7 @@ describe("push", () => {
     tables["sys_update_set"] = [];
     const result = await push(deps, { ...QUERY, planId: await planned(deps) });
     expect(result.updateSets[0]).toMatchObject({ created: true });
-    expect(calls).toContain("insert sys_script_include name,script,sys_id,sys_scope");
+    expect(calls).toContain("insert sys_script_include name,script,sys_domain,sys_id,sys_scope");
     expect(result.written[0]).toMatchObject({ operation: "create", captured: true });
   });
 
@@ -479,8 +479,8 @@ describe("push: a new application (ADR-0025)", () => {
       (call) => call.includes("sys_app ") || call.includes("sys_script_include"),
     );
     expect(scoped).toEqual([
-      "insert sys_app name,scope,sys_id,sys_scope,version",
-      "insert sys_script_include name,script,sys_id,sys_scope",
+      "insert sys_app name,scope,sys_domain,sys_id,sys_scope,version",
+      "insert sys_script_include name,script,sys_domain,sys_id,sys_scope",
     ]);
     expect(calls).toContain("insert sys_user_preference name,user,value");
     expect(

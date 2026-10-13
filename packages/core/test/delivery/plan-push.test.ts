@@ -52,7 +52,7 @@ describe("computePlan", () => {
       QUERY,
     );
     expect(plan.changes).toEqual([
-      expect.objectContaining({ operation: "create", fields: ["name", "script"] }),
+      expect.objectContaining({ operation: "create", fields: ["name", "script", "sys_domain"] }),
     ]);
   });
 

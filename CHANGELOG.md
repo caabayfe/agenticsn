@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- Domains (ADR-0027). Push writes a record's domain on every create: its `_meta.sys_domain`,
+  or global when the file names none, never the domain of the user's session. Changing
+  `_meta.sys_domain` moves the record, as an update the plan shows. `status` lists the
+  instance's domains when it has any besides global, and the build skill says which domain to
+  build in. Spike S12 showed the instance honours the domain on insert and update and carries
+  it in the update set.
+
 ## [1.5.1] - 2026-10-13
 
 ### Fixed

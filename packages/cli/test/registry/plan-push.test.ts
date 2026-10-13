@@ -140,6 +140,7 @@ describe("plan-push rendering", () => {
             scope: "global",
             path: "p.yaml",
             fields: ["a"],
+            elevated: false,
           },
         ],
         problems: [],

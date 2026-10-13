@@ -67,6 +67,20 @@ export interface InstanceWriter {
   ): Promise<Readonly<Record<string, string>>>;
 }
 
+// ADR-0024: a browser session signed in as the profile's user and elevated to security_admin,
+// for the records only that role may write. It reads the user's current update set at sign-in,
+// so push opens it after switching that; closing it signs out, which ends the elevation.
+export interface ElevatedSession {
+  // The user the session signed in as, checked against the profile's.
+  readonly username: string;
+  readonly writer: InstanceWriter;
+  close(): Promise<void>;
+}
+
+export interface ElevatedSessions {
+  open(signal: AbortSignal): Promise<ElevatedSession>;
+}
+
 // What a push has done so far, written before every instance write, so an interrupted push
 // can be recovered: names and hashes only, never field values or credentials.
 export interface PushJournal {

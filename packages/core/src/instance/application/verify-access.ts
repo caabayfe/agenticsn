@@ -2,7 +2,12 @@ import type { InstanceReader } from "../../connection/ports";
 import { SnagenticError } from "../../kernel/errors";
 import { SESSION_USER } from "../../kernel/session-user";
 import { TableName } from "../../kernel/table-name";
-import { IdentityMismatchError, IdentityUnverifiedError } from "../domain/errors";
+import {
+  ElevationUnsupportedError,
+  IdentityMismatchError,
+  IdentityUnverifiedError,
+  SecurityAdminRequiredError,
+} from "../domain/errors";
 import type { InstanceProfile } from "../domain/profile";
 
 export class ReadOnlyCredentialRequiredError extends SnagenticError {
@@ -38,11 +43,15 @@ export class DevelopmentInstanceRequiredError extends SnagenticError {
   }
 }
 
-async function holdsReadOnly(reader: InstanceReader, signal: AbortSignal): Promise<boolean> {
+async function holdsRole(
+  reader: InstanceReader,
+  role: string,
+  signal: AbortSignal,
+): Promise<boolean> {
   const rows = await reader.query(
     {
       table: TableName.parse("sys_user_has_role"),
-      query: `user=${SESSION_USER}^state=active^role.name=snc_read_only`,
+      query: `user=${SESSION_USER}^state=active^role.name=${role}`,
       fields: ["sys_id"],
       limit: 1,
     },
@@ -50,6 +59,9 @@ async function holdsReadOnly(reader: InstanceReader, signal: AbortSignal): Promi
   );
   return rows.length > 0;
 }
+
+const holdsReadOnly = (reader: InstanceReader, signal: AbortSignal) =>
+  holdsRole(reader, "snc_read_only", signal);
 
 function notReadOnly(profile: InstanceProfile): ReadOnlyCredentialRequiredError {
   return new ReadOnlyCredentialRequiredError(
@@ -108,6 +120,22 @@ export async function verifyCredentialMatchesKind(
   }
   if (profile.kind !== "development" && !readOnly) {
     throw notReadOnly(profile);
+  }
+}
+
+// ADR-0024: elevated writes only for a development profile with Basic authentication (the login
+// form needs a password) whose user can elevate to security_admin. One request, at login only.
+export async function verifyCanElevate(
+  profile: InstanceProfile,
+  reader: InstanceReader,
+  signal: AbortSignal,
+): Promise<void> {
+  ensureDevelopmentInstance(profile, "elevation");
+  if (profile.auth.method !== "basic") {
+    throw new ElevationUnsupportedError(profile.name);
+  }
+  if (!(await holdsRole(reader, "security_admin", signal))) {
+    throw new SecurityAdminRequiredError(profile.name, profile.auth.username);
   }
 }
 

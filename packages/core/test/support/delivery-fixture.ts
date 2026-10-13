@@ -79,6 +79,7 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
 function governance(state: State) {
   const records: ChangedRecords = {
     resolve: async () => "c0ffee",
+    mirrorMerge: async () => null,
     changedSince: async () => [...new Set(state.changed.map((p) => p.replace(/\..*$/, "")))],
     current: async (base) => {
       const stored = state.working[base];
@@ -101,6 +102,7 @@ function governance(state: State) {
             fields: { description: "d" },
             files: {},
           },
+    countReferences: async () => 0,
   };
   const checker: ScriptChecker = {
     check: (source) => ({
@@ -161,6 +163,7 @@ export function setup(overrides: Partial<State> = {}, held: Record<string, unkno
       now: () => new Date(),
     },
     journal: { read: async () => state.journal },
+    elevation: false,
     now: () => new Date("2026-10-06T12:00:00Z"),
     signal: new AbortController().signal,
   };

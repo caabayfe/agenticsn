@@ -29,6 +29,7 @@ export const PlanOutput = z.object({
         scope: z.string(),
         path: z.string(),
         fields: z.array(z.string()).readonly(),
+        elevated: z.boolean(),
       }),
     )
     .readonly(),
@@ -79,7 +80,7 @@ export const planPush = defineUseCase({
   async handle(input, context, run) {
     const root = await workspaceRoot(context);
     const instance = await instanceFor(root, context, input.instance);
-    const { pager, reader } = await connect(context, instance, run.signal);
+    const { pager, reader, elevatedSessions } = await connect(context, instance, run.signal);
     run.progress({ message: "planning the push" });
     const name = InstanceName.parse(instance);
     const { plan } = await computePlan(
@@ -88,6 +89,7 @@ export const planPush = defineUseCase({
         journal: context.pushJournal(root, name),
         governance: context.governance(root, name),
         updateSets: { pager, statistics: reader, now: context.clock },
+        elevation: elevatedSessions !== null,
         now: context.clock,
         signal: run.signal,
       },
@@ -102,7 +104,8 @@ export const planPush = defineUseCase({
   render(output) {
     const lines = [
       ...output.changes.map(
-        (c) => `${c.operation.padEnd(6)} ${c.table}  ${c.path}  (${c.fields.join(", ")})`,
+        (c) =>
+          `${c.operation.padEnd(6)} ${c.table}  ${c.path}  (${c.fields.join(", ")})${c.elevated ? "  elevated: security_admin" : ""}`,
       ),
       ...output.problems.map((p) => `problem: ${p.path}: ${p.reason}`),
       ...output.gate.blocking.map(

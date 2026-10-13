@@ -65,6 +65,11 @@ export const FAKE_CONTEXT: UseCaseContext = {
       throw new Error("tests that need an instance provide their own connections");
     },
   },
+  elevatedSessions: () => ({
+    open: async () => {
+      throw new Error("tests that elevate provide their own sessions");
+    },
+  }),
   syncState: () => {
     throw new Error("tests that pull provide their own sync state");
   },

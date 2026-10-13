@@ -292,6 +292,16 @@ describe("changeOf, for records push cannot write", () => {
     }
   });
 
+  it("plans ACLs on an instance opted into elevated writes (ADR-0024)", () => {
+    for (const className of ["sys_security_acl", "sys_security_acl_role"]) {
+      const path = `global/${className}/x--${SYS_ID}.yaml`;
+      expect(changeOf(path, null, created(className), { elevation: true })).toMatchObject({
+        kind: "write",
+        write: { operation: "create", table: className },
+      });
+    }
+  });
+
   it("refuses choices: pull does not mirror them yet, so they could not be planned again", () => {
     const path = `global/sys_choice/x--${SYS_ID}.yaml`;
     expect(changeOf(path, null, created("sys_choice"))).toMatchObject({

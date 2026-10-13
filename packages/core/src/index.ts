@@ -44,61 +44,7 @@ export {
 } from "./environment/domain/check";
 export type { EnvironmentProbe } from "./environment/ports";
 export * from "./governance/index";
-export { login, logout, resolveSecret } from "./instance/application/credentials";
-export {
-  addInstance,
-  getInstance,
-  listInstances,
-  removeInstance,
-} from "./instance/application/manage-instances";
-export {
-  DevelopmentInstanceRequiredError,
-  ensureDevelopmentInstance,
-  ReadOnlyCredentialOnDevelopmentError,
-  ReadOnlyCredentialRequiredError,
-  verifyCredentialMatchesKind,
-  verifyReadOnlyCredential,
-  verifySessionIdentity,
-} from "./instance/application/verify-access";
-export {
-  CredentialsMissingError,
-  IdentityMismatchError,
-  IdentityUnverifiedError,
-  InstanceExistsError,
-  InstanceNotFoundError,
-  InstanceUrlExistsError,
-  InvalidInstanceUrlError,
-  ProfileNotTrustedError,
-  ReadOnlyAcknowledgementRequiredError,
-} from "./instance/domain/errors";
-export { normalizeInstanceUrl } from "./instance/domain/instance-url";
-export {
-  type AuthSettings,
-  type BasicAuth,
-  canWrite,
-  clientIdProblem,
-  createProfile,
-  credentialAccount,
-  credentialVariable,
-  credentialVariables,
-  INSTANCE_KINDS,
-  type InstanceKind,
-  type InstanceProfile,
-  instanceHost,
-  type NewProfile,
-  type OAuthClientCredentials,
-  secretName,
-  usernameProblem,
-} from "./instance/domain/profile";
-export {
-  type CredentialSource,
-  type StoredCredential,
-  type TrustedSettings,
-  trustedSecret,
-  trustProblems,
-  untrustedHint,
-} from "./instance/domain/trust";
-export type { CredentialStore, ProfileStore } from "./instance/ports";
+export * from "./instance/index";
 export { canonicalJson, type JsonValue } from "./kernel/canonical-json";
 export { canonicalText } from "./kernel/canonical-text";
 export {

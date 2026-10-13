@@ -196,6 +196,44 @@ describe("GitIntegrator", () => {
     });
   });
 
+  it("stops, without committing, when git refuses to start the merge over untracked files", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    // What an interrupted integrate leaves: the pulled files, untracked, and no merge.
+    await mkdir(join(root, SCRIPT_PATH, ".."), { recursive: true });
+    await writeFile(join(root, SCRIPT_PATH), "one();\n");
+    const before = (await git(root, "rev-parse", "HEAD")).trim();
+    await expect(integrator.integrate(root, "pdi")).rejects.toMatchObject({
+      code: "merge-refused",
+      message: expect.stringContaining(`1 untracked file(s) would be overwritten: ${SCRIPT_PATH}`),
+      hint: expect.stringContaining("commit"),
+    });
+    expect((await git(root, "rev-parse", "HEAD")).trim()).toBe(before);
+  });
+
+  it("counts every untracked file in the way, and names the first three", async () => {
+    const root = await workspace();
+    await pullRows(root, [
+      ruleRow("one();"),
+      { ...ruleRow("two();"), sys_id: "00000000000000000000000000000002", name: "Other" },
+    ]);
+    const mirror = (await git(root, "ls-tree", "-r", "--name-only", "servicenow-remote/pdi"))
+      .split("\n")
+      .filter((path) => path.startsWith("instances/pdi/metadata/"));
+    for (const path of mirror) {
+      await mkdir(join(root, path, ".."), { recursive: true });
+      await writeFile(join(root, path), "partial");
+    }
+    await expect(integrator.integrate(root, "pdi")).rejects.toMatchObject({
+      code: "merge-refused",
+      message: expect.stringMatching(
+        new RegExp(
+          `${mirror.length} untracked file\\(s\\) would be overwritten: [^,]+, [^,]+, [^,]+, \\.\\.\\.$`,
+        ),
+      ),
+    });
+  });
+
   it("reports a conflict when the same record changed locally and on the instance", async () => {
     const root = await workspace();
     await pullScript(root, "one();");

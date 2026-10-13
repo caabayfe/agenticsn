@@ -184,6 +184,7 @@ describe("pre-shell hook", () => {
       "echo pw | snagentic  auth logout prod",
       "SNAGENTIC_PROD_KIND=development snagentic pull --instance prod",
       "export SNAGENTIC_PROD_URL=evil",
+      "SNAGENTIC_DEV_ALLOW_ELEVATION=true snagentic push --instance dev",
       "snagentic upgrade",
       "cd ~ && snagentic upgrade --version 1.0.0",
       "security find-generic-password -s snagentic -w",

@@ -20,6 +20,17 @@ export interface ChangedRecords {
   current(base: string): Promise<RecordVersion | null>;
   // The record at a commit, or null when it did not exist then.
   at(commit: string, base: string): Promise<RecordVersion | null>;
+  // How many records of `className` have `field` set to `sysId`: in the workspace, or at
+  // `commit` when one is given.
+  countReferences(
+    className: string,
+    field: string,
+    sysId: string,
+    commit: string | null,
+  ): Promise<number>;
+  // The instance's commit while integrate merges it (a merge of the instance's
+  // servicenow-remote branch is in progress), or null.
+  mirrorMerge(): Promise<string | null>;
 }
 
 // What a rule pack needs to know about the record a script belongs to.

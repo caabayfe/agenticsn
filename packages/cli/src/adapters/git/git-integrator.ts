@@ -180,6 +180,31 @@ function blocked(conflicts: readonly string[], unresolved: readonly string[], ta
   );
 }
 
+// Files git names when it will not overwrite them: one per tab-indented line, or one quoted.
+function untrackedInTheWay(stderr: string): string[] {
+  const listed = stderr
+    .split("\n")
+    .filter((line) => line.startsWith("\t"))
+    .map((line) => line.trim());
+  const single = /Untracked working tree file '(.+)' would be overwritten/.exec(stderr)?.[1];
+  return listed.length > 0 ? listed : single === undefined ? [] : [single];
+}
+
+// git refused to start the merge (no MERGE_HEAD): committing now would commit nothing but
+// whatever the index holds, and the pre-commit hook would check every file in the way.
+function refused(stderr: string): IntegrationBlockedError {
+  const files = untrackedInTheWay(stderr);
+  const reason =
+    files.length > 0
+      ? `${files.length} untracked file(s) would be overwritten: ${files.slice(0, 3).join(", ")}${files.length > 3 ? ", ..." : ""}`
+      : (stderr.trim().split("\n")[0] ?? "");
+  return new IntegrationBlockedError(
+    "merge-refused",
+    `git refused to start the merge: ${reason}`,
+    "an interrupted integrate leaves copies of the pulled files; commit any record you created, delete the other untracked files under the instance's metadata folder, then integrate again",
+  );
+}
+
 async function merge(
   root: string,
   instance: string,
@@ -197,7 +222,12 @@ async function merge(
   ];
   const where = { metadata: instancePaths(InstanceName.parse(instance)).metadata, branch };
   const read = recordReader(root);
-  const clean = (await runGit(args, root)).exitCode === 0;
+  const attempt = await runGit(args, root);
+  const clean = attempt.exitCode === 0;
+  const merging = (await runGit(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], root)).exitCode;
+  if (!clean && merging !== 0) {
+    throw refused(attempt.stderr);
+  }
   const pushed = clean ? [] : await takeConfirmed(root, read, where);
   const moved = related ? await takeRelocated(root, read, where) : NOTHING_MOVED;
   const confirmed = [...pushed, ...moved.confirmed];

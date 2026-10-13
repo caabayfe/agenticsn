@@ -77,6 +77,28 @@ export class UnfinishedPushError extends SnagenticError {
   }
 }
 
+export class ElevationUnavailableError extends SnagenticError {
+  constructor() {
+    super(
+      "elevation-unavailable",
+      "precondition",
+      "the plan writes ACLs, but no elevated session can be opened for this instance",
+      "a person opts the instance in with snagentic auth login <instance> --allow-elevation (ADR-0024), then plan again",
+    );
+  }
+}
+
+export class ElevatedUserMismatchError extends SnagenticError {
+  constructor(expected: string, actual: string) {
+    super(
+      "elevated-user-mismatch",
+      "not-permitted",
+      `the elevated session signed in as ${actual}, but the profile names ${expected}; nothing was written`,
+      "check the instance's login (SSO may sign in someone else), then push again",
+    );
+  }
+}
+
 export class IntegrationUserNotFoundError extends SnagenticError {
   constructor(username: string) {
     super(

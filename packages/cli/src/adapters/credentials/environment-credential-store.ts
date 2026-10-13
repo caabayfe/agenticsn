@@ -10,7 +10,8 @@ import {
 } from "@snagentic/core";
 
 // Read-only: CI and servers provide SNAGENTIC_<NAME>_PASSWORD, pinned to an instance by
-// SNAGENTIC_<NAME>_URL and SNAGENTIC_<NAME>_KIND (ADR-0020).
+// SNAGENTIC_<NAME>_URL and SNAGENTIC_<NAME>_KIND (ADR-0020). SNAGENTIC_<NAME>_ALLOW_ELEVATION=true
+// opts the job into elevated writes (ADR-0024), set by whoever runs it, like the pins.
 export class EnvironmentCredentialStore implements CredentialStore {
   constructor(private readonly environment: Readonly<Record<string, string | undefined>>) {}
 
@@ -38,8 +39,9 @@ export class EnvironmentCredentialStore implements CredentialStore {
     if (!isKind(kind)) {
       return null;
     }
+    const elevation = this.environment[`${prefix}_ALLOW_ELEVATION`] === "true";
     try {
-      return { url: normalizeInstanceUrl(url), kind };
+      return { url: normalizeInstanceUrl(url), kind, ...(elevation ? { elevation } : {}) };
     } catch {
       return null;
     }

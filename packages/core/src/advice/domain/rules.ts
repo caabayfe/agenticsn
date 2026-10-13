@@ -1,29 +1,12 @@
+import { ACL_RULES } from "./acl-rules";
+import type { Rule } from "./rule-types";
 import { type ScriptKind, scriptKindsOf } from "./script-fields";
 
 // The ServiceNow rules snagentic checks (validate) and cites (advise). Ids are stable and
 // never reused (AGENTS.md). Categories follow ServiceNow Instance Scan. Ported from v1.
 
-export type RuleCategory =
-  | "security"
-  | "performance"
-  | "upgradability"
-  | "manageability"
-  | "user_experience";
-export type Severity = "block" | "warn" | "info";
-
+export type { Rule, RuleCategory, Severity } from "./rule-types";
 export type { ScriptKind };
-
-export interface Rule {
-  readonly id: string;
-  readonly category: RuleCategory;
-  readonly severity: Severity;
-  readonly title: string;
-  readonly why: string;
-  readonly remediation: string;
-  readonly scripts: readonly ScriptKind[];
-  // Only records of these classes; any class with matching scripts when absent.
-  readonly classes?: readonly string[];
-}
 
 const SERVER: readonly ScriptKind[] = ["server"];
 const CLIENT: readonly ScriptKind[] = ["client"];
@@ -267,6 +250,7 @@ export const RULES: readonly Rule[] = [
     remediation: "Use g_form.addErrorMessage/showFieldMsg or GlideModal.",
     scripts: BROWSER,
   },
+  ...ACL_RULES,
 ];
 
 // Rules that apply to records of these classes (all rules when no class is given).

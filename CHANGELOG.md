@@ -4,8 +4,29 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-13
+
+### Added
+
+- `push` writes ACLs (`sys_security_acl`, `sys_security_acl_role`) on development instances
+  you allow with `snagentic auth login <instance> --allow-elevation` (or
+  `SNAGENTIC_<NAME>_ALLOW_ELEVATION=true` in CI). It signs in to the instance in a headless
+  Google Chrome or Microsoft Edge, elevates to `security_admin` only, writes the ACLs last
+  into the branch's update set, and signs out. No manual step is left. Needs a password login
+  (not single sign-on) and Chrome or Edge installed (ADR-0024).
+- `validate` checks ACL records: SN-SEC-006 blocks a write, create or delete ACL that no role,
+  condition or script restricts; SN-SEC-007 blocks deactivating, deleting or allowing a deny
+  ACL; SN-SEC-008 warns when admin overrides are turned off.
+
 ### Fixed
 
+- `integrate` stops when git refuses to start the merge, naming the untracked files in the way
+  (an interrupted integrate leaves copies of the pulled files). Before, it committed anyway and
+  the pre-commit hook checked every one of those files, which took hours on a full pull.
+- `integrate` is no longer blocked by findings the instance already had. The pre-commit hook
+  validated every record the pull brought in, so a pull that activated a plugin with vendor
+  code could never be integrated. During integrate's merge, validate now checks only records
+  that differ from the instance's version; a conflict resolved by hand is still checked.
 - A record created in the workspace may have any file name in its scope and class folder, as
   long as it ends with its sys_id. `plan-push` no longer asks to rename it: pull names files
   after `sys_name`, which the platform sets when the record is created, so no name chosen
@@ -20,9 +41,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - `push` writes what other records refer to first: a table before its fields and choices, a
   role before its ACLs, a UI policy before its actions, an event before its notification.
   Before, records were written in file order.
-- `plan-push` refuses ACLs (`sys_security_acl`, `sys_security_acl_role`): writing them needs
-  the elevated `security_admin` role, which push cannot use. Before, the push stopped part way
-  with the records before it already written.
+- `plan-push` refuses ACLs (`sys_security_acl`, `sys_security_acl_role`) on an instance not
+  allowed to elevate, and says how to allow it. Before, the push stopped part way with the
+  records before it already written.
 - `plan-push` refuses choices (`sys_choice`): pull does not mirror them yet, so every later
   plan would have created them again.
 - `plan-push` and `status` say when a push stopped part way, until a pull shows what it wrote.
@@ -41,6 +62,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - Agents may not run commands that read stored credentials (`security find-generic-password`,
   `security dump-keychain`, `secret-tool lookup`, `cmdkey`): deny rules for Claude Code and
   the pre-shell hook for other hosts. Run `snagentic agent install` again to add them.
+- Agents may not set `SNAGENTIC_<NAME>_ALLOW_ELEVATION` in a shell command, like the other
+  credential variables.
 
 ## [1.3.0] - 2026-10-08
 

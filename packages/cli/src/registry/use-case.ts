@@ -4,6 +4,7 @@ import type {
   ChangedRecords,
   CredentialStore,
   DeliveryWorkspace,
+  ElevatedSessions,
   EnvironmentProbe,
   IncrementalMirror,
   InstalledBinary,
@@ -67,6 +68,8 @@ export interface UseCaseContext {
   readonly credentials: CredentialStore;
   readonly secrets: SecretReader;
   readonly connections: ConnectionFactory;
+  // Sessions elevated to security_admin, for push to write ACLs (ADR-0024).
+  readonly elevatedSessions: (profile: InstanceProfile, secret: string) => ElevatedSessions;
   // Per-instance local sync state (.snagentic/<name>/) and the git mirror of a workspace.
   readonly syncState: (root: string, instance: InstanceName) => SyncStateStore;
   readonly mirrors: {

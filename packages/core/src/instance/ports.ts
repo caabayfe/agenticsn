@@ -14,6 +14,11 @@ export interface ProfileStore {
 // stored together with the profile's url and kind (ADR-0020).
 export interface CredentialStore {
   read(profile: InstanceProfile): Promise<StoredCredential | null>;
-  write(profile: InstanceProfile, secret: string): Promise<void>;
+  // `elevation`: the person opted the instance into elevated writes (ADR-0024).
+  write(
+    profile: InstanceProfile,
+    secret: string,
+    options?: { readonly elevation: boolean },
+  ): Promise<void>;
   remove(profile: InstanceProfile): Promise<boolean>;
 }

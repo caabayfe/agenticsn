@@ -74,9 +74,13 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic auth login <instance> [options]
 ```
 
-Check the password (or OAuth client secret) with the instance, then store it in the OS keychain together with the profile's url and kind; it is used only while they match. Prompts without echo, or reads stdin.
+Check the password (or OAuth client secret) with the instance, then store it in the OS keychain together with the profile's url and kind; it is used only while they match. Prompts without echo, or reads stdin. allowElevation lets push write ACLs through a browser session elevated to security_admin (ADR-0024): development instances with Basic authentication only, for a user who holds security_admin.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--allow-elevation`: let push elevate to security_admin to write ACLs (needs Chrome or Edge)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 

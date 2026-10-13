@@ -64,6 +64,23 @@ describe("KeychainCredentialStore", () => {
     expect(await store.read(profile)).toBeNull();
   });
 
+  it("records the opt-in into elevated writes in the same item as the secret (ADR-0024)", async () => {
+    const keychain = memoryKeychain();
+    const store = new KeychainCredentialStore(keychain.factory);
+    const dev = { ...profile, kind: "development" as const };
+    await store.write(dev, "pw", { elevation: true });
+    expect(await store.read(dev)).toEqual({
+      secret: "pw",
+      source: "keychain",
+      trusted: { url: "https://acme.service-now.com", kind: "development", elevation: true },
+    });
+    await store.write(dev, "pw", { elevation: false });
+    expect((await store.read(dev))?.trusted).toEqual({
+      url: "https://acme.service-now.com",
+      kind: "development",
+    });
+  });
+
   it("reads a secret stored by an earlier version as not bound to any instance", async () => {
     const keychain = memoryKeychain();
     keychain.entries.set("snagentic/integration@acme.service-now.com", "old-pw");
@@ -130,6 +147,20 @@ describe("EnvironmentCredentialStore", () => {
       trusted: { url: "https://acme.service-now.com", kind: "production" },
     });
     expect(await new EnvironmentCredentialStore({}).read(profile)).toBeNull();
+  });
+
+  it("opts a CI job into elevated writes with SNAGENTIC_<NAME>_ALLOW_ELEVATION=true", async () => {
+    const opted = { ...PINNED, SNAGENTIC_ACME_PROD_ALLOW_ELEVATION: "true" };
+    expect((await new EnvironmentCredentialStore(opted).read(profile))?.trusted).toEqual({
+      url: "https://acme.service-now.com",
+      kind: "production",
+      elevation: true,
+    });
+    const other = { ...PINNED, SNAGENTIC_ACME_PROD_ALLOW_ELEVATION: "yes" };
+    expect((await new EnvironmentCredentialStore(other).read(profile))?.trusted).toEqual({
+      url: "https://acme.service-now.com",
+      kind: "production",
+    });
   });
 
   it("binds the secret to nothing when the pinning variables are missing or invalid", async () => {

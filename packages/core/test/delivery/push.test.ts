@@ -82,6 +82,7 @@ function pushSetup(overrides: Partial<State> = {}, options = { capture: true }) 
     username: "admin",
     url: "https://dev.example.com",
     pullRequests: pullRequests.port,
+    elevatedSessions: null,
   };
   return { ...base, deps, calls, journal, platform: pullRequests.platform };
 }

@@ -78,8 +78,11 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     secret: string,
     scheduler: RequestSender,
     version: string,
+    // How requests are signed: the profile's auth method, or nothing for a browser session
+    // whose transport carries its own session (ADR-0024).
+    sign: typeof authorize = authorize,
   ) {
-    this.scheduler = authorize(profile, secret, scheduler);
+    this.scheduler = sign(profile, secret, scheduler);
     this.userAgent = `${version} run/${crypto.randomUUID().slice(0, 8)}`;
     this.headers = {
       Accept: "application/json",

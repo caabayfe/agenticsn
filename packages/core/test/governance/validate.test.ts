@@ -49,6 +49,8 @@ function fakeRecords(
     changedSince: async () => Object.keys(now).sort(),
     current: async (base) => now[base] ?? null,
     at: async (_commit, base) => before[base] ?? null,
+    countReferences: async () => 0,
+    mirrorMerge: async () => null,
   };
 }
 
@@ -212,5 +214,29 @@ describe("validate", () => {
     await expect(
       validate({ records: fakeRecords({}), checker: fakeChecker() }, { base: "nope" }),
     ).rejects.toMatchObject({ code: "unknown-base" });
+  });
+
+  it("while integrate merges the instance, checks only records that also differ from it", async () => {
+    const vendor = version("sys_script_include", {
+      ...DESCRIBED,
+      script: "eval(a); /*SN-SEC-001*/",
+    });
+    const resolved = version("sys_script_include", {
+      ...DESCRIBED,
+      script: "eval(a); /*SN-SEC-001*/\neval(b); /*SN-SEC-001*/",
+    });
+    const records: ChangedRecords = {
+      resolve: async () => "head",
+      changedSince: async (commit) => (commit === "head" ? ["pulled", "resolved"] : ["resolved"]),
+      current: async (base) => (base === "pulled" ? vendor : resolved),
+      at: async (commit, base) => (commit === "mirror" && base === "resolved" ? vendor : null),
+      mirrorMerge: async () => "mirror",
+      countReferences: async () => 0,
+    };
+    const result = await validate({ records, checker: fakeChecker() }, { base: "HEAD" });
+    expect(result.records).toBe(1);
+    expect(result.findings.map((f) => [f.ruleId, f.line])).toEqual([["SN-SEC-001", 2]]);
+    const named = await validate({ records, checker: fakeChecker() }, { base: "main" });
+    expect(named.records).toBe(2);
   });
 });

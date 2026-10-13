@@ -81,6 +81,7 @@ export const push = defineUseCase({
           sysId: z.string(),
           path: z.string(),
           captured: z.boolean(),
+          elevated: z.boolean(),
         }),
       )
       .readonly(),
@@ -90,7 +91,7 @@ export const push = defineUseCase({
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
   mcp: true,
   async handle(input, context, run) {
-    const { root, name, profile, reader, pager } = await connect(
+    const { root, name, profile, reader, pager, elevatedSessions } = await connect(
       context,
       input.instance,
       run.signal,
@@ -112,6 +113,8 @@ export const push = defineUseCase({
         username: profile.auth.username,
         url: profile.url,
         pullRequests: context.pullRequests(root),
+        elevation: elevatedSessions !== null,
+        elevatedSessions,
       },
       {
         instance: name,
@@ -133,7 +136,7 @@ export const push = defineUseCase({
         .map((set) => `update set ${set.created ? "created" : "reused"}: ${set.name}  ${set.link}`),
       ...output.written.map(
         (w) =>
-          `${w.operation.padEnd(6)} ${w.table}  ${w.path}${w.captured ? "" : "  NOT captured in the update set"}`,
+          `${w.operation.padEnd(6)} ${w.table}  ${w.path}${w.elevated ? "  elevated: security_admin" : ""}${w.captured ? "" : "  NOT captured in the update set"}`,
       ),
       output.notCaptured === 0
         ? `pushed ${output.written.length} record(s); next: snagentic pull ${output.instance}, then snagentic integrate ${output.instance}`

@@ -23,6 +23,7 @@ import { GitMirrorFiles } from "./adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "./adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
+import { BrowserElevatedSessions } from "./adapters/servicenow/elevation/browser-elevated-sessions";
 import { fetchTransport } from "./adapters/servicenow/fetch-transport";
 import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
@@ -65,6 +66,8 @@ const context: UseCaseContext = {
     open: (profile, secret) =>
       new ServiceNowClient(profile, secret, new RequestScheduler(fetchTransport()), versionLine()),
   },
+  elevatedSessions: (profile, secret) =>
+    new BrowserElevatedSessions(profile, secret, versionLine()),
   syncState: (root, instance) =>
     new JsonSyncStateStore(join(root, instancePaths(instance).localState)),
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
@@ -79,7 +82,11 @@ const context: UseCaseContext = {
     };
   },
   governance: (root, instance) => ({
-    records: new GitChangedRecords(root, instancePaths(instance).metadata),
+    records: new GitChangedRecords(
+      root,
+      instancePaths(instance).metadata,
+      instancePaths(instance).remoteBranch,
+    ),
     checker: new EslintScriptChecker(),
   }),
   files: { create: createTextFile },

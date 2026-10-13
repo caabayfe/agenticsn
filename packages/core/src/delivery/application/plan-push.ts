@@ -9,7 +9,13 @@ import {
   type UpdateSetDependencies,
 } from "../../updatesets/index";
 import { batchUpdateSets, inBatch } from "../domain/batch";
-import { changeOf, type ParsedRecord, type PlannedWrite, type PlanProblem } from "../domain/change";
+import {
+  changeOf,
+  needsElevation,
+  type ParsedRecord,
+  type PlannedWrite,
+  type PlanProblem,
+} from "../domain/change";
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
 import { type GateResult, gateOf, planId } from "../domain/gate";
 import { readWaivers, UNCOMMITTED_WAIVERS } from "../domain/waivers";
@@ -29,6 +35,8 @@ export interface PlanDependencies {
   readonly journal: Pick<PushJournalStore, "read">;
   readonly governance: ValidateDependencies;
   readonly updateSets: UpdateSetDependencies;
+  // A person opted the instance into writes through an elevated session (ADR-0024).
+  readonly elevation: boolean;
   readonly now: () => Date;
   readonly signal: AbortSignal;
 }
@@ -52,6 +60,8 @@ export interface PushPlan {
     readonly scope: string;
     readonly path: string;
     readonly fields: readonly string[];
+    // Written through a session elevated to security_admin (ADR-0024).
+    readonly elevated: boolean;
   }[];
   readonly problems: readonly PlanProblem[];
   readonly gate: GateResult;
@@ -107,6 +117,7 @@ async function writesAndProblems(deps: PlanDependencies, commit: string, instanc
         `${base}.yaml`,
         await pulledCopy(deps, base, commit),
         await parsed(deps, base, null),
+        { elevation: deps.elevation },
       );
       if (outcome.kind === "write") {
         writes.push(outcome.write);
@@ -188,6 +199,7 @@ export async function computePlan(
     changes: writes.map(({ values, baseHash, ...change }) => ({
       ...change,
       fields: Object.keys(values),
+      elevated: needsElevation(change.table),
     })),
     problems,
     gate,

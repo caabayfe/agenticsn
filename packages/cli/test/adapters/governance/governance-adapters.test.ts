@@ -37,7 +37,7 @@ async function workspace() {
   await write(`${INCLUDE}.children.sys_x.yaml`, "rows: []\n");
   await git(repo, "add", ".");
   await git(repo, "commit", "-qm", "pull");
-  return { repo, write, records: new GitChangedRecords(repo, ROOT) };
+  return { repo, write, records: new GitChangedRecords(repo, ROOT, "servicenow-remote/pdi") };
 }
 
 describe("GitChangedRecords", () => {
@@ -45,6 +45,28 @@ describe("GitChangedRecords", () => {
     const { records } = await workspace();
     expect(await records.resolve("HEAD")).toMatch(/^[0-9a-f]{40}$/);
     expect(await records.resolve("no-such-branch")).toBeNull();
+  });
+
+  it("names the instance's commit while integrate merges it, and nothing otherwise", async () => {
+    const { repo, records, write } = await workspace();
+    expect(await records.mirrorMerge()).toBeNull();
+    await git(repo, "branch", "servicenow-remote/pdi");
+    await git(repo, "branch", "feature");
+    await git(repo, "switch", "-q", "servicenow-remote/pdi");
+    await write("global/sys_script/pulled--b3.yaml", "name: Pulled\n");
+    await git(repo, "add", ".");
+    await git(repo, "commit", "-qm", "pull");
+    const pulled = await records.resolve("HEAD");
+    await git(repo, "switch", "-q", "feature");
+    await write("global/sys_script/mine--b4.yaml", "name: Mine\n");
+    await git(repo, "add", ".");
+    await git(repo, "commit", "-qm", "mine");
+    await git(repo, "switch", "-q", "main");
+    await git(repo, "merge", "--no-ff", "--no-commit", "feature");
+    expect(await records.mirrorMerge()).toBeNull();
+    await git(repo, "merge", "--abort");
+    await git(repo, "merge", "--no-ff", "--no-commit", "servicenow-remote/pdi");
+    expect(await records.mirrorMerge()).toBe(pulled);
   });
 
   it("lists records edited or added since a commit", async () => {
@@ -71,6 +93,39 @@ describe("GitChangedRecords", () => {
     );
     expect(await records.at(head, "global/sys_script/none--x")).toBeNull();
     expect(await records.current("global/sys_script/none--x")).toBeNull();
+  });
+});
+
+describe("GitChangedRecords: references", () => {
+  const ROLE = "global/sys_security_acl_role/incident-itil--r1";
+  const role = (acl: string) =>
+    toYaml({
+      _meta: { sys_id: "r1", sys_class_name: "sys_security_acl_role", scope: "global" },
+      sys_security_acl: acl,
+      sys_user_role: "itil1",
+    });
+
+  it("counts the records pointing at a sys_id, now and at a commit", async () => {
+    const { records, write } = await workspace();
+    await write(`${ROLE}.yaml`, role("a1c"));
+    const head = (await records.resolve("HEAD")) ?? "";
+    // Not committed yet: the workspace has the role, the commit does not.
+    expect(
+      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", null),
+    ).toBe(1);
+    expect(
+      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", head),
+    ).toBe(0);
+    expect(
+      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1", null),
+    ).toBe(0);
+  });
+
+  it("reports a git failure instead of counting nothing", async () => {
+    const { records } = await workspace();
+    await expect(
+      records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", "f".repeat(40)),
+    ).rejects.toThrow();
   });
 });
 

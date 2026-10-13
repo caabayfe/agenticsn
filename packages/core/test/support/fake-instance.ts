@@ -1,6 +1,7 @@
 import {
   AccessDeniedError,
   type ConnectionStats,
+  InstanceError,
   type InstanceReader,
   type InstanceWriter,
   type PluginActivator,
@@ -158,7 +159,13 @@ export function memoryWriter(
 
 // An in-memory instance. Rows of metadata classes are stored under their class and also
 // answer queries on sys_metadata, as the real instance does.
-export function fakeInstance(tables: Record<string, Row[]>, denied: readonly string[] = []) {
+// `slow` tables time out on aggregate requests, as a busy instance does (HTTP 500, maximum
+// execution time exceeded).
+export function fakeInstance(
+  tables: Record<string, Row[]>,
+  denied: readonly string[] = [],
+  slow: readonly string[] = [],
+) {
   const queries: TableQuery[] = [];
   const fingerprints: string[] = [];
   // Plugin activations started, by plugin id. Activations succeed at once unless told otherwise.
@@ -202,6 +209,9 @@ export function fakeInstance(tables: Record<string, Row[]>, denied: readonly str
       return evaluate(rowsOf(table), query, Number.MAX_SAFE_INTEGER).length;
     },
     countBy: async (table: TableName, field: string, _signal?: AbortSignal, query = "") => {
+      if (slow.includes(String(table))) {
+        throw new InstanceError(`counts of ${table} by ${field}: maximum execution time exceeded`);
+      }
       counted.push(`${table} by ${field}${query === "" ? "" : ` where ${query}`}`);
       const counts = new Map<string, number>();
       for (const row of evaluate(rowsOf(table), query, Number.MAX_SAFE_INTEGER)) {

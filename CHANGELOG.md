@@ -36,6 +36,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - A push that fails reports the write that failed; a preference it could not restore stays in
   the push journal and is restored by the next push. A preference the instance replaced while
   the push ran is found again by user and name.
+- A pull goes on when an inventory signal times out on a busy instance (seen on pdi2: the
+  plugin count exceeded the instance's maximum execution time). That source counts as
+  unchanged, keeps its last signature and is checked again by the next pull.
 - An ACL's roles are counted however the YAML quotes the reference, so `validate` no longer
   blocks an ACL whose role records were written with quoted values.
 - Push checks capture under the update name the platform gives a record. A list

@@ -1,23 +1,18 @@
 import { SnagenticError } from "../../kernel/errors";
 import { Catalog } from "../../metadata/domain/catalog";
-import {
-  changesSince,
-  compareFingerprint,
-  FINGERPRINT_SOURCES,
-  type FingerprintChange,
-} from "../domain/fingerprint";
-import { INVENTORY, type InventorySource } from "../domain/inventory";
+import { changesSince, type FingerprintChange } from "../domain/fingerprint";
+import type { InventorySource } from "../domain/inventory";
 import { CHILD_TABLES } from "../domain/pull-scope";
 import { unexplainedLoss } from "../domain/record-changes";
 import type { Fingerprints, SyncState } from "../ports";
 import { applyWithCatalog } from "./apply-with-catalog";
-import { fetchFingerprints } from "./fetch-fingerprints";
+import { detectChanges } from "./detect-changes";
 import { applyChildChanges, type ChildOutcome } from "./incremental-children";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { type ChangeWindow, type RecordOutcome, readRecordChanges } from "./incremental-records";
 import { pullApplications } from "./pull-applications";
 import { type PullProgress, rawTimestamp } from "./pull-dependencies";
-import { inventorySignatures, pullOperational } from "./pull-operational";
+import { pullOperational } from "./pull-operational";
 import {
   type RecordVerification,
   type VerifiedRecords,
@@ -66,15 +61,6 @@ const NO_RECORD_CHANGES: RecordOutcome = {
   unwritten: [],
 };
 
-function compareAll(previous: Fingerprints | undefined, current: Fingerprints) {
-  return new Map<string, FingerprintChange>(
-    FINGERPRINT_SOURCES.map((table) => {
-      const now = current[table];
-      return [table, now === undefined ? "changed" : compareFingerprint(previous?.[table], now)];
-    }),
-  );
-}
-
 interface RecordStep {
   readonly catalog: Catalog;
   readonly catalogRefreshed: boolean;
@@ -103,15 +89,6 @@ async function pullRecordChanges(
 export interface PullOptions {
   // Also compare the mirror with the instance by counts and repair what differs.
   readonly verify?: boolean;
-}
-
-// Every direct child table is reconciled by grouped counts, as if it had lost rows.
-function verifyAllChildren(
-  changes: ReadonlyMap<string, FingerprintChange>,
-): Map<string, FingerprintChange> {
-  return new Map(
-    [...changes].map(([table, change]) => [table, table === "sys_metadata" ? change : "shrunk"]),
-  );
 }
 
 async function recordStep(
@@ -167,30 +144,6 @@ function summarize(
 // Brings the mirror up to date with what changed since the last pull (ADR-0016, M4
 // appendix): one aggregate request per change source, then change feeds and targeted
 // downloads only where a fingerprint moved. With verify, it then reconciles by counts.
-// What moved since the last pull: the change sources' fingerprints and the inventory's
-// signals. The mirror tree is read only when something needs it.
-async function detectChanges(
-  deps: IncrementalDependencies,
-  state: SyncState,
-  verify: boolean,
-  signal: AbortSignal,
-) {
-  const current = await fetchFingerprints(deps.statistics, signal);
-  const fingerprintChanges = compareAll(state.fingerprints, current.fingerprints);
-  const changes = verify ? verifyAllChildren(fingerprintChanges) : fingerprintChanges;
-  const inventory = await inventorySignatures(deps.statistics, signal);
-  const stale = INVENTORY.filter(
-    (source) =>
-      verify ||
-      (source.signal !== undefined && inventory[source.file] !== state.inventory?.[source.file]),
-  );
-  const moved = [...changes.values()].some((change) => change !== "unchanged");
-  if (verify || moved || stale.length > 0) {
-    await deps.records.prepare();
-  }
-  return { current, fingerprintChanges, changes, inventory, stale };
-}
-
 // An application is a sys_scope row: the inventory's sys_scope fingerprint moves with it.
 async function applicationsIfMoved(
   deps: IncrementalDependencies,
@@ -215,7 +168,8 @@ function nextState(
     ...state,
     watermark: startedAt,
     fingerprints,
-    inventory,
+    // A signal not read this time keeps the signature it had.
+    inventory: { ...state.inventory, ...inventory },
     unreadable: [...new Set([...(state.unreadable ?? []), ...unreadable])].sort(),
     ...(verified === null ? {} : { hiddenCounts: verified.hidden }),
   };

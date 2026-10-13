@@ -1,5 +1,5 @@
 import type { TableStatistics } from "../../connection/ports";
-import { AccessDeniedError } from "../../index-errors";
+import { AccessDeniedError, InstanceError } from "../../index-errors";
 import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
 import { INVENTORY, type InventorySource, inventorySignature } from "../domain/inventory";
@@ -77,7 +77,9 @@ export async function inventorySignatures(
         signatures[source.file] = `${fingerprint.count}|${fingerprint.maxUpdatedOn ?? ""}`;
       }
     } catch (error) {
-      if (!(error instanceof AccessDeniedError)) {
+      // A source the user may not read, or whose signal timed out on a busy instance, has no
+      // signature this time: it counts as unchanged and is checked again next pull.
+      if (!(error instanceof AccessDeniedError) && !(error instanceof InstanceError)) {
         throw error;
       }
     }

@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-14
+
 ### Fixed
 
 - Push finds a form section's changes where the instance records them, as the form that shows

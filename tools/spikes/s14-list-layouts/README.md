@@ -67,8 +67,8 @@ Every load left the user's preferences (`apps.current_app`, `sys_update_set`,
 
 ## Leftovers on pdi2
 
-- Update set "S14 list layout probe" (Access Review application): the S12 probe UI action's
-  update, and three List Layout updates (one for the stray list below).
-- A stray list `bb00a12109404cb7b11150408fb862bd` (item table, view id `13a5…` that does not
-  exist, so it is never shown) and its nine columns, from the first load.
+- Update set "S14 list layout probe" (Access Review application), state **ignore** so it is never
+  promoted: the S12 probe UI action's update and three List Layout updates.
+- The stray list from the first load (`bb00…`, a view id that does not exist) and its nine
+  columns were deleted (`cleanup.ts`, approved by the user).
 - The item list's sys_id changed from `d329…` to `200b…` (same columns): the next pull shows it.

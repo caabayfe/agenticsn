@@ -203,7 +203,8 @@ describe("push, Fluent projects (ADR-0028 as amended)", () => {
       expect.objectContaining({ sysId: ACTION, kind: "action", captured: true }),
     ]);
     expect(result.notCaptured).toBe(0);
-    expect(result.flowsInactiveMs).toBeGreaterThanOrEqual(0);
+    // The flow is new: nothing was live, so no window.
+    expect(result.flowsInactiveMs).toBeNull();
     const load = calls.findIndex((c) => c.startsWith("fluent load"));
     const publish = calls.findIndex((c) => c.startsWith("fluent publish"));
     expect(calls[load]).toBe("fluent load global 2 files into s2");
@@ -247,6 +248,13 @@ describe("push, Fluent projects (ADR-0028 as amended)", () => {
     expect(String(error)).toContain("Page on-call (No Trigger instance found)");
     const preferences = tables["sys_user_preference"] ?? [];
     expect(preferences.find((p) => p["name"] === "sys_update_set")?.["value"] ?? "").toBe("");
+  });
+
+  it("reports how long a flow that already existed was inactive while it was redelivered", async () => {
+    const { deps } = fluentSetup({ flowDomain: "global" });
+    const planId = (await computePlan(deps, QUERY)).plan.planId;
+    const result = await push(deps, { ...QUERY, planId });
+    expect(result.flowsInactiveMs).toBeGreaterThanOrEqual(0);
   });
 
   it("refuses before any write when an existing flow is in another domain than the user", async () => {

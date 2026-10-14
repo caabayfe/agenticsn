@@ -173,6 +173,7 @@ async function writeAll(
     readonly writes: readonly PlannedWrite[];
     readonly fluent: readonly FluentPackage[];
     readonly user: string;
+    readonly liveFlows: ReadonlySet<string>;
   },
   catalog: Catalog,
 ) {
@@ -188,13 +189,13 @@ async function writeAll(
     const id = project?.scopeId ?? scopeId(catalog, scope, run.writes);
     const target = { name: scope, id, user: run.user, fluent: project };
     const { fluent: delivered, ...set } = await pushScope(
-      { deps, session, journal, catalog },
+      { deps, session, journal, catalog, liveFlows: run.liveFlows },
       { ...target, writes: scoped, label: run.label, batch: run.batch },
     );
     updateSets.push({ scope, ...set, link: link(set) });
     if (delivered !== null) {
       fluent.push(...delivered.records);
-      inactive = Math.max(inactive ?? 0, delivered.inactiveMs);
+      if (delivered.inactiveMs !== null) inactive = Math.max(inactive ?? 0, delivered.inactiveMs);
     }
     for (const write of scoped) {
       const { operation, table, sysId: record, path } = write;
@@ -217,9 +218,10 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
     signal: deps.signal,
   };
   const { plan, writes, fluent: packages } = await preflight(deps, query, session);
-  if (packages.length > 0) {
-    await checkFlowDomains(session, deps.username, packages);
-  }
+  const liveFlows =
+    packages.length > 0
+      ? await checkFlowDomains(session, deps.username, packages)
+      : new Set<string>();
   const pullRequest = await pullRequestFor(deps, { ...query, label: plan.label, writes });
   const catalog = new Catalog(deps.catalog);
   const user = await userSysId(session, deps.username);
@@ -239,7 +241,7 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
     deps,
     session,
     journal,
-    { label: plan.label, batch, writes, fluent: packages, user },
+    { label: plan.label, batch, writes, fluent: packages, user, liveFlows },
     catalog,
   );
   await deps.journal.clear();

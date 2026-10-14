@@ -24,6 +24,8 @@ interface ScopeRun {
     readonly fluentInstaller: FluentInstaller | null;
     readonly now: () => Date;
   };
+  // Flows that existed before the push.
+  readonly liveFlows: ReadonlySet<string>;
   readonly session: InstanceSession;
   readonly journal: { current: PushJournal };
   readonly catalog: Catalog;
@@ -123,7 +125,13 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
       await writeStep(run, write, target, through);
     }
     if (target.fluent !== null && deps.fluentInstaller !== null) {
-      const delivery = { session, installer: deps.fluentInstaller, journal, now: deps.now };
+      const delivery = {
+        session,
+        installer: deps.fluentInstaller,
+        journal,
+        now: deps.now,
+        live: run.liveFlows,
+      };
       fluent = await deliverFluent({ ...delivery, store: deps.journal }, target.fluent, set.sysId);
     }
   } catch (error) {

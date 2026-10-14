@@ -20,7 +20,8 @@ export interface FluentDelivery {
   readonly records: readonly DeliveredFluentRecord[];
   // From the load, which turns a live flow into an inactive draft, until the publish
   // returned: triggers in this window are lost (test B3; accepted on development instances).
-  readonly inactiveMs: number;
+  // Null when the project redelivered no flow that already existed.
+  readonly inactiveMs: number | null;
 }
 
 const rows = (session: InstanceSession, table: string, query: string, fields: string[]) =>
@@ -33,17 +34,19 @@ const published = (r: PlannedFluentRecord) => r.kind !== "record" && r.action !=
 
 // The instance refuses to publish a flow outside its publishing user's domain (spike S11):
 // checked before any write, for the flows that already exist (ADR-0028 as amended, item 7).
+// Returns the flows that already exist: redelivering them makes them inactive for a while.
 export async function checkFlowDomains(
   session: InstanceSession,
   username: string,
   packages: readonly FluentPackage[],
-): Promise<void> {
+): Promise<ReadonlySet<string>> {
   const flows = packages.flatMap(recordsOf).filter((r) => r.table === "sys_hub_flow");
-  if (flows.length === 0) return;
+  if (flows.length === 0) return new Set();
   const [user] = await rows(session, "sys_user", `sys_id=${SESSION_USER}`, ["sys_domain"]);
   const domain = user?.["sys_domain"] ?? "";
   const ids = flows.map((f) => f.sysId).join(",");
-  const existing = await rows(session, "sys_hub_flow", `sys_idIN${ids}`, ["name", "sys_domain"]);
+  const fields = ["sys_id", "name", "sys_domain"];
+  const existing = await rows(session, "sys_hub_flow", `sys_idIN${ids}`, fields);
   const elsewhere = existing.filter((flow) => (flow["sys_domain"] ?? "") !== domain);
   if (elsewhere.length > 0) {
     throw new FlowDomainMismatchError(
@@ -52,6 +55,7 @@ export async function checkFlowDomains(
       elsewhere.map((flow) => flow["name"] ?? ""),
     );
   }
+  return new Set(existing.map((flow) => flow["sys_id"] ?? ""));
 }
 
 interface FluentRun {
@@ -60,6 +64,8 @@ interface FluentRun {
   readonly journal: { current: PushJournal };
   readonly store: PushJournalStore;
   readonly now: () => Date;
+  // Flows that existed before this push (checkFlowDomains).
+  readonly live: ReadonlySet<string>;
 }
 
 async function journaled(run: FluentRun, project: string, state: "sending" | "written") {
@@ -94,7 +100,8 @@ export async function deliverFluent(
     toPublish(records),
     session.signal,
   );
-  const inactiveMs = run.now().getTime() - started;
+  const redelivered = records.some((r) => run.live.has(r.sysId));
+  const inactiveMs = redelivered ? run.now().getTime() - started : null;
   const failed = results.filter((result) => !result.published);
   if (failed.length > 0) {
     const name = (id: string) => records.find((r) => r.sysId === id)?.name ?? id;

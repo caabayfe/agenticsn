@@ -103,11 +103,21 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
     return { document: fromYamlStrings(yaml), files };
   }
 
+  // The folder in the global domain and in every other domain (domains/<domain>/<folder>).
   async recordsIn(folder: string, at: string | null): Promise<string[]> {
-    const names = at === null ? await this.folderNow(folder) : await this.folderAt(at, folder);
-    return names
-      .filter((name) => name.endsWith(".yaml") && !name.includes(".children."))
-      .map((name) => `${folder}/${name.slice(0, -".yaml".length)}`);
+    const domains =
+      at === null ? await this.folderNow("domains") : await this.folderAt(at, "domains");
+    const folders = [folder, ...domains.map((domain) => `domains/${domain}/${folder}`)];
+    const bases: string[] = [];
+    for (const place of folders) {
+      const names = at === null ? await this.folderNow(place) : await this.folderAt(at, place);
+      for (const name of names) {
+        if (name.endsWith(".yaml") && !name.includes(".children.")) {
+          bases.push(`${place}/${name.slice(0, -".yaml".length)}`);
+        }
+      }
+    }
+    return bases;
   }
 
   async text(path: string): Promise<string | null> {

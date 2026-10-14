@@ -31,12 +31,19 @@ function strings(value: unknown): Record<string, string> {
 }
 
 // One instance's metadata (`root` is instances/<name>/metadata) in the workspace and in git.
+// Staged, it reads the index instead of the working tree: what a commit would record, for the
+// pre-commit hook, so untracked files and unstaged edits are not part of the check.
 export class GitChangedRecords implements ChangedRecords {
+  private readonly staged: boolean;
+
   constructor(
     private readonly workspace: string,
     private readonly root: string,
     private readonly mirrorBranch: string,
-  ) {}
+    options: { readonly staged?: boolean } = {},
+  ) {
+    this.staged = options.staged === true;
+  }
 
   async mirrorMerge(): Promise<string | null> {
     const merging = await this.resolve("MERGE_HEAD");
@@ -52,14 +59,17 @@ export class GitChangedRecords implements ChangedRecords {
   }
 
   async changedSince(commit: string): Promise<string[]> {
+    const index = this.staged ? ["--cached"] : [];
     const changed = await runGitOrThrow(
-      ["diff", "--name-only", "--no-renames", commit, "--", this.root],
+      ["diff", ...index, "--name-only", "--no-renames", commit, "--", this.root],
       this.workspace,
     );
-    const added = await runGitOrThrow(
-      ["ls-files", "--others", "--exclude-standard", "--", this.root],
-      this.workspace,
-    );
+    const added = this.staged
+      ? ""
+      : await runGitOrThrow(
+          ["ls-files", "--others", "--exclude-standard", "--", this.root],
+          this.workspace,
+        );
     const paths = [...lines(changed), ...lines(added)].map((path) =>
       path.slice(this.root.length + 1),
     );
@@ -67,10 +77,26 @@ export class GitChangedRecords implements ChangedRecords {
   }
 
   async current(base: string): Promise<RecordVersion | null> {
+    if (this.staged) {
+      return this.indexed(base);
+    }
     const names = await readdir(join(this.workspace, this.root, dirname(base))).catch(() => []);
     return this.version(base, scriptFiles(base, names), (path) =>
       readFile(join(this.workspace, this.root, path), "utf8").catch(() => null),
     );
+  }
+
+  // The record's files as staged.
+  private async indexed(base: string): Promise<RecordVersion | null> {
+    const folder = `${this.root}/${dirname(base)}`;
+    const listed = lines(await runGitOrThrow(["ls-files", "--", `${folder}/`], this.workspace));
+    const names = listed
+      .map((path) => path.slice(folder.length + 1))
+      .filter((n) => !n.includes("/"));
+    return this.version(base, scriptFiles(base, names), async (path) => {
+      const result = await runGit(["show", `:${this.root}/${path}`], this.workspace);
+      return result.exitCode === 0 ? result.stdout : null;
+    });
   }
 
   // The record's files at a commit. Only fields that still have a file are read: a script
@@ -111,6 +137,26 @@ export class GitChangedRecords implements ChangedRecords {
       count += line === "" ? 0 : 1;
     }
     return count;
+  }
+
+  // Privileges are not domain-separated, so they sit in the scope's own folder. A new one an
+  // agent writes may leave out status, which the platform then sets to allowed.
+  async privileges(scope: string): Promise<readonly string[]> {
+    const folder = `${scope}/sys_scope_privilege`;
+    const names = this.staged
+      ? lines(
+          await runGitOrThrow(["ls-files", "--", `${this.root}/${folder}/`], this.workspace),
+        ).map((path) => path.slice(path.lastIndexOf("/") + 1))
+      : await readdir(join(this.workspace, this.root, folder)).catch(() => []);
+    const declared: string[] = [];
+    for (const name of names.filter((n) => n.endsWith(".yaml") && n.split(".").length === 2)) {
+      const version = await this.current(`${folder}/${name.slice(0, -".yaml".length)}`);
+      const fields = version?.fields ?? {};
+      if ((fields["status"] ?? "allowed") === "allowed" && fields["target_name"] !== undefined) {
+        declared.push(`${fields["target_type"] ?? ""}:${fields["target_name"]}`);
+      }
+    }
+    return declared;
   }
 
   private async version(

@@ -27,6 +27,9 @@ const InstanceStatusOutput = z.object({
   localChanges: z.array(z.string()),
   // The plan id of a push that stopped part way, until a pull shows what it wrote.
   unfinishedPush: z.string().nullable(),
+  // The instance's domains besides global, from the operational inventory (ADR-0027): build an
+  // application in global, and in a customer's domain only that customer's changes.
+  domains: z.array(z.object({ name: z.string(), sysId: z.string() })),
   next: z.string(),
 });
 type InstanceStatusOutput = z.output<typeof InstanceStatusOutput>;
@@ -44,6 +47,9 @@ async function statusOf(root: string, profile: InstanceProfile, context: UseCase
     now: context.clock,
   });
   const journal = await context.pushJournal(root, profile.name).read();
+  const domains = ((await context.inventory.read(root, profile.name, "domains")) ?? [])
+    .map((row) => ({ name: row["name"] ?? "", sysId: row["sys_id"] ?? "" }))
+    .filter((domain) => domain.sysId !== "" && domain.sysId !== "global");
   const stopped =
     status.remoteCommit !== null && pushUnfinished(journal, status.remoteCommit) ? journal : null;
   return {
@@ -52,6 +58,7 @@ async function statusOf(root: string, profile: InstanceProfile, context: UseCase
     url: profile.url,
     localChanges: [...status.localChanges],
     unfinishedPush: stopped?.planId ?? null,
+    domains,
     next:
       stopped === null
         ? status.next
@@ -92,6 +99,9 @@ function renderOne(status: InstanceStatusOutput): string {
     ...(status.unintegratedPulls > 0
       ? [`  ${status.unintegratedPulls} pull(s) not integrated yet`]
       : []),
+    ...(status.domains.length === 0
+      ? []
+      : [`  domains: ${status.domains.map((d) => `${d.name} (${d.sysId})`).join(", ")}`]),
     changes.length === 0
       ? "  no local changes to synced files"
       : `  ${changes.length} local change(s): ${changes.slice(0, SHOWN_CHANGES).join(", ")}${more}`,

@@ -43,6 +43,7 @@ const version = (
 function fakeRecords(
   now: Record<string, RecordVersion | null>,
   before: Record<string, RecordVersion> = {},
+  privileges: Record<string, readonly string[]> = {},
 ): ChangedRecords {
   return {
     resolve: async (ref) => (ref === "nope" ? null : "c0ffee"),
@@ -50,6 +51,7 @@ function fakeRecords(
     current: async (base) => now[base] ?? null,
     at: async (_commit, base) => before[base] ?? null,
     countReferences: async () => 0,
+    privileges: async (scope) => privileges[scope] ?? [],
     mirrorMerge: async () => null,
   };
 }
@@ -111,9 +113,39 @@ describe("validate", () => {
       when: "",
       type: "onChange",
       name: "Hide",
+      scope: "x_acme_app",
+      privileges: [],
     });
     expect(seen[0]?.ruleIds).toContain("SN-UX-001");
     expect(seen[0]?.ruleIds).not.toContain("SN-PERF-001");
+  });
+
+  it("passes a scoped script the cross-scope privileges its application declares", async () => {
+    const seen: { ruleIds: readonly string[]; context: ScriptContext }[] = [];
+    const include = (name: string) =>
+      version("sys_script_include", { ...DESCRIBED, name, script: "x" }, "x_acme_app");
+    const records = fakeRecords(
+      { a: include("A"), b: include("B") },
+      {},
+      {
+        x_acme_app: ["sys_db_object:sys_user"],
+      },
+    );
+    let asked = 0;
+    const counting: ChangedRecords = {
+      ...records,
+      privileges: (scope) => {
+        asked += 1;
+        return records.privileges(scope);
+      },
+    };
+    await validate({ records: counting, checker: fakeChecker(seen) }, { base: "HEAD" });
+    expect(seen.map((s) => s.context.privileges)).toEqual([
+      ["sys_db_object:sys_user"],
+      ["sys_db_object:sys_user"],
+    ]);
+    expect(seen[0]?.ruleIds).toContain("SN-MNT-008");
+    expect(asked).toBe(1);
   });
 
   it("passes business-rule timing as the platform runs it", async () => {
@@ -232,6 +264,7 @@ describe("validate", () => {
       at: async (commit, base) => (commit === "mirror" && base === "resolved" ? vendor : null),
       mirrorMerge: async () => "mirror",
       countReferences: async () => 0,
+      privileges: async () => [],
     };
     const result = await validate({ records, checker: fakeChecker() }, { base: "HEAD" });
     expect(result.records).toBe(1);

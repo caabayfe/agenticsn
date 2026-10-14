@@ -12,6 +12,9 @@ export interface ChildTable {
   // The parent field holds a table's name, not a sys_id: the rows belong to that table's
   // sys_db_object record (choices, ADR-0025).
   readonly ownedByTableName?: true;
+  // The record classes that own these rows directly: a pull reads the rows of such a record when
+  // it is new to the mirror, as rows may be older than their owner.
+  readonly ownerClasses?: readonly string[];
 }
 
 const FLOW_CHILDREN = [
@@ -27,14 +30,23 @@ const FLOW_CHILDREN = [
 
 // Order matters: a child table that others reference comes first.
 export const CHILD_TABLES: readonly ChildTable[] = [
-  ...FLOW_CHILDREN.map((table) => ({ table, parentField: "flow" })),
+  ...FLOW_CHILDREN.map((table) => ({ table, parentField: "flow", ownerClasses: ["sys_hub_flow"] })),
   { table: "sys_hub_step_instance", parentField: "action" },
-  { table: "sys_ui_element", parentField: "sys_ui_section" },
-  { table: "sys_ui_list_element", parentField: "list_id" },
-  { table: "sys_ui_related_list_entry", parentField: "list_id" },
-  { table: "sys_ui_form_section", parentField: "sys_ui_form" },
-  { table: "sys_choice", parentField: "name", ownedByTableName: true },
-  { table: "wf_workflow_version", parentField: "workflow" },
+  { table: "sys_ui_element", parentField: "sys_ui_section", ownerClasses: ["sys_ui_section"] },
+  { table: "sys_ui_list_element", parentField: "list_id", ownerClasses: ["sys_ui_list"] },
+  {
+    table: "sys_ui_related_list_entry",
+    parentField: "list_id",
+    ownerClasses: ["sys_ui_related_list"],
+  },
+  { table: "sys_ui_form_section", parentField: "sys_ui_form", ownerClasses: ["sys_ui_form"] },
+  {
+    table: "sys_choice",
+    parentField: "name",
+    ownedByTableName: true,
+    ownerClasses: ["sys_db_object"],
+  },
+  { table: "wf_workflow_version", parentField: "workflow", ownerClasses: ["wf_workflow"] },
   { table: "wf_stage", parentField: "workflow_version", parentTable: "wf_workflow_version" },
   { table: "wf_activity", parentField: "workflow_version", parentTable: "wf_workflow_version" },
   { table: "wf_condition", parentField: "activity", parentTable: "wf_activity" },

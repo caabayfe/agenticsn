@@ -68,11 +68,12 @@ export async function instanceWorkspace(
       },
     }),
     pushJournal: (r, name) => new JsonPushJournalStore(join(r, instancePaths(name).localState)),
-    governance: (r, name) => ({
+    governance: (r, name, options = {}) => ({
       records: new GitChangedRecords(
         r,
         instancePaths(name).metadata,
         instancePaths(name).remoteBranch,
+        options,
       ),
       checker: new EslintScriptChecker(),
     }),

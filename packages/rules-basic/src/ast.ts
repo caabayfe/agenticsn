@@ -10,6 +10,10 @@ export interface RecordSettings {
   readonly type: string;
   readonly scoped: boolean;
   readonly name: string;
+  // The record's application scope, and the cross-scope privileges it declares, as
+  // "<target type>:<target name>" (for example "sys_db_object:sys_user").
+  readonly scope: string;
+  readonly privileges: ReadonlySet<string>;
 }
 
 export function recordOf(context: Rule.RuleContext): RecordSettings {
@@ -18,12 +22,20 @@ export function recordOf(context: Rule.RuleContext): RecordSettings {
     typeof settings === "object" && settings !== null && key in settings
       ? String((settings as Record<string, unknown>)[key])
       : "";
+  const declared =
+    typeof settings === "object" && settings !== null && "privileges" in settings
+      ? settings.privileges
+      : null;
   return {
     className: value("className"),
     when: value("when"),
     type: value("type"),
     scoped: value("scoped") === "true",
     name: value("name"),
+    scope: value("scope"),
+    privileges: new Set(
+      Array.isArray(declared) ? declared.filter((item) => typeof item === "string") : [],
+    ),
   };
 }
 

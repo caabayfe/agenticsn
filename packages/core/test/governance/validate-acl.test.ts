@@ -36,6 +36,7 @@ function records(options: {
     current: async () => options.now,
     at: async () => options.before ?? null,
     mirrorMerge: async () => null,
+    privileges: async () => [],
     countReferences: async (className, field, sysId, commit) => {
       options.lookups?.push(`${className}.${field}=${sysId} at ${commit ?? "workspace"}`);
       return commit === null ? (options.roles?.now ?? 0) : (options.roles?.before ?? 0);

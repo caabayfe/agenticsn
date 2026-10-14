@@ -94,10 +94,12 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
   try {
     await prefer("apps.current_app", target.id);
     set = await updateSetFor(run, target, application);
-    await prefer(
-      target.id === GLOBAL ? "sys_update_set" : `updateSetForScope${target.id}`,
-      set.sysId,
-    );
+    // A scoped write makes the platform switch the user's global current update set too, so
+    // push takes that preference as well, to put it back afterwards.
+    await prefer("sys_update_set", target.id === GLOBAL ? set.sysId : target.batch.sysId);
+    if (target.id !== GLOBAL) {
+      await prefer(`updateSetForScope${target.id}`, set.sysId);
+    }
     elevated = await elevatedSessionFor(
       deps.elevatedSessions,
       target.writes,

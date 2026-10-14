@@ -48,7 +48,7 @@ export const PRE_COMMIT_HOOK = [
   "#!/bin/sh",
   `${HOOK_MARK} (ADR-0011). Installed by snagentic agent install.`,
   "command -v snagentic >/dev/null 2>&1 || exit 0",
-  "exec snagentic validate --format agent",
+  "exec snagentic validate --staged --format agent",
   "",
 ].join("\n");
 

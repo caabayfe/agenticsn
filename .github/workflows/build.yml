@@ -75,6 +75,16 @@ jobs:
           cp -r ../../../tests/fixtures/fluent/s11-flows "$RUNNER_TEMP/s11-trace"
           rm -rf "$RUNNER_TEMP/s11-trace/expected"
           S13_TRACE=1 ./embed-bin "$RUNNER_TEMP/s11-trace" | grep -E "^trace|^success" || true
+      - name: "S13: the now-sdk CLI (Node) on s11-flows, to compare with the binary (A3)"
+        if: always()
+        run: |
+          cp -r tests/fixtures/fluent/s11-flows "$RUNNER_TEMP/s11-cli"
+          rm -rf "$RUNNER_TEMP/s11-cli/expected"
+          cd "$RUNNER_TEMP/s11-cli"
+          npm install --no-audit --no-fund --ignore-scripts @servicenow/sdk@4.13.6 >/dev/null
+          NO_TELEMETRY=1 npx now-sdk build >/dev/null 2>&1 || echo "CLI build failed"
+          echo "CLI records: $(find dist/app -name '*.xml' | wc -l)"
+          find dist/app -name '*.xml' | sed -E 's|.*/app/||; s|/.*||' | sort | uniq -c
       - uses: actions/upload-artifact@v4
         if: always()
         with:

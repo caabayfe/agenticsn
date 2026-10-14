@@ -152,7 +152,7 @@ describe("push", () => {
     tables["sys_update_set"] = [];
     const result = await push(deps, { ...QUERY, planId: await planned(deps) });
     expect(result.updateSets[0]).toMatchObject({ created: true });
-    expect(calls).toContain("insert sys_script_include name,script,sys_id,sys_scope");
+    expect(calls).toContain("insert sys_script_include name,script,sys_domain,sys_id,sys_scope");
     expect(result.written[0]).toMatchObject({ operation: "create", captured: true });
   });
 
@@ -381,18 +381,23 @@ describe("push: child rows (ADR-0025)", () => {
   };
   const section = record("sys_ui_section", SECTION_ID, { name: "u_review", view: "Default" });
 
-  // The platform records a section's fields as the section, under its sys_update_name.
+  // As pdi2 does: a section and its fields are recorded as the form that shows the section.
+  const FORM = "f".repeat(32);
   function sectionSetup(overrides: Partial<State>, onInstance: Record<string, string>[] = []) {
     const run = pushSetup(overrides);
     run.tables["sys_ui_section"] = [
       { sys_id: SECTION_ID, sys_update_name: `sys_ui_section_${SECTION_ID}` },
     ];
+    run.tables["sys_ui_form"] = [{ sys_id: FORM, sys_update_name: `sys_ui_form_sections_${FORM}` }];
+    run.tables["sys_ui_form_section"] = [
+      { sys_id: "e".repeat(32), sys_ui_form: FORM, sys_ui_section: SECTION_ID },
+    ];
     run.tables["sys_ui_element"] = onInstance;
     const writer = memoryWriter(run.tables, run.calls, {
       on: true,
       name: (table, row) =>
-        table === "sys_ui_element"
-          ? `sys_ui_section_${row["sys_ui_section"] ?? ""}`
+        table === "sys_ui_element" || table === "sys_ui_section"
+          ? `sys_ui_form_sections_${FORM}`
           : (row["sys_update_name"] ?? `${table}_${row["sys_id"] ?? ""}`),
     });
     return { ...run, deps: { ...run.deps, writer } };
@@ -479,8 +484,8 @@ describe("push: a new application (ADR-0025)", () => {
       (call) => call.includes("sys_app ") || call.includes("sys_script_include"),
     );
     expect(scoped).toEqual([
-      "insert sys_app name,scope,sys_id,sys_scope,version",
-      "insert sys_script_include name,script,sys_id,sys_scope",
+      "insert sys_app name,scope,sys_domain,sys_id,sys_scope,version",
+      "insert sys_script_include name,script,sys_domain,sys_id,sys_scope",
     ]);
     expect(calls).toContain("insert sys_user_preference name,user,value");
     expect(
@@ -491,6 +496,61 @@ describe("push: a new application (ADR-0025)", () => {
     expect(tables["sys_script_include"]?.[0]?.["sys_scope"]).toBe(APP_ID);
     const current = tables["sys_user_preference"]?.find((p) => p["name"] === "apps.current_app");
     expect(current?.["value"]).toBe("");
+  });
+});
+
+describe("push: writes the instance put in another update set (spec 006, B5)", () => {
+  function misplaced(defaultBy: string) {
+    const run = pushSetup();
+    run.tables["sys_update_set"]?.push({
+      sys_id: "def",
+      name: "Default",
+      state: "in progress",
+      application: "global",
+    });
+    const writer = memoryWriter(run.tables, run.calls, {
+      on: true,
+      name: (table, row) => `${table}_${row["sys_id"] ?? ""}`,
+    });
+    // As pdi2 did: the update lands in the application's Default update set.
+    const into = {
+      ...writer,
+      update: async (
+        table: string,
+        sysId: string,
+        values: Readonly<Record<string, string>>,
+        signal: AbortSignal,
+      ) => {
+        const row = await writer.update(table, sysId, values, signal);
+        if (table === "sys_script") {
+          run.tables["sys_update_xml"] = (run.tables["sys_update_xml"] ?? []).map((u) =>
+            u["name"] === `sys_script_${SYS_ID}`
+              ? { ...u, update_set: "def", sys_updated_by: defaultBy }
+              : u,
+          );
+        }
+        return row;
+      },
+    };
+    return { ...run, deps: { ...run.deps, writer: into } };
+  }
+
+  it("moves its own update from the application's Default update set into the batch", async () => {
+    const { deps, tables } = misplaced("admin");
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(result.notCaptured).toBe(0);
+    expect(
+      tables["sys_update_xml"]?.find((u) => u["name"] === `sys_script_${SYS_ID}`)?.["update_set"],
+    ).toBe("s2");
+  });
+
+  it("leaves an update someone else made where it is, and reports it", async () => {
+    const { deps, tables } = misplaced("pat");
+    const result = await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(result.notCaptured).toBe(1);
+    expect(
+      tables["sys_update_xml"]?.find((u) => u["name"] === `sys_script_${SYS_ID}`)?.["update_set"],
+    ).toBe("def");
   });
 });
 
@@ -539,6 +599,57 @@ describe("push: update sets in their application", () => {
 });
 
 describe("push: the user's preferences", () => {
+  it("restores the user's global update set, which a scoped write switches on the instance", async () => {
+    const SCOPED_ID = "abcdefabcdefabcdefabcdefabcdefab";
+    const path = `x_acme/sys_script/scoped--${SCOPED_ID}`;
+    const fields = { name: "Scoped", order: "1" };
+    const base = pushSetup({
+      mirror: { [path]: record("sys_script", SCOPED_ID, fields, undefined, "x_acme") },
+      working: {
+        [path]: record("sys_script", SCOPED_ID, { ...fields, order: "2" }, undefined, "x_acme"),
+      },
+      changed: [`${path}.yaml`],
+    });
+    const { tables } = base;
+    tables["sys_script"] = [
+      { sys_id: SCOPED_ID, sys_class_name: "sys_script", sys_scope: "a1", ...fields },
+    ];
+    tables["sys_user_preference"] = [
+      { sys_id: "g1", user: "u1", name: "sys_update_set", value: "mine" },
+    ];
+    const writer = base.deps.writer;
+    // As the instance does: a scoped write makes the scope's update set the global current one.
+    const instance = {
+      ...writer,
+      update: async (
+        table: string,
+        sysId: string,
+        values: Readonly<Record<string, string>>,
+        signal: AbortSignal,
+      ) => {
+        const row = await writer.update(table, sysId, values, signal);
+        if (table === "sys_script") {
+          const scoped = tables["sys_user_preference"]?.find(
+            (p) => p["name"] === "updateSetForScopea1",
+          );
+          tables["sys_user_preference"] = (tables["sys_user_preference"] ?? []).map((p) =>
+            p["name"] === "sys_update_set" ? { ...p, value: scoped?.["value"] ?? "" } : p,
+          );
+        }
+        return row;
+      },
+    };
+    const deps = {
+      ...base.deps,
+      writer: instance,
+      catalog: { parents: {}, scopes: { a1: "x_acme" }, typedFields: {} },
+    };
+    await push(deps, { ...QUERY, planId: await planned(deps) });
+    expect(tables["sys_user_preference"]?.find((p) => p["sys_id"] === "g1")?.["value"]).toBe(
+      "mine",
+    );
+  });
+
   it("makes each scope's application current while writing it, then restores it", async () => {
     const { deps, tables } = pushSetup();
     tables["sys_user_preference"] = [

@@ -1,10 +1,28 @@
 import type { Rule } from "eslint";
 import type * as ESTree from "estree";
-import { isCall, methodName, nameOf, recordOf, report } from "../ast";
+import { constructedName, isCall, methodName, nameOf, recordOf, report, stringValue } from "../ast";
 
 const SYS_ID = /^[0-9a-f]{32}$/;
 const INSTANCE_URL =
   /https?:\/\/(?!(?:www|hi|install|docs|developer|support|store|community|instance|signon|nowlearning)\.)[\w-]+\.(?:service-now\.com|servicenowservices\.com)/i;
+
+const TABLE_READERS = new Set(["GlideRecord", "GlideRecordSecure", "GlideAggregate"]);
+const NAMESPACE = /^(?:global|sn_\w+|x_\w+)$/;
+
+// What `new ...(...)` reaches in another scope, as a privilege names it: a table opened by
+// name, or a script include called through its scope's namespace.
+function crossScopeTarget(node: ESTree.NewExpression, scope: string): string | null {
+  const name = constructedName(node);
+  const table = stringValue(node.arguments[0]);
+  if (name !== null && TABLE_READERS.has(name) && table !== null) {
+    return table.startsWith(`${scope}_`) ? null : `sys_db_object:${table}`;
+  }
+  const callee = node.callee;
+  const namespace = callee.type === "MemberExpression" ? nameOf(callee.object) : null;
+  return name !== null && namespace !== null && namespace !== scope && NAMESPACE.test(namespace)
+    ? `sys_script_include:${name}`
+    : null;
+}
 
 // The name X in `var X = Class.create()` or `X = Class.create()`.
 function classDefined(node: ESTree.Node | null | undefined): boolean {
@@ -17,6 +35,28 @@ function classDefined(node: ESTree.Node | null | undefined): boolean {
 }
 
 export const MANAGEABILITY_RULES: Readonly<Record<string, Rule.RuleModule>> = {
+  "SN-MNT-008": {
+    create: (context) => {
+      const record = recordOf(context);
+      if (!record.scoped || record.scope === "") {
+        return {};
+      }
+      return {
+        NewExpression(node) {
+          const target = crossScopeTarget(node, record.scope);
+          if (target !== null && !record.privileges.has(target)) {
+            const [type, name] = target.split(":");
+            const what = type === "sys_db_object" ? "table" : "script include";
+            report(
+              context,
+              node,
+              `${what} '${name}' is in another scope and the application declares no cross-scope privilege for it`,
+            );
+          }
+        },
+      };
+    },
+  },
   "SN-MNT-001": {
     create: (context) => ({
       Literal(node) {

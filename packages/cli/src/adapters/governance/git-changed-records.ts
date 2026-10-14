@@ -139,6 +139,26 @@ export class GitChangedRecords implements ChangedRecords {
     return count;
   }
 
+  // Privileges are not domain-separated, so they sit in the scope's own folder. A new one an
+  // agent writes may leave out status, which the platform then sets to allowed.
+  async privileges(scope: string): Promise<readonly string[]> {
+    const folder = `${scope}/sys_scope_privilege`;
+    const names = this.staged
+      ? lines(
+          await runGitOrThrow(["ls-files", "--", `${this.root}/${folder}/`], this.workspace),
+        ).map((path) => path.slice(path.lastIndexOf("/") + 1))
+      : await readdir(join(this.workspace, this.root, folder)).catch(() => []);
+    const declared: string[] = [];
+    for (const name of names.filter((n) => n.endsWith(".yaml") && n.split(".").length === 2)) {
+      const version = await this.current(`${folder}/${name.slice(0, -".yaml".length)}`);
+      const fields = version?.fields ?? {};
+      if ((fields["status"] ?? "allowed") === "allowed" && fields["target_name"] !== undefined) {
+        declared.push(`${fields["target_type"] ?? ""}:${fields["target_name"]}`);
+      }
+    }
+    return declared;
+  }
+
   private async version(
     base: string,
     files: Record<string, string>,

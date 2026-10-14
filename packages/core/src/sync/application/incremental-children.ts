@@ -202,10 +202,15 @@ export async function applyChildChanges(
   deps: IncrementalDependencies,
   catalog: Catalog,
   changes: ReadonlyMap<string, FingerprintChange>,
-  window: { readonly since: string; readonly neverRead: ReadonlySet<string> },
+  window: {
+    readonly since: string;
+    readonly neverRead: ReadonlySet<string>;
+    // Records new to the mirror: their rows may be older than they are (spec 006, B4).
+    readonly created?: readonly { readonly base: string; readonly className: string }[];
+  },
   signal: AbortSignal,
 ): Promise<ChildOutcome> {
-  const { since, neverRead } = window;
+  const { since, neverRead, created = [] } = window;
   const totals: Totals = { childFiles: 0, removedChildFiles: 0 };
   const unreadable: string[] = [];
   const families = familiesToRelist(changes, neverRead);
@@ -227,5 +232,33 @@ export async function applyChildChanges(
       unreadable.push(child.table);
     }
   }
-  return { ...totals, unreadable: unreadable.sort() };
+  for (const child of CHILD_TABLES) {
+    const owners = created.filter((record) => child.ownerClasses?.includes(record.className));
+    if (owners.length > 0 && !relisted.has(child.table)) {
+      unreadable.push(...(await readNewOwners(deps, catalog, child, owners, signal, totals)));
+    }
+  }
+  return { ...totals, unreadable: [...new Set(unreadable)].sort() };
+}
+
+// The rows of records new to the mirror, read whole whatever their timestamps.
+async function readNewOwners(
+  deps: IncrementalDependencies,
+  catalog: Catalog,
+  child: ChildTable,
+  created: readonly { readonly base: string }[],
+  signal: AbortSignal,
+  totals: Totals,
+): Promise<string[]> {
+  try {
+    const owners = await childOwners(deps, child, signal);
+    const bases = created.map((record) => record.base);
+    await refreshOwners(deps, catalog, child, owners, bases, signal, totals);
+    return [];
+  } catch (error) {
+    if (!(error instanceof AccessDeniedError)) {
+      throw error;
+    }
+    return [child.table];
+  }
 }

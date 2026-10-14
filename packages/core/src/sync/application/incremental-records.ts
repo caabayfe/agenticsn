@@ -21,6 +21,8 @@ export interface RecordOutcome {
   // Changed records that could not be written: unreadable or unknown class, invalid sys_id,
   // or not returned by their class table.
   readonly unwritten: readonly string[];
+  // Records new to the mirror (base and class): their child rows may predate them (B4).
+  readonly created: readonly { readonly base: string; readonly className: string }[];
 }
 
 const SYS_METADATA = TableName.parse("sys_metadata");
@@ -126,7 +128,7 @@ async function replaceRecord(
   deps: IncrementalDependencies,
   catalog: Catalog,
   row: Row,
-): Promise<"written" | "renamed"> {
+): Promise<{ kind: "written" | "renamed"; base: string; created: boolean }> {
   const rendered = renderRecord(artifactFromRow(row, catalog, deps.policy), catalog);
   const root = deps.metadataRoot;
   const previous = deps.records.baseOf(root, row["sys_id"] ?? "");
@@ -138,7 +140,8 @@ async function replaceRecord(
     }
   }
   await deps.records.write(root, rendered);
-  return previous === undefined || previous === rendered.base ? "written" : "renamed";
+  const kind = previous === undefined || previous === rendered.base ? "written" : "renamed";
+  return { kind, base: rendered.base, created: previous === undefined };
 }
 
 async function downloadClass(
@@ -154,6 +157,7 @@ async function downloadClass(
     skipped: 0,
     received: [] as string[],
     stored: [] as string[],
+    created: [] as { base: string; className: string }[],
   };
   for (const batch of chunks(ids, DOWNLOAD_BATCH)) {
     const listing = {
@@ -165,8 +169,12 @@ async function downloadClass(
     for await (const row of deps.pager.rows(listing, signal)) {
       outcome.received.push(row["sys_id"] ?? "");
       try {
-        outcome[await replaceRecord(deps, catalog, row)] += 1;
+        const replaced = await replaceRecord(deps, catalog, row);
+        outcome[replaced.kind] += 1;
         outcome.stored.push(row["sys_id"] ?? "");
+        if (replaced.created) {
+          outcome.created.push({ base: replaced.base, className: table });
+        }
       } catch (error) {
         if (!(error instanceof InvalidIdentifierError)) {
           throw error;
@@ -199,6 +207,7 @@ export async function applyRecordChanges(
   const stored = new Set<string>();
   const unreadable: string[] = [];
   const totals = { written: 0, renamed: 0, deleted: 0, skippedRows: 0 };
+  const created: { base: string; className: string }[] = [];
   const classes = [...changes.changed.keys()].filter((table) => mirrored.has(table)).sort();
   await forEachConcurrently(classes, deps.classConcurrency ?? 4, async (table) => {
     try {
@@ -207,6 +216,7 @@ export async function applyRecordChanges(
       totals.written += outcome.written;
       totals.renamed += outcome.renamed;
       totals.skippedRows += outcome.skipped;
+      created.push(...outcome.created);
       for (const id of outcome.received) {
         received.add(id);
       }
@@ -227,5 +237,5 @@ export async function applyRecordChanges(
   }
   const requested = [...changes.changed.values()].flat();
   const unwritten = requested.filter((sysId) => !stored.has(sysId)).sort();
-  return { ...totals, unreadable: unreadable.sort(), unwritten };
+  return { ...totals, unreadable: unreadable.sort(), unwritten, created };
 }

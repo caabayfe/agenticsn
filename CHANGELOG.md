@@ -4,6 +4,35 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Push finds a form section's changes where the instance records them, as the form that shows
+  the section, so sections and their fields are no longer reported as not captured.
+- Push moves its own update into the batch when the instance recorded it in the application's
+  Default update set instead (seen on pdi2 while another session switched the user's
+  preferences). Only updates made by the pushing user are moved; one someone else made stays
+  where it is and is reported as not captured (spec 006, B5).
+- An incremental pull reads the child rows of a record new to the mirror, though they are older
+  than it: choices created before their table, or layout rows before their section, were never
+  pulled. Only the child tables that record's class owns are asked (spec 006, B4).
+- After a scoped push, the user's global current update set is what it was. A scoped write
+  makes the instance switch it to the scope's update set; push now takes and restores that
+  preference too (found by spike S11 on pdi2).
+
+### Added
+
+- Rule SN-MNT-008 (warn): a scoped application's server script that opens another scope's
+  table (`new GlideRecord('sys_user')`) or calls another scope's script include
+  (`new global.Helper()`) without a cross-scope privilege for it in the application's
+  `sys_scope_privilege` files. Runtime access tracking records privileges only in interactive
+  sessions, so scheduled and event scripts failed silently (spec 006, B8).
+- Domains (ADR-0027). Push writes a record's domain on every create: its `_meta.sys_domain`,
+  or global when the file names none, never the domain of the user's session. Changing
+  `_meta.sys_domain` moves the record, as an update the plan shows. `status` lists the
+  instance's domains when it has any besides global, and the build skill says which domain to
+  build in. Spike S12 showed the instance honours the domain on insert and update and carries
+  it in the update set.
+
 ## [1.5.1] - 2026-10-13
 
 ### Fixed

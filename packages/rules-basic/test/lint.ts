@@ -5,7 +5,7 @@ import { SCRIPT_RULES } from "../src/index";
 export function lint(
   ruleId: string,
   source: string,
-  record: Record<string, string> = {},
+  record: Record<string, string | readonly string[]> = {},
 ): number[] {
   const rule = SCRIPT_RULES[ruleId];
   if (rule === undefined) {

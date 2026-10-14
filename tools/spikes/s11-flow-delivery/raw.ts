@@ -33,4 +33,6 @@ const response = await fetch(new URL(path, profile.url), {
   },
   ...(body === undefined ? {} : { body }),
 });
-console.log(response.status, (await response.text()).slice(0, 3000));
+// RAW_FULL=1 prints the whole body (update record payloads are long).
+const text = await response.text();
+console.log(response.status, process.env["RAW_FULL"] === "1" ? text : text.slice(0, 3000));

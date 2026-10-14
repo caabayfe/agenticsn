@@ -98,3 +98,56 @@ text, the SBOM's serial number and timestamp dropped, only the `*.xml` records c
 
 **Result: pass on macOS arm64.** Across platforms is part of A3 (CI). The product test is a
 `fast-check` property over generated edits, with the normalization as a unit under test.
+
+## A2: Fluent coverage (flows test plan, 2026-10-14)
+
+Eleven projects in `tests/fixtures/fluent/` (flow logic, subflow, custom action with a script step,
+stages, scheduled and inbound email triggers, script include and business rule from a TypeScript
+server module, cross-scope privileges, a property and an ACL, all together, S11), each with the
+`now-sdk` CLI's build (Node, telemetry off) as `expected/`. `fixtures.ts` builds each from the
+binary in a folder with no `node_modules`, twice, and compares the normalized records.
+
+- **Result: pass**, all eleven, after adding `@servicenow/glide` to the embedded types (server
+  modules import it; asset 2,815 files, 1.35 MB gzipped). Server modules compiled inside the binary
+  without `@swc/core` or Rollup's native add-on.
+- **`Now.ID` sys_ids are not hashes.** A new `$id` gets a random sys_id on its first build, which
+  the build writes into `src/fluent/generated/keys.ts` in the project's source. Two first builds
+  without it give different records; with it, every build is identical. `keys.ts` is source and
+  must be committed (ADR-0028 says "hashed": to amend).
+
+## A9: errors (2026-10-14)
+
+`Orchestrator.build` returns `{ success: false }` with an empty `diagnostics` list; the errors are in
+the project's diagnostics store (`source` `ts` or `fluent`, `code`, `message`, file, LSP range).
+`embed.ts` prints each as `finding {"file","line","column","code","message"}` and exits 1. The
+fixture `tests/fixtures/fluent-errors/a9` gives seven: unknown action (`ts2551`, `fluent213`), missing
+`$id` (`ts2769`, `fluent213`), wrong pill type and unknown field (`ts2345`, `ts2339`). Gaps for the
+product: a valid pill type that does not match its input is not reported (a gate rule could); some
+`fluent213` messages contain a random sys_id when `keys.ts` is missing; some `ts` messages are very
+long.
+
+## A5: start-up (2026-10-14)
+
+`latency.ts` against the pdi2 workspace, 40–50 alternating rounds, macOS arm64 (developer machine):
+
+| Binary | Size | `--version` p95 | `check <file>` p95 |
+|---|---|---|---|
+| snagentic 1.5.0 (`bun run build`) | 74 MB | 78–102 ms | 123–147 ms |
+| SDK behind a lazy `import()` | 163 MB | 284 ms | **345 ms** (fails ASR-04) |
+| SDK as a second entry point (`with-sdk-split.ts`) | 155 MB | 84 ms | 131 ms (+4%) |
+| Second entry point, bytecode | 216 MB | 22 ms | 58 ms |
+
+- A lazy `import()` does not keep the SDK off the start-up path: the compiled program is parsed whole.
+  A second entry point in the binary, imported by a computed path, is loaded only for a build.
+- **Identifier minification breaks the SDK's output** (a flow build gains 180 spurious delete
+  records: built-in action definitions are no longer recognized). Whitespace and syntax
+  minification are safe. The release build must not rename identifiers in the SDK's code.
+- CI (A3), `--version` p95 with the second entry point, against snagentic: Linux x64 +5%, Linux
+  arm64 +8%, macOS arm64 +20% (shared runners, 30 runs).
+
+## A3: platforms (2026-10-14)
+
+`build.yml` builds the binary and runs `fixtures.ts` on each platform. macOS arm64, Linux x64 and
+Linux arm64: all eleven fixtures pass and equal the CLI's output built on macOS, so the normalized
+output is identical across platforms (A4). Windows x64 failed first: the embedded types were keyed
+with `\`; keys now use `/` and Windows paths compare without case.

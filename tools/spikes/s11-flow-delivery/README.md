@@ -206,3 +206,38 @@ INC0010003. Rollback contexts: `91ce3793…`, `925480e3…`, `a4a4486b…`, `5ee
 Route proven: Fluent source → SDK build → `fluent/load` → select the batch's update set →
 `activate_flows` → capture check. Decision drafted as ADR-0028. Still open: a flow in global
 scope, and moving the batch to a second instance.
+
+## Flows test plan, live tests on pdi2 (2026-10-14)
+
+Built by the embedded SDK (spike S13, `embed-bin`), loaded by `load.ts`, published with
+`activate_flows`; admin in the global domain; preferences read before and restored after (by user
+and name where the platform replaced the row). Scratch: update sets named `snagentic test …`,
+incidents INC0010004–INC0010021.
+
+**Correction to the S11 results above.** `now-sdk install` of a project of type `package` (S11's)
+does not call `fluent/load`: it zips the app and installs it through
+`sn_appclient_upload_processor.do` (an app install, in `sys_upgrade_history`, with the rollback
+context). `fluent/load` is what it calls for a project of type **`configuration`** (hidden in the
+SDK's docs; `Orchestrator.installConfigurations`), with an optional **`targetUpdateSetId`** (the
+CLI's hidden `--targetUpdateSet`). A configuration project builds only the records (no `sys_app`,
+no `sys_module`), and may not set app properties or server-module settings.
+
+| Test | Result |
+|---|---|
+| **Load into a named set** | `POST /api/fluent/load/<scopeId>?targetUpdateSetId=<set>`, multipart `files`: the flow is created as an inactive draft, its update record is written **in the named set**, and the user's preferences are **not** changed. |
+| **B1, global scope** | Configuration project, `scope` and `scopeId` `global`: loaded, published (`sysparm_transaction_scope=global`), ran (v1, v2, v3 work notes). |
+| **Scoped app, same route** | The S11 flows rebuilt as a configuration project of `x_2222332_s11`: loaded into a scoped set, published, ran (v6). One route serves global and scoped flows. |
+| **B5, capture** | The publish writes a second update record under the same name, in the user's **preferred** set: with preferences untouched it went to global Default (v1). With the batch set selected for the scope before the publish, the record in the batch set is replaced by the published one (active, `published`, snapshot), and nothing goes elsewhere (v2, B5, scoped). The batch set then holds exactly one record per flow, subflow and action. |
+| **B5, kinds** | One custom action (script step), one subflow (inputs and outputs) and two flows calling them, in one load and one publish: all four captured published, with snapshots; both flows ran (action output "high"; subflow note). |
+| **B10, order** | One `activate_flows` call with all four (`active` and `state` empty, as the SDK sends): the server published the action, then the subflow, then the flows. |
+| **B3, inactive window** | Redelivering a live flow (`window.ts`, one process, incidents created about once a second): load 3.1 s, selecting the batch set 1.8 s, publish 4.1 s: **9.0 s inactive**. Six incidents created inside it got **no run** (the trigger is not queued); those before ran v2, those after v3. |
+| **B4, publish refused** | A flow in a domain the publisher is not in (domain Default, admin in global): `activate_flows` answers **422**, `error_code` `PUBLISH_FAILED`, a per-flow message; the flow stays an inactive draft; nothing else changes. |
+
+Design consequences (proposed amendment to ADR-0028, `specs/005-itsm-accelerator/flows-test-plan.md`):
+- Push builds Fluent projects as `configuration` and loads with `targetUpdateSetId` = the batch set.
+- Select the batch set for the scope **before** the load, publish right after, restore: the window
+  becomes load + publish.
+- Capture is verified by content, not by name: after a load the batch set already holds a draft
+  record of the same name; push checks it is the published one (status, snapshot).
+- A redelivered live flow misses triggers while inactive (B3). On development instances push
+  reports the window; update sets moved to other instances carry the published flow (B2 to prove).

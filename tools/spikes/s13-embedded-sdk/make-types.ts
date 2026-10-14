@@ -1,7 +1,7 @@
 // Spike S13/A1: collect the files a Fluent build reads from a project's node_modules into one
 // gzipped JSON asset ({ "<path under node_modules>": "<text>" }) to embed in the binary.
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const modules = join(process.argv[2] ?? "app", "node_modules");
@@ -22,7 +22,8 @@ const walk = (dir: string) => {
     if (name === "node_modules") continue;
     if (statSync(full).isDirectory()) walk(full);
     else if (KEEP.test(name) && !name.endsWith(".map"))
-      files[relative(modules, full)] = readFileSync(full, "utf8");
+      // Keys use "/" on every platform: the overlay looks them up that way (test A3, Windows).
+      files[relative(modules, full).split(sep).join("/")] = readFileSync(full, "utf8");
   }
 };
 for (const pkg of PACKAGES) walk(join(modules, pkg));

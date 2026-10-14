@@ -49,11 +49,14 @@ function fakeStats(kind: Kind, size: number, path: string) {
   };
 }
 
+// Windows paths compare without case: TypeScript and Node may disagree on the drive letter's.
+const fold = (path: string) => (process.platform === "win32" ? path.toLowerCase() : path);
+
 function relativeTo(base: string, path: unknown): string | null {
   if (typeof path !== "string") return null;
   const full = resolve(path);
-  if (`${full}${sep}` === base) return "";
-  return full.startsWith(base) ? full.slice(base.length).split(sep).join("/") : null;
+  if (fold(`${full}${sep}`) === fold(base)) return "";
+  return fold(full).startsWith(fold(base)) ? full.slice(base.length).split(sep).join("/") : null;
 }
 
 function readers(files: Files, dirs: Map<string, Set<string>>) {

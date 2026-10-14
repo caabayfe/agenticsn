@@ -3,7 +3,7 @@
 // output committed next to it (`expected/`, built on macOS with Node).
 //   bun fixtures.ts --binary <embed binary> --fixtures <dir> --target <name>
 //     [--startup <snagentic binary>,<snagentic with SDK binary>] [--keep <dir for failed builds>]
-import { cpSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { annotate, argument, resolveBinary, timedRun } from "../../../scripts/process-timing";
@@ -50,6 +50,13 @@ function buildOnce(fixture: string, copy: string): { ms: number; records: Map<st
   const run = timedRun([binary, dir]);
   if (run.exitCode !== 0 || !run.stdout.includes("success: true")) {
     throw new Error(`${fixture}: build failed (exit ${run.exitCode}): ${run.stdout.slice(-400)}`);
+  }
+  // The build writes keys.ts back; with every key already committed it must not change it.
+  const keys = join("src", "fluent", "generated", "keys.ts");
+  if (
+    readFileSync(join(dir, keys), "utf8") !== readFileSync(join(fixtures, fixture, keys), "utf8")
+  ) {
+    throw new Error(`${fixture}: the build changed ${keys}`);
   }
   return { ms: Math.round(run.milliseconds), records: normalizedRecords(join(dir, "dist", "app")) };
 }

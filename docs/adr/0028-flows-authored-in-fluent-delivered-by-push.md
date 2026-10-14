@@ -162,7 +162,9 @@ decision above stands.
 5. **sys_ids (Context).** `$id` is not hashed: the first build of a new `$id` picks a random sys_id
    and writes it to `src/fluent/generated/keys.ts`. `keys.ts` is source and is committed;
    `plan_push` builds in a copy and refuses when the build would change `keys.ts` ("commit the
-   generated keys"), so plan and push name the same records.
+   generated keys"), so plan and push name the same records. The gate also refuses delete records outside
+   the project's own keys: a polluted `keys.ts` makes the SDK emit deletes of platform records
+   (281 for built-in action choices and documentation, test A3).
 6. **Packaging (item 2 and Consequences).** The SDK is a second entry point in the binary, loaded only
    for a build. A lazy `import()` is not enough: it put `check` at 345 ms p95. Identifiers are not
    minified (renaming them breaks the SDK's output). The embedded types include

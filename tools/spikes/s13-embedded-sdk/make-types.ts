@@ -14,7 +14,10 @@ const PACKAGES = [
   // Server modules import gs, GlideRecord and the rest from it (test A2).
   "@servicenow/glide",
 ];
-const KEEP = /(\.d\.ts|\.ts|package\.json)$/;
+// Every .json, not only package.json: @servicenow/sdk-core/now.config.json marks the built-in
+// actions as a package of their own. Without it the build adopts their keys into the project's
+// keys.ts (4,500 lines) and other builds then delete them (test A3).
+const KEEP = /(\.d\.ts|\.ts|\.json)$/;
 const files: Record<string, string> = {};
 const walk = (dir: string) => {
   for (const name of readdirSync(dir)) {

@@ -151,3 +151,16 @@ long.
 Linux arm64: all eleven fixtures pass and equal the CLI's output built on macOS, so the normalized
 output is identical across platforms (A4). Windows x64 failed first: the embedded types were keyed
 with `\`; keys now use `/` and Windows paths compare without case.
+
+**A3 finding: the overlay must include `@servicenow/sdk-core/now.config.json`.** Embedding only
+`.ts`, `.d.ts` and `package.json` left that file out. It marks the SDK's built-in actions (33
+`.now.ts` files in `sdk-core/src/external/flow/built-ins`) as a package of their own. Without it,
+the build on macOS and Linux adopted their keys into the project's `keys.ts` (about 4,500 lines,
+written back to source on every build). The records were still right, so A1 and A2 passed, but the
+`now-sdk` CLI, and the binary on Windows, then turned those adopted keys into 281 **delete records
+for built-in action choices and documentation**. The S11 fixture's `keys.ts` had been polluted
+that way by the first in-process build. Found by tracing the build's file reads on each platform
+(`S13_TRACE=1`, `trace-calls.ts`), running the CLI in CI, and bisecting the embedded file types.
+Fixed: every `.json` is embedded (2,817 files, 1.41 MB gzipped); the S11 fixture's `keys.ts` is
+cleaned to its own keys; `fixtures.ts` fails when a build changes a committed `keys.ts`. The CLI and
+the binary now agree on all eleven fixtures, `keys.ts` included.

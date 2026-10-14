@@ -32,8 +32,10 @@ const control = process.env["S13_TELEMETRY_CONTROL"] === "1";
 if (!control) process.env["NO_TELEMETRY"] = "1";
 const rootDir = resolve(process.argv[2] ?? ".");
 const files = JSON.parse(gunzipSync(fs.readFileSync(typesAsset)).toString("utf8"));
-const tracing = process.env["S13_TRACE"] === "1" ? traced(overlayFs(rootDir, files)) : undefined;
-const fileSystem = tracing?.fs ?? overlayFs(rootDir, files);
+// S13_REAL_FS=1: the project's own node_modules through the real fs, no overlay (A3 diagnosis).
+const base = process.env["S13_REAL_FS"] === "1" ? fs : overlayFs(rootDir, files);
+const tracing = process.env["S13_TRACE"] === "1" ? traced(base) : undefined;
+const fileSystem = tracing?.fs ?? base;
 const logger = {
   info: (m: string) => console.log("info", m),
   warn: (m: string) => console.log("warn", m),

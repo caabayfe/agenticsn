@@ -164,3 +164,10 @@ that way by the first in-process build. Found by tracing the build's file reads 
 Fixed: every `.json` is embedded (2,817 files, 1.41 MB gzipped); the S11 fixture's `keys.ts` is
 cleaned to its own keys; `fixtures.ts` fails when a build changes a committed `keys.ts`. The CLI and
 the binary now agree on all eleven fixtures, `keys.ts` included.
+
+**Result: pass on all four platforms** (CI run 38517517938): eleven fixtures on Windows x64, macOS
+arm64, Linux x64 and Linux arm64, equal to the CLI's output, `keys.ts` unchanged. `--version` p95
+on shared runners, snagentic against snagentic with the SDK as a second entry point: Windows 236 /
+280 ms, Linux x64 183 / 195 ms, Linux arm64 174 / 186 ms, macOS arm64 166 / 256 ms. The `check`
+latency budget (ASR-04) is measured on developer hardware (A5); the CI runners' `--version` numbers
+are noisy and are for regression trends only.

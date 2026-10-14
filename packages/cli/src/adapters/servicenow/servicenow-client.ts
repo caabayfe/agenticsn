@@ -26,8 +26,12 @@ const MAX_PAGE_SIZE = 10_000;
 
 function errorMessage(body: string): string {
   try {
-    const parsed: { error?: { message?: string; detail?: string } } = JSON.parse(body);
-    return [parsed.error?.message, parsed.error?.detail].filter(Boolean).join(": ") || "no details";
+    // The Table API's { error: { message, detail } }; the Fluent endpoints' { result: { error } }.
+    const parsed: { error?: { message?: string; detail?: string }; result?: { error?: unknown } } =
+      JSON.parse(body);
+    const fluent = typeof parsed.result?.error === "string" ? parsed.result.error : undefined;
+    const table = [parsed.error?.message, parsed.error?.detail].filter(Boolean).join(": ");
+    return table || fluent || "no details";
   } catch {
     return "no details";
   }

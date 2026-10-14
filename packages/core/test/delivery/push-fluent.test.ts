@@ -49,30 +49,32 @@ function fakeInstaller(tables: Record<string, Row[]>, calls: string[], refuse = 
   const currentSet = () =>
     (tables["sys_user_preference"] ?? []).find((r) => r["name"] === "sys_update_set")?.["value"] ??
     "";
+  // One update per record per update set: a later write of the same record replaces it.
+  const record = (name: string, updateSet: string, payload: string) => {
+    const others = (tables["sys_update_xml"] ?? []).filter(
+      (r) => !(r["name"] === name && r["update_set"] === updateSet),
+    );
+    tables["sys_update_xml"] = [
+      ...others,
+      { sys_id: `x${name}`, name, update_set: updateSet, payload },
+    ];
+  };
   const installer: FluentInstaller = {
     load: async (scopeId, files, updateSet) => {
       calls.push(`fluent load ${scopeId} ${files.length} files into ${updateSet}`);
+      for (const file of files) {
+        const name =
+          /<sys_update_name>([^<]*)</.exec(file.content)?.[1] ?? file.name.replace(".xml", "");
+        record(name, updateSet, "<status>draft</status>");
+      }
     },
     publish: async (scope, records) => {
       calls.push(`fluent publish ${scope} flows=${records.flows} actions=${records.actions}`);
       if (refuse) {
         return [{ sysId: FLOW, published: false, message: "No Trigger instance found" }];
       }
-      const rows = [
-        {
-          sys_id: "xf",
-          name: `sys_hub_flow_${FLOW}`,
-          update_set: currentSet(),
-          payload: PUBLISHED_FLOW,
-        },
-        {
-          sys_id: "xa",
-          name: `sys_hub_action_type_definition_${ACTION}`,
-          update_set: currentSet(),
-          payload: PUBLISHED_ACTION,
-        },
-      ];
-      tables["sys_update_xml"] = [...(tables["sys_update_xml"] ?? []), ...rows];
+      record(`sys_hub_flow_${FLOW}`, currentSet(), PUBLISHED_FLOW);
+      record(`sys_hub_action_type_definition_${ACTION}`, currentSet(), PUBLISHED_ACTION);
       return [...records.flows, ...records.actions].map((sysId) => ({
         sysId,
         published: true,
@@ -255,6 +257,26 @@ describe("push, Fluent projects (ADR-0028 as amended)", () => {
     const planId = (await computePlan(deps, QUERY)).plan.planId;
     const result = await push(deps, { ...QUERY, planId });
     expect(result.flowsInactiveMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("loads a project of records only without calling publish", async () => {
+    const { deps, calls } = fluentSetup();
+    const property = {
+      name: "sys_properties_p1.xml",
+      content:
+        '<record_update table="sys_properties"><sys_properties action="INSERT_OR_UPDATE"><sys_id>p1</sys_id><sys_update_name>sys_properties_p1</sys_update_name><name>x.on</name></sys_properties></record_update>',
+    };
+    const records = {
+      ...deps,
+      fluent: { changedSince: async () => [{ ...PACKAGE, files: [property] }] },
+    };
+    const planId = (await computePlan(records, QUERY)).plan.planId;
+    const result = await push(records, { ...QUERY, planId });
+    expect(calls.some((c) => c.startsWith("fluent load"))).toBe(true);
+    expect(calls.some((c) => c.startsWith("fluent publish"))).toBe(false);
+    expect(result.fluent).toEqual([
+      expect.objectContaining({ sysId: "p1", kind: "record", captured: true }),
+    ]);
   });
 
   it("refuses before any write when an existing flow is in another domain than the user", async () => {

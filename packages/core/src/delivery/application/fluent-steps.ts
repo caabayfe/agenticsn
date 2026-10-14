@@ -30,7 +30,8 @@ const rows = (session: InstanceSession, table: string, query: string, fields: st
     session.signal,
   );
 
-const published = (r: PlannedFluentRecord) => r.kind !== "record" && r.action !== "DELETE";
+// What the batch must hold afterwards: every record the build installs (the gate refuses deletes).
+const installed = (r: PlannedFluentRecord) => r.action !== "DELETE";
 
 // The instance refuses to publish a flow outside its publishing user's domain (spike S11):
 // checked before any write, for the flows that already exist (ADR-0028 as amended, item 7).
@@ -95,11 +96,13 @@ export async function deliverFluent(
   const { session } = run;
   await run.installer.load(fluentPackage.scopeId, fluentPackage.files, updateSet, session.signal);
   await journaled(run, fluentPackage.project, "written");
-  const results = await run.installer.publish(
-    fluentPackage.scope,
-    toPublish(records),
-    session.signal,
-  );
+  // activate_flows answers 400 to empty lists (contract test): a project of records only, such
+  // as properties, has nothing to publish.
+  const targets = toPublish(records);
+  const nothing = targets.flows.length + targets.actions.length === 0;
+  const results = nothing
+    ? []
+    : await run.installer.publish(fluentPackage.scope, targets, session.signal);
   const redelivered = records.some((r) => run.live.has(r.sysId));
   const inactiveMs = redelivered ? run.now().getTime() - started : null;
   const failed = results.filter((result) => !result.published);
@@ -110,7 +113,7 @@ export async function deliverFluent(
     );
   }
   const delivered: DeliveredFluentRecord[] = [];
-  for (const record of records.filter(published)) {
+  for (const record of records.filter(installed)) {
     const { project, table, sysId, name, kind } = record;
     const captured = await capturedIn(run, record, updateSet);
     delivered.push({ project, table, sysId, name, kind, captured });

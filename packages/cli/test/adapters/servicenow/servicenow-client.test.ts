@@ -129,6 +129,24 @@ describe("ServiceNowClient", () => {
     });
   });
 
+  it("posts another API's body, takes listed statuses as answers, and reads the Fluent error shape", async () => {
+    const { client, sent } = clientWith(async (request) =>
+      request.url.includes("activate_flows")
+        ? response(422, '{"result":{"status":"error","results":[]}}')
+        : response(400, '{"result":{"error":"No update set exists with id: x."}}'),
+    );
+    const path = "/api/now/wfa_fluent/activate_flows?sysparm_transaction_scope=global";
+    const post = { body: '{"flows":[]}', contentType: "application/json", answers: [422] };
+    expect(await client.callApi("POST", path, "flow publish", LIVE, post)).toEqual({
+      status: "error",
+      results: [],
+    });
+    expect(sent[0]?.body).toBe('{"flows":[]}');
+    await expect(
+      client.callApi("POST", "/api/fluent/load/global", "fluent load", LIVE, { body: "--b--" }),
+    ).rejects.toThrow("fluent load: HTTP 400: No update set exists with id: x.");
+  });
+
   it("reports a response that is not the expected JSON", async () => {
     const { client } = clientWith(async () => response(200, "<html>hibernating</html>"));
     await expect(client.query(QUERY, LIVE)).rejects.toMatchObject({ code: "instance-error" });

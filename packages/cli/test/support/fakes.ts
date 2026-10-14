@@ -56,9 +56,15 @@ const NO_CREDENTIALS: CredentialStore = {
 
 export const FAKE_CONTEXT: UseCaseContext = {
   packs: { ids: async () => [], manifest: async () => null, files: async () => new Map() },
-  packWorkspace: () => {
-    throw new Error("no pack workspace in the fake context");
-  },
+  // No packs in the fake context, so nothing reaches the pack workspace.
+  packWorkspace: () => ({
+    mirrorCommit: async () => null,
+    includes: async () => false,
+    mirrored: async () => new Map(),
+    parse: () => null,
+    commit: async () => "",
+    merge: async (pack) => ({ branch: `accelerator/${pack}`, conflicts: [] }),
+  }),
   environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
   workspaces: NO_WORKSPACES,
   profiles: NO_PROFILES,

@@ -8,6 +8,7 @@ export {
   type PackQuery,
   type PackSummary,
 } from "./application/check-pack";
+export { packFindings } from "./application/pack-gate";
 export { dataOrder, selectCapabilities } from "./domain/capability-graph";
 export { InvalidPackError, PackNotAddableError, PackNotFoundError } from "./domain/errors";
 export { type ManifestOutcome, parseManifest } from "./domain/manifest";

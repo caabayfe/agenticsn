@@ -1,4 +1,4 @@
-import { computePlan, InstanceName } from "@snagentic/core";
+import { computePlan, InstanceName, packFindings, VERSION } from "@snagentic/core";
 import { z } from "zod";
 import { connect } from "./connect";
 import { NextCalls } from "./knowledge-schemas";
@@ -88,6 +88,15 @@ export const planPush = defineUseCase({
         workspace: context.delivery(root, name),
         journal: context.pushJournal(root, name),
         governance: context.governance(root, name),
+        packGate: (paths) =>
+          packFindings(
+            {
+              packs: context.packs,
+              inventory: context.inventory,
+              workspace: context.packWorkspace(root, name),
+            },
+            { instance: { root, name: name }, paths, snagentic: VERSION },
+          ),
         updateSets: { pager, statistics: reader, now: context.clock },
         elevation: elevatedSessions !== null,
         now: context.clock,

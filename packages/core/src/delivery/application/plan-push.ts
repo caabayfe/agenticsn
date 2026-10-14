@@ -1,4 +1,4 @@
-import { type ValidateDependencies, validate } from "../../governance/index";
+import { type Finding, type ValidateDependencies, validate } from "../../governance/index";
 import { InvalidInputError } from "../../kernel/errors";
 import type { NextCall } from "../../knowledge/index";
 import { baseOfFile } from "../../knowledge/index";
@@ -37,6 +37,8 @@ export interface PlanQuery {
 
 export interface PlanDependencies {
   readonly workspace: DeliveryWorkspace;
+  // Accelerator pack findings for the planned paths (ADR-0026: the gate's pack check).
+  readonly packGate?: (paths: readonly string[]) => Promise<readonly Finding[]>;
   // A push that stopped part way leaves its journal until a pull shows what it wrote.
   readonly journal: Pick<PushJournalStore, "read">;
   readonly governance: ValidateDependencies;
@@ -200,6 +202,21 @@ function checkedLabel(label: string): string {
   return label;
 }
 
+// validate over the change, plus the accelerator packs' check, with committed waivers applied.
+async function gateFor(
+  deps: PlanDependencies,
+  commit: string,
+  paths: readonly string[],
+): Promise<GateResult> {
+  const validation = await validate(deps.governance, { base: commit });
+  const packs = deps.packGate === undefined ? [] : await deps.packGate(paths);
+  const waiverFile = await deps.workspace.waivers();
+  const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
+  const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;
+  const findings = [...validation.findings, ...packs];
+  return gateOf(findings, waivers, waiverProblems, deps.workspace.metadataRoot);
+}
+
 export async function computePlan(
   deps: PlanDependencies,
   query: PlanQuery,
@@ -213,11 +230,11 @@ export async function computePlan(
   }
   const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
   const { writes, problems } = await writesAndProblems(deps, commit, query.instance);
-  const validation = await validate(deps.governance, { base: commit });
-  const waiverFile = await deps.workspace.waivers();
-  const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
-  const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;
-  const gate = gateOf(validation.findings, waivers, waiverProblems, deps.workspace.metadataRoot);
+  const gate = await gateFor(
+    deps,
+    commit,
+    writes.map((w) => w.path),
+  );
   const collisions = await collisionsOf(deps, writes, label);
   const ready =
     writes.length > 0 &&

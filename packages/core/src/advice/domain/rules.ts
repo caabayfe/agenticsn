@@ -1,3 +1,4 @@
+import { ACCELERATOR_RULES } from "./accelerator-rules";
 import { ACL_RULES } from "./acl-rules";
 import type { Rule } from "./rule-types";
 import { type ScriptKind, scriptKindsOf } from "./script-fields";
@@ -261,6 +262,7 @@ export const RULES: readonly Rule[] = [
     scripts: BROWSER,
   },
   ...ACL_RULES,
+  ...ACCELERATOR_RULES,
 ];
 
 // Rules that apply to records of these classes (all rules when no class is given).

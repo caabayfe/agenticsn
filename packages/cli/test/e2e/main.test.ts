@@ -30,7 +30,10 @@ describe("snagentic entry point (real adapters)", () => {
       "git",
       "keychain",
       "search-index",
+      "fluent",
     ]);
+    // The embedded ServiceNow SDK builds its test flow from source too (ADR-0028).
+    expect(report.checks.find((c: { name: string }) => c.name === "fluent")?.status).toBe("ok");
     expect(exitCode).toBe(report.ok ? 0 : 3);
   });
 

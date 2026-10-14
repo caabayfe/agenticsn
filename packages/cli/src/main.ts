@@ -9,6 +9,7 @@ import { KeychainCredentialStore } from "./adapters/credentials/keychain-credent
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
 import { GhPullRequests } from "./adapters/delivery/gh-pull-requests";
 import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
+import { fluentProbe } from "./adapters/fluent/fluent-probe";
 import { createTextFile } from "./adapters/fs/create-text-file";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
 import { gitInspector } from "./adapters/git/git-inspector";
@@ -54,7 +55,7 @@ process.on("SIGINT", () => {
 const workspaceOverride = process.env["SNAGENTIC_WORKSPACE"];
 const releases = new GitHubReleases({ userAgent: `snagentic/${VERSION}` });
 const context: UseCaseContext = {
-  environmentProbes: [gitProbe(), keychainProbe(), searchIndexProbe()],
+  environmentProbes: [gitProbe(), keychainProbe(), searchIndexProbe(), fluentProbe()],
   workspaces: new FsWorkspaceStore(),
   profiles: new YamlProfileStore(),
   credentials: new LayeredCredentialStore(

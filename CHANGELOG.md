@@ -4,6 +4,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- The ServiceNow SDK's build (4.13.6) ships inside the binary, for flows authored in Fluent
+  (ADR-0028). It loads only when a command builds flows, needs no Node or `node_modules`, and
+  sends no telemetry. `doctor` builds a test flow with it (`fluent` check).
+
+### Changed
+
+- The binary is compiled to bytecode: every command starts about twice as fast (`check` on one
+  file: p95 54 ms instead of 121 ms on an Apple M-series laptop). It is larger (about 215 MB).
+
 ## [1.5.0] - 2026-10-13
 
 ### Added

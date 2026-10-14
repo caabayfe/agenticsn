@@ -1,5 +1,11 @@
 import { graphProblems } from "./capability-graph";
-import type { Capability, DataEntity, Manifest, PluginRequirement } from "./manifest-types";
+import type {
+  Capability,
+  DataColumn,
+  DataEntity,
+  Manifest,
+  PluginRequirement,
+} from "./manifest-types";
 
 // Reads accelerator.yaml (ADR-0026). Pure: the document comes parsed.
 
@@ -33,13 +39,33 @@ function plugin(value: unknown): PluginRequirement | null {
   };
 }
 
+function columnsOf(value: unknown): DataColumn[] {
+  return Object.entries(fieldsOf(value) ?? {}).map(([name, rules]) => {
+    const r = fieldsOf(rules);
+    const references = text(r?.["references"]);
+    return {
+      name,
+      required: r?.["required"] === true,
+      references: references === "" ? null : references,
+    };
+  });
+}
+
 function entity(value: unknown): DataEntity | null {
   const fields = fieldsOf(value);
   const name = text(fields?.["entity"]);
   const table = text(fields?.["table"]);
   const key = texts(fields?.["key"]);
   if (name === "" || table === "" || key.length === 0) return null;
-  return { entity: name, table, key, after: texts(fields?.["after"]) };
+  const file = text(fields?.["file"]) || `${name}.csv`;
+  return {
+    entity: name,
+    file,
+    table,
+    key,
+    after: texts(fields?.["after"]),
+    columns: columnsOf(fields?.["columns"]),
+  };
 }
 
 function capability(id: string, value: unknown, problems: string[]): Capability {

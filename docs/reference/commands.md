@@ -421,6 +421,23 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `accelerator validate-data`
+
+```
+snagentic accelerator validate-data <pack> <data> [options]
+```
+
+Check an accelerator pack's data templates (one CSV per entity in a directory) before any load: mandatory fields, references that resolve, repeated keys (ADR-0026). Needs no instance, so it also checks data for test and production, which snagentic never loads. Refuses a directory git tracks: customer data is never committed.
+
+Changes the instance: no. MCP tool: none.
+
+Options:
+
+- `--waves <numbers...>`: check these waves' entities (default: all)
+- `--capabilities <values...>`: check these capabilities' entities
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `doctor`
 
 ```

@@ -3,6 +3,7 @@
 import type {
   ChangedRecords,
   CredentialStore,
+  DataTemplates,
   DeliveryWorkspace,
   ElevatedSessions,
   EnvironmentProbe,
@@ -99,6 +100,8 @@ export interface UseCaseContext {
   readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;
   // The accelerator packs snagentic ships (ADR-0026).
   readonly packs: PackSource;
+  // Data templates in a directory (accelerator validate-data, load).
+  readonly dataTemplates: DataTemplates;
   // The pack branches of one instance in a workspace (accelerator add).
   readonly packWorkspace: (root: string, instance: InstanceName) => PackWorkspace;
   // The git platform, for the branch's pull request (ADR-0022).

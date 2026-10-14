@@ -34,3 +34,14 @@ export class PackNotAddableError extends SnagenticError {
     );
   }
 }
+
+export class TrackedDataError extends SnagenticError {
+  constructor(directory: string) {
+    super(
+      "tracked-data",
+      "precondition",
+      `${directory} is tracked by git: customer data must never be committed (ASR-08)`,
+      "move the data files outside the workspace, or under a path .gitignore excludes, and remove them from git",
+    );
+  }
+}

@@ -9,10 +9,22 @@ export {
   type PackSummary,
 } from "./application/check-pack";
 export { packFindings } from "./application/pack-gate";
+export { type DataQuery, validateData } from "./application/validate-data";
 export { dataOrder, selectCapabilities } from "./domain/capability-graph";
-export { InvalidPackError, PackNotAddableError, PackNotFoundError } from "./domain/errors";
+export {
+  InvalidPackError,
+  PackNotAddableError,
+  PackNotFoundError,
+  TrackedDataError,
+} from "./domain/errors";
 export { type ManifestOutcome, parseManifest } from "./domain/manifest";
-export type { Capability, DataEntity, Manifest, PluginRequirement } from "./domain/manifest-types";
+export type {
+  Capability,
+  DataColumn,
+  DataEntity,
+  Manifest,
+  PluginRequirement,
+} from "./domain/manifest-types";
 export {
   type MaterializedFile,
   type MaterializeInput,
@@ -29,4 +41,10 @@ export {
   type PreflightReport,
   preflight,
 } from "./domain/preflight";
-export type { PackSource, PackWorkspace } from "./ports";
+export {
+  type EntityReport,
+  type Template,
+  type TemplateReport,
+  validateTemplates,
+} from "./domain/templates";
+export type { DataTemplates, PackSource, PackWorkspace } from "./ports";

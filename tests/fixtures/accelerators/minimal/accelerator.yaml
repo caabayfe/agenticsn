@@ -16,6 +16,9 @@ capabilities:
         table: imp_location
         key: [name]
         after: []
+        columns:
+          name: { required: true }
+          city: { required: true }
   extra:
     wave: 1
     label: "snagentic test pack: extra"

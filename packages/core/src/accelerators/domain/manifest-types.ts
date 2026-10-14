@@ -7,9 +7,20 @@ export interface PluginRequirement {
   readonly entitlement: "free" | "licensed";
 }
 
+// A template column's rules: a mandatory field, and a reference to another entity's key.
+export interface DataColumn {
+  readonly name: string;
+  readonly required: boolean;
+  // The entity whose business key this column holds, or null.
+  readonly references: string | null;
+}
+
 // A kind of record the pack loads per instance through an import set table (spike S-B).
 export interface DataEntity {
   readonly entity: string;
+  // The template file in a data directory: <entity>.csv unless the manifest names another.
+  readonly file: string;
+  readonly columns: readonly DataColumn[];
   // The import set table; its transform map coalesces on `key`.
   readonly table: string;
   readonly key: readonly string[];

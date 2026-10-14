@@ -1,9 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { resolve } from "node:path";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { CsvDataTemplates } from "../../src/adapters/accelerators/csv-data-templates";
 import { DirectoryPackSource } from "../../src/adapters/accelerators/directory-pack-source";
 import { acceleratorAdd } from "../../src/registry/accelerator-add";
 import { acceleratorCheck } from "../../src/registry/accelerator-check";
 import { acceleratorList } from "../../src/registry/accelerator-list";
+import { acceleratorValidateData } from "../../src/registry/accelerator-validate-data";
 import { executeUseCase } from "../../src/registry/execute";
 import { FAKE_CONTEXT } from "../support/fakes";
 
@@ -142,5 +146,29 @@ describe("accelerator use cases", () => {
     expect(acceleratorAdd.render(conflicted as never, "text")).toContain("conflict: a.yaml");
     expect(acceleratorAdd.exitCode(conflicted as never)).toBe(1);
     expect(acceleratorAdd.exitCode(output as never)).toBe(0);
+  });
+
+  it("validates a data directory's templates and names each problem", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "pack-data-"));
+    writeFileSync(join(dir, "location.csv"), "name,city\nSydney HQ,Sydney\nMelbourne,\n");
+    const validating = { ...context, dataTemplates: new CsvDataTemplates() };
+    const { output } = await executeUseCase(
+      acceleratorValidateData,
+      { pack: "minimal", data: dir },
+      validating,
+    );
+    expect(output).toMatchObject({
+      passed: false,
+      entities: [
+        { entity: "location", rows: 2, problems: ["row 2 (Melbourne): city is mandatory"] },
+      ],
+    });
+    const text = acceleratorValidateData.render(output as never, "text");
+    expect(text).toContain("invalid location: 2 row(s)");
+    expect(text).toContain("fix the templates");
+    expect(acceleratorValidateData.exitCode(output as never)).toBe(1);
+    const fine = { ...(output as never as Record<string, unknown>), passed: true, entities: [] };
+    expect(acceleratorValidateData.render(fine as never, "text")).toContain("ready to load");
+    expect(acceleratorValidateData.exitCode(fine as never)).toBe(0);
   });
 });

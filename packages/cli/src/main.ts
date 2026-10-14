@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { INSTRUCTIONS, PROMPTS } from "@snagentic/agent-packs";
 import { instancePaths, noticeAllowed, updateNotice, VERSION } from "@snagentic/core";
+import { CsvDataTemplates } from "./adapters/accelerators/csv-data-templates";
 import { DirectoryPackSource } from "./adapters/accelerators/directory-pack-source";
 import { GitPackWorkspace } from "./adapters/accelerators/git-pack-workspace";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
@@ -98,6 +99,7 @@ const context: UseCaseContext = {
   // Run from source, the packs in the repository; in the binary, the packs it embeds (none
   // ship yet: the minimal test pack lives in tests/fixtures).
   packWorkspace: (root, instance) => new GitPackWorkspace(root, instance),
+  dataTemplates: new CsvDataTemplates(),
   packs: new DirectoryPackSource([
     join(import.meta.dir, "../../accelerators"),
     join(import.meta.dir, "../../../nttdata/accelerators"),

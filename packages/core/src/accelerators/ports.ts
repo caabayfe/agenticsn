@@ -1,4 +1,5 @@
 import type { MaterializedFile, PatchTarget } from "./domain/materialize";
+import type { Template } from "./domain/templates";
 
 // Where accelerator packs come from: the first-party packs embedded in snagentic (ADR-0026).
 export interface PackSource {
@@ -32,4 +33,13 @@ export interface PackWorkspace {
   ): Promise<string>;
   // Merges the pack branch into the working branch; the files left in conflict, if any.
   merge(pack: string): Promise<{ readonly branch: string; readonly conflicts: readonly string[] }>;
+}
+
+// A data directory's templates, one CSV per entity (ADR-0026, item 3). Customer data: read to
+// validate and load, never written or copied.
+export interface DataTemplates {
+  // Whether git tracks any file in the directory: customer data must not be committed.
+  tracked(directory: string): Promise<boolean>;
+  // A template, parsed; null when the file is missing.
+  read(directory: string, file: string): Promise<Template | null>;
 }

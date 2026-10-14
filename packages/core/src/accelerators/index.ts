@@ -1,5 +1,6 @@
 // Public API of the accelerators context (ADR-0026).
 
+export { type AddQuery, type AddResult, addPack } from "./application/add-pack";
 export {
   checkPack,
   listPacks,
@@ -8,14 +9,14 @@ export {
   type PackSummary,
 } from "./application/check-pack";
 export { dataOrder, selectCapabilities } from "./domain/capability-graph";
-export { InvalidPackError, PackNotFoundError } from "./domain/errors";
+export { InvalidPackError, PackNotAddableError, PackNotFoundError } from "./domain/errors";
 export { type ManifestOutcome, parseManifest } from "./domain/manifest";
 export type { Capability, DataEntity, Manifest, PluginRequirement } from "./domain/manifest-types";
 export {
   type MaterializedFile,
   type MaterializeInput,
-  type MirroredRecord,
   materialize,
+  type PatchTarget,
 } from "./domain/materialize";
 export {
   type CapabilityReport,
@@ -27,4 +28,4 @@ export {
   type PreflightReport,
   preflight,
 } from "./domain/preflight";
-export type { PackSource } from "./ports";
+export type { PackSource, PackWorkspace } from "./ports";

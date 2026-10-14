@@ -31,6 +31,7 @@ const MINIMAL = {
 const packs = (documents: Record<string, unknown>): PackSource => ({
   ids: async () => Object.keys(documents).sort(),
   manifest: async (id) => documents[id] ?? null,
+  files: async () => new Map(),
 });
 
 const inventory = (rows: Record<string, string>[] | null): InventoryReader => ({

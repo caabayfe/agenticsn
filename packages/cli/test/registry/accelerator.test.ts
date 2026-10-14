@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { resolve } from "node:path";
 import { DirectoryPackSource } from "../../src/adapters/accelerators/directory-pack-source";
+import { acceleratorAdd } from "../../src/registry/accelerator-add";
 import { acceleratorCheck } from "../../src/registry/accelerator-check";
 import { acceleratorList } from "../../src/registry/accelerator-list";
 import { executeUseCase } from "../../src/registry/execute";
@@ -93,5 +94,53 @@ describe("accelerator use cases", () => {
     const none = { ...context, packs: new DirectoryPackSource([]) };
     const list = await executeUseCase(acceleratorList, {}, none);
     expect(acceleratorList.render(list.output as never, "text")).toBe("no accelerator packs");
+  });
+
+  it("adds a pack through the pack workspace, and points to validate next", async () => {
+    const inventoryActive = {
+      read: async (_r: string, _i: string, file: string) =>
+        file === "plugins"
+          ? [
+              {
+                id: "com.snc.on_call_rotation",
+                active: "active",
+                version: "1.0.0",
+                name: "",
+                scope: "",
+              },
+            ]
+          : null,
+    };
+    const workspace = {
+      mirrorCommit: async () => "m1",
+      includes: async () => true,
+      mirrored: async () => new Map(),
+      parse: () => ({}),
+      commit: async () => "c1",
+      merge: async () => ({ branch: "accelerator/minimal/pdi2", conflicts: [] }),
+    };
+    const workspaces = {
+      ...context.workspaces,
+      readManifest: async () => ({ layout: 1, createdWith: "test" }),
+    };
+    const adding = {
+      ...context,
+      workspaces,
+      inventory: inventoryActive,
+      packWorkspace: () => workspace,
+    };
+    const { output } = await executeUseCase(
+      acceleratorAdd,
+      { pack: "minimal", instance: "pdi2" },
+      adding,
+    );
+    expect(output).toMatchObject({ selected: ["base", "extra"], commit: "c1", conflicts: [] });
+    const text = acceleratorAdd.render(output as never, "text");
+    expect(text).toContain("added minimal 1.0.0 (base, extra)");
+    expect(text).toContain("next: snagentic validate");
+    const conflicted = { ...(output as never as Record<string, unknown>), conflicts: ["a.yaml"] };
+    expect(acceleratorAdd.render(conflicted as never, "text")).toContain("conflict: a.yaml");
+    expect(acceleratorAdd.exitCode(conflicted as never)).toBe(1);
+    expect(acceleratorAdd.exitCode(output as never)).toBe(0);
   });
 });

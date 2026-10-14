@@ -55,7 +55,10 @@ const NO_CREDENTIALS: CredentialStore = {
 };
 
 export const FAKE_CONTEXT: UseCaseContext = {
-  packs: { ids: async () => [], manifest: async () => null },
+  packs: { ids: async () => [], manifest: async () => null, files: async () => new Map() },
+  packWorkspace: () => {
+    throw new Error("no pack workspace in the fake context");
+  },
   environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
   workspaces: NO_WORKSPACES,
   profiles: NO_PROFILES,

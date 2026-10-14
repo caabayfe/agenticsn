@@ -1,3 +1,4 @@
+import { acceleratorAdd } from "./accelerator-add";
 import { acceleratorCheck } from "./accelerator-check";
 import { acceleratorList } from "./accelerator-list";
 import { advise } from "./advise";
@@ -57,6 +58,7 @@ export const USE_CASES: readonly UseCase[] = [
   pluginsActivate,
   acceleratorList,
   acceleratorCheck,
+  acceleratorAdd,
   doctor,
   upgrade,
 ];

@@ -23,3 +23,14 @@ export class InvalidPackError extends SnagenticError {
     );
   }
 }
+
+export class PackNotAddableError extends SnagenticError {
+  constructor(pack: string, problems: readonly string[]) {
+    super(
+      "pack-not-addable",
+      "precondition",
+      `cannot add ${pack}: ${problems.join("; ")}`,
+      `run snagentic accelerator check ${pack} with your instance, do what it says, then add again`,
+    );
+  }
+}

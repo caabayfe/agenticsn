@@ -19,7 +19,7 @@ export type MaterializedFile =
       readonly fields: readonly string[];
     };
 
-export interface MirroredRecord {
+export interface PatchTarget {
   readonly path: string;
   readonly document: Readonly<Record<string, unknown>>;
 }
@@ -32,7 +32,7 @@ export interface MaterializeInput {
   // A patch file's text, parsed (YAML).
   readonly parse: (text: string) => unknown;
   // The mirrored record with this sys_id, or null.
-  readonly mirrored: (sysId: string) => MirroredRecord | null;
+  readonly mirrored: (sysId: string) => PatchTarget | null;
 }
 
 const PROTECTED = new Set(["_meta", "sys_id", "sys_class_name", "sys_scope"]);

@@ -404,6 +404,23 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `accelerator add`
+
+```
+snagentic accelerator add <pack> <instance> [options]
+```
+
+Write an accelerator pack's capabilities into the workspace (ADR-0026): new records as files, patches on the mirrored records, committed to the branch accelerator/<pack>/<instance> and merged into this one. Changes nothing on the instance: validate, plan_push and push deliver it. Refuses until accelerator check says every capability is ready.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--waves <numbers...>`: add these waves (default: all)
+- `--capabilities <values...>`: add these capabilities
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `doctor`
 
 ```

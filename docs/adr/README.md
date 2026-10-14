@@ -32,7 +32,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0024](0024-elevated-session-for-acl-writes.md) | ACLs are written through an elevated browser session | Accepted |
 | [0025](0025-choices-and-layouts-as-editable-child-rows.md) | Choice lists, form and list layouts, and applications are delivered from files | Accepted (amended by 0028) |
 | [0026](0026-accelerators-as-content-packs.md) | Accelerators are versioned content packs, installed through the existing flow | Accepted |
-| [0028](0028-flows-authored-in-fluent-delivered-by-push.md) | Flows are authored in Fluent and delivered by push, published into the batch | Accepted |
+| [0028](0028-flows-authored-in-fluent-delivered-by-push.md) | Flows are authored in Fluent and delivered by push, published into the batch | Accepted (amended 2026-10-14) |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

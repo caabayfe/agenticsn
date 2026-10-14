@@ -1,6 +1,7 @@
 # 0028. Flows are authored in Fluent and delivered by push, published into the batch
 
-- Status: Accepted (product owner, 2026-10-13); amendment proposed 2026-10-14 (below)
+- Status: Accepted (product owner, 2026-10-13); amended 2026-10-14 (below, accepted by the product
+  owner)
 - Date: 2026-10-13
 - Requirements: ASR-01, ASR-02, ASR-03, ASR-05, ASR-13, ASR-16; goal G1
 - Amends: 0025 (item 2: flow child rows stay read-only, and now have a source), spec 004 (push)
@@ -134,16 +135,16 @@ an edit made in the designer coming back to source.
 - **Rewrite flows as business rules and scripts.** Rejected by the product owner (2026-10-13):
   flows are a core capability.
 
-## Proposed amendment (2026-10-14, awaiting the product owner)
+## Amendment (2026-10-14, accepted by the product owner)
 
 The flows test plan (`specs/005-itsm-accelerator/flows-test-plan.md`) found facts that change
 parts of this decision. Evidence: `tools/spikes/s11-flow-delivery/README.md` (live tests on pdi2)
-and `tools/spikes/s13-embedded-sdk/README.md` (A1–A9). Until the product owner accepts it, the
-decision above stands.
+and `tools/spikes/s13-embedded-sdk/README.md` (A1–A9). Where this amendment and the decision
+above differ, the amendment applies.
 
 1. **Load route (corrects Context and item 3.1).** `fluent/load` is the SDK's route for projects of
    type `configuration`, not for app packages: `now-sdk install` of a `package` project installs the
-   zipped app through `sn_appclient_upload_processor.do`. Proposed: each Fluent project under
+   zipped app through `sn_appclient_upload_processor.do`. Each Fluent project under
    `source/<scope>/` is a `configuration` project; push loads its records with
    `POST /api/fluent/load/<scopeId>?targetUpdateSetId=<batch set>`. The update record lands in the
    batch set and the user's preferences are untouched. Proven for global (B1) and scoped flows.
@@ -157,8 +158,8 @@ decision above stands.
    snapshot), not just that it exists.
 4. **Inactive window (Consequences).** Redelivering a live flow left it inactive for 9 s on pdi2,
    and triggers in that window were lost, not queued (B3). Push reports the window and the records
-   that matched the trigger meanwhile. The product owner decides whether that is acceptable on
-   development instances; moved update sets carry the published flow (B2 to prove).
+   that matched the trigger meanwhile. Accepted on development instances (product owner,
+   2026-10-14); moved update sets carry the published flow (B2 to prove).
 5. **sys_ids (Context).** `$id` is not hashed: the first build of a new `$id` picks a random sys_id
    and writes it to `src/fluent/generated/keys.ts`. `keys.ts` is source and is committed;
    `plan_push` builds in a copy and refuses when the build would change `keys.ts` ("commit the
@@ -168,8 +169,10 @@ decision above stands.
 6. **Packaging (item 2 and Consequences).** The SDK is a second entry point in the binary, loaded only
    for a build. A lazy `import()` is not enough: it put `check` at 345 ms p95. Identifiers are not
    minified (renaming them breaks the SDK's output). The embedded types include
-   `@servicenow/glide`. Size 155 MB, or 216 MB with bytecode, which halves every command's
-   start-up: the product owner chooses.
+   `@servicenow/glide` and every `.json` of the SDK's packages (`sdk-core`'s `now.config.json`
+   keeps the built-in actions out of the project's keys). The binary is compiled to **bytecode**:
+   216 MB, and every command starts about twice as fast as 1.5.x (product owner, 2026-10-14;
+   155 MB without bytecode was the alternative).
 7. **Domain preflight (item 5).** The platform refuses a publish by a user outside the flow's domain
    with 422 `PUBLISH_FAILED` and leaves the flow a draft. `plan_push` compares the domains of the
    flows it redelivers with the publishing user's before any write.

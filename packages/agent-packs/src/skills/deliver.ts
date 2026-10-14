@@ -21,6 +21,9 @@ export const DELIVER: Skill = {
     "`push` says the plan changed: run `plan_push` again and show the new plan before pushing.",
     "`pullRequest` status `none`: offer to open a draft pull request (`draftPr`) on the next push; it needs the changes committed first.",
     "`notCaptured` is above 0: tell the user which records to add to the update set on the instance.",
+    "The user wants an accelerator pack: `accelerator` with the `pack` and `instance`; show each capability's `state` and its `next` commands. Once every capability is `ready`, run `snagentic accelerator add <pack> <instance>`, then plan as above.",
+    "`accelerator add` reports conflicts: they are the user's edits meeting the pack's; resolve them with the user, commit, then plan. Files it says are no longer in the pack are kept: leave them unless the user asks.",
+    "The pack has `data` to load: after the push, tell the user to fill its templates outside the workspace and run `snagentic accelerator validate-data`, then `snagentic accelerator load ... --confirm` themselves.",
   ],
   output:
     "The batch and its update sets (names and links), the records written, and what is left: pull, integrate, and test on the instance.",
@@ -30,6 +33,7 @@ export const DELIVER: Skill = {
     "Never push without the user's approval of the plan shown, or with a plan id you did not show.",
     "Never write to the instance any other way (REST calls, background scripts).",
     "Never create, move, rename or delete update sets by hand: push owns the branch's batch.",
+    "Never activate plugins or load an accelerator's data yourself, and never read the user's data templates.",
   ],
   prompt: { name: "deliver", description: "Plan and push changes to the development instance" },
 };

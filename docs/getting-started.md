@@ -223,6 +223,43 @@ seconds while it is redelivered: records created meanwhile do not trigger it, wh
 Mirrored flow records stay read-only; to keep a change made in Flow Designer, bring it back into
 the Fluent source.
 
+### Accelerators
+
+An accelerator pack is a ready-made set of records and data templates for one product area, in
+capabilities you install wave by wave (ADR-0026). snagentic never activates plugins or loads data
+on its own, and a pack's records go through `validate`, `plan-push` and `push` like your own:
+
+```sh
+snagentic accelerator list
+snagentic accelerator check <pack> dev     # each capability: ready, needs-plugins, not-entitled or blocked
+snagentic accelerator add <pack> dev       # writes the files, on the branch accelerator/<pack>/dev, merged here
+snagentic validate && snagentic plan-push  # then push as usual
+```
+
+`check` reads the mirrored plugin list, so pull after activating a plugin; for a capability that
+is not ready it prints the commands that make it ready. `add` refuses until every selected
+capability is ready and the latest pull is integrated (`--waves` or `--capabilities` select
+fewer). It copies the pack's new records and applies its patches to the mirrored out-of-box
+records; it never writes a field pull does not mirror, such as a property that may hold a
+secret. Adding the same version again changes nothing. A later version merges with your edits:
+conflicts are left for you, and a record the new version no longer ships is kept and reported,
+never deleted. The gate blocks a planned write of a capability that is no longer ready
+(SN-MNT-012).
+
+The pack's data (groups, locations, offerings) comes as CSV templates, one per entity. Fill
+them in a directory outside the workspace: customer data is never committed, and snagentic
+refuses a directory git tracks. After the push:
+
+```sh
+snagentic accelerator validate-data <pack> ~/customer-data              # mandatory fields, references, repeated keys
+snagentic accelerator load <pack> dev ~/customer-data --confirm         # development instances only
+```
+
+`load` validates everything first, then posts one row per request through the pack's import set
+tables, in dependency order, never retrying, and stops after the first entity with rows the
+instance did not take. Loading again updates or leaves rows unchanged; it never duplicates them.
+On test and production, load the same templates on the instance itself.
+
 ### ACLs
 
 Writing ACLs (`sys_security_acl`, `sys_security_acl_role`) needs the elevated

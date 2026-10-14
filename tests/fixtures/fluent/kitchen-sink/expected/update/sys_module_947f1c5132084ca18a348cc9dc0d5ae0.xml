@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<record_update>
+  <sys_module action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>947f1c5132084ca18a348cc9dc0d5ae0</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <path>x_2222332_s11/s11-flows/0.0.1/bom.json</path>
+    <external_source>false</external_source>
+    <content><![CDATA[{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:72000b4b-c42d-4622-8197-d3750573903e",
+  "metadata": {
+    "timestamp": "2026-10-14T04:47:56.072Z",
+    "tools": {
+      "components": [
+        {
+          "type": "library",
+          "name": "sdk-build-plugins",
+          "group": "@servicenow",
+          "version": "4.13.6",
+          "author": "ServiceNow"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "s11-flows",
+      "version": "0.0.1",
+      "bom-ref": "pkg:servicenow/s11-flows@0.0.1?sys_scope_id=489da54ae67c4a3e9f1e1e4347e9119b",
+      "licenses": [
+        {
+          "license": {
+            "name": "UNLICENSED"
+          }
+        }
+      ],
+      "purl": "pkg:servicenow/s11-flows@0.0.1?sys_scope_id=489da54ae67c4a3e9f1e1e4347e9119b"
+    }
+  },
+  "components": [],
+  "dependencies": [
+    {
+      "ref": "pkg:servicenow/s11-flows@0.0.1?sys_scope_id=489da54ae67c4a3e9f1e1e4347e9119b"
+    }
+  ]
+}]]></content>
+  </sys_module>
+</record_update>

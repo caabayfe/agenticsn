@@ -1,12 +1,30 @@
 // Spike S13: compile embed.ts into one binary, with Rollup's native add-on replaced by its
 // official WebAssembly build.
+//   bun compile.ts [entry] [outfile] [--minify]
 import { dirname, join } from "node:path";
 
 const wasm = dirname(require.resolve("@rollup/wasm-node/package.json"));
+const [entry = "./embed.ts", outfile = "./embed-bin", ...more] = process.argv
+  .slice(2)
+  .filter((a) => !a.startsWith("--"));
+// --minify, or --minify=whitespace,syntax,identifiers for a subset.
+function minifyOption(): boolean | Record<string, boolean> {
+  const flag = process.argv.find((a) => a.startsWith("--minify"));
+  if (flag === undefined) return false;
+  if (flag === "--minify") return true;
+  const parts = flag.slice("--minify=".length).split(",");
+  return Object.fromEntries(
+    ["whitespace", "syntax", "identifiers"].map((p) => [p, parts.includes(p)]),
+  );
+}
+
 const result = await Bun.build({
-  entrypoints: ["./embed.ts"],
-  compile: { outfile: "./embed-bin" },
-  external: ["jiti", "jiti/package.json"],
+  entrypoints: [entry, ...more],
+  compile: { outfile },
+  minify: minifyOption(),
+  ...(process.argv.includes("--bytecode") ? { bytecode: true, format: "esm" as const } : {}),
+  // chromium-bidi: as snagentic's own build (package.json "build").
+  external: ["jiti", "jiti/package.json", "chromium-bidi", "chromium-bidi/*"],
   loader: { ".wasm": "file" },
   plugins: [
     {

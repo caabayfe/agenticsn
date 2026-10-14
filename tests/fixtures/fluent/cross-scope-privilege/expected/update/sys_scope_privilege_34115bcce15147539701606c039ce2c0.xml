@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<record_update table="sys_scope_privilege">
+  <sys_scope_privilege action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>34115bcce15147539701606c039ce2c0</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_scope_privilege_34115bcce15147539701606c039ce2c0</sys_update_name>
+    <operation>write</operation>
+    <source_scope>489da54ae67c4a3e9f1e1e4347e9119b</source_scope>
+    <status>allowed</status>
+    <target_name>incident</target_name>
+    <target_scope>global</target_scope>
+    <target_type>sys_db_object</target_type>
+  </sys_scope_privilege>
+</record_update>

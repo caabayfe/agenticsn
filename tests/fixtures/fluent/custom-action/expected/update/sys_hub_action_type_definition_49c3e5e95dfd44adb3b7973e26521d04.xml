@@ -1,0 +1,237 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_action_type_definition">
+  <sys_hub_action_type_definition action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>49c3e5e95dfd44adb3b7973e26521d04</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_type_definition_49c3e5e95dfd44adb3b7973e26521d04</sys_update_name>
+    <access>public</access>
+    <active>true</active>
+    <annotation/>
+    <category/>
+    <description/>
+    <label_cache>[{"name":"{{action.threshold}}","label":"action➛Threshold","type":"action","ref":"","reference_display":"","base_type":"string","parent_table_name":"","column_name":"","choices":null,"attributes":{}},{"name":"{{step[3bdaabca-c980-423e-89aa-8bfc4d297670].__step_status__}}","label":"step➛Score➛Step Status","type":"step","ref":"","reference_display":"","base_type":"object","parent_table_name":"","column_name":"","choices":null,"attributes":{}},{"name":"{{step[3bdaabca-c980-423e-89aa-8bfc4d297670].verdict}}","label":"step➛Score➛Verdict","type":"step","ref":"","reference_display":"Verdict","base_type":"string","parent_table_name":"","column_name":"verdict","choices":null,"attributes":{}}]</label_cache>
+    <name>snagentic test A2 action</name>
+    <state>draft</state>
+    <sys_policy/>
+    <system_level>false</system_level>
+  </sys_hub_action_type_definition>
+  <sys_hub_step_instance action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>3bdaabcac980423e89aa8bfc4d297670</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_step_instance_3bdaabcac980423e89aa8bfc4d297670</sys_update_name>
+    <action>49c3e5e95dfd44adb3b7973e26521d04</action>
+    <active>true</active>
+    <cid>3bdaabca-c980-423e-89aa-8bfc4d297670</cid>
+    <error_handling_type>1</error_handling_type>
+    <label>Score</label>
+    <order>1</order>
+    <step_type>106afb6647032200b4fad7527c9a71e7</step_type>
+  </sys_hub_step_instance>
+  <sys_variable_value action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>eac9e8e942354e84bb3d79c2dee1d4f8</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_variable_value_eac9e8e942354e84bb3d79c2dee1d4f8</sys_update_name>
+    <document>sys_hub_step_instance</document>
+    <document_key>3bdaabcac980423e89aa8bfc4d297670</document_key>
+    <order>100</order>
+    <value>instance</value>
+    <variable>74315b04b3201300176b051a16a8dc2b</variable>
+  </sys_variable_value>
+  <sys_variable_value action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>8be483a69e5141babb505c288133b3f2</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_variable_value_8be483a69e5141babb505c288133b3f2</sys_update_name>
+    <document>sys_hub_step_instance</document>
+    <document_key>3bdaabcac980423e89aa8bfc4d297670</document_key>
+    <order>100</order>
+    <value>(function execute(inputs, outputs) {
+    var threshold = parseInt(inputs.threshold, 10)
+    outputs.score = threshold * 2
+    outputs.verdict = outputs.score &gt; 100 ? 'high' : 'low'
+})(inputs, outputs)
+</value>
+    <variable>71aa7f6647032200b4fad7527c9a719b</variable>
+  </sys_variable_value>
+  <sys_element_mapping action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>3a676fc266634be7a579e3efe1147a5f</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_element_mapping_3a676fc266634be7a579e3efe1147a5f</sys_update_name>
+    <field>threshold</field>
+    <id>3bdaabcac980423e89aa8bfc4d297670</id>
+    <table>var__m_sys_hub_step_ext_input_3bdaabcac980423e89aa8bfc4d297670</table>
+    <value>{{action.threshold}}</value>
+  </sys_element_mapping>
+  <sys_element_mapping action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>8040105c2c5e41f7b9a1d5d9e8b060f9</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_element_mapping_8040105c2c5e41f7b9a1d5d9e8b060f9</sys_update_name>
+    <field>verdict</field>
+    <id>49c3e5e95dfd44adb3b7973e26521d04</id>
+    <table>var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04</table>
+    <value>{{step[3bdaabca-c980-423e-89aa-8bfc4d297670].verdict}}</value>
+  </sys_element_mapping>
+  <sys_hub_step_ext_input action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>fb4e12eb1076406fac645f5cd19da6e0</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_step_ext_input_fb4e12eb1076406fac645f5cd19da6e0</sys_update_name>
+    <active>true</active>
+    <attributes>element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper,uiType=string,uiTypeLabel=String</attributes>
+    <default_value/>
+    <element>threshold</element>
+    <internal_type>string</internal_type>
+    <label>Threshold</label>
+    <model>3bdaabcac980423e89aa8bfc4d297670</model>
+    <model_id>3bdaabcac980423e89aa8bfc4d297670</model_id>
+    <model_table>sys_hub_step_instance</model_table>
+    <name>var__m_sys_hub_step_ext_input_3bdaabcac980423e89aa8bfc4d297670</name>
+  </sys_hub_step_ext_input>
+  <sys_hub_step_ext_output action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>392ce5a47fe34f35a6cdab2f52408c27</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_step_ext_output_392ce5a47fe34f35a6cdab2f52408c27</sys_update_name>
+    <active>true</active>
+    <attributes>element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper,uiType=integer,uiTypeLabel=Integer</attributes>
+    <default_value>0</default_value>
+    <element>score</element>
+    <internal_type>integer</internal_type>
+    <label>Score</label>
+    <mandatory/>
+    <model>3bdaabcac980423e89aa8bfc4d297670</model>
+    <model_id>3bdaabcac980423e89aa8bfc4d297670</model_id>
+    <model_table>sys_hub_step_instance</model_table>
+    <name>var__m_sys_hub_step_ext_output_3bdaabcac980423e89aa8bfc4d297670</name>
+  </sys_hub_step_ext_output>
+  <sys_hub_step_ext_output action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>6af32291029e45259f31046290b230af</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_step_ext_output_6af32291029e45259f31046290b230af</sys_update_name>
+    <active>true</active>
+    <attributes>element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper,uiType=string,uiTypeLabel=String</attributes>
+    <element>verdict</element>
+    <internal_type>string</internal_type>
+    <label>Verdict</label>
+    <mandatory/>
+    <max_length>64</max_length>
+    <model>3bdaabcac980423e89aa8bfc4d297670</model>
+    <model_id>3bdaabcac980423e89aa8bfc4d297670</model_id>
+    <model_table>sys_hub_step_instance</model_table>
+    <name>var__m_sys_hub_step_ext_output_3bdaabcac980423e89aa8bfc4d297670</name>
+  </sys_hub_step_ext_output>
+  <sys_hub_action_input action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>14d21108a22244d0b72711cceb2aa459</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_input_14d21108a22244d0b72711cceb2aa459</sys_update_name>
+    <active>true</active>
+    <attributes/>
+    <default_value/>
+    <element>threshold</element>
+    <hint/>
+    <internal_type>string</internal_type>
+    <label>Threshold</label>
+    <mandatory>true</mandatory>
+    <max_length>40</max_length>
+    <model>49c3e5e95dfd44adb3b7973e26521d04</model>
+    <model_id>49c3e5e95dfd44adb3b7973e26521d04</model_id>
+    <model_table>sys_hub_action_type_definition</model_table>
+    <name>var__m_sys_hub_action_input_49c3e5e95dfd44adb3b7973e26521d04</name>
+    <order>1</order>
+  </sys_hub_action_input>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>b04ae215a8f04be79695c86731478e1c</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_action_input_49c3e5e95dfd44adb3b7973e26521d04_threshold_en</sys_update_name>
+    <element>threshold</element>
+    <hint/>
+    <label>Threshold</label>
+    <language>en</language>
+    <name>var__m_sys_hub_action_input_49c3e5e95dfd44adb3b7973e26521d04</name>
+    <plural>Thresholds</plural>
+  </sys_documentation>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>78352b7622854260bd9ca99547c99219</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04_verdict_en</sys_update_name>
+    <element>verdict</element>
+    <hint/>
+    <label>Verdict</label>
+    <language>en</language>
+    <name>var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04</name>
+    <plural>Verdicts</plural>
+  </sys_documentation>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>90ae09bfe8b34611b68ab73ebbf397a3</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04___action_status___en</sys_update_name>
+    <element>__action_status__</element>
+    <hint/>
+    <label>Action Status</label>
+    <language>en</language>
+    <name>var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04</name>
+    <plural>Action Status</plural>
+  </sys_documentation>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>ac2ec99ebfbd4a4f8177b6f40d1f92f9</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04___dont_treat_as_error___en</sys_update_name>
+    <element>__dont_treat_as_error__</element>
+    <hint/>
+    <label>Don't Treat as Error</label>
+    <language>en</language>
+    <name>var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04</name>
+    <plural>Don't Treat as Errors</plural>
+  </sys_documentation>
+  <sys_hub_action_output action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>0f10481c6e094f5daa560677ebd1dd80</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_output_0f10481c6e094f5daa560677ebd1dd80</sys_update_name>
+    <active>true</active>
+    <attributes>element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper,pwd2droppable=true,uiType=string,uiTypeLabel=String,uiUniqueId=49c3e5e95dfd44adb3b7973e26521d04-verdict</attributes>
+    <default_value/>
+    <element>verdict</element>
+    <hint/>
+    <internal_type>string</internal_type>
+    <label>Verdict</label>
+    <mandatory>false</mandatory>
+    <max_length>40</max_length>
+    <model>49c3e5e95dfd44adb3b7973e26521d04</model>
+    <model_id>49c3e5e95dfd44adb3b7973e26521d04</model_id>
+    <model_table>sys_hub_action_type_definition</model_table>
+    <name>var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04</name>
+    <order>1</order>
+  </sys_hub_action_output>
+  <sys_hub_action_output action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>0df3a0b03d624f33b7809d155eb70e05</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_output_0df3a0b03d624f33b7809d155eb70e05</sys_update_name>
+    <active>true</active>
+    <attributes>element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper,action_error_output=true,uiType=object,uiTypeLabel=Object,uiUniqueId=49c3e5e95dfd44adb3b7973e26521d04-action-status,co_type_name=FDACTIONSTATUS</attributes>
+    <element>__action_status__</element>
+    <internal_type>string</internal_type>
+    <label>Action Status</label>
+    <mandatory>false</mandatory>
+    <max_length>65000</max_length>
+    <model>49c3e5e95dfd44adb3b7973e26521d04</model>
+    <model_id>49c3e5e95dfd44adb3b7973e26521d04</model_id>
+    <model_table>sys_hub_action_type_definition</model_table>
+    <name>var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04</name>
+    <order>1</order>
+  </sys_hub_action_output>
+  <sys_hub_action_output action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>b00ae0003e114cfd90131ce335a69c96</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_output_b00ae0003e114cfd90131ce335a69c96</sys_update_name>
+    <active>true</active>
+    <attributes>element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper,action_error_output=true,uiType=boolean,uiTypeLabel=True/False,uiUniqueId=49c3e5e95dfd44adb3b7973e26521d04-action-error,visible_in_ui=false</attributes>
+    <default_value>true</default_value>
+    <element>__dont_treat_as_error__</element>
+    <internal_type>boolean</internal_type>
+    <label>Don't Treat as Error</label>
+    <mandatory>false</mandatory>
+    <max_length>40</max_length>
+    <model>49c3e5e95dfd44adb3b7973e26521d04</model>
+    <model_id>49c3e5e95dfd44adb3b7973e26521d04</model_id>
+    <model_table>sys_hub_action_type_definition</model_table>
+    <name>var__m_sys_hub_action_output_49c3e5e95dfd44adb3b7973e26521d04</name>
+    <order>2</order>
+  </sys_hub_action_output>
+</record_update>

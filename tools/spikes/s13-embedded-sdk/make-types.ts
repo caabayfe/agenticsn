@@ -11,6 +11,8 @@ const PACKAGES = [
   "@servicenow/sdk-build-plugins",
   "@types/estree",
   "@types/json-schema",
+  // Server modules import gs, GlideRecord and the rest from it (test A2).
+  "@servicenow/glide",
 ];
 const KEEP = /(\.d\.ts|\.ts|package\.json)$/;
 const files: Record<string, string> = {};

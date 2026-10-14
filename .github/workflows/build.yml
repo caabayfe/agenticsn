@@ -32,7 +32,7 @@ jobs:
           - { target: linux-x64, runner: ubuntu-24.04 }
           - { target: linux-arm64, runner: ubuntu-24.04-arm }
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -55,6 +55,18 @@ jobs:
           bun scripts/measure-s5.ts --binary dist/s5-lint \
             --sample tools/spikes/s5-lint-latency/sample-business-rule.js \
             --target ${{ matrix.target }} --out dist/s5-${{ matrix.target }}.json
+      # Spike S13 (ADR-0028): the SDK's build embedded in a binary, run on each platform against
+      # the now-sdk CLI's committed output (flows test plan A1, A2, A3, A4, A5).
+      - name: "S13: build Fluent fixtures from a binary"
+        if: always()
+        working-directory: tools/spikes/s13-embedded-sdk
+        run: |
+          bun install --frozen-lockfile
+          bun make-types.ts .
+          bun compile.ts ./embed.ts ./embed-bin
+          bun compile.ts ./with-sdk-split.ts ./snagentic-sdk-bin ./embed.ts --minify=whitespace,syntax
+          bun fixtures.ts --binary ./embed-bin --fixtures ../../../tests/fixtures/fluent \
+            --target ${{ matrix.target }} --startup ../../../dist/snagentic,./snagentic-sdk-bin
       - uses: actions/upload-artifact@v4
         if: always()
         with:

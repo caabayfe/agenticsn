@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<record_update table="sys_script_include">
+  <sys_script_include action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>2e3e40974f304477b26b72eb4691f40c</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_script_include_2e3e40974f304477b26b72eb4691f40c</sys_update_name>
+    <access>package_private</access>
+    <active>true</active>
+    <api_name>x_2222332_s11.A2Utils</api_name>
+    <caller_access/>
+    <client_callable>false</client_callable>
+    <description>snagentic test A2 script include</description>
+    <mobile_callable>false</mobile_callable>
+    <name>A2Utils</name>
+    <sandbox_callable>false</sandbox_callable>
+    <script><![CDATA[var A2Utils = Class.create()
+A2Utils.prototype = {
+    initialize: function () {},
+    label: function (priority) {
+        return priority === '1' ? 'critical' : 'normal'
+    },
+    type: 'A2Utils',
+}
+]]></script>
+    <sys_name>A2Utils</sys_name>
+  </sys_script_include>
+</record_update>

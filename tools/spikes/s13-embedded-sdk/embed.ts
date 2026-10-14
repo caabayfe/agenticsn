@@ -2,7 +2,7 @@
 //   bun embed.ts <project dir>
 // S13_TELEMETRY_CONTROL=1 leaves the SDK's own telemetry on: the positive control for A7 only.
 import * as fs from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { Orchestrator, Project } from "@servicenow/sdk-api";
 import { NoOpTelemetry, NowConfig, TelemetryFactory } from "@servicenow/sdk-build-core";
@@ -18,6 +18,14 @@ type ConfigParser = { parseFromDirectory(dir: string, fs: unknown, logger: unkno
 type TelemetryCtor = new () => unknown;
 type Telemetry = { capture(event: string, properties?: object): void; shutdown(): Promise<void> };
 type TelemetryMaker = { create(options: object): Telemetry };
+type Diagnostic = {
+  source: string;
+  code: number;
+  message: string;
+  file?: { getFilePath(): string };
+  asLspDiagnostic(): { range: { start: { line: number; character: number } } };
+};
+type Diagnostics = { diagnostics: { getErrors(): Diagnostic[] } };
 
 const control = process.env["S13_TELEMETRY_CONTROL"] === "1";
 if (!control) process.env["NO_TELEMETRY"] = "1";
@@ -49,7 +57,9 @@ const project = new (Project as unknown as ProjectCtor)({
   logger,
   telemetryClient,
 });
-const output = await new (Orchestrator as unknown as OrchestratorCtor)(project).build({});
+const output = await new (Orchestrator as unknown as OrchestratorCtor)(project)
+  .build({})
+  .catch((): BuildOutput => ({ success: false }));
 console.log(
   "success:",
   output.success,
@@ -61,4 +71,21 @@ console.log(
 if (control) {
   (telemetryClient as Telemetry).capture("s13_a7_control");
   await (telemetryClient as Telemetry).shutdown();
+}
+// Test A9: each error as one structured line, the shape `validate` would turn into a finding.
+if (!output.success) {
+  for (const d of (project as Diagnostics).diagnostics.getErrors()) {
+    const { line, character } = d.asLspDiagnostic().range.start;
+    const finding = {
+      file: relative(rootDir, d.file?.getFilePath() ?? "")
+        .split(sep)
+        .join("/"),
+      line: line + 1,
+      column: character + 1,
+      code: `${d.source}${d.code}`,
+      message: d.message.split("\n")[0],
+    };
+    console.log("finding", JSON.stringify(finding));
+  }
+  process.exitCode = 1;
 }

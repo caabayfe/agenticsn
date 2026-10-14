@@ -76,6 +76,8 @@ describe("push", () => {
       pullRequest: { status: "unavailable", reason: "no git platform in tests" },
       updateSets: [{ name: "snagentic: main", created: true }],
       written: [{ operation: "update", table: "sys_script_include", captured: true }],
+      fluent: [],
+      flowsInactiveMs: null,
       notCaptured: 0,
     });
     expect(instance.writes).toContain(
@@ -106,6 +108,8 @@ describe("push", () => {
           { scope: "x_acme", ...set("snagentic: main [x_acme]", "c1") },
         ],
         written: [],
+        fluent: [],
+        flowsInactiveMs: null,
         notCaptured: 0,
         next: [],
       },
@@ -125,6 +129,8 @@ describe("push", () => {
       batch: { name: "snagentic: main", sysId: "b1", created: false, link: "l" },
       updateSets: [],
       written: [],
+      fluent: [],
+      flowsInactiveMs: null,
       notCaptured: 0,
       next: [],
     };
@@ -223,6 +229,8 @@ describe("push", () => {
             elevated: false,
           },
         ],
+        fluent: [],
+        flowsInactiveMs: null,
         notCaptured: 1,
         next: [],
       },
@@ -231,5 +239,43 @@ describe("push", () => {
     expect(text).toContain("push with --draft-pr to open one");
     expect(text).toContain("NOT captured");
     expect(text).toContain("1 write(s) were not captured");
+  });
+
+  it("shows each published flow, one the update set did not capture, and the inactive window", () => {
+    const text = push.render(
+      {
+        instance: "pdi",
+        planId: "p",
+        batch: { name: "snagentic: main", sysId: "b1", created: false, link: "l" },
+        pullRequest: { status: "none" },
+        updateSets: [],
+        written: [],
+        fluent: [
+          {
+            project: "source/global",
+            table: "sys_hub_flow",
+            sysId: "f1",
+            name: "Page",
+            kind: "flow",
+            captured: true,
+          },
+          {
+            project: "source/global",
+            table: "sys_hub_flow",
+            sysId: "f2",
+            name: "Notify",
+            kind: "subflow",
+            captured: false,
+          },
+        ],
+        flowsInactiveMs: 8990,
+        notCaptured: 1,
+        next: [],
+      },
+      "text",
+    );
+    expect(text).toContain("publish flow Page  source/global");
+    expect(text).toContain("publish subflow Notify  source/global  NOT captured in the update set");
+    expect(text).toContain("flows were inactive for 8990 ms while redelivered");
   });
 });

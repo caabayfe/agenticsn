@@ -1,5 +1,4 @@
-import { cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   FLUENT_KEYS_FILE,
@@ -9,11 +8,10 @@ import {
   type FluentProjects,
 } from "@snagentic/core";
 import { runGitOrThrow } from "../git/run-git";
+import { buildInCopy } from "./build-in-copy";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
 
 const lines = (text: string) => text.split("\n").filter(Boolean);
-// Build output and installed dependencies are never part of a project's source.
-const NOT_SOURCE = new Set(["node_modules", "dist", ".now"]);
 const DELETE_RECORD = /action="DELETE"[\s\S]*?<sys_update_name>([^<]+)<\/sys_update_name>/;
 
 const readText = (path: string) => readFile(path, "utf8").catch(() => null);
@@ -80,15 +78,8 @@ export class WorkspaceFluentProjects implements FluentProjects {
   }
 
   async build(project: FluentProject): Promise<FluentBuild> {
-    const runtime = await this.load();
     const source = join(this.workspace, project.path);
-    const copy = join(await mkdtemp(join(tmpdir(), "snagentic-fluent-")), "project");
-    try {
-      await cp(source, copy, {
-        recursive: true,
-        filter: (path) => !NOT_SOURCE.has(path.slice(source.length + 1).split(/[\\/]/)[0] ?? ""),
-      });
-      const outcome = await runtime.build(copy);
+    return buildInCopy(this.load, source, async (copy, outcome) => {
       if (!outcome.success) return { built: false, errors: outcome.errors };
       const before = await readText(join(source, FLUENT_KEYS_FILE));
       const after = await readText(join(copy, FLUENT_KEYS_FILE));
@@ -97,9 +88,7 @@ export class WorkspaceFluentProjects implements FluentProjects {
         keysChanged: before !== after,
         deletes: await deletesIn(join(copy, "dist", "app")),
       };
-    } finally {
-      await rm(join(copy, ".."), { recursive: true, force: true });
-    }
+    });
   }
 
   async sdkVersion(): Promise<string> {

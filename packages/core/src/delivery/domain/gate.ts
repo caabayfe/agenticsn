@@ -62,10 +62,13 @@ export function gateOf(
 
 // Binds a plan to exactly what it would write, from which mirror state, under which gate
 // outcome: any edit, pull, finding or waiver gives another id.
+// Fluent projects enter by the digest of what their build installs (ADR-0028 as amended); a
+// plan without them keeps the id it always had.
 export function planId(
   mirrorCommit: string,
   writes: readonly PlannedWrite[],
   gate: GateResult,
+  fluent: readonly { readonly project: string; readonly digest: string }[] = [],
 ): string {
   const material = canonicalJson({
     mirror: mirrorCommit,
@@ -83,6 +86,9 @@ export function planId(
       blocking: gate.blocking.map((f) => `${f.ruleId} ${f.path}:${f.line ?? ""}`),
       waived: gate.waived.map((f) => `${f.ruleId} ${f.path}:${f.line ?? ""} ${f.approver}`),
     },
+    ...(fluent.length === 0
+      ? {}
+      : { fluent: fluent.map((p) => `${p.project} ${p.digest}`).sort() }),
   });
   return sha256Hex(material).slice(0, 16);
 }

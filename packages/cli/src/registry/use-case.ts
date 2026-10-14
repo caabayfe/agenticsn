@@ -6,6 +6,8 @@ import type {
   DeliveryWorkspace,
   ElevatedSessions,
   EnvironmentProbe,
+  FluentInstaller,
+  FluentPackages,
   IncrementalMirror,
   InstalledBinary,
   InstanceName,
@@ -57,7 +59,12 @@ export interface ConnectionFactory {
     secret: string,
   ): InstanceReader &
     TableStatistics &
-    ServerCostReader & { readonly plugins: PluginActivator; readonly writer: InstanceWriter };
+    ServerCostReader & {
+      readonly plugins: PluginActivator;
+      readonly writer: InstanceWriter;
+      // Flow delivery (ADR-0028); absent from connections that cannot push flows.
+      readonly fluent?: FluentInstaller;
+    };
 }
 
 // The ports use cases need, wired by the composition root (main.ts).
@@ -95,6 +102,8 @@ export interface UseCaseContext {
   ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
   // An instance's mirror branch and working tree, for plan and push.
   readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;
+  // Fluent projects under source/, built for delivery (ADR-0028 as amended).
+  readonly fluentPackages: (root: string) => FluentPackages;
   // The git platform, for the branch's pull request (ADR-0022).
   readonly pullRequests: (root: string) => PullRequests;
   // Where push journals its progress (.snagentic/<name>/push-journal.json).

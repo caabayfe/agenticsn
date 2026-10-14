@@ -1,29 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadFluentRuntime } from "../../../src/adapters/fluent/fluent-runtime-loader";
 import { WorkspaceFluentProjects } from "../../../src/adapters/fluent/workspace-fluent-projects";
 import { runGitOrThrow } from "../../../src/adapters/git/run-git";
-import { FLUENT_FIXTURES, KEYS_FILE } from "../../support/fluent-fixtures";
+import { fluentWorkspace, KEYS_FILE } from "../../support/fluent-fixtures";
 
 const BUILD_TIMEOUT = 60_000;
 const PROJECT = "source/x_2222332_s11";
 
-// A git workspace holding the S11 Fluent project, committed.
 async function workspace(): Promise<{ root: string; projects: WorkspaceFluentProjects }> {
-  const root = mkdtempSync(join(tmpdir(), "fluent-workspace-"));
-  cpSync(join(FLUENT_FIXTURES, "s11-flows"), join(root, PROJECT), {
-    recursive: true,
-    filter: (p) => !p.includes(`${join("s11-flows", "expected")}`),
-  });
-  for (const args of [
-    ["init", "-q", "-b", "main"],
-    ["add", "."],
-    ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "s11"],
-  ]) {
-    await runGitOrThrow(args, root);
-  }
+  const root = await fluentWorkspace(PROJECT);
   return { root, projects: new WorkspaceFluentProjects(root, loadFluentRuntime) };
 }
 

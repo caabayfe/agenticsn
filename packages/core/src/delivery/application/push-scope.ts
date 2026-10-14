@@ -4,11 +4,14 @@ import { needsElevation, type PlannedWrite } from "../domain/change";
 import type {
   ElevatedSession,
   ElevatedSessions,
+  FluentInstaller,
+  FluentPackage,
   PushJournal,
   PushJournalStore,
   SwitchedPreference,
 } from "../ports";
 import { elevatedSessionFor } from "./elevated-writes";
+import { deliverFluent, type FluentDelivery } from "./fluent-steps";
 import { settle, switchFor } from "./push-preferences";
 import { type InstanceSession, moveUpdate, openChild, writeRecord } from "./push-steps";
 
@@ -17,6 +20,9 @@ interface ScopeRun {
     readonly journal: PushJournalStore;
     readonly elevatedSessions: ElevatedSessions | null;
     readonly username: string;
+    // Flow delivery (ADR-0028 as amended); null when the plan has no Fluent project.
+    readonly fluentInstaller: FluentInstaller | null;
+    readonly now: () => Date;
   };
   readonly session: InstanceSession;
   readonly journal: { current: PushJournal };
@@ -31,6 +37,8 @@ interface ScopeTarget {
   // The branch's batch: global's update set, and the parent of every other scope's.
   readonly batch: { readonly sysId: string; readonly name: string; readonly created: boolean };
   readonly writes: readonly PlannedWrite[];
+  // The scope's Fluent project build, loaded and published after its records.
+  readonly fluent: FluentPackage | null;
 }
 
 // One write, journaled before and after so an interrupted push knows what reached the instance.
@@ -91,6 +99,7 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
     target.writes.find((w) => w.table === "sys_app" && w.operation === "create") ?? null;
   let elevated: ElevatedSession | null = null;
   let set: { sysId: string; name: string; created: boolean };
+  let fluent: FluentDelivery | null = null;
   try {
     await prefer("apps.current_app", target.id);
     set = await updateSetFor(run, target, application);
@@ -113,11 +122,15 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
           : session;
       await writeStep(run, write, target, through);
     }
+    if (target.fluent !== null && deps.fluentInstaller !== null) {
+      const delivery = { session, installer: deps.fluentInstaller, journal, now: deps.now };
+      fluent = await deliverFluent({ ...delivery, store: deps.journal }, target.fluent, set.sysId);
+    }
   } catch (error) {
     // The write that failed is what the user needs to see; a failed restore stays journaled.
     await settle(session, elevated, journal, save).catch(() => {});
     throw error;
   }
   await settle(session, elevated, journal, save);
-  return set;
+  return { ...set, fluent };
 }

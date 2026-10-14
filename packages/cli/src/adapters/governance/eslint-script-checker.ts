@@ -64,6 +64,8 @@ function configFor(ruleIds: readonly string[], context: ScriptContext): LinterTy
           type: context.type,
           scoped: String(context.scoped),
           name: context.name,
+          scope: context.scope,
+          privileges: [...context.privileges],
         },
       },
     },

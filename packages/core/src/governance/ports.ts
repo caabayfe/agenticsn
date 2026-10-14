@@ -29,6 +29,9 @@ export interface ChangedRecords {
     sysId: string,
     commit: string | null,
   ): Promise<number>;
+  // The cross-scope privileges an application declares in the workspace, as
+  // "<target type>:<target name>" (for example "sys_db_object:sys_user").
+  privileges(scope: string): Promise<readonly string[]>;
   // The instance's commit while integrate merges it (a merge of the instance's
   // servicenow-remote branch is in progress), or null.
   mirrorMerge(): Promise<string | null>;
@@ -42,6 +45,9 @@ export interface ScriptContext {
   readonly when: string;
   readonly type: string;
   readonly name: string;
+  readonly scope: string;
+  // What the record's application declares it may reach in other scopes; empty in global.
+  readonly privileges: readonly string[];
 }
 
 export interface ScriptHit {

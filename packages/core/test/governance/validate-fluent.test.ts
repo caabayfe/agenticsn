@@ -59,7 +59,7 @@ describe("validate, Fluent projects (ADR-0028)", () => {
     expect(result.passed).toBe(false);
     expect(result.findings).toEqual([
       expect.objectContaining({
-        ruleId: "SN-MNT-008",
+        ruleId: "SN-MNT-009",
         severity: "block",
         path: "source/x_app/src/fluent/a.now.ts",
         root: "workspace",
@@ -78,7 +78,7 @@ describe("validate, Fluent projects (ADR-0028)", () => {
     );
     expect(result.findings).toEqual([
       expect.objectContaining({
-        ruleId: "SN-MNT-009",
+        ruleId: "SN-MNT-010",
         path: "source/x_app/src/fluent/generated/keys.ts",
       }),
     ]);
@@ -96,7 +96,7 @@ describe("validate, Fluent projects (ADR-0028)", () => {
     );
     expect(result.findings).toEqual([
       expect.objectContaining({
-        ruleId: "SN-MNT-010",
+        ruleId: "SN-MNT-011",
         message: "the build deletes sys_choice_var__m_sys_hub_action_input_43400a15_sort_type",
       }),
     ]);
@@ -149,7 +149,7 @@ describe("validate, Fluent projects (ADR-0028)", () => {
       fakeFluent([project("source/x_app")], { "source/x_app": { built: false, errors: [error] } }),
     );
     const waiver = {
-      rule: "SN-MNT-008",
+      rule: "SN-MNT-009",
       path: "instances/pdi/metadata/source/x_app/**",
       reason: "accepted",
       approver: "owner",
@@ -158,7 +158,7 @@ describe("validate, Fluent projects (ADR-0028)", () => {
     const gate = gateOf(findings, [waiver], [], "instances/pdi/metadata");
     expect(gate.passed).toBe(false);
     expect(gate.blocking).toEqual([
-      expect.objectContaining({ ruleId: "SN-MNT-008", path: "source/x_app/src/fluent/a.now.ts" }),
+      expect.objectContaining({ ruleId: "SN-MNT-009", path: "source/x_app/src/fluent/a.now.ts" }),
     ]);
   });
 });

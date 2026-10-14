@@ -53,6 +53,7 @@ export interface IncrementalSummary {
 }
 
 const NO_RECORD_CHANGES: RecordOutcome = {
+  created: [],
   written: 0,
   renamed: 0,
   deleted: 0,
@@ -184,14 +185,21 @@ async function pullBesideRecords(
     readonly changes: ReadonlyMap<string, FingerprintChange>;
     readonly stale: readonly InventorySource[];
     readonly since: string;
+    readonly created: RecordOutcome["created"];
   },
   signal: AbortSignal,
 ) {
-  const { state, changes, stale, since } = moved;
+  const { state, changes, stale, since, created } = moved;
   const neverRead = new Set(
     CHILD_TABLES.map((child) => child.table).filter((table) => !state.fingerprints?.[table]),
   );
-  const children = await applyChildChanges(deps, catalog, changes, { since, neverRead }, signal);
+  const children = await applyChildChanges(
+    deps,
+    catalog,
+    changes,
+    { since, neverRead, created },
+    signal,
+  );
   const applications = await applicationsIfMoved(deps, catalog, stale, signal);
   const operational = await pullOperational(deps, signal, stale);
   return { children, unreadable: [...applications.unreadable, ...operational.unreadable] };
@@ -239,7 +247,7 @@ export async function pullIncremental(
   const rest = await pullBesideRecords(
     deps,
     verified?.catalog ?? step.catalog,
-    { state, changes, stale, since },
+    { state, changes, stale, since, created: step.records.created },
     signal,
   );
   const recordUnreadable = [...step.records.unreadable, ...(verified?.records.unreadable ?? [])];

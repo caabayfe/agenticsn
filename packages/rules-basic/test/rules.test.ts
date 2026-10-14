@@ -3,8 +3,10 @@ import { RULES } from "@snagentic/core";
 import { SCRIPT_RULES } from "../src/index";
 import { lint } from "./lint";
 
+type Settings = Record<string, string | readonly string[]>;
+
 // [rule, record settings, triggering sample, passing sample] (AGENTS.md: one of each at least).
-const CASES: [string, Record<string, string>, string, string][] = [
+const CASES: [string, Settings, string, string][] = [
   ["SN-SEC-001", {}, "eval(input);", "handlers[input]();"],
   ["SN-SEC-001", {}, "var f = new Function('a', body);", "var f = function (a) { return a; };"],
   [
@@ -117,6 +119,28 @@ const CASES: [string, Record<string, string>, string, string][] = [
     "IncidentUtil = Class.create();",
   ],
   [
+    "SN-MNT-008",
+    { scoped: "true", scope: "x_acme_rev", privileges: [] },
+    "var u = new GlideRecord('sys_user');",
+    "var t = new GlideRecord('x_acme_rev_task');",
+  ],
+  [
+    "SN-MNT-008",
+    { scoped: "true", scope: "x_acme_rev", privileges: ["sys_db_object:sys_user"] },
+    "var u = new GlideAggregate('sys_user_has_role');",
+    "var u = new GlideRecordSecure('sys_user');",
+  ],
+  [
+    "SN-MNT-008",
+    {
+      scoped: "true",
+      scope: "x_acme_rev",
+      privileges: ["sys_script_include:AccessRemover"],
+    },
+    "new global.RoleRemover().remove(id);",
+    "new global.AccessRemover().remove(id); new x_acme_rev.Local();",
+  ],
+  [
     "SN-UX-001",
     { type: "onChange" },
     "function onChange(c, o, n) { g_form.setValue('x', n); }",
@@ -150,6 +174,7 @@ describe("script rules", () => {
     expect(lint("SN-PERF-001", "current.update();", { when: "async" })).toEqual([]);
     expect(lint("SN-MNT-003", "gs.log('x');", { scoped: "false" })).toEqual([]);
     expect(lint("SN-UX-001", "function onLoad() {}", { type: "onLoad" })).toEqual([]);
+    expect(lint("SN-MNT-008", "new GlideRecord('sys_user');", { scoped: "false" })).toEqual([]);
   });
 
   it("implements every script rule of the catalog, and nothing else", () => {

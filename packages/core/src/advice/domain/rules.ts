@@ -223,6 +223,16 @@ export const RULES: readonly Rule[] = [
     scripts: [],
   },
   {
+    id: "SN-MNT-008",
+    category: "manageability",
+    severity: "warn",
+    title: "Declare a scoped application's cross-scope access",
+    why: "Where the target restricts callers, a script without a declared privilege is refused; runtime access tracking records the privilege only in interactive sessions, so scheduled and event scripts fail without a log line.",
+    remediation:
+      "Add a cross-scope privilege (sys_scope_privilege) to the application for the table or script include.",
+    scripts: SERVER,
+  },
+  {
     id: "SN-UX-001",
     category: "user_experience",
     severity: "warn",

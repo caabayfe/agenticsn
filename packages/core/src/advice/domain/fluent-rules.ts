@@ -6,7 +6,7 @@ const FLOWS: readonly string[] = ["sys_hub_flow", "sys_hub_action_type_definitio
 
 export const FLUENT_RULES: readonly Rule[] = [
   {
-    id: "SN-MNT-008",
+    id: "SN-MNT-009",
     category: "manageability",
     severity: "block",
     title: "Fluent source must build",
@@ -17,7 +17,7 @@ export const FLUENT_RULES: readonly Rule[] = [
     classes: FLOWS,
   },
   {
-    id: "SN-MNT-009",
+    id: "SN-MNT-010",
     category: "manageability",
     severity: "block",
     title: "Commit the generated keys of a Fluent project",
@@ -28,7 +28,7 @@ export const FLUENT_RULES: readonly Rule[] = [
     classes: FLOWS,
   },
   {
-    id: "SN-MNT-010",
+    id: "SN-MNT-011",
     category: "manageability",
     severity: "block",
     title: "A Fluent build must not delete records",

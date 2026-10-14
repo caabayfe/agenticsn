@@ -58,6 +58,14 @@ export function recordAddress(base: string): { folder: string; sysId: string } |
   return sysId === undefined || slash < 0 ? null : { folder: base.slice(0, slash), sysId };
 }
 
+const DOMAIN_PREFIX = /^domains\/[^/]+\//;
+
+// A record's identity folder (<scope>/<class>): the domain is an attribute of a record, not
+// part of its identity, and the instance may assign one on create (ADR-0017 layout).
+export function identityFolder(folder: string): string {
+  return folder.replace(DOMAIN_PREFIX, "");
+}
+
 export interface RelocatedRecord {
   // Record bases (paths without extension), relative to the metadata root.
   readonly local: string;
@@ -65,8 +73,9 @@ export interface RelocatedRecord {
 }
 
 // Records the workspace holds under one name and the mirror under another: the same sys_id in
-// the same scope and class folder. Pull names files after sys_name, which the platform sets
-// when the record is created, so a record created here usually comes back renamed.
+// the same scope and class, in any domain. Pull names files after sys_name, which the platform
+// sets when the record is created, so a record created here usually comes back renamed, and on
+// a domain-separated instance in the domain the instance gave it.
 export function relocatedRecords(
   localBases: readonly string[],
   mirrorBases: readonly string[],
@@ -75,12 +84,13 @@ export function relocatedRecords(
   for (const base of mirrorBases) {
     const address = recordAddress(base);
     if (address !== null) {
-      mirror.set(`${address.folder}/${address.sysId}`, base);
+      mirror.set(`${identityFolder(address.folder)}/${address.sysId}`, base);
     }
   }
   return localBases.flatMap((local) => {
     const address = recordAddress(local);
-    const match = address === null ? undefined : mirror.get(`${address.folder}/${address.sysId}`);
+    const key = address === null ? "" : `${identityFolder(address.folder)}/${address.sysId}`;
+    const match = mirror.get(key);
     return match === undefined || match === local ? [] : [{ local, mirror: match }];
   });
 }

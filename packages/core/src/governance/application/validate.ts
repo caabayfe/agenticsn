@@ -83,8 +83,8 @@ interface Checked {
 function checkScript(
   checker: ScriptChecker,
   version: RecordVersion,
-  field: string,
-  kind: ScriptKind,
+  privileges: readonly string[],
+  [field, kind]: readonly [string, ScriptKind],
 ): Checked {
   const path = version.files[field] ?? field;
   const source = version.fields[field] ?? "";
@@ -102,6 +102,8 @@ function checkScript(
       when: whenOf(version),
       type: version.fields["type"] ?? "",
       name: version.fields["name"] ?? "",
+      scope: version.scope,
+      privileges,
     },
   );
   const evidence = evidenceOf(source, result.parsed ? result.hits : []);
@@ -124,11 +126,15 @@ function checkScript(
   return { findings, skipped: [] };
 }
 
-function checkVersion(checker: ScriptChecker, version: RecordVersion): Checked {
+function checkVersion(
+  checker: ScriptChecker,
+  version: RecordVersion,
+  privileges: readonly string[],
+): Checked {
   const scripts = Object.entries(scriptFieldsOf(version.className, version.fields)).filter(
     ([field]) => (version.fields[field] ?? "").trim() !== "",
   );
-  const checked = scripts.map(([field, kind]) => checkScript(checker, version, field, kind));
+  const checked = scripts.map((script) => checkScript(checker, version, privileges, script));
   return {
     findings: checked.flatMap((c) => c.findings),
     skipped: checked.flatMap((c) => c.skipped),
@@ -192,15 +198,36 @@ async function aclFindings(
   });
 }
 
-async function checkRecord(deps: ValidateDependencies, commit: string, base: string) {
+// Each application's declared privileges, read once per validation.
+type Privileges = (scope: string) => Promise<readonly string[]>;
+
+function privilegesOnce(records: ChangedRecords): Privileges {
+  const read = new Map<string, Promise<readonly string[]>>();
+  return (scope) => {
+    if (scope === "global") {
+      return Promise.resolve([]);
+    }
+    const known = read.get(scope) ?? records.privileges(scope);
+    read.set(scope, known);
+    return known;
+  };
+}
+
+async function checkRecord(
+  deps: ValidateDependencies,
+  privilegesOf: Privileges,
+  commit: string,
+  base: string,
+) {
   const now = await deps.records.current(base);
   const before = await deps.records.at(commit, base);
   const acl = await aclFindings(deps, commit, base, { before, now });
   if (now === null) {
     return acl.length === 0 ? null : { findings: acl, skipped: [] };
   }
-  const current = checkVersion(deps.checker, now);
-  const previous = before === null ? [] : checkVersion(deps.checker, before).findings;
+  const privileges = await privilegesOf(now.scope);
+  const current = checkVersion(deps.checker, now, privileges);
+  const previous = before === null ? [] : checkVersion(deps.checker, before, privileges).findings;
   return {
     findings: [
       ...introduced(current.findings, previous),
@@ -243,8 +270,9 @@ export async function validate(
   }
   const { commit, bases } = await scope(deps.records, query, resolved);
   const results = [];
+  const privilegesOf = privilegesOnce(deps.records);
   for (const base of bases) {
-    results.push(await checkRecord(deps, commit, base));
+    results.push(await checkRecord(deps, privilegesOf, commit, base));
   }
   const checked = results.filter((result) => result !== null);
   const fluent = await checkFluent(

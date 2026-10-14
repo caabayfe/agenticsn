@@ -179,7 +179,10 @@ async function writeAll(
     updateSets.push({ scope, ...set, link: link(set) });
     for (const write of scoped) {
       const { operation, table, sysId: record, path } = write;
-      const done = await captured(session, write, set.sysId);
+      const done = await captured(session, write, {
+        updateSet: set.sysId,
+        username: deps.username,
+      });
       const elevated = needsElevation(table);
       written.push({ operation, table, sysId: record, path, captured: done, elevated });
     }

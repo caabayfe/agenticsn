@@ -70,7 +70,7 @@ export function fluentFindings(
     for (const error of build.errors) {
       findings.push(
         finding(
-          "SN-MNT-008",
+          "SN-MNT-009",
           `${project.path}/${error.file}`,
           error.line,
           `${error.code}: ${error.message}`,
@@ -83,7 +83,7 @@ export function fluentFindings(
   if (build.keysChanged) {
     findings.push(
       finding(
-        "SN-MNT-009",
+        "SN-MNT-010",
         `${project.path}/${KEYS_FILE}`,
         null,
         "the build adds IDs that keys.ts does not hold yet",
@@ -92,7 +92,7 @@ export function fluentFindings(
   }
   for (const name of build.deletes) {
     findings.push(
-      finding("SN-MNT-010", `${project.path}/${KEYS_FILE}`, null, `the build deletes ${name}`),
+      finding("SN-MNT-011", `${project.path}/${KEYS_FILE}`, null, `the build deletes ${name}`),
     );
   }
   return findings;

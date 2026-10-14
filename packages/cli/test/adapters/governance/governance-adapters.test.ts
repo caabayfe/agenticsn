@@ -151,6 +151,43 @@ describe("GitChangedRecords: references", () => {
   });
 });
 
+describe("GitChangedRecords: cross-scope privileges", () => {
+  const FOLDER = "x_acme/sys_scope_privilege";
+  const privilege = (fields: Record<string, string>) =>
+    toYaml({
+      _meta: { sys_id: "p1", sys_class_name: "sys_scope_privilege", scope: "x_acme" },
+      operation: "read",
+      target_scope: "global",
+      ...fields,
+    });
+
+  it("lists the allowed privileges an application declares, in the workspace and as staged", async () => {
+    const { repo, write } = await workspace();
+    await write(
+      `${FOLDER}/sys-user--p1.yaml`,
+      privilege({ target_type: "sys_db_object", target_name: "sys_user", status: "allowed" }),
+    );
+    // An agent's new privilege, without the status the platform defaults to allowed.
+    await write(
+      `${FOLDER}/remover--p2.yaml`,
+      privilege({ target_type: "sys_script_include", target_name: "Remover" }),
+    );
+    await write(
+      `${FOLDER}/role--p3.yaml`,
+      privilege({ target_type: "sys_db_object", target_name: "sys_user_role", status: "denied" }),
+    );
+    const records = new GitChangedRecords(repo, ROOT, "servicenow-remote/pdi");
+    expect([...(await records.privileges("x_acme"))].sort()).toEqual([
+      "sys_db_object:sys_user",
+      "sys_script_include:Remover",
+    ]);
+    expect(await records.privileges("x_other")).toEqual([]);
+    await git(repo, "add", `${ROOT}/${FOLDER}/sys-user--p1.yaml`);
+    const staged = new GitChangedRecords(repo, ROOT, "servicenow-remote/pdi", { staged: true });
+    expect(await staged.privileges("x_acme")).toEqual(["sys_db_object:sys_user"]);
+  });
+});
+
 describe("EslintScriptChecker", () => {
   const context = {
     className: "sys_script",
@@ -159,7 +196,22 @@ describe("EslintScriptChecker", () => {
     when: "before",
     type: "",
     name: "",
+    scope: "global",
+    privileges: [],
   };
+
+  it("passes a scoped script's declared privileges to the rules", () => {
+    const scoped = { ...context, scoped: true, scope: "x_acme" };
+    const source = "var u = new GlideRecord('sys_user');";
+    expect(new EslintScriptChecker().check(source, ["SN-MNT-008"], scoped)).toMatchObject({
+      hits: [{ ruleId: "SN-MNT-008", line: 1 }],
+    });
+    const declared = { ...scoped, privileges: ["sys_db_object:sys_user"] };
+    expect(new EslintScriptChecker().check(source, ["SN-MNT-008"], declared)).toEqual({
+      parsed: true,
+      hits: [],
+    });
+  });
 
   it("reports the requested rules' hits with their ids and lines", () => {
     const result = new EslintScriptChecker().check(

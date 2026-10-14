@@ -21,6 +21,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Added
 
+- Rule SN-MNT-008 (warn): a scoped application's server script that opens another scope's
+  table (`new GlideRecord('sys_user')`) or calls another scope's script include
+  (`new global.Helper()`) without a cross-scope privilege for it in the application's
+  `sys_scope_privilege` files. Runtime access tracking records privileges only in interactive
+  sessions, so scheduled and event scripts failed silently (spec 006, B8).
 - Domains (ADR-0027). Push writes a record's domain on every create: its `_meta.sys_domain`,
   or global when the file names none, never the domain of the user's session. Changing
   `_meta.sys_domain` moves the record, as an update the plan shows. `status` lists the

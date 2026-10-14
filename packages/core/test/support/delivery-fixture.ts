@@ -108,6 +108,7 @@ function governance(state: State) {
             files: {},
           },
     countReferences: async () => 0,
+    privileges: async () => [],
   };
   const checker: ScriptChecker = {
     check: (source) => ({

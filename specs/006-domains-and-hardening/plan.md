@@ -112,15 +112,17 @@ Revise the workspace AGENTS.md and skills with what the build taught:
 | D4 | Move the 145 updates into the batch (with B5, or by hand once) |
 | D5 | Notifications and the daily job, tested with a short reminder interval |
 
-## Progress (2026-10-13)
+## Progress (2026-10-14)
 
 - Done: B1, B2, A2 (1.5.1, PR #49); ADR-0027 with spike S12 (A1, A3, A4, A5), B4, B5, C, B7
-  notes, the global update set restore and section capture (branch feat/domains).
+  notes, the global update set restore and section capture, and B8's rule SN-MNT-008 (branch
+  feat/domains). On the Access Review scripts the rule finds one undeclared table,
+  `sys_user_grmember`, read by the generator.
 - On pdi2: the application's records moved to global (ADR-0027); its cross-scope privileges are
   mirrored as files, and a second campaign generated its items unaided (D1); Keep returns to the
   list (D2).
 - Deferred: B3 (deletions on table drop: `pull --verify` reconciles meanwhile), A6 (overrides),
-  B6 (elevated sign-out), B8's rule, B9's spike, D3 (scenarios 4 and 5), D4 (the misplaced
+  B6 (elevated sign-out), B9's spike, D3 (scenarios 4 and 5), D4 (the misplaced
   updates from before 1.5.0), D5.
 
 ## Order

@@ -65,3 +65,36 @@ binary with `Bun.build`.
   `src` (never installed, outside any folder with `node_modules`), built by the compiled binary
   with no `node_modules` anywhere on the machine's paths: success in 0.8 s, output identical to
   the reference after normalizing the SBOM's serial number and timestamp. Binary: 166 MB.
+
+## A7: no telemetry, no network (flows test plan, 2026-10-14)
+
+`no-network.ts` runs each build inside a macOS sandbox (`sandbox-exec`) that denies all outbound
+network except a local recording proxy; the proxy logs each request (`CONNECT host:port`) and
+refuses it, so nothing leaves the machine.
+
+| Run | Result |
+|---|---|
+| Control: direct connection by IP (`curl https://1.1.1.1`) | Refused by the sandbox (the same request outside it answers) |
+| Control: the binary with the SDK's own telemetry left on (`S13_TELEMETRY_CONTROL=1`) | Build succeeds; the proxy records 8 `CONNECT sdk-a.service-now.com:443` (PostHog), all refused |
+| The binary as snagentic would run it, proxy variables set | Build succeeds in 0.7 s; **0 requests** |
+| The same, no proxy variables | Build succeeds; **0 requests**, no sandbox denial |
+
+**Result: pass** for the S11 project. The A2 fixtures rerun it when they exist.
+
+## A4: determinism on one machine (flows test plan, 2026-10-14)
+
+`normalize.ts` is the normalization a plan id would hash: gzipped field values replaced by their
+text, the SBOM's serial number and timestamp dropped, only the `*.xml` records counted.
+`determinism.ts` builds from the binary and compares digests.
+
+- Two builds from the binary: same digest.
+- The binary's build and the `now-sdk` CLI's (`ref/`, Node): same digest, and the earlier spike
+  builds have it too.
+- Six edits that change what is delivered (an action value and a trigger condition, both inside
+  gzipped fields; the flow name; run as; the trigger type; an action's `$id`): each changes the
+  digest, and no two give the same one.
+- A comment edit and a whitespace edit leave the digest unchanged: a plan id follows what is
+  delivered, not how the source is formatted.
+
+**Result: pass on macOS arm64.** Across platforms is part of A3 (CI). The product test is a
+`fast-check` property over generated edits, with the normalization as a unit under test.

@@ -66,6 +66,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
     commit: async () => "",
     merge: async (pack) => ({ branch: `accelerator/${pack}`, conflicts: [] }),
   }),
+  fluentPackages: () => ({ changedSince: async () => [] }),
   environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
   workspaces: NO_WORKSPACES,
   profiles: NO_PROFILES,

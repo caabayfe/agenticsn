@@ -17,8 +17,15 @@ export {
   introduced,
   ordered,
 } from "./domain/findings";
+export {
+  type FluentBuild,
+  type FluentBuildError,
+  type FluentProject,
+  KEYS_FILE as FLUENT_KEYS_FILE,
+} from "./domain/fluent-findings";
 export type {
   ChangedRecords,
+  FluentProjects,
   RecordVersion,
   ScriptChecker,
   ScriptCheckResult,

@@ -12,7 +12,7 @@
     "arch": "bun scripts/arch.ts",
     "test": "bun test",
     "verify": "bun run typecheck && bun run lint && bun run arch && bun run size && bun test --coverage",
-    "build": "bun build packages/cli/src/main.ts --compile --minify --external chromium-bidi --external 'chromium-bidi/*' --outfile dist/snagentic",
+    "build": "bun scripts/build.ts",
     "size": "bun scripts/check-size.ts",
     "docs": "bun scripts/command-reference.ts"
   },

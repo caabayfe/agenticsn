@@ -113,3 +113,51 @@ export interface PushJournalStore {
   write(journal: PushJournal): Promise<void>;
   clear(): Promise<void>;
 }
+
+// A Fluent project built for delivery (ADR-0028 as amended): the update XML its build
+// produced, to load into the batch, and a digest of their content for the plan id.
+export interface FluentPackage {
+  // Relative to the workspace: source/<scope>.
+  readonly project: string;
+  // The application's scope and its sys_id, from the project's now.config.json.
+  readonly scope: string;
+  readonly scopeId: string;
+  // Push loads records into an update set, which only a project of type "configuration" builds
+  // (ADR-0028 as amended, item 1); a "package" project builds a whole application.
+  readonly configuration: boolean;
+  readonly files: readonly { readonly name: string; readonly content: string }[];
+  // Of the files' content: gzipped values compared as text, the SBOM's random fields left
+  // out, so the same source always gives the same digest (ASR-13).
+  readonly digest: string;
+}
+
+export interface FluentPackages {
+  // Builds each Fluent project with a file changed since `commit`, in a copy.
+  changedSince(commit: string): Promise<readonly FluentPackage[]>;
+}
+
+export interface FluentPublishResult {
+  readonly sysId: string;
+  readonly published: boolean;
+  // The platform's message, for example "Published successfully" or why it failed.
+  readonly message: string;
+}
+
+// The instance side of flow delivery: the ServiceNow IDE's two endpoints, which the SDK itself
+// calls. Never retried (ADR-0016): a load or publish whose outcome is unknown stops the push.
+export interface FluentInstaller {
+  // POST /api/fluent/load/<scopeId>?targetUpdateSetId=<set>: the records, as drafts, with their
+  // update records in that set.
+  load(
+    scopeId: string,
+    files: FluentPackage["files"],
+    updateSet: string,
+    signal: AbortSignal,
+  ): Promise<void>;
+  // POST /api/now/wfa_fluent/activate_flows: publishes and compiles; one result per record.
+  publish(
+    scope: string,
+    records: { readonly flows: readonly string[]; readonly actions: readonly string[] },
+    signal: AbortSignal,
+  ): Promise<readonly FluentPublishResult[]>;
+}

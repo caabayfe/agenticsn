@@ -12,10 +12,12 @@ export const BUILD: Skill = {
     "A new application (when the design asks for a new scope): add <scope>/sys_app/<name>--<sys_id>.yaml with name, scope and version 1.0.0; the scope is x_ then the instance's company code (the value of the property glide.appcreator.company.code in the mirror) then _ and a short name. Its sys_id is the scope's: every record of the application sits in the <scope> folder with that scope in _meta.",
     "On a domain-separated instance (status lists its domains), a record's domain is _meta.sys_domain: leave it out for an application's logic, which belongs in global, and set it to a customer's domain only for that customer's own changes. Push writes it, and changing it moves the record.",
     "For choices and form or list layouts, add rows to the owner's child-row file (create it if missing): a new 32-character hex sys_id, the parent field naming the owner (for a choice, name holds the table; for layouts, sys_ui_section, list_id or sys_ui_form holds the owner's sys_id), and only content fields. Copy an existing row of the same table (`find` with `class`) for the fields to set.",
+    'A flow, subflow or custom action: write it in Fluent, in a project under source/<scope>/ (now.config.json with scope, scopeId and "type": "configuration"; flows in src/fluent/*.now.ts with Flow, Subflow and Action from @servicenow/sdk/automation; a stable Now.ID[\'<name>\'] for every $id), following the ServiceNow SDK\'s Fluent documentation. Commit src/fluent/generated/keys.ts with the source; a flow that already exists keeps its keys. `validate` builds the project with the embedded SDK and reports its errors; `push` loads and publishes it into the batch.',
     "`validate` (no arguments: everything changed since the last commit).",
     "Fix every finding whose `severity` is block, and each warn unless the user accepts it. Repeat `validate` until it has `passed`.",
   ],
   decide: [
+    "`validate` reports SN-MNT-010 (new IDs not in keys.ts): stop and tell the user; snagentic cannot write the generated keys yet (spec 005, decision P5).",
     "A script in a scoped application reads or writes a global table or API: add a cross-scope privilege record for it in the application's folder (class sys_scope_privilege, as the mirror shows them), since runtime access tracking grants it only in interactive sessions and background scripts then fail silently.",
     "A scoped script must change a platform table the platform protects from scopes (role assignments, group memberships): put the change in a narrow global script include that checks its caller's record, and call that.",
     "An operation the platform can refuse (a delete, a cross-scope write): check its result, and never record it as done when it was refused.",
@@ -29,6 +31,6 @@ export const BUILD: Skill = {
     "When a fix would change the approved design, or a finding looks wrong (say which `ruleId` and why).",
   never: [
     "Never silence or work around a finding to make `validate` pass.",
-    "Never edit records outside the approved design or .snagentic/; never edit flow, workflow or variable-value child rows; never remove a row from a child-row file (set a choice inactive instead).",
+    "Never edit records outside the approved design or .snagentic/; never edit mirrored flow, workflow or variable-value records or child rows (flows change in their Fluent source); never remove a row from a child-row file (set a choice inactive instead).",
   ],
 };

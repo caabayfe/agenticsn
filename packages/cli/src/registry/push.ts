@@ -85,6 +85,22 @@ export const push = defineUseCase({
         }),
       )
       .readonly(),
+    fluent: z
+      .array(
+        z.object({
+          project: z.string(),
+          table: z.string(),
+          sysId: z.string(),
+          name: z.string(),
+          kind: z.string(),
+          captured: z.boolean(),
+        }),
+      )
+      .readonly(),
+    flowsInactiveMs: z
+      .number()
+      .nullable()
+      .describe("how long redelivered flows were inactive; triggers in that time do not run"),
     notCaptured: z.number(),
     next: NextCalls,
   }),
@@ -124,6 +140,8 @@ export const push = defineUseCase({
         pullRequests: context.pullRequests(root),
         elevation: elevatedSessions !== null,
         elevatedSessions,
+        fluent: context.fluentPackages(root),
+        fluentInstaller: reader.fluent ?? null,
       },
       {
         instance: name,
@@ -147,8 +165,17 @@ export const push = defineUseCase({
         (w) =>
           `${w.operation.padEnd(6)} ${w.table}  ${w.path}${w.elevated ? "  elevated: security_admin" : ""}${w.captured ? "" : "  NOT captured in the update set"}`,
       ),
+      ...output.fluent.map(
+        (f) =>
+          `publish ${f.kind} ${f.name}  ${f.project}${f.captured ? "" : "  NOT captured in the update set"}`,
+      ),
+      ...(output.flowsInactiveMs === null
+        ? []
+        : [
+            `flows were inactive for ${output.flowsInactiveMs} ms while redelivered: records created meanwhile did not trigger them`,
+          ]),
       output.notCaptured === 0
-        ? `pushed ${output.written.length} record(s); next: snagentic pull ${output.instance}, then snagentic integrate ${output.instance}`
+        ? `pushed ${output.written.length} record(s) and ${output.fluent.length} Fluent record(s); next: snagentic pull ${output.instance}, then snagentic integrate ${output.instance}`
         : `${output.notCaptured} write(s) were not captured in the update set: add them to it on the instance before moving it`,
     ].join("\n");
   },

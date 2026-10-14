@@ -33,6 +33,19 @@ export const PlanOutput = z.object({
       }),
     )
     .readonly(),
+  fluent: z
+    .array(
+      z.object({
+        project: z.string(),
+        scope: z.string(),
+        table: z.string(),
+        sysId: z.string(),
+        name: z.string(),
+        kind: z.string().describe("flow, subflow, action or record"),
+      }),
+    )
+    .readonly()
+    .describe("what each Fluent project's build installs, published after the scope's records"),
   problems: z.array(z.object({ path: z.string(), reason: z.string() })).readonly(),
   gate: z.object({
     passed: z.boolean(),
@@ -97,6 +110,7 @@ export const planPush = defineUseCase({
             },
             { instance: { root, name: name }, paths, snagentic: VERSION },
           ),
+        fluent: context.fluentPackages(root),
         updateSets: { pager, statistics: reader, now: context.clock },
         elevation: elevatedSessions !== null,
         now: context.clock,
@@ -116,6 +130,7 @@ export const planPush = defineUseCase({
         (c) =>
           `${c.operation.padEnd(6)} ${c.table}  ${c.path}  (${c.fields.join(", ")})${c.elevated ? "  elevated: security_admin" : ""}`,
       ),
+      ...output.fluent.map((f) => `${f.kind.padEnd(7)} ${f.name}  ${f.project}  (publish)`),
       ...output.problems.map((p) => `problem: ${p.path}: ${p.reason}`),
       ...output.gate.blocking.map(
         (f) => `blocked: ${f.ruleId} ${f.path}:${f.line ?? ""} ${f.message}`,
@@ -133,7 +148,7 @@ export const planPush = defineUseCase({
       `update sets: ${output.updateSets.join(", ") || "none"}`,
       output.ready
         ? `ready: snagentic push --instance ${output.instance} --plan ${output.planId} --confirm`
-        : output.changes.length === 0
+        : output.changes.length + output.fluent.length === 0
           ? "nothing to push"
           : "not ready: fix the items above, then plan again",
     ];

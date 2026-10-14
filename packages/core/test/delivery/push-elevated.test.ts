@@ -122,6 +122,7 @@ function elevatedSetup(
     ...base.deps,
     elevation,
     elevatedSessions: elevation ? elevatedSessions(base.tables, calls, events, options) : null,
+    fluentInstaller: null,
     reader: base.fake.reader,
     writer: tracked,
     journal: memoryJournal(),

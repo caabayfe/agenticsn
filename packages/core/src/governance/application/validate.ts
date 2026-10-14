@@ -15,7 +15,8 @@ import {
   introduced,
   ordered,
 } from "../domain/findings";
-import type { ChangedRecords, RecordVersion, ScriptChecker } from "../ports";
+import type { ChangedRecords, FluentProjects, RecordVersion, ScriptChecker } from "../ports";
+import { checkFluent } from "./fluent-validation";
 
 // Scripts above this size are reported as not checked rather than parsed (v1's limit).
 export const MAX_SCRIPT_BYTES = 512_000;
@@ -26,6 +27,9 @@ export interface ValidateQuery {
   readonly base: string;
   // Files to check; every record changed since `base` when absent.
   readonly paths?: readonly string[];
+  // Fluent project files to check, relative to the workspace; with `paths`, only these
+  // projects are built.
+  readonly fluentPaths?: readonly string[];
 }
 
 export interface Skipped {
@@ -36,6 +40,8 @@ export interface Skipped {
 export interface Validation {
   readonly base: string;
   readonly records: number;
+  // Fluent projects built (ADR-0028).
+  readonly fluentProjects: number;
   readonly passed: boolean;
   readonly counts: Readonly<Record<FindingSeverity, number>>;
   readonly findings: readonly Finding[];
@@ -46,6 +52,7 @@ export interface Validation {
 export interface ValidateDependencies {
   readonly records: ChangedRecords;
   readonly checker: ScriptChecker;
+  readonly fluent?: FluentProjects;
 }
 
 // Rules no check covers yet, said rather than silently passed.
@@ -268,7 +275,12 @@ export async function validate(
     results.push(await checkRecord(deps, privilegesOf, commit, base));
   }
   const checked = results.filter((result) => result !== null);
-  const findings = ordered(checked.flatMap((result) => result.findings));
+  const fluent = await checkFluent(
+    deps.fluent,
+    commit,
+    query.paths === undefined ? undefined : (query.fluentPaths ?? []),
+  );
+  const findings = ordered([...checked.flatMap((result) => result.findings), ...fluent.findings]);
   const counts = { block: 0, warn: 0, info: 0 };
   for (const item of findings) {
     counts[item.severity] += 1;
@@ -276,6 +288,7 @@ export async function validate(
   return {
     base: query.base,
     records: checked.length,
+    fluentProjects: fluent.projects,
     passed: counts.block === 0,
     counts,
     findings,

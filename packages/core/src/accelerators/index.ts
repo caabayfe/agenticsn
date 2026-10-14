@@ -8,13 +8,16 @@ export {
   type PackQuery,
   type PackSummary,
 } from "./application/check-pack";
+export { type EntityLoad, type LoadResult, loadData } from "./application/load-data";
 export { packFindings } from "./application/pack-gate";
 export { type DataQuery, validateData } from "./application/validate-data";
 export { dataOrder, selectCapabilities } from "./domain/capability-graph";
 export {
   InvalidPackError,
+  LoadConfirmationRequiredError,
   PackNotAddableError,
   PackNotFoundError,
+  TemplatesInvalidError,
   TrackedDataError,
 } from "./domain/errors";
 export { type ManifestOutcome, parseManifest } from "./domain/manifest";
@@ -47,4 +50,10 @@ export {
   type TemplateReport,
   validateTemplates,
 } from "./domain/templates";
-export type { DataTemplates, PackSource, PackWorkspace } from "./ports";
+export type {
+  DataTemplates,
+  ImportSetWriter,
+  ImportStatus,
+  PackSource,
+  PackWorkspace,
+} from "./ports";

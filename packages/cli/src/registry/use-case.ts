@@ -9,6 +9,7 @@ import type {
   EnvironmentProbe,
   FluentInstaller,
   FluentPackages,
+  ImportSetWriter,
   IncrementalMirror,
   InstalledBinary,
   InstanceName,
@@ -67,6 +68,8 @@ export interface ConnectionFactory {
       readonly writer: InstanceWriter;
       // Flow delivery (ADR-0028); absent from connections that cannot push flows.
       readonly fluent?: FluentInstaller;
+      // Accelerator data loads (ADR-0026); absent from connections that cannot load.
+      readonly imports?: ImportSetWriter;
     };
 }
 

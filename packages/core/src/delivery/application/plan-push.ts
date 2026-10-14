@@ -1,4 +1,4 @@
-import { type Finding, type ValidateDependencies, validate } from "../../governance/index";
+import type { Finding, ValidateDependencies } from "../../governance/index";
 import { InvalidInputError } from "../../kernel/errors";
 import type { NextCall } from "../../knowledge/index";
 import { baseOfFile } from "../../knowledge/index";
@@ -23,11 +23,11 @@ import {
 } from "../domain/change";
 import { childRowChanges, type RowOwner } from "../domain/child-rows";
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
-import { type GateResult, gateOf, planId } from "../domain/gate";
-import { readWaivers, UNCOMMITTED_WAIVERS } from "../domain/waivers";
+import { type GateResult, planId } from "../domain/gate";
 import { pushUnfinished, writeOrder } from "../domain/write-order";
 import type { DeliveryWorkspace, FluentPackage, FluentPackages, PushJournalStore } from "../ports";
 import { type FluentPlan, planFluent } from "./plan-fluent";
+import { gateFor } from "./plan-gate";
 
 export interface PlanQuery {
   readonly instance: string;
@@ -213,21 +213,6 @@ function checkedLabel(label: string): string {
     throw new InvalidInputError("label must not contain ^ [ ] or line breaks");
   }
   return label;
-}
-
-// validate over the change, plus the accelerator packs' check, with committed waivers applied.
-async function gateFor(
-  deps: PlanDependencies,
-  commit: string,
-  paths: readonly string[],
-): Promise<GateResult> {
-  const validation = await validate(deps.governance, { base: commit });
-  const packs = deps.packGate === undefined ? [] : await deps.packGate(paths);
-  const waiverFile = await deps.workspace.waivers();
-  const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
-  const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;
-  const findings = [...validation.findings, ...packs];
-  return gateOf(findings, waivers, waiverProblems, deps.workspace.metadataRoot);
 }
 
 const fluentChanges = (records: FluentPlan["records"]) =>

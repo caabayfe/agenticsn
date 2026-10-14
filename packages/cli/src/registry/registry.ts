@@ -1,6 +1,7 @@
 import { acceleratorAdd } from "./accelerator-add";
 import { acceleratorCheck } from "./accelerator-check";
 import { acceleratorList } from "./accelerator-list";
+import { acceleratorLoad } from "./accelerator-load";
 import { acceleratorValidateData } from "./accelerator-validate-data";
 import { advise } from "./advise";
 import { agentInstall } from "./agent-install";
@@ -61,6 +62,7 @@ export const USE_CASES: readonly UseCase[] = [
   acceleratorCheck,
   acceleratorAdd,
   acceleratorValidateData,
+  acceleratorLoad,
   doctor,
   upgrade,
 ];

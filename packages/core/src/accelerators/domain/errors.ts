@@ -45,3 +45,25 @@ export class TrackedDataError extends SnagenticError {
     );
   }
 }
+
+export class TemplatesInvalidError extends SnagenticError {
+  constructor(pack: string, problems: number) {
+    super(
+      "templates-invalid",
+      "findings",
+      `${problems} problem(s) in ${pack}'s data templates: nothing was loaded`,
+      `run snagentic accelerator validate-data ${pack} <dir> to see them, fix the templates, then load again`,
+    );
+  }
+}
+
+export class LoadConfirmationRequiredError extends SnagenticError {
+  constructor() {
+    super(
+      "load-confirmation-required",
+      "usage",
+      "accelerator load writes records to the instance and needs explicit confirmation",
+      "check the templates with accelerator validate-data, then load with --confirm",
+    );
+  }
+}

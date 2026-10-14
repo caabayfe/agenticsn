@@ -43,3 +43,15 @@ export interface DataTemplates {
   // A template, parsed; null when the file is missing.
   read(directory: string, file: string): Promise<Template | null>;
 }
+
+export type ImportStatus = "inserted" | "updated" | "ignored" | "skipped" | "error";
+
+// The Import Set API on a development instance (spike S-B): one request per row, transformed
+// synchronously. Never retried: a row whose outcome is unknown fails, and the load stops.
+export interface ImportSetWriter {
+  post(
+    table: string,
+    row: Readonly<Record<string, string>>,
+    signal: AbortSignal,
+  ): Promise<{ readonly status: ImportStatus; readonly sysId: string }>;
+}

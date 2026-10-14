@@ -438,6 +438,24 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `accelerator load`
+
+```
+snagentic accelerator load <pack> <instance> <data> [options]
+```
+
+Load an accelerator pack's data templates into a development instance through the pack's import set tables (ADR-0026): every template is validated first and nothing loads until all pass; then each entity in order, one row per request, never retried, stopping after the first entity with rows the instance did not take. Reports counts and the business keys of failed rows, never other values. Test and production are loaded on the instance itself.
+
+Changes the instance: **yes, development instances only**. MCP tool: none.
+
+Options:
+
+- `--waves <numbers...>`: load these waves' entities (default: all)
+- `--capabilities <values...>`: load these capabilities' entities
+- `--confirm`: confirm that this writes records
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `doctor`
 
 ```

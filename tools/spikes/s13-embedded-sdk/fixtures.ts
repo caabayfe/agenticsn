@@ -2,7 +2,7 @@
 // in a folder with no node_modules, and compare the normalized records with the `now-sdk` CLI's
 // output committed next to it (`expected/`, built on macOS with Node).
 //   bun fixtures.ts --binary <embed binary> --fixtures <dir> --target <name>
-//     [--startup <snagentic binary>,<snagentic with SDK binary>]
+//     [--startup <snagentic binary>,<snagentic with SDK binary>] [--keep <dir for failed builds>]
 import { cpSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -18,6 +18,27 @@ const work = mkdtempSync(join(tmpdir(), "s13-fixtures-"));
 function differences(expected: Map<string, string>, actual: Map<string, string>): string[] {
   const keys = new Set([...expected.keys(), ...actual.keys()]);
   return [...keys].filter((k) => expected.get(k) !== actual.get(k)).sort();
+}
+
+// The first line that differs in each of the first few differing records, quoted so that line
+// endings and paths show.
+function details(expected: Map<string, string>, actual: Map<string, string>, keys: string[]) {
+  const folders = new Map<string, number>();
+  for (const k of actual.keys())
+    folders.set(k.split("/")[0] ?? "", (folders.get(k.split("/")[0] ?? "") ?? 0) + 1);
+  const out = [`    records by folder: ${[...folders].map(([f, n]) => `${f} ${n}`).join(", ")}`];
+  for (const k of keys.slice(0, 3)) {
+    const a = (expected.get(k) ?? "<missing>").split("\n");
+    const b = (actual.get(k) ?? "<missing>").split("\n");
+    const i = Math.max(
+      0,
+      a.findIndex((line, n) => line !== b[n]),
+    );
+    out.push(
+      `    ${k} line ${i + 1}: CLI ${JSON.stringify(a[i]?.slice(0, 160))} binary ${JSON.stringify(b[i]?.slice(0, 160))}`,
+    );
+  }
+  return out.join("\n");
 }
 
 function buildOnce(fixture: string, copy: string): { ms: number; records: Map<string, string> } {
@@ -49,6 +70,7 @@ for (const fixture of readdirSync(fixtures).sort()) {
         (vsCli.length ? `; differs from CLI: ${vsCli.join(" ")}` : "") +
         (vsSelf.length ? `; differs between builds: ${vsSelf.join(" ")}` : ""),
     );
+    if (vsCli.length) lines.push(details(expected, first.records, vsCli));
   } catch (error) {
     failed = true;
     lines.push(`FAIL ${error instanceof Error ? error.message : String(error)}`);
@@ -66,6 +88,9 @@ if (startupIndex !== -1) {
   lines.push(`start-up --version p95: snagentic ${p95[0]} ms, with SDK ${p95[1]} ms`);
 }
 
+const keepIndex = process.argv.indexOf("--keep");
+if (failed && keepIndex !== -1)
+  cpSync(work, resolve(process.argv[keepIndex + 1] ?? "."), { recursive: true });
 rmSync(work, { recursive: true, force: true });
 console.log(lines.join("\n"));
 annotate(`S13 ${target}`, lines.join("; "));

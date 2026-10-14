@@ -66,7 +66,8 @@ jobs:
           bun compile.ts ./embed.ts ./embed-bin
           bun compile.ts ./with-sdk-split.ts ./snagentic-sdk-bin ./embed.ts --minify=whitespace,syntax
           bun fixtures.ts --binary ./embed-bin --fixtures ../../../tests/fixtures/fluent \
-            --target ${{ matrix.target }} --startup ../../../dist/snagentic,./snagentic-sdk-bin
+            --target ${{ matrix.target }} --startup ../../../dist/snagentic,./snagentic-sdk-bin \
+            --keep ../../../dist/s13-failed-builds
       - uses: actions/upload-artifact@v4
         if: always()
         with:

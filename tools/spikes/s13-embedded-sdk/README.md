@@ -79,7 +79,7 @@ refuses it, so nothing leaves the machine.
 | The binary as snagentic would run it, proxy variables set | Build succeeds in 0.7 s; **0 requests** |
 | The same, no proxy variables | Build succeeds; **0 requests**, no sandbox denial |
 
-**Result: pass** for the S11 project. The A2 fixtures rerun it when they exist.
+**Result: pass** for the S11 project, and on 2026-10-14 for all eleven A2 fixtures (0 requests each).
 
 ## A4: determinism on one machine (flows test plan, 2026-10-14)
 

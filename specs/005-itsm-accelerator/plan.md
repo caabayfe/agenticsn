@@ -99,6 +99,10 @@ can leave the repository without code changes.
   configuration's pack list, and nothing inside it references paths outside it. A test enforces
   both directions.
 - A test pack lives under `tests/fixtures/accelerators/minimal/` and is never shipped.
+- Done 2026-10-15: `pack-roots.ts` is the pack list; the build writes the packs into a third
+  entry point, loaded only by accelerator commands (`--version` unchanged at 23 ms); a binary
+  built with the minimal pack copied in lists it from outside the repository;
+  `tests/architecture/nttdata-isolation.test.ts` enforces both directions.
 
 ### 4.3 Manifest (`accelerator.yaml`)
 

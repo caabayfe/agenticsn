@@ -1,11 +1,15 @@
 // Compiles the snagentic binary for this platform (ADR-0005), with the ServiceNow SDK's build as
 // a second entry point (ADR-0028 as amended, item 6):
 // - the SDK and its type files load only when a command builds flows;
+// - the accelerator packs, a third entry point, load only when an accelerator command runs;
 // - bytecode, so every command starts without parsing the program (product owner, 2026-10-14);
 // - whitespace and syntax minification only: renaming identifiers breaks the SDK's output.
 //   bun scripts/build.ts [--outfile dist/snagentic]
 import { mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
+import { collectPacks } from "../packages/cli/src/adapters/accelerators/embedded-pack-source";
+import { PACK_ROOTS } from "../packages/cli/src/adapters/accelerators/pack-roots";
+import { EMBEDDED_PACKS_ENTRY } from "../packages/cli/src/adapters/accelerators/pack-source-loader";
 import { EMBEDDED_FLUENT_ENTRY } from "../packages/cli/src/adapters/fluent/fluent-runtime-loader";
 import { collectTypeFiles, encodeTypeFiles } from "../packages/cli/src/adapters/fluent/type-files";
 import { sdkBundlePatches } from "./build-patches";
@@ -43,16 +47,25 @@ function writeFluentEntry(): string {
   return entry;
 }
 
+// The third entry point: every pack under the configured roots (spec 005, 4.2).
+async function writePacksEntry(): Promise<string> {
+  const packs = await collectPacks(PACK_ROOTS.map((r) => join(root, r)));
+  const entry = join(work, `${EMBEDDED_PACKS_ENTRY}.ts`);
+  writeFileSync(entry, `export const packs = ${JSON.stringify(packs)};\n`);
+  console.log(`accelerator packs: ${Object.keys(packs).join(", ") || "none"}`);
+  return entry;
+}
+
 const patches = sdkBundlePatches(cli);
 const result = await Bun.build({
-  entrypoints: [join(cli, "src", "main.ts"), writeFluentEntry()],
+  entrypoints: [join(cli, "src", "main.ts"), writeFluentEntry(), await writePacksEntry()],
   compile: { outfile },
   // Flat names: the main program imports the second entry point as ./fluent-sdk-runtime.js.
   naming: "[name].[ext]",
   format: "esm",
   bytecode: true,
   minify: { whitespace: true, syntax: true, identifiers: false },
-  define: { SNAGENTIC_EMBEDDED_FLUENT: "true" },
+  define: { SNAGENTIC_EMBEDDED_FLUENT: "true", SNAGENTIC_EMBEDDED_PACKS: "true" },
   // jiti: optional, used by the SDK's bundled ESLint config loader, never by a build.
   external: ["chromium-bidi", "chromium-bidi/*", "jiti", "jiti/package.json"],
   loader: { ".wasm": "file" },

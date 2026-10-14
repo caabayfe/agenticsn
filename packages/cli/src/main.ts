@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { INSTRUCTIONS, PROMPTS } from "@snagentic/agent-packs";
 import { instancePaths, noticeAllowed, updateNotice, VERSION } from "@snagentic/core";
+import { DirectoryPackSource } from "./adapters/accelerators/directory-pack-source";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
@@ -93,6 +94,12 @@ const context: UseCaseContext = {
   files: { create: createTextFile },
   workspaceFiles: fsWorkspaceFiles,
   delivery: (root, instance) => new GitDeliveryWorkspace(root, instance),
+  // Run from source, the packs in the repository; in the binary, the packs it embeds (none
+  // ship yet: the minimal test pack lives in tests/fixtures).
+  packs: new DirectoryPackSource([
+    join(import.meta.dir, "../../accelerators"),
+    join(import.meta.dir, "../../../nttdata/accelerators"),
+  ]),
   pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),

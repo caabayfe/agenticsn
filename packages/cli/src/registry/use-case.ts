@@ -18,6 +18,7 @@ import type {
   MirrorInspector,
   MirrorIntegrator,
   MirrorMode,
+  PackSource,
   PluginActivator,
   ProfileStore,
   PullRequests,
@@ -95,6 +96,8 @@ export interface UseCaseContext {
   ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
   // An instance's mirror branch and working tree, for plan and push.
   readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;
+  // The accelerator packs snagentic ships (ADR-0026).
+  readonly packs: PackSource;
   // The git platform, for the branch's pull request (ADR-0022).
   readonly pullRequests: (root: string) => PullRequests;
   // Where push journals its progress (.snagentic/<name>/push-journal.json).

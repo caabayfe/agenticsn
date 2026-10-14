@@ -55,6 +55,7 @@ const NO_CREDENTIALS: CredentialStore = {
 };
 
 export const FAKE_CONTEXT: UseCaseContext = {
+  packs: { ids: async () => [], manifest: async () => null },
   environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
   workspaces: NO_WORKSPACES,
   profiles: NO_PROFILES,

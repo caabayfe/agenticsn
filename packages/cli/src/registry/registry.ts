@@ -1,3 +1,5 @@
+import { acceleratorCheck } from "./accelerator-check";
+import { acceleratorList } from "./accelerator-list";
 import { advise } from "./advise";
 import { agentInstall } from "./agent-install";
 import { authLogin } from "./auth-login";
@@ -53,6 +55,8 @@ export const USE_CASES: readonly UseCase[] = [
   updateSetsTool,
   pluginsList,
   pluginsActivate,
+  acceleratorList,
+  acceleratorCheck,
   doctor,
   upgrade,
 ];

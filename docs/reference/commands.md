@@ -374,6 +374,36 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `accelerator list`
+
+```
+snagentic accelerator list [options]
+```
+
+List the accelerator packs snagentic ships, with their capabilities and waves (ADR-0026).
+
+Changes the instance: no. MCP tool: none.
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `accelerator check`
+
+```
+snagentic accelerator check [pack] [options]
+```
+
+Accelerator packs (ADR-0026): without a pack, list them; with one, what its capabilities install and, with an instance, whether they can be installed there: each capability's state (ready, needs-plugins, not-entitled, blocked) and the exact commands that fix it. Reads the mirror only, never the instance.
+
+Changes the instance: no. MCP tool: `accelerator`.
+
+Options:
+
+- `--instance <value>`: check against this instance's mirrored plugins
+- `--waves <numbers...>`: install these waves (default: all)
+- `--capabilities <values...>`: install these capabilities
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `doctor`
 
 ```
@@ -467,5 +497,10 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `instance` (string, required)
   - `id` (string, required): the plugin id, such as com.snc.incident_ai
   - `confirm` (boolean, optional): confirm that this changes the instance
+- `accelerator`: Accelerator packs (ADR-0026): without a pack, list them; with one, what its capabilities install and, with an instance, whether they can be installed there: each capability's state (ready, needs-plugins, not-entitled, blocked) and the exact commands that fix it. Reads the mirror only, never the instance.
+  - `pack` (string, optional): the pack id; omit to list the packs
+  - `instance` (string, optional): check against this instance's mirrored plugins
+  - `waves` (array, optional): install these waves (default: all)
+  - `capabilities` (array, optional): install these capabilities
 - `doctor`: Check that snagentic can work: git, OS keychain and search index on this machine, and, with --instance, credentials, connection, roles and timestamp handling of an instance.
   - `instance` (string, optional): also check this instance of the workspace

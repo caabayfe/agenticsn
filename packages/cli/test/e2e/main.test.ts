@@ -40,6 +40,7 @@ describe("snagentic entry point (real adapters)", () => {
     try {
       const { tools } = await client.listTools();
       expect(tools.map((tool) => tool.name).sort()).toEqual([
+        "accelerator",
         "advise",
         "describe",
         "doctor",

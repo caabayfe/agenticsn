@@ -1,0 +1,25 @@
+# The minimal test pack (spec 005 plan, section 4.2): one scoped application, one property,
+# one patch to an out-of-box record, one data entity. Never shipped.
+id: minimal
+version: 1.0.0
+requires:
+  snagentic: ">=1.8.0"
+scope: x_snagentic_min
+capabilities:
+  base:
+    wave: 0
+    label: "snagentic test pack: base"
+    plugins: []
+    data:
+      - entity: location
+        table: imp_location
+        key: [name]
+        after: []
+  extra:
+    wave: 1
+    label: "snagentic test pack: extra"
+    dependsOn: [base]
+    plugins:
+      - id: com.snc.on_call_rotation
+        minVersion: null
+        entitlement: free

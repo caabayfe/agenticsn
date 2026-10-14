@@ -50,6 +50,7 @@ export {
   type TemplateReport,
   validateTemplates,
 } from "./domain/templates";
+export { type Carried, carried, type PreviousAdd } from "./domain/upgrade";
 export type {
   DataTemplates,
   ImportSetWriter,

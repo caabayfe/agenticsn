@@ -47,6 +47,7 @@ const workspace: PackWorkspace = {
   mirrored: async (_c, ids) =>
     new Map(ids.map((id) => [id, { path: `global/contract_sla/p1--${id}.yaml`, document: {} }])),
   parse: (text) => (text.startsWith("PATCH ") ? { sys_id: text.slice(6) } : {}),
+  previous: async () => ({ written: [], kept: [] }),
   commit: async () => "c",
   merge: async () => ({ branch: "b", conflicts: [] }),
 };

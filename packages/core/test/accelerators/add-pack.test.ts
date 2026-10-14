@@ -47,10 +47,16 @@ const inventory = (onCall: "active" | "inactive"): InventoryReader => ({
 });
 
 function fakeWorkspace(
-  state: { mirror?: string | null; integrated?: boolean; conflicts?: string[] } = {},
+  state: {
+    mirror?: string | null;
+    integrated?: boolean;
+    conflicts?: string[];
+    previous?: { written: string[]; kept: string[] };
+  } = {},
 ) {
   const calls: {
     committed?: readonly MaterializedFile[];
+    kept?: readonly string[];
     message?: string;
     asked?: readonly string[];
   } = {};
@@ -72,8 +78,10 @@ function fakeWorkspace(
       text.startsWith("PATCH ")
         ? { table: "contract_sla", sys_id: text.slice(6), fields: { duration: "4h" } }
         : {},
-    commit: async (_pack, _mirror, files, message) => {
+    previous: async () => state.previous ?? { written: [], kept: [] },
+    commit: async (_pack, _mirror, files, message, keep) => {
       calls.committed = files;
+      calls.kept = keep;
       calls.message = message;
       return "c1";
     },
@@ -99,8 +107,10 @@ describe("accelerator add (ADR-0026)", () => {
       commit: "c1",
       copied: 2,
       patched: 1,
+      removed: [],
       conflicts: [],
     });
+    expect(calls.kept).toEqual([]);
     // The records it creates (they may exist from an earlier add) and the patch target.
     expect(calls.asked).toEqual(["a1", SLA, "a3"]);
     expect(calls.message).toBe("snagentic accelerator add minimal 1.0.0: base, extra");
@@ -108,6 +118,16 @@ describe("accelerator add (ADR-0026)", () => {
       path: `global/contract_sla/p1--${SLA}.yaml`,
       document: { duration: "4h" },
     });
+  });
+
+  it("keeps a record the last add wrote and this version dropped, and reports it (M8)", async () => {
+    const dropped = "x_snagentic_min/sys_properties/old--a9.yaml";
+    const { workspace, calls } = fakeWorkspace({
+      previous: { written: ["x_snagentic_min/sys_app/min--a1.yaml", dropped], kept: [] },
+    });
+    const result = await addPack({ packs, inventory: inventory("active"), workspace }, QUERY);
+    expect(result.removed).toEqual([dropped]);
+    expect(calls.kept).toEqual([dropped]);
   });
 
   it("reports the files the merge left in conflict with the user's edits", async () => {

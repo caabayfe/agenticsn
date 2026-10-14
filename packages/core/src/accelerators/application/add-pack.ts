@@ -1,6 +1,7 @@
 import type { InventoryReader } from "../../plugins/index";
 import { PackNotAddableError } from "../domain/errors";
 import { materialize, RECORD_FILE } from "../domain/materialize";
+import { carried } from "../domain/upgrade";
 import type { PackSource, PackWorkspace } from "../ports";
 import { checkPack } from "./check-pack";
 
@@ -20,6 +21,8 @@ export interface AddResult {
   readonly commit: string;
   readonly copied: number;
   readonly patched: number;
+  // Files the last add wrote that this version no longer ships: kept, never deleted (M8).
+  readonly removed: readonly string[];
   // Files the merge left in conflict with the user's edits: resolve them, then commit.
   readonly conflicts: readonly string[];
 }
@@ -83,7 +86,11 @@ export async function addPack(
   });
   if (result.problems.length > 0) throw new PackNotAddableError(query.pack, result.problems);
   const message = `snagentic accelerator add ${query.pack} ${check.pack.version}: ${check.selected.join(", ")}`;
-  const commit = await deps.workspace.commit(query.pack, mirror, result.files, message);
+  const { keep, removed } = carried(
+    await deps.workspace.previous(query.pack),
+    result.files.map((f) => f.path),
+  );
+  const commit = await deps.workspace.commit(query.pack, mirror, result.files, message, keep);
   const { branch, conflicts } = await deps.workspace.merge(query.pack);
   return {
     pack: query.pack,
@@ -93,6 +100,7 @@ export async function addPack(
     commit,
     copied: result.files.filter((f) => f.kind === "copy").length,
     patched: result.files.filter((f) => f.kind === "patch").length,
+    removed,
     conflicts,
   };
 }

@@ -132,6 +132,7 @@ describe("accelerator use cases", () => {
               fields: { short_description: "x" },
             }
           : {},
+      previous: async () => ({ written: [], kept: [] }),
       commit: async () => "c1",
       merge: async () => ({ branch: "accelerator/minimal/pdi2", conflicts: [] }),
     };
@@ -163,6 +164,13 @@ describe("accelerator use cases", () => {
     const conflicted = { ...(output as never as Record<string, unknown>), conflicts: ["a.yaml"] };
     expect(acceleratorAdd.render(conflicted as never, "text")).toContain("conflict: a.yaml");
     expect(acceleratorAdd.exitCode(conflicted as never)).toBe(1);
+    const upgraded = {
+      ...(output as never as Record<string, unknown>),
+      removed: ["x/old--a9.yaml"],
+    };
+    expect(acceleratorAdd.render(upgraded as never, "text")).toContain(
+      "no longer in the pack, kept: x/old--a9.yaml (snagentic never deletes; remove it yourself)",
+    );
     expect(acceleratorAdd.exitCode(output as never)).toBe(0);
   });
 

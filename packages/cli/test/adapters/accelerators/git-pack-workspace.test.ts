@@ -58,7 +58,7 @@ describe("git pack workspace (ADR-0026)", () => {
     const { root, packs } = await workspace();
     const mirror = (await packs.mirrorCommit()) ?? "";
     const status = await git(root, "status", "--porcelain");
-    const commit = await packs.commit("minimal", mirror, files("4h"), "add minimal 1.0.0");
+    const commit = await packs.commit("minimal", mirror, files("4h"), "add minimal 1.0.0", []);
     // The working tree is untouched until the merge.
     expect(await git(root, "status", "--porcelain")).toBe(status);
     expect(await git(root, "rev-parse", "accelerator/minimal/pdi")).toBe(`${commit}\n`);
@@ -82,7 +82,7 @@ describe("git pack workspace (ADR-0026)", () => {
       document: { ...(target?.document ?? {}), duration: "4h" },
       fields: ["duration"],
     };
-    await packs.commit("minimal", mirror, [patched], "patch");
+    await packs.commit("minimal", mirror, [patched], "patch", []);
     await packs.merge("minimal");
     expect(await git(root, "diff", "HEAD~1", "--", `${METADATA}/${SLA_PATH}`)).toContain(
       "-duration: 8h\n+duration: 4h",
@@ -93,10 +93,10 @@ describe("git pack workspace (ADR-0026)", () => {
   it("changes nothing when the same version is added again", async () => {
     const { root, packs } = await workspace();
     const mirror = (await packs.mirrorCommit()) ?? "";
-    const first = await packs.commit("minimal", mirror, files("4h"), "add");
+    const first = await packs.commit("minimal", mirror, files("4h"), "add", []);
     await packs.merge("minimal");
     const head = await git(root, "rev-parse", "HEAD");
-    expect(await packs.commit("minimal", mirror, files("4h"), "add again")).toBe(first);
+    expect(await packs.commit("minimal", mirror, files("4h"), "add again", [])).toBe(first);
     expect(await packs.merge("minimal")).toEqual({
       branch: "accelerator/minimal/pdi",
       conflicts: [],
@@ -107,15 +107,54 @@ describe("git pack workspace (ADR-0026)", () => {
   it("leaves a conflict for the user when a new version changes a field they edited", async () => {
     const { root, packs } = await workspace();
     const mirror = (await packs.mirrorCommit()) ?? "";
-    await packs.commit("minimal", mirror, files("4h"), "1.0.0");
+    await packs.commit("minimal", mirror, files("4h"), "1.0.0", []);
     await packs.merge("minimal");
     const path = join(root, METADATA, SLA_PATH);
     writeFileSync(path, readFileSync(path, "utf8").replace("duration: 4h", "duration: 6h"));
     await git(root, "commit", "-qam", "the user's own SLA");
-    await packs.commit("minimal", mirror, files("2h"), "1.0.1");
+    await packs.commit("minimal", mirror, files("2h"), "1.0.1", []);
     expect(await packs.merge("minimal")).toEqual({
       branch: "accelerator/minimal/pdi",
       conflicts: [`${METADATA}/${SLA_PATH}`],
+    });
+  });
+
+  it("remembers what each add wrote, and keeps a dropped file as the last add wrote it (M8)", async () => {
+    const { root, packs } = await workspace();
+    const mirror = (await packs.mirrorCommit()) ?? "";
+    expect(await packs.previous("minimal")).toEqual({ written: [], kept: [] });
+    const property = (value: string): MaterializedFile => ({
+      kind: "copy",
+      path: "x_min/sys_properties/on--a2.yaml",
+      text: `name: x.on\nvalue: ${value}\n`,
+      capability: "base",
+    });
+    await packs.commit("minimal", mirror, [...files("4h"), property("true")], "1.0.0", []);
+    await packs.merge("minimal");
+    expect(await packs.previous("minimal")).toEqual({
+      written: [SLA_PATH, "x_min/sys_app/min--a1.yaml", "x_min/sys_properties/on--a2.yaml"],
+      kept: [],
+    });
+    const path = join(root, METADATA, SLA_PATH);
+    writeFileSync(path, readFileSync(path, "utf8").replace("name: P1", "name: P1 (ours)"));
+    await git(root, "commit", "-qam", "the user's own SLA name");
+    // 1.0.1 changes the property and drops the application record.
+    const next = [files("4h")[1], property("false")].filter((f) => f !== undefined);
+    await packs.commit("minimal", mirror, next, "1.0.1", ["x_min/sys_app/min--a1.yaml"]);
+    expect(await packs.merge("minimal")).toEqual({
+      branch: "accelerator/minimal/pdi",
+      conflicts: [],
+    });
+    expect(readFileSync(join(root, METADATA, "x_min/sys_app/min--a1.yaml"), "utf8")).toBe(
+      "name: min\n",
+    );
+    expect(
+      readFileSync(join(root, METADATA, "x_min/sys_properties/on--a2.yaml"), "utf8"),
+    ).toContain("value: false");
+    expect(readFileSync(path, "utf8")).toContain("name: P1 (ours)");
+    expect(await packs.previous("minimal")).toEqual({
+      written: [SLA_PATH, "x_min/sys_properties/on--a2.yaml"],
+      kept: ["x_min/sys_app/min--a1.yaml"],
     });
   });
 

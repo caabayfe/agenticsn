@@ -7,6 +7,7 @@ import {
   type MaterializedFile,
   type PackWorkspace,
   type PatchTarget,
+  type PreviousAdd,
 } from "@snagentic/core";
 import { parse } from "yaml";
 import { runGit, runGitOrThrow } from "../git/run-git";
@@ -19,6 +20,9 @@ const IDENTITY = {
   GIT_COMMITTER_NAME: "snagentic",
   GIT_COMMITTER_EMAIL: "snagentic@localhost",
 };
+
+const WRITTEN = "Pack-Written";
+const KEPT = "Pack-Kept";
 
 // git with extra environment and an optional stdin, for plumbing on a private index.
 async function git(cwd: string, args: string[], env: Record<string, string>, input?: string) {
@@ -103,36 +107,91 @@ export class GitPackWorkspace implements PackWorkspace {
     return fromYamlStrings(text);
   }
 
-  async commit(pack: string, mirror: string, files: readonly MaterializedFile[], message: string) {
+  async previous(pack: string): Promise<PreviousAdd> {
+    const head = await this.head(pack);
+    const body = head === null ? "" : await git(this.root, ["log", "-1", "--format=%B", head], {});
+    const trailer = (name: string) =>
+      body
+        .split("\n")
+        .filter((line) => line.startsWith(`${name}: `))
+        .map((line) => line.slice(name.length + 2));
+    return { written: trailer(WRITTEN), kept: trailer(KEPT) };
+  }
+
+  async commit(
+    pack: string,
+    mirror: string,
+    files: readonly MaterializedFile[],
+    message: string,
+    keep: readonly string[],
+  ) {
+    const head = await this.head(pack);
+    const tree = await this.tree(mirror, files, head === null ? [] : keep.map((k) => [head, k]));
+    if (head !== null && (await git(this.root, ["rev-parse", `${head}^{tree}`], {})) === tree) {
+      return head;
+    }
+    // Trailers record what this add wrote and kept, for the next version's `previous`.
+    const trailers = [
+      ...files.map((f) => `${WRITTEN}: ${f.path}`).sort(),
+      ...keep.map((k) => `${KEPT}: ${k}`),
+    ];
+    const parents = [...(head === null ? [] : ["-p", head]), "-p", mirror];
+    const commit = await git(
+      this.root,
+      [
+        "commit-tree",
+        tree,
+        ...parents,
+        "-m",
+        message,
+        ...(trailers.length > 0 ? ["-m", trailers.join("\n")] : []),
+      ],
+      IDENTITY,
+    );
+    await git(this.root, ["update-ref", `refs/heads/${this.branch(pack)}`, commit], {});
+    return commit;
+  }
+
+  private async head(pack: string): Promise<string | null> {
+    const found = await runGit(
+      ["rev-parse", "--verify", "--quiet", `refs/heads/${this.branch(pack)}`],
+      this.root,
+    );
+    return found.exitCode === 0 ? found.stdout.trim() : null;
+  }
+
+  // The mirror's tree with the files written and the kept paths as `[commit, path]` has them,
+  // built on a private index so the user's index is never touched.
+  private async tree(
+    mirror: string,
+    files: readonly MaterializedFile[],
+    kept: readonly (readonly [string, string])[],
+  ): Promise<string> {
     const scratch = await mkdtemp(join(tmpdir(), "snagentic-pack-"));
     const env = { GIT_INDEX_FILE: join(scratch, "index") };
+    const stage = (blob: string, path: string) =>
+      git(
+        this.root,
+        ["update-index", "--add", "--cacheinfo", `100644,${blob},${this.metadata}/${path}`],
+        env,
+      );
     try {
       await git(this.root, ["read-tree", mirror], env);
       for (const file of files) {
         const content = file.kind === "copy" ? file.text : toYaml(file.document);
-        const blob = await git(this.root, ["hash-object", "-w", "--stdin"], env, content);
-        const path = `${this.metadata}/${file.path}`;
-        await git(
-          this.root,
-          ["update-index", "--add", "--cacheinfo", `100644,${blob},${path}`],
-          env,
+        await stage(
+          await git(this.root, ["hash-object", "-w", "--stdin"], env, content),
+          file.path,
         );
       }
-      const tree = await git(this.root, ["write-tree"], env);
-      const branch = `refs/heads/${this.branch(pack)}`;
-      const previous = await runGit(["rev-parse", "--verify", "--quiet", branch], this.root);
-      const head = previous.exitCode === 0 ? previous.stdout.trim() : null;
-      if (head !== null && (await git(this.root, ["rev-parse", `${head}^{tree}`], {})) === tree) {
-        return head;
+      for (const [commit, path] of kept) {
+        const blob = await runGit(
+          ["rev-parse", "--verify", "--quiet", `${commit}:${this.metadata}/${path}`],
+          this.root,
+        );
+        if (blob.exitCode === 0) await stage(blob.stdout.trim(), path);
       }
-      const parents = [...(head === null ? [] : ["-p", head]), "-p", mirror];
-      const commit = await git(
-        this.root,
-        ["commit-tree", tree, ...parents, "-m", message],
-        IDENTITY,
-      );
-      await git(this.root, ["update-ref", branch, commit], {});
-      return commit;
+      return await git(this.root, ["write-tree"], env);
     } finally {
       await rm(scratch, { recursive: true, force: true });
     }

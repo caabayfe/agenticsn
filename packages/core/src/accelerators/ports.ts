@@ -1,5 +1,6 @@
 import type { MaterializedFile, PatchTarget } from "./domain/materialize";
 import type { Template } from "./domain/templates";
+import type { PreviousAdd } from "./domain/upgrade";
 
 // Where accelerator packs come from: the first-party packs embedded in snagentic (ADR-0026).
 export interface PackSource {
@@ -23,13 +24,17 @@ export interface PackWorkspace {
   mirrored(commit: string, sysIds: readonly string[]): Promise<ReadonlyMap<string, PatchTarget>>;
   // A YAML document's text, parsed.
   parse(text: string): unknown;
-  // Commits the files onto the mirror commit as the pack branch's next commit; returns the
+  // What the pack's last add wrote and kept; both empty before its first add.
+  previous(pack: string): Promise<PreviousAdd>;
+  // Commits the files onto the mirror commit as the pack branch's next commit, with the `keep`
+  // paths as the branch's last commit has them, and records both for `previous`; returns the
   // branch's commit, unchanged when its content would be the same.
   commit(
     pack: string,
     mirror: string,
     files: readonly MaterializedFile[],
     message: string,
+    keep: readonly string[],
   ): Promise<string>;
   // Merges the pack branch into the working branch; the files left in conflict, if any.
   merge(pack: string): Promise<{ readonly branch: string; readonly conflicts: readonly string[] }>;

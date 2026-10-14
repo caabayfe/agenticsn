@@ -63,6 +63,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
     includes: async () => false,
     mirrored: async () => new Map(),
     parse: () => null,
+    previous: async () => ({ written: [], kept: [] }),
     commit: async () => "",
     merge: async (pack) => ({ branch: `accelerator/${pack}`, conflicts: [] }),
   }),

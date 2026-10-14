@@ -25,6 +25,7 @@ export const acceleratorAdd = defineUseCase({
     commit: z.string(),
     copied: z.number(),
     patched: z.number(),
+    removed: z.array(z.string()).readonly(),
     conflicts: z.array(z.string()).readonly(),
   }),
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
@@ -50,10 +51,14 @@ export const acceleratorAdd = defineUseCase({
   },
   render(output) {
     const added = `added ${output.pack} ${output.version} (${output.selected.join(", ")}): ${output.copied} new file(s), ${output.patched} patched, merged from ${output.branch}`;
+    const removed = output.removed.map(
+      (r) => `no longer in the pack, kept: ${r} (snagentic never deletes; remove it yourself)`,
+    );
     return output.conflicts.length === 0
-      ? `${added}\nnext: snagentic validate, then snagentic plan-push`
+      ? [added, ...removed, "next: snagentic validate, then snagentic plan-push"].join("\n")
       : [
           added,
+          ...removed,
           ...output.conflicts.map((c) => `conflict: ${c}`),
           "resolve the conflicts, commit, then snagentic validate",
         ].join("\n");

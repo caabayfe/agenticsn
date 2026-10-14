@@ -2,7 +2,12 @@ import { type ValidateDependencies, validate } from "../../governance/index";
 import { InvalidInputError } from "../../kernel/errors";
 import type { NextCall } from "../../knowledge/index";
 import { baseOfFile } from "../../knowledge/index";
-import { parseRecord, recordAddress, relocatedRecords } from "../../metadata/domain/record-layout";
+import {
+  identityFolder,
+  parseRecord,
+  recordAddress,
+  relocatedRecords,
+} from "../../metadata/domain/record-layout";
 import {
   heldInOpenUpdateSets,
   type RecordHolder,
@@ -97,7 +102,8 @@ async function pulledCopy(
   if (same !== null || address === null) {
     return same;
   }
-  const [moved] = relocatedRecords([base], await deps.workspace.recordsIn(address.folder, commit));
+  const folder = identityFolder(address.folder);
+  const [moved] = relocatedRecords([base], await deps.workspace.recordsIn(folder, commit));
   return moved === undefined ? null : parsed(deps, moved.mirror, commit);
 }
 

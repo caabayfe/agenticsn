@@ -4,6 +4,20 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-13
+
+### Fixed
+
+- The pre-commit hook checks what is being committed: `validate --staged` reads the index, so
+  untracked files and unstaged edits no longer block a commit (or integrate's merge commit).
+  Run `snagentic agent install` to update an existing workspace's hook.
+- On a domain-separated instance, a record created here and pulled back in the domain the
+  instance gave it (`domains/<domain>/…`) is recognised as the same record: integrate keeps
+  one file, and the next plan updates it instead of creating it again. A record's identity is
+  its scope, class and sys_id; its domain is an attribute (spec 006, A2).
+- Integrate says when the pre-commit check blocked its merge commit, with what it reported,
+  and leaves the merge to finish; before, it reported a bug in snagentic.
+
 ## [1.5.0] - 2026-10-13
 
 ### Added

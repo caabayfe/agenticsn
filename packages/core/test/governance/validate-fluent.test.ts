@@ -14,6 +14,7 @@ const noRecords: ChangedRecords = {
   current: async () => null,
   at: async () => null,
   countReferences: async () => 0,
+  privileges: async () => [],
   mirrorMerge: async () => null,
 };
 const checker = { check: () => ({ parsed: true as const, hits: [] }) };

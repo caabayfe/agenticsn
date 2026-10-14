@@ -219,23 +219,52 @@ export async function writeRecord(
 }
 
 // The update set entry a write lands in: named by the platform, after the record itself or,
-// for a child row, the record that owns it (a list is sys_ui_list_<table>_<view>).
+// for a child row, the record that owns it (a list is sys_ui_list_<table>_<view>). A form
+// section and its fields are recorded as the form that shows the section.
 async function updateNameOf(session: InstanceSession, write: PlannedWrite): Promise<string> {
   if (write.updateName !== null) {
     return write.updateName;
   }
   const { table, sysId } = write.owner ?? write;
-  const row = await first(session, table, `sys_id=${sysId}`, ["sys_update_name"]);
+  const recorded = table === "sys_ui_section" ? await formOf(session, sysId) : { table, sysId };
+  const row = await first(session, recorded.table, `sys_id=${recorded.sysId}`, ["sys_update_name"]);
   const name = row?.["sys_update_name"] ?? "";
-  return name === "" ? `${table}_${sysId}` : name;
+  return name === "" ? `${recorded.table}_${recorded.sysId}` : name;
 }
 
-// The platform recorded the write in the target update set.
+// The form that shows a section, which the update set records the section's changes under.
+async function formOf(session: InstanceSession, section: string) {
+  const link = await first(session, "sys_ui_form_section", `sys_ui_section=${section}`, [
+    "sys_ui_form",
+  ]);
+  const form = link?.["sys_ui_form"] ?? "";
+  return form === ""
+    ? { table: "sys_ui_section", sysId: section }
+    : { table: "sys_ui_form", sysId: form };
+}
+
+// The platform recorded the write in the target update set. When it recorded it in the
+// application's Default update set instead, as pdi2 did, and the update is this user's, it is
+// moved into the target (spec 006, B5); an update someone else made is left where it is.
 export async function captured(
   session: InstanceSession,
   write: PlannedWrite,
-  updateSet: string,
+  target: { readonly updateSet: string; readonly username: string },
 ): Promise<boolean> {
-  const query = `name=${await updateNameOf(session, write)}^update_set=${updateSet}`;
-  return (await first(session, "sys_update_xml", query, ["sys_id"])) !== null;
+  const name = await updateNameOf(session, write);
+  const query = `name=${name}^update_set=${target.updateSet}`;
+  if ((await first(session, "sys_update_xml", query, ["sys_id"])) !== null) {
+    return true;
+  }
+  const mine = `name=${name}^sys_updated_by=${target.username}`;
+  const update = await first(session, "sys_update_xml", mine, ["sys_id", "update_set"]);
+  const set = await first(session, "sys_update_set", `sys_id=${update?.["update_set"] ?? ""}`, [
+    "name",
+  ]);
+  if (update === null || set?.["name"] !== "Default") {
+    return false;
+  }
+  const values = { update_set: target.updateSet };
+  await session.writer.update("sys_update_xml", update["sys_id"] ?? "", values, session.signal);
+  return true;
 }

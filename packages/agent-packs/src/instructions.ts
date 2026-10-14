@@ -22,6 +22,8 @@ export function instructions(skills: readonly string[]): string {
     "  choices (sys_choice, beside its sys_db_object record) and form and list layouts",
     "  (sys_ui_element, sys_ui_list_element, sys_ui_form_section, sys_ui_related_list_entry):",
     "  add or change rows there, never remove one.",
+    "- A new feature belongs in its own scoped application; on a domain-separated instance its",
+    "  logic belongs in global (see the build skill).",
     "- When a result says `stale`, offer `pull` before relying on the mirror.",
     "",
     `Skills: ${skills.join(", ")}.`,

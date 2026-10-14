@@ -142,6 +142,20 @@ describe("relocatedRecords", () => {
     ]);
   });
 
+  it("pairs a record the instance put in a domain with its local file (ADR-0017 layout)", () => {
+    expect(
+      relocatedRecords(
+        [`x_acme/sys_ui_action/keep--${ID}`],
+        [`domains/${"d".repeat(32)}/x_acme/sys_ui_action/keep-access--${ID}`],
+      ),
+    ).toEqual([
+      {
+        local: `x_acme/sys_ui_action/keep--${ID}`,
+        mirror: `domains/${"d".repeat(32)}/x_acme/sys_ui_action/keep-access--${ID}`,
+      },
+    ]);
+  });
+
   it("pairs only within the same scope and class folder", () => {
     expect(
       relocatedRecords([`global/sys_script/a--${ID}`], [`x_acme/sys_script/b--${ID}`]),

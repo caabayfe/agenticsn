@@ -82,11 +82,12 @@ const context: UseCaseContext = {
       files: new GitMirrorFiles(root, paths.metadata),
     };
   },
-  governance: (root, instance) => ({
+  governance: (root, instance, options = {}) => ({
     records: new GitChangedRecords(
       root,
       instancePaths(instance).metadata,
       instancePaths(instance).remoteBranch,
+      options,
     ),
     checker: new EslintScriptChecker(),
   }),

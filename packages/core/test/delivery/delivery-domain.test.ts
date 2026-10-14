@@ -90,6 +90,48 @@ describe("changeOf", () => {
     });
   });
 
+  it("creates a record in the domain its file names, or global, never the session's (ADR-0027)", () => {
+    const plain = changeOf(PATH, null, version({ name: "New" }));
+    expect(plain.kind === "write" && plain.write.values["sys_domain"]).toBe("global");
+    const customer = "c".repeat(32);
+    const domainPath = `domains/${customer}/global/sys_script/new--${SYS_ID}.yaml`;
+    const scoped = version(
+      { name: "New" },
+      {
+        identity: {
+          sysId: SysId.parse(SYS_ID),
+          className: TableName.parse("sys_script"),
+          scope: ScopeName.fromInstance("global"),
+          domain: customer,
+        },
+      },
+    );
+    const inDomain = changeOf(domainPath, null, scoped);
+    expect(inDomain.kind === "write" && inDomain.write.values["sys_domain"]).toBe(customer);
+  });
+
+  it("moves a record to another domain as an update the plan shows (ADR-0027)", () => {
+    const moved = version(
+      { name: "Rule" },
+      {
+        identity: {
+          sysId: SysId.parse(SYS_ID),
+          className: TableName.parse("sys_script"),
+          scope: ScopeName.fromInstance("global"),
+          domain: "global",
+        },
+      },
+    );
+    const inDefault = version(
+      { name: "Rule" },
+      { identity: { ...moved.artifact.identity, domain: "d".repeat(32) } },
+    );
+    expect(changeOf(PATH, inDefault, moved)).toMatchObject({
+      kind: "write",
+      write: { operation: "update", values: { sys_domain: "global" } },
+    });
+  });
+
   it("accepts any name for a new record's file: the platform chooses the one pull will use", () => {
     expect(changeOf(PATH, null, version({ name: "New" }))).toMatchObject({
       kind: "write",

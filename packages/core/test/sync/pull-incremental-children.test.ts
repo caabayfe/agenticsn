@@ -1,5 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { pulledInstance, SECTION, sid, touch, WORKFLOW } from "../support/incremental-fixture";
+import {
+  BEFORE,
+  CHANGED,
+  pulledInstance,
+  SECTION,
+  sid,
+  touch,
+  WORKFLOW,
+} from "../support/incremental-fixture";
 
 describe("pullIncremental: child rows", () => {
   it("rewrites the child rows of the owners whose rows changed, reading only those owners", async () => {
@@ -67,6 +75,32 @@ describe("pullIncremental: child rows", () => {
     expect(
       files.get(`global/sys_ui_section/new-section--${sid(11)}.children.sys_ui_element.yaml`),
     ).toEqual([expect.objectContaining({ sys_id: "e3" })]);
+  });
+});
+
+describe("pullIncremental: rows older than their owner (spec 006, B4)", () => {
+  it("reads the child rows of a record new to the mirror, though no change feed shows them", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    tables["sys_ui_section"]?.push({
+      sys_id: sid(12),
+      sys_class_name: "sys_ui_section",
+      name: "Late section",
+      sys_scope: "global",
+      sys_updated_on: CHANGED,
+    });
+    // Written before its section existed (as when a push wrote rows before their owner).
+    tables["sys_ui_element"]?.push({
+      sys_id: "e4",
+      sys_ui_section: sid(12),
+      element: "y",
+      sys_updated_on: BEFORE,
+    });
+    const { queries } = await incremental();
+    expect(
+      files.get(`global/sys_ui_section/late-section--${sid(12)}.children.sys_ui_element.yaml`),
+    ).toEqual([expect.objectContaining({ sys_id: "e4" })]);
+    // Only the child tables a section can own are asked.
+    expect(queries.some((query) => String(query.table) === "sys_hub_flow_stage")).toBe(false);
   });
 });
 

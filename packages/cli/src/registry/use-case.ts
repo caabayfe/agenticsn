@@ -87,9 +87,11 @@ export interface UseCaseContext {
     readonly files: MirrorFiles;
   };
   // What validate checks: an instance's changed records, and the rule pack that checks them.
+  // Staged: the records as the index holds them, for the pre-commit hook.
   readonly governance: (
     root: string,
     instance: InstanceName,
+    options?: { readonly staged?: boolean },
   ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
   // An instance's mirror branch and working tree, for plan and push.
   readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;

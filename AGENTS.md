@@ -19,10 +19,19 @@ This is a clean rebuild of `../snagentic` (v1). v1 is a **reference for algorith
 fixtures and ServiceNow behavior, not code to copy**. v1 failed through scope creep and
 mixed layers; don't repeat that.
 
-**Status:** v1.0.0 was released on 2026-10-06 (`specs/002-v1.0-release/plan.md`); v1.1.0
-adds knowledge, governance, the agent pack and delivery (specs 003 and 004). The product
-story is in `README.md` and `docs/product/`. User documentation: `docs/getting-started.md` and the generated
+**Status:** v1.0.0 was released on 2026-10-06 (`specs/002-v1.0-release/plan.md`). Since then:
+knowledge, governance, the agent pack and delivery (1.1, specs 003 and 004); ACLs through an
+elevated session (1.4, ADR-0024); choices, layouts and scoped applications from files (1.5,
+ADR-0025); domains (ADR-0027, spec 006). The product story is in `README.md` and
+`docs/product/`. User documentation: `docs/getting-started.md` and the generated
 `docs/reference/commands.md` (`bun run docs` regenerates it; a test fails when it is stale).
+
+**Live testing on a PDI:** build a release candidate with `bun run build` and run it from
+`dist/snagentic` in the PDI's workspace. macOS asks for keychain access again after every
+rebuild, because each build is a different binary: choose *Always Allow*, and rebuild as rarely
+as you can during a live session. Coordinate with other sessions writing to the same instance:
+pushes switch the user's preferences (current application and update sets), and two sessions
+pushing at once overwrite each other's.
 
 **Toolchain note:** TypeScript is pinned to 6.x on purpose. TypeScript 7 (the native
 compiler) doesn't yet publish the compiler API that dependency-cruiser needs, so the

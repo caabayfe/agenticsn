@@ -52,7 +52,7 @@ describe("computePlan", () => {
       QUERY,
     );
     expect(plan.changes).toEqual([
-      expect.objectContaining({ operation: "create", fields: ["name", "script"] }),
+      expect.objectContaining({ operation: "create", fields: ["name", "script", "sys_domain"] }),
     ]);
   });
 
@@ -73,6 +73,25 @@ describe("computePlan", () => {
     );
     expect(plan.changes).toEqual([
       expect.objectContaining({ operation: "update", path: `${NEW}.yaml`, fields: ["active"] }),
+    ]);
+  });
+
+  it("plans an edit to a record the instance put in a domain as an update, not a create", async () => {
+    const id = "fedcba9876543210fedcba9876543210";
+    const pulled = `domains/${"d".repeat(32)}/global/sys_script_include/util--${id}`;
+    const { plan } = await computePlan(
+      setup({
+        mirror: {
+          ...setup().state.mirror,
+          [pulled]: record("sys_script_include", id, { name: "Util", active: "true" }),
+        },
+        working: { [NEW]: record("sys_script_include", id, { name: "Util", active: "false" }) },
+        changed: [`${NEW}.yaml`],
+      }).deps,
+      QUERY,
+    );
+    expect(plan.changes).toEqual([
+      expect.objectContaining({ operation: "update", fields: ["active"] }),
     ]);
   });
 

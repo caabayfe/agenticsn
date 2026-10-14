@@ -191,6 +191,15 @@ mirrors (`pull --full` once on a workspace pulled before this version). Push cre
 application before anything else in its scope, in the scope's update set of the batch, and
 the next pull mirrors it (ADR-0025).
 
+### Domains
+
+On a domain-separated instance (managed service providers run one domain per customer),
+`snagentic status` lists the instance's domains, and records outside global are mirrored under
+`domains/<domain sys_id>/<scope>/<class>/`. A record's domain is `_meta.sys_domain`; push writes
+it on every create (global when the file names none, never the session's domain), and changing
+it moves the record, which the plan shows (ADR-0027). Build an application's logic in global;
+use a customer's domain only for that customer's own changes.
+
 ### ACLs
 
 Writing ACLs (`sys_security_acl`, `sys_security_acl_role`) needs the elevated

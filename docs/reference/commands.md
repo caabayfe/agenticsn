@@ -209,6 +209,7 @@ Options:
 
 - `--base <value>`: commit, branch or tag to compare with; findings already there are not reported
 - `--instance <value>`: default: the workspace's only instance
+- `--staged`: check only what is staged for commit, as the index holds it (the pre-commit hook)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -439,6 +440,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `paths` (array, optional): record files to check (default: every record changed since base)
   - `base` (string, optional): commit, branch or tag to compare with; findings already there are not reported
   - `instance` (string, optional): default: the workspace's only instance
+  - `staged` (boolean, optional): check only what is staged for commit, as the index holds it (the pre-commit hook)
 - `plan_push`: Plan delivering the workspace's changes to the instance: the records and fields that would change, the update sets they go into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
   - `instance` (string, optional): default: the workspace's only instance
   - `label` (string, optional): names the update sets (default: the git branch)

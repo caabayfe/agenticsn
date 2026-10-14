@@ -118,8 +118,18 @@ describe("accelerator use cases", () => {
     const workspace = {
       mirrorCommit: async () => "m1",
       includes: async () => true,
-      mirrored: async () => new Map(),
-      parse: () => ({}),
+      mirrored: async (_commit: string, ids: readonly string[]) =>
+        new Map(
+          ids.map((id) => [id, { path: `x_2222332_s11/sys_app/s11--${id}.yaml`, document: {} }]),
+        ),
+      parse: (text: string) =>
+        text.includes("sys_id: 489da54a")
+          ? {
+              table: "sys_app",
+              sys_id: "489da54ae67c4a3e9f1e1e4347e9119b",
+              fields: { short_description: "x" },
+            }
+          : {},
       commit: async () => "c1",
       merge: async () => ({ branch: "accelerator/minimal/pdi2", conflicts: [] }),
     };
@@ -138,7 +148,13 @@ describe("accelerator use cases", () => {
       { pack: "minimal", instance: "pdi2" },
       adding,
     );
-    expect(output).toMatchObject({ selected: ["base", "extra"], commit: "c1", conflicts: [] });
+    expect(output).toMatchObject({
+      selected: ["base", "extra"],
+      commit: "c1",
+      copied: 2,
+      patched: 1,
+      conflicts: [],
+    });
     const text = acceleratorAdd.render(output as never, "text");
     expect(text).toContain("added minimal 1.0.0 (base, extra)");
     expect(text).toContain("next: snagentic validate");

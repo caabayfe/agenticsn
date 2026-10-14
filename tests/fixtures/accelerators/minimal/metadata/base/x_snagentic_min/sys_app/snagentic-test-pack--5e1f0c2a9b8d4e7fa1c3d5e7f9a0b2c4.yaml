@@ -1,0 +1,8 @@
+_meta:
+  scope: x_snagentic_min
+  sys_class_name: sys_app
+  sys_id: 5e1f0c2a9b8d4e7fa1c3d5e7f9a0b2c4
+name: snagentic test pack (minimal)
+scope: x_snagentic_min
+short_description: The minimal accelerator test pack (spec 005, M7). Safe to deactivate.
+version: 1.0.0

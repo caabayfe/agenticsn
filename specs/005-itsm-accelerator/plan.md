@@ -167,13 +167,13 @@ opt-in (`SNAGENTIC_LIVE_INSTANCE=pdi`).
 | F6 | **Mostly done 2026-10-14: getting-started "Flows" section; the build skill says flows are written in Fluent under source/<scope>/ and never in mirrored rows. Pending: the keys step (P5), the trigger evaluation (C2e).** **Docs and agent pack.** Commands reference, build skill points to the SDK documentation for flows (C2e), getting-started section on flows | trigger evaluation passes | F4 |
 | — | **Release v1.7.0** (flows) | | F1–F6 |
 | M0 | Spikes S-A to S-C, results written here; ADR-0026 amended for S-A | – | M-1 (runs alongside track F) |
-| M1 | Manifest and capability graph (domain) | rejects a cyclic `dependsOn`; orders data entities by `after`; selects wave 1 with its wave 0 dependencies | M0 |
-| M2 | Preflight and `accelerator check` / `list`, MCP tool `accelerator`, budget to 13 | reports "needs plugin" with the exact activate command; reports "blocked" when a patched record is missing; reads no instance beyond the mirror | M1 |
-| M3 | Materialization and `accelerator add`, pack branch | writes new records with the pack's sys_ids; applies a patch to the mirrored file only; refuses to overwrite a file the user changed; a second add of the same version changes nothing; never touches the index | M1 |
-| M4 | Gate check `ACC-001` in `plan_push` | blocks a planned write of a capability whose plugin is inactive; passes once the inventory shows it active; waivable | M3 |
-| M5 | Template validation and `load --validate-only` | reports a missing mandatory field, an unresolved reference, an offering without a support group; refuses a git-tracked data directory | M1 |
-| M6 | Import Set adapter (contract suite, `msw`) and `accelerator load` | loads in `after` order; stops at the first entity with errors; never retries a post; writes no field value to disk or logs; is absent for test and production instances | M5, S-B |
-| M7 | End to end with the minimal test pack, live on the PDI | check → activate → pull → add → validate → plan_push → push → load, run twice: the second run changes nothing | M2–M6 |
+| M1 | **Done 2026-10-15.** Manifest and capability graph (domain) | rejects a cyclic `dependsOn`; orders data entities by `after`; selects wave 1 with its wave 0 dependencies | M0 |
+| M2 | **Done 2026-10-15.** Preflight and `accelerator check` / `list`, MCP tool `accelerator`, budget to 13 | reports "needs plugin" with the exact activate command; reports "blocked" when a patched record is missing; reads no instance beyond the mirror | M1 |
+| M3 | **Done 2026-10-15: a record the mirror already holds is written onto its mirrored copy; fields pull redacts are never written, and a patch of one is refused.** Materialization and `accelerator add`, pack branch | writes new records with the pack's sys_ids; applies a patch to the mirrored file only; refuses to overwrite a file the user changed; a second add of the same version changes nothing; never touches the index | M1 |
+| M4 | **Done 2026-10-15 as SN-MNT-012.** Gate check `ACC-001` in `plan_push` | blocks a planned write of a capability whose plugin is inactive; passes once the inventory shows it active; waivable | M3 |
+| M5 | **Done 2026-10-15 as `accelerator validate-data`.** Template validation and `load --validate-only` | reports a missing mandatory field, an unresolved reference, an offering without a support group; refuses a git-tracked data directory | M1 |
+| M6 | **Done 2026-10-15.** Import Set adapter (contract suite, `msw`) and `accelerator load` | loads in `after` order; stops at the first entity with errors; never retries a post; writes no field value to disk or logs; is absent for test and production instances | M5, S-B |
+| M7 | **Done 2026-10-15, live on pdi2: check (ready) → add → validate → plan-push → push (app, property, patch captured in one batch) → validate-data → load (2 inserted; refused without `--confirm`) → pull → integrate; second run: add changed no file, plan "nothing to push", load "2 unchanged". Two fixes came out of it (re-add onto mirrored copies; redacted fields). Plugin activation step not exercised: the fixture's plugin was already active.** End to end with the minimal test pack, live on the PDI | check → activate → pull → add → validate → plan_push → push → load, run twice: the second run changes nothing | M2–M6 |
 | M8 | Upgrade path | a pack version 1.0.1 that changes one property and removes one record merges with a user edit; the removed record is reported, not deleted | M3 |
 | M9 | Docs and agent pack | `docs/reference/commands.md` regenerated; deliver skill gains the accelerator steps; getting-started section | M7 |
 | — | **Release v1.8.0** (accelerator mechanism) | | M0–M9 |
@@ -212,7 +212,8 @@ validate, review, plan and push, prove, record evidence).
   Moving it later needs the "packs from a path" option ADR-0026 deferred; nothing in track A
   depends on where packs live, because they are read through `PackSource`.
 - **P3. Test pack fixture on the PDI: accepted.** The minimal pack's scratch application
-  (`x_<prefix>_snagtest`) stays on pdi2 and is marked inactive after M7.
+  (`x_<prefix>_snagtest`) stays on pdi2 and is marked inactive after M7. Done 2026-10-15: `x_snagentic_min`
+  is inactive on pdi2, with its property and 2 `cmn_location` rows.
 - **P4. Flows: their own release first.** Track F ships as v1.7.0; the accelerator mechanism
   follows as v1.8.0. Release 1.6.0 (domains, spec 006) shipped meanwhile, so the plan's earlier
   "v1.5.0" became v1.8.0.

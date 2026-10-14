@@ -101,7 +101,8 @@ describe("accelerator add (ADR-0026)", () => {
       patched: 1,
       conflicts: [],
     });
-    expect(calls.asked).toEqual([SLA]);
+    // The records it creates (they may exist from an earlier add) and the patch target.
+    expect(calls.asked).toEqual(["a1", SLA, "a3"]);
     expect(calls.message).toBe("snagentic accelerator add minimal 1.0.0: base, extra");
     expect(calls.committed?.find((f) => f.kind === "patch")).toMatchObject({
       path: `global/contract_sla/p1--${SLA}.yaml`,

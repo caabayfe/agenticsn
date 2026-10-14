@@ -8,6 +8,7 @@ import {
   type PackWorkspace,
   type PatchTarget,
 } from "@snagentic/core";
+import { parse } from "yaml";
 import { runGit, runGitOrThrow } from "../git/run-git";
 import { fromYamlStrings, toYaml } from "../yaml/own-style";
 
@@ -37,8 +38,10 @@ async function git(cwd: string, args: string[], env: Record<string, string>, inp
   return out.trim();
 }
 
+// Typed, so a patched record is written back exactly as pull wrote it but for its patched
+// fields (hash_version stays a number).
 const record = (text: string): Readonly<Record<string, unknown>> => {
-  const parsed = fromYamlStrings(text);
+  const parsed: unknown = parse(text);
   return parsed !== null && typeof parsed === "object"
     ? Object.fromEntries(Object.entries(parsed))
     : {};

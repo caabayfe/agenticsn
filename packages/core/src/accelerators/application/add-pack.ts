@@ -1,6 +1,6 @@
 import type { InventoryReader } from "../../plugins/index";
 import { PackNotAddableError } from "../domain/errors";
-import { materialize } from "../domain/materialize";
+import { materialize, RECORD_FILE } from "../domain/materialize";
 import type { PackSource, PackWorkspace } from "../ports";
 import { checkPack } from "./check-pack";
 
@@ -24,15 +24,20 @@ export interface AddResult {
   readonly conflicts: readonly string[];
 }
 
-// The sys_ids the selected capabilities' patches name, to look up in the mirror at once.
+// The sys_ids to look up in the mirror at once: the records the selected capabilities create
+// (they may be there from an earlier add) and those their patches name.
 function patchTargets(
   files: ReadonlyMap<string, string>,
   selected: readonly string[],
   parse: (text: string) => unknown,
 ): string[] {
   return [...files.entries()].flatMap(([path, text]) => {
-    const [top, capability] = path.split("/");
-    if (top !== "patches" || !selected.includes(capability ?? "")) return [];
+    const [top, capability, ...rest] = path.split("/");
+    if (!selected.includes(capability ?? "")) return [];
+    // A record the pack creates may already be on the instance, from an earlier add.
+    const record = top === "metadata" ? RECORD_FILE.exec(rest.join("/")) : null;
+    if (record !== null) return [record[2] ?? ""];
+    if (top !== "patches") return [];
     const document = parse(text);
     const sysId =
       document !== null && typeof document === "object" && "sys_id" in document

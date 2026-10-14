@@ -120,7 +120,9 @@ describe("accelerator use cases", () => {
       includes: async () => true,
       mirrored: async (_commit: string, ids: readonly string[]) =>
         new Map(
-          ids.map((id) => [id, { path: `x_2222332_s11/sys_app/s11--${id}.yaml`, document: {} }]),
+          ids
+            .filter((id) => id.startsWith("489da54a"))
+            .map((id) => [id, { path: `x_2222332_s11/sys_app/s11--${id}.yaml`, document: {} }]),
         ),
       parse: (text: string) =>
         text.includes("sys_id: 489da54a")

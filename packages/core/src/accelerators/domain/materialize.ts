@@ -54,6 +54,13 @@ function patchOf(document: unknown): Patch | null {
   return { table: fields["table"], sysId: fields["sys_id"], fields: Object.fromEntries(entries) };
 }
 
+// Fields pull never mirrors for this record (secret-like values): push cannot deliver them.
+function redacted(document: Readonly<Record<string, unknown>>): Set<string> {
+  const meta = document["_meta"];
+  const list = meta !== null && typeof meta === "object" ? Reflect.get(meta, "redacted") : [];
+  return new Set(Array.isArray(list) ? list.map(String) : []);
+}
+
 function applyPatch(path: string, input: MaterializeInput, problems: string[]): MaterializedFile[] {
   const patch = patchOf(input.parse(input.files.get(path) ?? ""));
   if (patch === null) {
@@ -66,6 +73,16 @@ function applyPatch(path: string, input: MaterializeInput, problems: string[]): 
     return [];
   }
   const record = input.mirrored(patch.sysId);
+  const secret =
+    record === null
+      ? []
+      : Object.keys(patch.fields).filter((f) => redacted(record.document).has(f));
+  if (secret.length > 0) {
+    problems.push(
+      `${path}: ${secret.join(", ")} is never mirrored (it may hold a secret): set it on the instance`,
+    );
+    return [];
+  }
   if (record === null) {
     problems.push(
       `${path}: ${patch.table} ${patch.sysId} is not in the mirror (run accelerator check; it may need a plugin)`,
@@ -76,6 +93,36 @@ function applyPatch(path: string, input: MaterializeInput, problems: string[]): 
   return [{ kind: "patch", path: record.path, document, fields: Object.keys(patch.fields) }];
 }
 
+// A record file is named <name>--<sys_id>.yaml; its field files <name>--<sys_id>.<field>.<ext>.
+export const RECORD_FILE = /^(.*)--([^-./]+)(\.[^/]+)$/;
+
+// A pack record the instance already holds (an earlier version, pushed and pulled) is written
+// onto its mirrored copy, at the mirrored path, like a patch of the pack's fields: adding the
+// same version again then changes nothing, and the instance's other fields stay.
+function onMirror(
+  path: string,
+  text: string,
+  capability: string,
+  input: MaterializeInput,
+): MaterializedFile[] {
+  const match = RECORD_FILE.exec(path);
+  const existing = match === null ? null : input.mirrored(match[2] ?? "");
+  if (match === null || existing === null) return [{ kind: "copy", path, text, capability }];
+  const suffix = match[3] ?? "";
+  if (suffix !== ".yaml") {
+    return [{ kind: "copy", path: existing.path.replace(/\.yaml$/, suffix), text, capability }];
+  }
+  const parsed = input.parse(text);
+  const hidden = redacted(existing.document);
+  const fields = Object.fromEntries(
+    Object.entries(parsed !== null && typeof parsed === "object" ? parsed : {}).filter(
+      ([key]) => key !== "_meta" && !hidden.has(key),
+    ),
+  );
+  const document = { ...existing.document, ...fields };
+  return [{ kind: "patch", path: existing.path, document, fields: Object.keys(fields) }];
+}
+
 function fileOf(path: string, capability: string, input: MaterializeInput, problems: string[]) {
   const rest = path.split("/").slice(2);
   if (path.startsWith("patches/")) return applyPatch(path, input, problems);
@@ -84,7 +131,7 @@ function fileOf(path: string, capability: string, input: MaterializeInput, probl
     return [];
   }
   const text = input.files.get(path) ?? "";
-  return [{ kind: "copy" as const, path: rest.join("/"), text, capability }];
+  return onMirror(rest.join("/"), text, capability, input);
 }
 
 const capabilityOf = (path: string) => {

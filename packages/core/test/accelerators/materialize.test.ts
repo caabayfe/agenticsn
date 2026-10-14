@@ -109,4 +109,74 @@ describe("materializing a pack (ADR-0026)", () => {
       "global/sys_properties/x--a9.yaml is written by both base and extra",
     ]);
   });
+
+  it("writes a pack record the instance already holds onto its mirrored copy, like a patch", () => {
+    const existing = (sysId: string) =>
+      sysId === "a2"
+        ? {
+            path: "x_snagentic_min/sys_properties/x-snagentic-min-on--a2.yaml",
+            document: {
+              _meta: { sys_id: "a2", hash: "h" },
+              name: "x_snagentic_min.on",
+              sys_policy: "",
+            },
+          }
+        : sysId === "a3"
+          ? {
+              path: "global/sys_script/rule-renamed--a3.yaml",
+              document: { _meta: { sys_id: "a3" }, name: "rule" },
+            }
+          : mirrored(sysId);
+    const parse = (text: string) =>
+      text.startsWith("name: ") ? { name: text.slice(6).trim() } : parsePatch(text);
+    const { files, problems } = materialize({
+      selected: ["base", "extra"],
+      files: PACK,
+      parse,
+      mirrored: existing,
+    });
+    expect(problems).toEqual([]);
+    expect(files.find((f) => f.path.includes("x-snagentic-min-on"))).toEqual({
+      kind: "patch",
+      path: "x_snagentic_min/sys_properties/x-snagentic-min-on--a2.yaml",
+      document: { _meta: { sys_id: "a2", hash: "h" }, name: "x_snagentic_min.on", sys_policy: "" },
+      fields: ["name"],
+    });
+    // A field file follows its record's mirrored name.
+    expect(files.filter((f) => f.path.startsWith("global/sys_script/")).map((f) => f.path)).toEqual(
+      ["global/sys_script/rule-renamed--a3.yaml", "global/sys_script/rule-renamed--a3.script.js"],
+    );
+  });
+
+  it("leaves the fields pull never mirrors (secrets) to the instance, and refuses a patch of one", () => {
+    const secret = {
+      path: "x_snagentic_min/sys_properties/x-on--a2.yaml",
+      document: { _meta: { sys_id: "a2", redacted: ["value"] }, name: "x.on" },
+    };
+    const parse = (text: string) =>
+      text.startsWith("PROP")
+        ? { name: "x.on", value: "true" }
+        : { table: "sys_properties", sys_id: "a2", fields: { value: "x" } };
+    const pack = new Map([
+      ["metadata/base/x_snagentic_min/sys_properties/x-on--a2.yaml", "PROP"],
+      ["patches/base/p.yaml", "PATCH"],
+    ]);
+    const { files, problems } = materialize({
+      selected: ["base"],
+      files: pack,
+      parse,
+      mirrored: () => secret,
+    });
+    expect(files).toEqual([
+      {
+        kind: "patch",
+        path: secret.path,
+        document: { ...secret.document, name: "x.on" },
+        fields: ["name"],
+      },
+    ]);
+    expect(problems).toEqual([
+      "patches/base/p.yaml: value is never mirrored (it may hold a secret): set it on the instance",
+    ]);
+  });
 });

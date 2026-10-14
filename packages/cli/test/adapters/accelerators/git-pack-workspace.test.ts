@@ -21,7 +21,7 @@ async function workspace() {
   mkdirSync(join(root, METADATA, "global/contract_sla"), { recursive: true });
   writeFileSync(
     join(root, METADATA, SLA_PATH),
-    `_meta:\n  sys_id: ${SLA}\nname: P1\nduration: 8h\n`,
+    `_meta:\n  hash_version: 1\n  sys_id: ${SLA}\nduration: 8h\nname: P1\n`,
   );
   await git(root, "add", ".");
   await git(root, "commit", "-q", "-m", "pull");
@@ -49,7 +49,7 @@ describe("git pack workspace (ADR-0026)", () => {
     expect([...found.keys()]).toEqual([SLA]);
     expect(found.get(SLA)).toEqual({
       path: SLA_PATH,
-      document: { _meta: { sys_id: SLA }, name: "P1", duration: "8h" },
+      document: { _meta: { hash_version: 1, sys_id: SLA }, name: "P1", duration: "8h" },
     });
     expect(await packs.mirrored(mirror ?? "", [])).toEqual(new Map());
   });
@@ -70,6 +70,24 @@ describe("git pack workspace (ADR-0026)", () => {
       "name: min\n",
     );
     expect(readFileSync(join(root, METADATA, SLA_PATH), "utf8")).toContain("duration: 4h");
+  });
+
+  it("writes a patched record back as pull wrote it, but for the patched field", async () => {
+    const { root, packs } = await workspace();
+    const mirror = (await packs.mirrorCommit()) ?? "";
+    const [target] = (await packs.mirrored(mirror, [SLA])).values();
+    const patched: MaterializedFile = {
+      kind: "patch",
+      path: SLA_PATH,
+      document: { ...(target?.document ?? {}), duration: "4h" },
+      fields: ["duration"],
+    };
+    await packs.commit("minimal", mirror, [patched], "patch");
+    await packs.merge("minimal");
+    expect(await git(root, "diff", "HEAD~1", "--", `${METADATA}/${SLA_PATH}`)).toContain(
+      "-duration: 8h\n+duration: 4h",
+    );
+    expect(readFileSync(join(root, METADATA, SLA_PATH), "utf8")).toContain("hash_version: 1\n");
   });
 
   it("changes nothing when the same version is added again", async () => {

@@ -1,6 +1,6 @@
 # 0026. Accelerators are versioned content packs, installed through the existing flow
 
-- Status: Accepted (product owner, 2026-10-13)
+- Status: Accepted (product owner, 2026-10-13); amended 2026-10-14 (pack location, below)
 - Date: 2026-10-13
 - Requirements: ASR-01, ASR-02, ASR-03, ASR-08, ASR-09, ASR-11, ASR-15, ASR-16; goal G1
 - Amends: 0002 (MCP budget 12 → 13), 0010 (adds accelerators to scope)
@@ -174,3 +174,12 @@ functional design already decides).
 - **Packs outside the binary (downloaded at run time).** Deferred: a customer or partner pack
   ecosystem is plausible (ASR-11), but needs signing and a trust decision. The manifest format
   is designed so a pack directory can later come from a path or registry without change.
+
+## Amendment (2026-10-14, product owner, spec 005 decision P2)
+
+Pack location. Generic first-party packs live in `packages/accelerators/<id>/` as decided above.
+**NTT DATA-specific packs live in `nttdata/` at the repository root** (the ITSM pack:
+`nttdata/accelerators/itsm/`), still embedded in the binary. The folder is self-contained so it
+can move to a private repository as a whole: nothing outside it references its contents except
+the build's list of pack directories, and nothing inside it references paths outside it; a test
+enforces both. Moving it out later needs packs from a path, which this ADR deferred.

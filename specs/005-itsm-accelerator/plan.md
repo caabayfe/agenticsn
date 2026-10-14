@@ -1,8 +1,8 @@
 # 005. ITSM accelerator: plan
 
-- Status: Draft, for the product owner's review
-- Date: 2026-10-13
-- Implements: ADR-0026 (accelerators as content packs)
+- Status: Approved by the product owner (2026-10-14; decisions P1–P4 in section 7)
+- Date: 2026-10-13, updated 2026-10-14
+- Implements: ADR-0026 (accelerators as content packs), ADR-0028 as amended (flows)
 - Builds on: ADR-0013 (plugin activation), ADR-0016 (instance load), ADR-0025 (scoped
   applications from files), spec 004 (plan and push)
 - Functional design: `functional-design.md` (this folder). Its "Implementation batches" table
@@ -18,9 +18,11 @@ The work splits in two tracks that must not be mixed:
 | Track | What | Where | Shape of change |
 |---|---|---|---|
 | **A. Mechanism** | Pack format, `accelerator` use cases, gate check, data loading | `packages/core`, `packages/cli` | Code, TDD, one release |
-| **B. Content** | The ITSM pack: wave 0 and wave 1 | `packages/accelerators/itsm/` | Files, validated by the pack tests and `validate` |
+| **F. Flows** | Flow delivery from Fluent source (ADR-0028 as amended) | `packages/core`, `packages/cli`, build | Code, TDD, its own release |
+| **B. Content** | The ITSM pack: wave 0 and wave 1 | `nttdata/accelerators/itsm/` (P2) | Files, validated by the pack tests and `validate` |
 
-Track A ships first, proven with a **minimal test pack** (one scoped application, one property,
+Track F ships first, as v1.6.0 (P4): flows are useful beyond accelerators, and wave 1 needs them.
+Track A follows as v1.7.0, proven with a **minimal test pack** (one scoped application, one property,
 one patch to an out-of-box record, one data entity). Track B starts once A's install path works
 end to end on the PDI.
 
@@ -87,17 +89,24 @@ packages/core/src/accelerators/
 
 ### 4.2 Packs in the binary
 
-`packages/accelerators/<id>/` holds pack directories. The build embeds them as assets, as the
-agent packs are embedded today. A test pack lives under `tests/fixtures/accelerators/minimal/`
-and is never shipped.
+Packs are directories the build embeds as assets, as the agent packs are embedded today. The
+build reads the list of pack directories from one place (the build configuration), so a pack
+can leave the repository without code changes.
+
+- **NTT DATA packs live in `nttdata/`** at the repository root (P2), for example
+  `nttdata/accelerators/itsm/`. The folder is self-contained so it can move to a private
+  repository as a whole: nothing outside it imports or references its contents except the build
+  configuration's pack list, and nothing inside it references paths outside it. A test enforces
+  both directions.
+- A test pack lives under `tests/fixtures/accelerators/minimal/` and is never shipped.
 
 ### 4.3 Manifest (`accelerator.yaml`)
 
 ```yaml
 id: itsm
 version: 1.0.0
-requires: { snagentic: ">=1.5.0" }
-scope: x_nttdata_acc            # or a parameter, after S-A
+requires: { snagentic: ">=1.7.0" }
+scope: x_nttdata_acc            # or a parameter, after S-A (nttdata/accelerators/itsm/)
 capabilities:
   foundation:
     wave: 0
@@ -149,8 +158,15 @@ opt-in (`SNAGENTIC_LIVE_INSTANCE=pdi`).
 
 | # | Milestone | Behaviour tests (examples) | Depends on |
 |---|---|---|---|
-| M-1 | Flow delivery: spikes S11 and S13 done, **ADR-0028 accepted 2026-10-13**. Remaining: the "before track A" tests of `flows-test-plan.md` | `flows-test-plan.md` | – |
-| M0 | Spikes S-A to S-C, results written here; ADR-0026 amended for S-A | – | M-1 |
+| M-1 | Flow delivery proven: spikes S11 and S13, **ADR-0028 accepted 2026-10-13, amended 2026-10-14**, every "before track A" test of `flows-test-plan.md` passed or decided (2026-10-14) | `flows-test-plan.md` | – |
+| F1 | **SDK in the build.** `bun run build` embeds the SDK as a second entry point, bytecode, no identifier minification; the types asset (declarations and every `.json`); the four bundle-time patches each assert their target (A8); SDK version pinned and reported by `doctor` | the release binary builds the eleven `tests/fixtures/fluent` projects equal to their CLI output on four platforms (A1–A4); no network (A7); `check` p95 within ASR-04 (A5); size measured for the budget (A6) | M-1 |
+| F2 | **Fluent source in the workspace.** `source/<scope>/` configuration projects; `validate` builds them and reports SDK diagnostics as findings (A9); a mismatched SDK version warns (A10); mirrored flow rows stay protected | a Fluent error is a finding with file, line and code; an unknown `package.json` SDK version warns; editing a mirrored flow row is refused | F1 |
+| F3 | **Plan.** `plan_push` builds in a copy and refuses when the build would change `keys.ts`; refuses delete records outside the project's own keys; preflight: publishing user's domain, `activate_flows` present, cross-scope privileges declared (B8); the plan shows each flow as one change | each refusal before any write; a flow appears once in the plan with its version | F2 |
+| F4 | **Push.** Select the batch set for the scope, `fluent/load` with `targetUpdateSetId`, `activate_flows`, restore preferences (by user and name); verify capture by content (published, snapshot), moving its own update only; journal with the load's result; report the inactive window and the records that matched it (B3, accepted on development) | fakes: order of calls, restore on failure, never a retry of load or publish, capture failure reported; live (opt-in): B1, B5, B10 rerun through `push` | F3 |
+| F5 | **Contract and edge tests.** Live contract tests for `fluent/load` and `activate_flows` (B9); rename and removal in source (B6); order (B10) | `tests/live` pass on pdi2 | F4 |
+| F6 | **Docs and agent pack.** Commands reference, build skill points to the SDK documentation for flows (C2e), getting-started section on flows | trigger evaluation passes | F4 |
+| — | **Release v1.6.0** (flows) | | F1–F6 |
+| M0 | Spikes S-A to S-C, results written here; ADR-0026 amended for S-A | – | M-1 (runs alongside track F) |
 | M1 | Manifest and capability graph (domain) | rejects a cyclic `dependsOn`; orders data entities by `after`; selects wave 1 with its wave 0 dependencies | M0 |
 | M2 | Preflight and `accelerator check` / `list`, MCP tool `accelerator`, budget to 13 | reports "needs plugin" with the exact activate command; reports "blocked" when a patched record is missing; reads no instance beyond the mirror | M1 |
 | M3 | Materialization and `accelerator add`, pack branch | writes new records with the pack's sys_ids; applies a patch to the mirrored file only; refuses to overwrite a file the user changed; a second add of the same version changes nothing; never touches the index | M1 |
@@ -160,8 +176,8 @@ opt-in (`SNAGENTIC_LIVE_INSTANCE=pdi`).
 | M7 | End to end with the minimal test pack, live on the PDI | check → activate → pull → add → validate → plan_push → push → load, run twice: the second run changes nothing | M2–M6 |
 | M8 | Upgrade path | a pack version 1.0.1 that changes one property and removes one record merges with a user edit; the removed record is reported, not deleted | M3 |
 | M9 | Docs and agent pack | `docs/reference/commands.md` regenerated; deliver skill gains the accelerator steps; getting-started section | M7 |
-| — | **Release v1.5.0** (mechanism) | | M0–M9 |
-| B1 | ITSM pack: scoped app, all switch properties, import set tables and transforms for the 9 entities, demo data set | `accelerator check` clean on the PDI; demo load twice, no duplicates | v1.5.0, S-C |
+| — | **Release v1.7.0** (accelerator mechanism) | | M0–M9 |
+| B1 | ITSM pack (`nttdata/accelerators/itsm/`): scoped app, all switch properties, import set tables and transforms for the 9 entities, demo data set | `accelerator check` clean on the PDI; demo load twice, no duplicates | v1.7.0, S-C |
 | B2 | Foundation: persona groups and roles, schedules, CSDM-lite demo model | every offering has a support group and a schedule (template validation) | B1 |
 | B3 | Incident core: taxonomy, priority, hold reasons, routing chain, notifications, workspace | ATF files plus the browser smoke test of the design | B2 |
 | B4 | Incident tasks and parent/child | ATF: children close with parent; resolve blocked by open task | B3 |
@@ -187,18 +203,18 @@ validate, review, plan and push, prove, record evidence).
 - Import Set requests go through the request scheduler, are never retried, and honour
   cancellation (fake scheduler tests).
 
-## 7. Decisions for the product owner
+## 7. Decisions of the product owner (2026-10-14)
 
-- **P1. Release split.** Mechanism as v1.5.0 with the minimal test pack, ITSM content after.
-  *Recommendation: yes; it proves the path before the content depends on it.*
-- **P2. Pack location.** First-party packs in this repository (`packages/accelerators/`). The
-  ITSM pack is NTT DATA-specific (`x_nttdata_acc`); if it must not ship in the public binary,
-  it lives in a private repository and needs the "packs from a path" option ADR-0026 deferred.
-  *Recommendation: decide before B1; it changes nothing in track A if packs are read through
-  `PackSource`.*
-- **P3. Test pack fixture on the PDI.** The minimal pack creates a scratch application
-  (`x_<prefix>_snagtest`) on pdi2, which stays there. *Recommendation: accept; mark it inactive
-  after M7.*
+- **P1. Release split: mechanism first.** The accelerator mechanism ships with the minimal test
+  pack; ITSM content follows as pack versions.
+- **P2. Pack location: this repository, in `nttdata/`.** NTT DATA-specific packs live in a
+  self-contained top-level folder that can move to a private repository as a whole (section 4.2).
+  Moving it later needs the "packs from a path" option ADR-0026 deferred; nothing in track A
+  depends on where packs live, because they are read through `PackSource`.
+- **P3. Test pack fixture on the PDI: accepted.** The minimal pack's scratch application
+  (`x_<prefix>_snagtest`) stays on pdi2 and is marked inactive after M7.
+- **P4. Flows: their own release first.** Track F ships as v1.6.0; the accelerator mechanism
+  follows as v1.7.0. The current release is 1.5.0, so the plan's earlier "v1.5.0" became v1.7.0.
 
 ## 8. Risks
 

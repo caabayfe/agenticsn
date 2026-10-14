@@ -1,4 +1,9 @@
-import { EXIT_CODES, metadataPath, validate as validateRecords } from "@snagentic/core";
+import {
+  EXIT_CODES,
+  fluentSourcePath,
+  metadataPath,
+  validate as validateRecords,
+} from "@snagentic/core";
 import { z } from "zod";
 import { instanceFor } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
@@ -29,6 +34,7 @@ export const validate = defineUseCase({
     instance: z.string(),
     base: z.string(),
     records: z.number(),
+    fluentProjects: z.number().describe("Fluent projects under source/ built (ADR-0028)"),
     passed: z.boolean(),
     counts: z.object({ block: z.number(), warn: z.number(), info: z.number() }),
     findings: z
@@ -38,6 +44,10 @@ export const validate = defineUseCase({
           severity: Severity,
           title: z.string(),
           path: z.string(),
+          root: z
+            .enum(["workspace"])
+            .optional()
+            .describe("path is relative to the workspace (default: the instance's metadata)"),
           field: z.string().nullable(),
           line: z.number().nullable(),
           message: z.string(),
@@ -57,11 +67,13 @@ export const validate = defineUseCase({
     const root = await workspaceRoot(context);
     const instance = await instanceFor(root, context, input.instance);
     run.progress({ message: "checking changed records" });
+    const fluentPaths = (input.paths ?? []).flatMap((p) => fluentSourcePath(root, p) ?? []);
+    const recordPaths = (input.paths ?? []).filter((p) => fluentSourcePath(root, p) === null);
     const result = await validateRecords(context.governance(root, instance), {
       base: input.base,
       ...(input.paths === undefined
         ? {}
-        : { paths: input.paths.map((path) => metadataPath(instance, root, path)) }),
+        : { paths: recordPaths.map((path) => metadataPath(instance, root, path)), fluentPaths }),
     });
     return { instance, ...result };
   },
@@ -73,10 +85,12 @@ export const validate = defineUseCase({
     ]);
     const skipped = output.notChecked.map((s) => `not checked: ${s.path} (${s.reason})`);
     const { block, warn, info } = output.counts;
+    const fluent =
+      output.fluentProjects === 0 ? "" : ` and ${output.fluentProjects} Fluent project(s) built`;
     const summary =
-      output.records === 0
+      output.records === 0 && output.fluentProjects === 0
         ? `no changed records since ${output.base}`
-        : `${output.records} record(s) checked against ${output.base}: ${block} block, ${warn} warn, ${info} info`;
+        : `${output.records} record(s)${fluent} checked against ${output.base}: ${block} block, ${warn} warn, ${info} info`;
     return [...lines, ...skipped, summary].join("\n");
   },
   exitCode: (output) => (output.passed ? 0 : EXIT_CODES.findings),

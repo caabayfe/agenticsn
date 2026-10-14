@@ -1,4 +1,5 @@
 import type { ScriptKind } from "../advice/index";
+import type { FluentBuild, FluentProject } from "./domain/fluent-findings";
 
 // A record as it is in the workspace or at a commit: its fields (scripts included) and the
 // files they are in.
@@ -56,4 +57,15 @@ export type ScriptCheckResult =
 // Runs a rule pack's script rules (packages/rules-basic) on one script.
 export interface ScriptChecker {
   check(source: string, ruleIds: readonly string[], context: ScriptContext): ScriptCheckResult;
+}
+
+// The workspace's Fluent projects and the embedded SDK that builds them.
+export interface FluentProjects {
+  // Projects with a file that differs from `commit`: committed since, edited or added.
+  changedSince(commit: string): Promise<readonly FluentProject[]>;
+  // Projects holding any of these workspace-relative paths.
+  holding(paths: readonly string[]): Promise<readonly FluentProject[]>;
+  // Builds a copy of the project; the workspace is never written.
+  build(project: FluentProject): Promise<FluentBuild>;
+  sdkVersion(): Promise<string>;
 }

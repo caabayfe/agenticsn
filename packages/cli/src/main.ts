@@ -10,6 +10,8 @@ import { LayeredCredentialStore } from "./adapters/credentials/layered-credentia
 import { GhPullRequests } from "./adapters/delivery/gh-pull-requests";
 import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
 import { fluentProbe } from "./adapters/fluent/fluent-probe";
+import { loadFluentRuntime } from "./adapters/fluent/fluent-runtime-loader";
+import { WorkspaceFluentProjects } from "./adapters/fluent/workspace-fluent-projects";
 import { createTextFile } from "./adapters/fs/create-text-file";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
 import { gitInspector } from "./adapters/git/git-inspector";
@@ -89,6 +91,7 @@ const context: UseCaseContext = {
       instancePaths(instance).remoteBranch,
     ),
     checker: new EslintScriptChecker(),
+    fluent: new WorkspaceFluentProjects(root, loadFluentRuntime),
   }),
   files: { create: createTextFile },
   workspaceFiles: fsWorkspaceFiles,

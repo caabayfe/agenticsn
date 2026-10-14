@@ -7,6 +7,7 @@ import { gunzipSync } from "node:zlib";
 import { Orchestrator, Project } from "@servicenow/sdk-api";
 import { NoOpTelemetry, NowConfig, TelemetryFactory } from "@servicenow/sdk-build-core";
 import { overlayFs } from "./overlay";
+import { traced } from "./trace-calls";
 // @ts-expect-error spike: Bun embeds the asset and returns its path
 import typesAsset from "./types.json.gz" with { type: "file" };
 
@@ -31,7 +32,8 @@ const control = process.env["S13_TELEMETRY_CONTROL"] === "1";
 if (!control) process.env["NO_TELEMETRY"] = "1";
 const rootDir = resolve(process.argv[2] ?? ".");
 const files = JSON.parse(gunzipSync(fs.readFileSync(typesAsset)).toString("utf8"));
-const fileSystem = overlayFs(rootDir, files);
+const tracing = process.env["S13_TRACE"] === "1" ? traced(overlayFs(rootDir, files)) : undefined;
+const fileSystem = tracing?.fs ?? overlayFs(rootDir, files);
 const logger = {
   info: (m: string) => console.log("info", m),
   warn: (m: string) => console.log("warn", m),
@@ -89,3 +91,4 @@ if (!output.success) {
   }
   process.exitCode = 1;
 }
+tracing?.report();

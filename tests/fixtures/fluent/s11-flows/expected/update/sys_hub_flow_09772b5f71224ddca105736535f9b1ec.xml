@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_flow">
+  <sys_hub_flow action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>09772b5f71224ddca105736535f9b1ec</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_09772b5f71224ddca105736535f9b1ec</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <category/>
+    <description>Spike S11: adds a work note to incidents whose short description starts with S11B</description>
+    <flow_priority>MEDIUM</flow_priority>
+    <generation_source>fluent</generation_source>
+    <label_cache>[{"name":"Created_1.current","label":"Trigger - Record Created➛incident Record","type":"reference","base_type":"reference","usedInstances":{"11dc3fe3-d565-41f3-a9ae-fcc9c11269b7":["record"]},"attributes":{}}]</label_cache>
+    <name>snagentic spike S11 flow B</name>
+    <run_as>system</run_as>
+    <run_with_roles/>
+    <show_draft_actions>false</show_draft_actions>
+    <status>draft</status>
+    <sys_policy/>
+    <type>flow</type>
+    <version>2</version>
+  </sys_hub_flow>
+  <sys_hub_trigger_instance_v2 action="delete_multiple" query="flow=09772b5f71224ddca105736535f9b1ec^sys_idNOT IN4116525f94fc4943bfefe9067a04465d"/>
+  <sys_hub_trigger_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>4116525f94fc4943bfefe9067a04465d</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_trigger_instance_v2_4116525f94fc4943bfefe9067a04465d</sys_update_name>
+    <category/>
+    <comment/>
+    <flow>09772b5f71224ddca105736535f9b1ec</flow>
+    <name>Created</name>
+    <trigger_definition>798916a0c31322002841b63b12d3ae7c</trigger_definition>
+    <trigger_inputs>H4sIAAAAAAAAE8VXTW/bMAz9K4JPG5AB7bW3dt2wAN0KNNl6KApDsehEmCIFEp3UKPLfR/kjlR3nC3G7UytKJh8fHynl6TVCK6dTsEPtkOsERrkbiugqigaR4hNQ9O+YTxTQWmoEq7ka5wsgM3pzrPnc7wlYgBagsfw0mRmZwJ10tH56HkRzrgVHY/PoCm0Gg8hYATa6ury4GESFi8offbvkKvNrqRNZeCTv0i0Uz//s3PkuQVWoXWLlAq8TlEs6m3LlwOORSljQJZoFtxQSPQDKvyObFqImEev14BjWHjLN7jX79oKeGMGKj902jSVVByh8jdI6ec8fbad3QRyjWZJZyg8ZEc2gjol1zHQ451MoHacjUJAgiA076W8Xrn5K56SeVgaf7SZ4YdmOrvIQQk3bOUGbmqkOdYjGZjo2Oq4zDuRTQ21pp2U+Xzib+u1EdFARHElOkwxpQX65WHpJibrW6xME9zgDzUZAVBr/F9FTerbkJgZn7aKnxrIbsrOh980L1grx/TL6S2ir0PSpQk38yrcQIbR7r8Ua3w4oPSI5BgU5s6x/GKd0yIpkEbuNHJbNurY6pGl9nwZpATpCwv31SKrMiupxfltwnW91hfctNTVCzhJD7l+wR7VNePJ3ak2mxa64byfYJwEpzxR+7nP8Gwv7ATRPfJC8fXAaCIGyy9K0hN0wvo+u35B0K64fFX81WkgsR0hbw/WWO+lRtpvfJIhVs+tmxmIsoCSO9kbj64fx6HE4/jG6vLzZZv7oD3qoSkhARw5dHDarsuIaXYwm5kLEgbvN02tuBKjbgNuqYlT4RYYuWgfM01MgeEhmDuKgKN7fqZd7cZv0drN3jTC6svz4Iqy2x9FhNMQm7bwkZcoqAuhRNMkZzoBQKGoa8lXg6Pfx4IvSBnNrGG0w+yFwTr66fdCO+/t/TbkuTIeE2vMbt/Be6HmrB6aKfhzGqtzrYwQ2U64c1zXYLsDx7Bc+giwPV6OR2z54ewk7WIvnf2HiD6cYEAAA</trigger_inputs>
+    <trigger_outputs/>
+    <trigger_type>record_create</trigger_type>
+  </sys_hub_trigger_instance_v2>
+  <sys_hub_action_instance_v2 action="delete_multiple" query="flow=09772b5f71224ddca105736535f9b1ec^sys_idNOT IN11dc3fe3d56541f3a9aefcc9c11269b7"/>
+  <sys_hub_action_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>11dc3fe3d56541f3a9aefcc9c11269b7</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_instance_v2_11dc3fe3d56541f3a9aefcc9c11269b7</sys_update_name>
+    <action_type>f9d01dd2c31332002841b63b12d3aea1</action_type>
+    <action_type_parent>f9d01dd2c31332002841b63b12d3aea1</action_type_parent>
+    <active>true</active>
+    <comment/>
+    <display_text/>
+    <flow>09772b5f71224ddca105736535f9b1ec</flow>
+    <generation_source/>
+    <order>1</order>
+    <parent_ui_id/>
+    <sys_class_name>sys_hub_action_instance_v2</sys_class_name>
+    <ui_id>11dc3fe3-d565-41f3-a9ae-fcc9c11269b7</ui_id>
+    <updation_source/>
+    <values>H4sIAAAAAAAAE42QwQrCMBBEf6XkXIReCx5U/AARvIiGmGwhmCZls20pIf9urCDVIva4s7Mzjz0HZkUNrGQkbgb4OOSsE6Z9itpKrcBSkpT2jRHDab7xEnVDG0m6S5tKGA85awSmKAJkZWA0NF8VMebvZgTpUE1aQ9ghCALFi5VsEVNNjHOEX7bFPMrJtk5XXKsPoJHDT4B6h3duHYFfH4siq4zrs22Gwl73hznXH/fyd0GdYgn4CyPGywNY8I6hrgEAAA==</values>
+  </sys_hub_action_instance_v2>
+  <sys_hub_alias_mapping action="delete_multiple" query="source_id=11dc3fe3d56541f3a9aefcc9c11269b7"/>
+</record_update>

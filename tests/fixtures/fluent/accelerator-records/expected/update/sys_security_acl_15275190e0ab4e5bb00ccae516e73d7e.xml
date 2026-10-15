@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<record_update table="sys_security_acl">
+  <sys_security_acl action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>15275190e0ab4e5bb00ccae516e73d7e</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_security_acl_15275190e0ab4e5bb00ccae516e73d7e</sys_update_name>
+    <active>true</active>
+    <admin_overrides>true</admin_overrides>
+    <advanced>false</advanced>
+    <applies_to/>
+    <condition/>
+    <decision_type>allow</decision_type>
+    <description>snagentic test A2 ACL</description>
+    <name>incident</name>
+    <operation display_value="read">read</operation>
+    <script/>
+    <security_attribute/>
+    <sys_name>incident</sys_name>
+    <type>record</type>
+  </sys_security_acl>
+</record_update>

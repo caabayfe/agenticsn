@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_flow">
+  <sys_hub_flow action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>e90b7ddee36e429d87afcba9526ce130</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_e90b7ddee36e429d87afcba9526ce130</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <category/>
+    <description/>
+    <flow_priority>MEDIUM</flow_priority>
+    <generation_source>fluent</generation_source>
+    <label_cache>[]</label_cache>
+    <name>snagentic test A2 daily</name>
+    <run_as>system</run_as>
+    <run_with_roles/>
+    <show_draft_actions>false</show_draft_actions>
+    <status>draft</status>
+    <sys_policy/>
+    <type>flow</type>
+    <version>2</version>
+  </sys_hub_flow>
+  <sys_hub_trigger_instance_v2 action="delete_multiple" query="flow=e90b7ddee36e429d87afcba9526ce130^sys_idNOT INe81087e18f6549fc99ede522efbe1b3e"/>
+  <sys_hub_trigger_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>e81087e18f6549fc99ede522efbe1b3e</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_trigger_instance_v2_e81087e18f6549fc99ede522efbe1b3e</sys_update_name>
+    <category/>
+    <comment/>
+    <flow>e90b7ddee36e429d87afcba9526ce130</flow>
+    <name>Daily</name>
+    <trigger_definition>89142dc0c32222002841b63b12d3ae8a</trigger_definition>
+    <trigger_inputs>H4sIAAAAAAAAE42QPWvDQAyG/0rR7MKZDqXeshQC3Rq6hFCUO9UVnOVDpwRMyX+PDmcJZCho0KvPR9r/gSmPI+lWqqFE+lzqNsEA0EHGI2V3dzyRSxYjFcy7pZBHx8yJvm3NJSokicTWzvg7c6QPrq73hw4mlIQ26wKD6Yk6mDWRwtCH0IHg1ObdJp0xn5rs317Dc+jdnsLLEIJb28O1ZFy+/lP0zpRvl9SoXGwTjc/e9oO5UoPknJRkRSyozmGNyn/y4MR7zLvfXC6HK2WajF1JAQAA</trigger_inputs>
+    <trigger_outputs/>
+    <trigger_type>daily</trigger_type>
+  </sys_hub_trigger_instance_v2>
+  <sys_hub_action_instance_v2 action="delete_multiple" query="flow=e90b7ddee36e429d87afcba9526ce130^sys_idNOT INc676bfb51c1d415c8ba71d6b894049c3"/>
+  <sys_hub_action_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>c676bfb51c1d415c8ba71d6b894049c3</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_instance_v2_c676bfb51c1d415c8ba71d6b894049c3</sys_update_name>
+    <action_type>43400a1587003300663ca1bb36cb0b4b</action_type>
+    <action_type_parent>43400a1587003300663ca1bb36cb0b4b</action_type_parent>
+    <active>true</active>
+    <comment/>
+    <display_text/>
+    <flow>e90b7ddee36e429d87afcba9526ce130</flow>
+    <generation_source/>
+    <order>1</order>
+    <parent_ui_id/>
+    <sys_class_name>sys_hub_action_instance_v2</sys_class_name>
+    <ui_id>c676bfb5-1c1d-415c-8ba7-1d6b894049c3</ui_id>
+    <updation_source/>
+    <values>H4sIAAAAAAAAE5XRsQ6CMBAG4He5mcWBhYTBl3AxSs5y6iWlbdqDSEjfXeygFQZx/e/S72/uOIHBjqACZU3LwtYEKGBA3b9CVMID1eJ7OjvP1rOM9W5eaDk4jePh115Qnp3s0xiqK+pABTj0synkoZpARrfgYyzerQQvmrJCbBS3ZGRdIZtsRtPrTaJyNFgvTVr5wCnDoNZwNtn+27tl9Y12+Gg8hV5LdoByqZV/IGyEbnMS4+kJaD6clOcBAAA=</values>
+  </sys_hub_action_instance_v2>
+  <sys_hub_alias_mapping action="delete_multiple" query="source_id=c676bfb51c1d415c8ba71d6b894049c3"/>
+</record_update>

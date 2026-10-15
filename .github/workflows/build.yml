@@ -32,7 +32,7 @@ jobs:
           - { target: linux-x64, runner: ubuntu-24.04 }
           - { target: linux-arm64, runner: ubuntu-24.04-arm }
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -55,6 +55,36 @@ jobs:
           bun scripts/measure-s5.ts --binary dist/s5-lint \
             --sample tools/spikes/s5-lint-latency/sample-business-rule.js \
             --target ${{ matrix.target }} --out dist/s5-${{ matrix.target }}.json
+      # Spike S13 (ADR-0028): the SDK's build embedded in a binary, run on each platform against
+      # the now-sdk CLI's committed output (flows test plan A1, A2, A3, A4, A5).
+      - name: "S13: build Fluent fixtures from a binary"
+        if: always()
+        working-directory: tools/spikes/s13-embedded-sdk
+        run: |
+          bun install --frozen-lockfile
+          bun make-types.ts .
+          bun compile.ts ./embed.ts ./embed-bin
+          bun compile.ts ./with-sdk-split.ts ./snagentic-sdk-bin ./embed.ts --minify=whitespace,syntax
+          bun fixtures.ts --binary ./embed-bin --fixtures ../../../tests/fixtures/fluent \
+            --target ${{ matrix.target }} --startup ../../../dist/snagentic,./snagentic-sdk-bin \
+            --keep ../../../dist/s13-failed-builds
+      - name: "S13: trace the SDK's file reads for s11-flows (A3, Windows investigation)"
+        if: always()
+        working-directory: tools/spikes/s13-embedded-sdk
+        run: |
+          cp -r ../../../tests/fixtures/fluent/s11-flows "$RUNNER_TEMP/s11-trace"
+          rm -rf "$RUNNER_TEMP/s11-trace/expected"
+          S13_TRACE=1 ./embed-bin "$RUNNER_TEMP/s11-trace" | grep -E "^trace|^success" || true
+      - name: "S13: the now-sdk CLI (Node) on s11-flows, to compare with the binary (A3)"
+        if: always()
+        run: |
+          cp -r tests/fixtures/fluent/s11-flows "$RUNNER_TEMP/s11-cli"
+          rm -rf "$RUNNER_TEMP/s11-cli/expected"
+          cd "$RUNNER_TEMP/s11-cli"
+          npm install --no-audit --no-fund --ignore-scripts @servicenow/sdk@4.13.6 >/dev/null
+          NO_TELEMETRY=1 npx now-sdk build >/dev/null 2>&1 || echo "CLI build failed"
+          echo "CLI records: $(find dist/app -name '*.xml' | wc -l)"
+          find dist/app -name '*.xml' | sed -E 's|.*/app/||; s|/.*||' | sort | uniq -c
       - uses: actions/upload-artifact@v4
         if: always()
         with:

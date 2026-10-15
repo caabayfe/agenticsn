@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_flow">
+  <sys_hub_flow action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>97fb0397e7174772ba77e6df81f7acfb</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_97fb0397e7174772ba77e6df81f7acfb</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <category/>
+    <description/>
+    <flow_priority>MEDIUM</flow_priority>
+    <generation_source>fluent</generation_source>
+    <label_cache>[{"name":"Created_1.current.sys_id","label":"Trigger - Record Created➛incident Record➛Sys Id","type":"string","base_type":"string","usedInstances":{"1e37d498-7dce-400d-b393-8846ec9bdeeb":["incident"]},"attributes":{}},{"name":"1e37d498-7dce-400d-b393-8846ec9bdeeb.done","label":"1e37d498-7dce-400d-b393-8846ec9bdeeb➛done","type":"boolean","base_type":"boolean","usedInstances":{"83fb8187-adcf-467e-984f-7ce574d41719":["condition"]},"attributes":{}}]</label_cache>
+    <name>snagentic test A2 subflow caller</name>
+    <run_as>system</run_as>
+    <run_with_roles/>
+    <show_draft_actions>false</show_draft_actions>
+    <status>draft</status>
+    <sys_policy/>
+    <type>flow</type>
+    <version>2</version>
+  </sys_hub_flow>
+  <sys_hub_trigger_instance_v2 action="delete_multiple" query="flow=97fb0397e7174772ba77e6df81f7acfb^sys_idNOT IN0295a37238eb42a4a25bfb8851e847e3"/>
+  <sys_hub_trigger_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>0295a37238eb42a4a25bfb8851e847e3</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_trigger_instance_v2_0295a37238eb42a4a25bfb8851e847e3</sys_update_name>
+    <category/>
+    <comment/>
+    <flow>97fb0397e7174772ba77e6df81f7acfb</flow>
+    <name>Created</name>
+    <trigger_definition>798916a0c31322002841b63b12d3ae7c</trigger_definition>
+    <trigger_inputs>H4sIAAAAAAAAE8VXTW/bMAz9K4JPG5AB3Y69teuKBehWoEnXQ1EYikUnwhQpkOi0RpH/Psofiew4TYK43akVJZOPj4+U8vgaoZXTKdihdsh1AqPcDUV0HkWDSPEJKPp3zCcKaC01gtVcjfMFkBm9OdZ87vcELEAL0Fh+msyMTOBGOlo/Pg2iOdeCo7F5dI42g0FkrAAbnX89OxtEhYvKH3275Crza6kTWXgk79ItFM//7Ny5lqAq1C6xcoEXCcolnU25cuDxSCUs6BLNglsKiR4A5d+RTQtRk4jVanAIa3eZZrea/XhBT4xgxcdum8aSqj0UvkZpnbznj7bTmyCO0SzJLOWHjIhmUMfEOmY6nPMplI7TEShIEMSanfTehatf0jmpp5XBZ7sOXli2o6s8hFDTdkrQpmaqQx2isZmOjY7rjAP51FBb2mmZTxfOun47Ee1VBEeS0yRDWpBfLpZeUqKu9eoIwT3MQLMREJXG/0X0lJ4suYnBWbvoqbHskuxs6H3zgrVCfL+N/hLaKjR9qlATv3ITIoR267VY49sBpUckh6AgZ5b1D+OYDnkmWcRuLYdls66tDmla36dBWoAOkHB/PZIq80z1OL0tuM63usL7lpoaIWeJIfcv2KPaJjz5O7Um02JX3M0J9klAyjOFn/sc/8bC2wCaJz5I3j44DYRA2WVpWsJuGN9H1xsk3YrrR8XfjRYSyxHS1nC95Y56lO3mNwli1ey6mbEYCyiJo73R+OJuPHoYjn9efBvdX25Tf/gXPdQlpKAjiy4Wm3V55hpdjCbmQsSBu/Xja24EqKuA3apmVPpFhi5aBdzTYyB4SmYO4qAs3t+x13txn/R2t3cNMbq0/AAjrLbH4WE0xCbtvCZlyioC6Fk0yRnOgFAoahvyVeDo9/ngi9IGc2UYbTD7IXCOvrx90I4b/H/NuS5M+4Ta8yu38F7oeasHpop+Hsaq3OtjCDZTrhzXNdguwOHsFz6CLPdXo5HbW/DeJGxvLZ7+AXPh3MUaEAAA</trigger_inputs>
+    <trigger_outputs/>
+    <trigger_type>record_create</trigger_type>
+  </sys_hub_trigger_instance_v2>
+  <sys_hub_flow_logic_instance_v2 action="delete_multiple" query="flow=97fb0397e7174772ba77e6df81f7acfb^sys_idNOT IN83fb8187adcf467e984f7ce574d41719,cf4f8bf255ad45f3a0b5855a1faf4f00"/>
+  <sys_hub_flow_logic_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>83fb8187adcf467e984f7ce574d41719</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_logic_instance_v2_83fb8187adcf467e984f7ce574d41719</sys_update_name>
+    <comment/>
+    <flow>97fb0397e7174772ba77e6df81f7acfb</flow>
+    <logic_definition>af4e1945c3e232002841b63b12d3ae3e</logic_definition>
+    <order>2</order>
+    <ui_id>83fb8187-adcf-467e-984f-7ce574d41719</ui_id>
+    <values>H4sIAAAAAAAAE6VQPQvCMBD9Lze3orRoW3Do6C4u4pDmTj2MSUhSRUL+uykqdHd79+7eBxfBjMGOwe9N7z1fNHTHUwEP4VgMivxnRJLs2ej9xO30dP9dvLS4s5xTT+NuZ2Wec45/OAIjdAAFZB1lJI1GDtkaplA1TlyMK6o2WLdNuUFJZb1cYjlUbVU2Tb0m2Q5INCzQaEppG1wW5SbsrRKvwz8e8soKHX1/YIXLHQM56GIqwEvHNvQy8CMHnIXylE7pDR1vvjxAAQAA</values>
+  </sys_hub_flow_logic_instance_v2>
+  <sys_hub_flow_logic_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>cf4f8bf255ad45f3a0b5855a1faf4f00</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_logic_instance_v2_cf4f8bf255ad45f3a0b5855a1faf4f00</sys_update_name>
+    <comment/>
+    <flow>97fb0397e7174772ba77e6df81f7acfb</flow>
+    <logic_definition>d176605ea76103004f27b0d2187901c7</logic_definition>
+    <order>3</order>
+    <parent_ui_id>83fb8187-adcf-467e-984f-7ce574d41719</parent_ui_id>
+    <ui_id>cf4f8bf2-55ad-45f3-a0b5-855a1faf4f00</ui_id>
+    <values>H4sIAAAAAAAAE6tWyi8tKSgtKQ7JdywuzkzPU7KKjtVRKkssykxMykkthnBTUpMzizPz80JAYp55IPVQicq8xNzMZGSh8vyi7LSc/HJksUw4uxYAKGKfk3EAAAA=</values>
+  </sys_hub_flow_logic_instance_v2>
+  <sys_hub_sub_flow_instance_v2 action="delete_multiple" query="flow=97fb0397e7174772ba77e6df81f7acfb^sys_idNOT IN1e37d4987dce400db3938846ec9bdeeb"/>
+  <sys_hub_sub_flow_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>1e37d4987dce400db3938846ec9bdeeb</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_sub_flow_instance_v2_1e37d4987dce400db3938846ec9bdeeb</sys_update_name>
+    <attributes/>
+    <comment/>
+    <display_text/>
+    <flow>97fb0397e7174772ba77e6df81f7acfb</flow>
+    <generation_source/>
+    <order>1</order>
+    <parent_ui_id/>
+    <show_stages>false</show_stages>
+    <subflow>31888791f4594307add669e28d45f8b3</subflow>
+    <subflow_inputs>H4sIAAAAAAAAE42OwQrCMBBEf6XsuRT0mJv0H7yIlNhsJZAmYXejhJB/N71IQRGvM294cyng9YqgwPrZGvQCPTy0S1tUykioBc10GOZE1NqBM0/W1NowYzk6nc//0VFTEwkSqAKS4zZhIevvUGv/vuGD4O7C6ai6hcLacbotLjw/tV+In6rrCzZI6YnzAAAA</subflow_inputs>
+    <sys_class_name>sys_hub_sub_flow_instance_v2</sys_class_name>
+    <ui_id>1e37d498-7dce-400d-b393-8846ec9bdeeb</ui_id>
+    <wait_for_completion>true</wait_for_completion>
+  </sys_hub_sub_flow_instance_v2>
+  <sys_hub_alias_mapping action="delete_multiple" query="source_id=1e37d4987dce400db3938846ec9bdeeb"/>
+</record_update>

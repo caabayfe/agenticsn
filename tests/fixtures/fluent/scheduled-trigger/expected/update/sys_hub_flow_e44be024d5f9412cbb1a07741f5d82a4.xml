@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_flow">
+  <sys_hub_flow action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>e44be024d5f9412cbb1a07741f5d82a4</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_e44be024d5f9412cbb1a07741f5d82a4</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <category/>
+    <description/>
+    <flow_priority>MEDIUM</flow_priority>
+    <generation_source>fluent</generation_source>
+    <label_cache>[]</label_cache>
+    <name>snagentic test A2 repeat</name>
+    <run_as>system</run_as>
+    <run_with_roles/>
+    <show_draft_actions>false</show_draft_actions>
+    <status>draft</status>
+    <sys_policy/>
+    <type>flow</type>
+    <version>2</version>
+  </sys_hub_flow>
+  <sys_hub_trigger_instance_v2 action="delete_multiple" query="flow=e44be024d5f9412cbb1a07741f5d82a4^sys_idNOT INeea29eef2f204d13ab43342135c76f71"/>
+  <sys_hub_trigger_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>eea29eef2f204d13ab43342135c76f71</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_trigger_instance_v2_eea29eef2f204d13ab43342135c76f71</sys_update_name>
+    <category/>
+    <comment/>
+    <flow>e44be024d5f9412cbb1a07741f5d82a4</flow>
+    <name>Repeat</name>
+    <trigger_definition>f63f0d94c32222002841b63b12d3aeed</trigger_definition>
+    <trigger_inputs>H4sIAAAAAAAAE42QTUsDQQyG/4rkvIXZi9K99SIUPKl4KUXSmbgGptkhky0s0v/eDK2XgiDkkLz5epLdD5jyOJJupRpKpLelbhMMAB1kPFB295UKobnAYqSC+X0p5PqYOdFnmhWNJ/F88kJJJHbtj98TR3rh6vFu38ERJaFNusBgOlMHkyZSGPoQOhA8tpn6u+uEeW5Cv34Kq9C7PYTHIQS3tolrybh8/KfomSnfLqpRudgmGp+87QtzpYbJOSnJFbKgOok1Lv/NH4few9596nzeXwAfkKa3WQEAAA==</trigger_inputs>
+    <trigger_outputs/>
+    <trigger_type>repeat</trigger_type>
+  </sys_hub_trigger_instance_v2>
+  <sys_hub_action_instance_v2 action="delete_multiple" query="flow=e44be024d5f9412cbb1a07741f5d82a4^sys_idNOT IN5807c9c0100b46859de3298ca3f15ff7"/>
+  <sys_hub_action_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>5807c9c0100b46859de3298ca3f15ff7</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_instance_v2_5807c9c0100b46859de3298ca3f15ff7</sys_update_name>
+    <action_type>43400a1587003300663ca1bb36cb0b4b</action_type>
+    <action_type_parent>43400a1587003300663ca1bb36cb0b4b</action_type_parent>
+    <active>true</active>
+    <comment/>
+    <display_text/>
+    <flow>e44be024d5f9412cbb1a07741f5d82a4</flow>
+    <generation_source/>
+    <order>1</order>
+    <parent_ui_id/>
+    <sys_class_name>sys_hub_action_instance_v2</sys_class_name>
+    <ui_id>5807c9c0-100b-4685-9de3-298ca3f15ff7</ui_id>
+    <updation_source/>
+    <values>H4sIAAAAAAAAE5XRwQ6CMAwG4HfpmZMJFxIOvoQXo6SOqk3GtmyFSMjeXdxBJxzE699m37/0OIHBjqACZU3LwtYEKGBA3b9CVMID1eJ7OjvP1rOM9W5eaDk4jePh115Qnp3s0xiqK+pABTj0synkoZpARrfgYyzerQQvmrJCbBS3ZGRdIZtsRtPrTaJyNFgvTVr5wCnDoNZwNtn+27tl9Y12+Gg8hV5LdoByqZV/IGyEbnMS4+kJJH9g+OcBAAA=</values>
+  </sys_hub_action_instance_v2>
+  <sys_hub_alias_mapping action="delete_multiple" query="source_id=5807c9c0100b46859de3298ca3f15ff7"/>
+</record_update>

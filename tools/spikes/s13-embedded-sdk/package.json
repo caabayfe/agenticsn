@@ -1,0 +1,9 @@
+{
+  "name": "s13-embedded-sdk",
+  "private": true,
+  "description": "Spike S13: the ServiceNow SDK's build inside the snagentic binary. Not a product dependency.",
+  "dependencies": {
+    "@rollup/wasm-node": "4.62.2",
+    "@servicenow/sdk": "4.13.6"
+  }
+}

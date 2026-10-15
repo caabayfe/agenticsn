@@ -1,0 +1,150 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_flow">
+  <sys_hub_flow action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>36310466663c44eaaf626a257c82c464</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_36310466663c44eaaf626a257c82c464</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <category/>
+    <description/>
+    <flow_priority>MEDIUM</flow_priority>
+    <generation_source>fluent</generation_source>
+    <label_cache>[{"name":"subflow.incident","label":"Input➛Incident sys_id","type":"reference","base_type":"reference","usedInstances":{"d1e0b05f-0273-4cf6-8316-5d4fde97e3e5":["record"]},"attributes":{},"reference_table":null,"reference_display":null},{"name":"subflow.note","label":"Input➛Note","type":"string","base_type":"string","usedInstances":{"d1e0b05f-0273-4cf6-8316-5d4fde97e3e5":["values"]},"attributes":{},"reference_table":null,"reference_display":null}]</label_cache>
+    <name>snagentic test A2 subflow</name>
+    <run_as>system</run_as>
+    <run_with_roles/>
+    <show_draft_actions>false</show_draft_actions>
+    <status>draft</status>
+    <sys_policy/>
+    <type>subflow</type>
+    <version>2</version>
+  </sys_hub_flow>
+  <sys_hub_flow_input action="delete_multiple" query="model=36310466663c44eaaf626a257c82c464^sys_idNOT INe33e53a855b84b01bd431a5baaf2a849,8451e588d9544970ae35dde18053f128"/>
+  <sys_hub_flow_input action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>e33e53a855b84b01bd431a5baaf2a849</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_input_e33e53a855b84b01bd431a5baaf2a849</sys_update_name>
+    <active>true</active>
+    <attributes/>
+    <default_value/>
+    <element>incident</element>
+    <hint/>
+    <internal_type>string</internal_type>
+    <label>Incident sys_id</label>
+    <mandatory>true</mandatory>
+    <max_length>40</max_length>
+    <model>36310466663c44eaaf626a257c82c464</model>
+    <model_id>36310466663c44eaaf626a257c82c464</model_id>
+    <model_table>sys_hub_flow</model_table>
+    <name>var__m_sys_hub_flow_input_36310466663c44eaaf626a257c82c464</name>
+    <order>1</order>
+  </sys_hub_flow_input>
+  <sys_hub_flow_input action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>8451e588d9544970ae35dde18053f128</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_input_8451e588d9544970ae35dde18053f128</sys_update_name>
+    <active>true</active>
+    <attributes/>
+    <default_value/>
+    <element>note</element>
+    <hint/>
+    <internal_type>string</internal_type>
+    <label>Note</label>
+    <mandatory>false</mandatory>
+    <max_length>40</max_length>
+    <model>36310466663c44eaaf626a257c82c464</model>
+    <model_id>36310466663c44eaaf626a257c82c464</model_id>
+    <model_table>sys_hub_flow</model_table>
+    <name>var__m_sys_hub_flow_input_36310466663c44eaaf626a257c82c464</name>
+    <order>2</order>
+  </sys_hub_flow_input>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>5cf0679805b3467abecffc5cd08fac77</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_flow_input_36310466663c44eaaf626a257c82c464_incident_en</sys_update_name>
+    <element>incident</element>
+    <hint/>
+    <label>Incident sys_id</label>
+    <language>en</language>
+    <name>var__m_sys_hub_flow_input_36310466663c44eaaf626a257c82c464</name>
+    <plural>Incident sys_ids</plural>
+  </sys_documentation>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>1c8333f262104d53b7e5a2dbd3b3e1c6</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_flow_input_36310466663c44eaaf626a257c82c464_note_en</sys_update_name>
+    <element>note</element>
+    <hint/>
+    <label>Note</label>
+    <language>en</language>
+    <name>var__m_sys_hub_flow_input_36310466663c44eaaf626a257c82c464</name>
+    <plural>Notes</plural>
+  </sys_documentation>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>272c752f72fc44e3b1f253e8a3c40a08</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_flow_output_36310466663c44eaaf626a257c82c464_done_en</sys_update_name>
+    <element>done</element>
+    <hint/>
+    <label>Done</label>
+    <language>en</language>
+    <name>var__m_sys_hub_flow_output_36310466663c44eaaf626a257c82c464</name>
+    <plural>Dones</plural>
+  </sys_documentation>
+  <sys_hub_flow_output action="delete_multiple" query="model=36310466663c44eaaf626a257c82c464^sys_idNOT INe8aee1955d464d31b69fd9f36a57d9ce"/>
+  <sys_hub_flow_output action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>e8aee1955d464d31b69fd9f36a57d9ce</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_output_e8aee1955d464d31b69fd9f36a57d9ce</sys_update_name>
+    <active>true</active>
+    <attributes/>
+    <default_value/>
+    <element>done</element>
+    <hint/>
+    <internal_type>boolean</internal_type>
+    <label>Done</label>
+    <mandatory>true</mandatory>
+    <max_length>40</max_length>
+    <model>36310466663c44eaaf626a257c82c464</model>
+    <model_id>36310466663c44eaaf626a257c82c464</model_id>
+    <model_table>sys_hub_flow</model_table>
+    <name>var__m_sys_hub_flow_output_36310466663c44eaaf626a257c82c464</name>
+    <order>1</order>
+  </sys_hub_flow_output>
+  <sys_hub_action_instance_v2 action="delete_multiple" query="flow=36310466663c44eaaf626a257c82c464^sys_idNOT INd1e0b05f02734cf683165d4fde97e3e5"/>
+  <sys_hub_action_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>d1e0b05f02734cf683165d4fde97e3e5</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_instance_v2_d1e0b05f02734cf683165d4fde97e3e5</sys_update_name>
+    <action_type>f9d01dd2c31332002841b63b12d3aea1</action_type>
+    <action_type_parent>f9d01dd2c31332002841b63b12d3aea1</action_type_parent>
+    <active>true</active>
+    <comment/>
+    <display_text/>
+    <flow>36310466663c44eaaf626a257c82c464</flow>
+    <generation_source/>
+    <order>1</order>
+    <parent_ui_id/>
+    <sys_class_name>sys_hub_action_instance_v2</sys_class_name>
+    <ui_id>d1e0b05f-0273-4cf6-8316-5d4fde97e3e5</ui_id>
+    <updation_source/>
+    <values>H4sIAAAAAAAAE42QTQrCMBBG75J18QAFFy48QDduREOaTCGYJiGZtpQwdzetqNUidvnN33vMOTErWmAlQ1Eb4HMoWC9MNxW1lVqBxVxSOnojxtO6E2XQHg8SdZ87jTARCuZFyKcQAisTw9F/IYiKFzmAdEEtqCnFrm6MG3ZPCtHa4MfUZhvlZNfmLa7Vh85sERc6gws3bh1C3L+ZUya6Hqu12N/57Q+DNh9G4A8VossdhZoAVbABAAA=</values>
+  </sys_hub_action_instance_v2>
+  <sys_hub_alias_mapping action="delete_multiple" query="source_id=d1e0b05f02734cf683165d4fde97e3e5"/>
+  <sys_hub_flow_logic_instance_v2 action="delete_multiple" query="flow=36310466663c44eaaf626a257c82c464^sys_idNOT IN79acc68ffbf7431d9f377df1dbd32856"/>
+  <sys_hub_flow_logic_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>79acc68ffbf7431d9f377df1dbd32856</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_logic_instance_v2_79acc68ffbf7431d9f377df1dbd32856</sys_update_name>
+    <comment/>
+    <flow>36310466663c44eaaf626a257c82c464</flow>
+    <logic_definition>df4e1945c3e232002841b63b12d3ae3e</logic_definition>
+    <order>2</order>
+    <outputs_assigned>done</outputs_assigned>
+    <ui_id>79acc68f-fbf7-431d-9f37-7df1dbd32856</ui_id>
+    <values>H4sIAAAAAAAAE1WOsQ7DIBBD/+VmviBbxu5RlyoDhUt6KgV0B4kixL8X1KpKN/tZtlwg5BRzkimMIrR6GG4FyMIAoMDrFzZlg8fmNu1yt4lzt5YkOn1c/6l5kLOMfWdWEDW3iYQMQ6kKxDDFNJpEW6ss2gnWuQ8z6btD+ZQsGhIKfurs4vu7b3C0Q2TOaA/8XFzYz4x+ur4Bj05qmt8AAAA=</values>
+  </sys_hub_flow_logic_instance_v2>
+</record_update>

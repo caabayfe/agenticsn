@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<record_update table="sys_properties">
+  <sys_properties action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>d81aa60e28424892bee568d50e2ea7d9</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_properties_d81aa60e28424892bee568d50e2ea7d9</sys_update_name>
+    <choices/>
+    <description>snagentic test A2 property</description>
+    <ignore_cache>false</ignore_cache>
+    <is_private>false</is_private>
+    <name>x_2222332_s11.a2.enabled</name>
+    <read_roles>admin</read_roles>
+    <suffix>a2.enabled</suffix>
+    <type>boolean</type>
+    <value>true</value>
+    <write_roles>admin</write_roles>
+  </sys_properties>
+</record_update>

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<record_update table="sys_security_acl_role">
+  <sys_security_acl_role action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>e9d8c1c241fe434e81ca8665025e2cc8</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_security_acl_role_e9d8c1c241fe434e81ca8665025e2cc8</sys_update_name>
+    <sys_name>incident.itil</sys_name>
+    <sys_security_acl>15275190e0ab4e5bb00ccae516e73d7e</sys_security_acl>
+    <sys_user_role name="itil">b96ac931ed474d6697a68609d7fcb04a</sys_user_role>
+  </sys_security_acl_role>
+</record_update>

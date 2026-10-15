@@ -1,0 +1,4 @@
+# Fluent fixtures and their now-sdk output are compared byte for byte on every platform (spike
+# S13, test A3): keep LF line endings on Windows checkouts too.
+tests/fixtures/fluent/** text eol=lf
+tests/fixtures/fluent-errors/** text eol=lf

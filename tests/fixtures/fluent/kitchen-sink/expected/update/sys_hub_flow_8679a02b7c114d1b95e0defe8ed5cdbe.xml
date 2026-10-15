@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_flow">
+  <sys_hub_flow action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>8679a02b7c114d1b95e0defe8ed5cdbe</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_8679a02b7c114d1b95e0defe8ed5cdbe</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <category/>
+    <description/>
+    <flow_priority>MEDIUM</flow_priority>
+    <generation_source>fluent</generation_source>
+    <label_cache>[{"name":"Inbound Email_1.subject","label":"Trigger - Inbound Email➛Subject","type":"string","base_type":"string","usedInstances":{"a4bdab35-a171-4dc1-9783-4e21d2b9ec2a":["values"]},"attributes":{}},{"name":"Inbound Email_1.body_text","label":"Trigger - Inbound Email➛Body Text","type":"string","base_type":"string","usedInstances":{"a4bdab35-a171-4dc1-9783-4e21d2b9ec2a":["values"]},"attributes":{}}]</label_cache>
+    <name>snagentic test A2 inbound email</name>
+    <run_as>system</run_as>
+    <run_with_roles/>
+    <show_draft_actions>false</show_draft_actions>
+    <status>draft</status>
+    <sys_policy/>
+    <type>flow</type>
+    <version>2</version>
+  </sys_hub_flow>
+  <sys_hub_trigger_instance_v2 action="delete_multiple" query="flow=8679a02b7c114d1b95e0defe8ed5cdbe^sys_idNOT INeab99d811709490988f71ccfaf36ea50"/>
+  <sys_hub_trigger_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>eab99d811709490988f71ccfaf36ea50</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_trigger_instance_v2_eab99d811709490988f71ccfaf36ea50</sys_update_name>
+    <category/>
+    <comment/>
+    <flow>8679a02b7c114d1b95e0defe8ed5cdbe</flow>
+    <name>Inbound Email</name>
+    <trigger_definition>6f0180400b320300f4eb8bf637673ad4</trigger_definition>
+    <trigger_inputs>H4sIAAAAAAAAE62ST2sCMRDFv8qS8x6sR29SLEiFgpZeRJbZ7LhOicmSzApL2e/eJP53tQjdW5JJ5r35vSx/BFsqS7RT7Ri0xEXjpoUYCZEKBTkqv5xsgVTyanRBTEY7XyLNaDWoz6ZCf0Ne1gqsUBeoed9FbgxJnJHz++UqFVvQBbCxjRitQTlMhbEFWjF6GQxSoWEbGmKQzK7a7kDVoeTq/Bslz6bvE6eh9Dokk/EwCJOrFDRfz158I1SHUZ20VPFYMu3w5EtuSBUW9d53BdZ74+DUQ7sz92Prf4AE9vzzmtGFtqdXWV577aAldkPRpsLiGr0VGQdrXBZVxMV5dhjqKCPaNn0m3I8Iv5No2Jax0Eec5iByzLAbVp+pnL3fyN/OfA1/R45yFe5HJQ/wOYILNlVSWSPROdJll2VujELQPbF0Xu78vTIMTCEsz3zZ1tghHA77pHye6gljj1n1k8EcK9Ukc5QeWBKxd1Jg8I2z6LWfIBhsiZzFvhd/m7Sk2LmTQLfy/xSuprpv7DGjtl39Atv5bpYBBgAA</trigger_inputs>
+    <trigger_outputs/>
+    <trigger_type>email</trigger_type>
+  </sys_hub_trigger_instance_v2>
+  <sys_hub_action_instance_v2 action="delete_multiple" query="flow=8679a02b7c114d1b95e0defe8ed5cdbe^sys_idNOT INa4bdab35a1714dc197834e21d2b9ec2a"/>
+  <sys_hub_action_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>a4bdab35a1714dc197834e21d2b9ec2a</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_instance_v2_a4bdab35a1714dc197834e21d2b9ec2a</sys_update_name>
+    <action_type>2de05916c31332002841b63b12d3aee1</action_type>
+    <action_type_parent>2de05916c31332002841b63b12d3aee1</action_type_parent>
+    <active>true</active>
+    <comment/>
+    <display_text/>
+    <flow>8679a02b7c114d1b95e0defe8ed5cdbe</flow>
+    <generation_source/>
+    <order>1</order>
+    <parent_ui_id/>
+    <sys_class_name>sys_hub_action_instance_v2</sys_class_name>
+    <ui_id>a4bdab35-a171-4dc1-9783-4e21d2b9ec2a</ui_id>
+    <updation_source/>
+    <values>H4sIAAAAAAAAE7WQMQvCMBCF/4pkLoJrwcGhg6OLi2i4JCdG0iQk12IJ+e+mLYhYEBfHe+943907JWahRVYzAmGQT0PFejDdKGortUJLRVI6egPDcelEGbSnnSTdF+cKJmLFPIQSRRhYnRgN/gORc/UiT7D4Ro03F4grnIO1s9uU9la4zqpV04I2fLOOnbijpJwv3/eEUwMnfIybzWH5x19ZvzeDbTmKkM8V5Hx+AmKHYX+ZAQAA</values>
+  </sys_hub_action_instance_v2>
+  <sys_hub_alias_mapping action="delete_multiple" query="source_id=a4bdab35a1714dc197834e21d2b9ec2a"/>
+</record_update>

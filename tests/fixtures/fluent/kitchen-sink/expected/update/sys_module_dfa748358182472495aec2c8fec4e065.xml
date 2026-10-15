@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<record_update table="sys_module">
+  <sys_module action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>dfa748358182472495aec2c8fec4e065</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_module_dfa748358182472495aec2c8fec4e065</sys_update_name>
+    <content><![CDATA[import { gs } from '@servicenow/glide';
+// A server module: modern TypeScript, bundled by the SDK.
+export function a2Note(current, previous) {
+    const from = previous.getValue('priority');
+    const to = current.getValue('priority');
+    if (from !== to) {
+        gs.info(`snagentic test A2: priority ${from} -> ${to}`);
+    }
+}
+]]></content>
+    <external_source>false</external_source>
+    <path>x_2222332_s11/s11-flows/0.0.1/src/server/a2-note.ts</path>
+    <sys_name>x_2222332_s11/s11-flows/0.0.1/src/server/a2-note.ts</sys_name>
+  </sys_module>
+</record_update>

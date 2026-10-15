@@ -48,6 +48,23 @@ describe("generated CLI", () => {
     expect(out).toBe('echo: "HI" "HI"\n');
   });
 
+  it("takes a list of numbers as repeated values", async () => {
+    const waves = defineUseCase({
+      name: "waves",
+      description: "Echoes waves.",
+      input: z.object({ waves: z.array(z.number()).optional() }),
+      output: z.object({ waves: z.array(z.number()) }),
+      flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
+      mcp: false,
+      async handle(input) {
+        return { waves: input.waves ?? [] };
+      },
+      render: (output) => output.waves.join("+"),
+      exitCode: () => 0,
+    });
+    expect((await run(["waves", "--waves", "0", "1"], [waves])).out).toBe("0+1\n");
+  });
+
   it("offers --no-<flag> for a boolean that defaults to true", async () => {
     const toggle = defineUseCase({
       ...echoUseCase(),

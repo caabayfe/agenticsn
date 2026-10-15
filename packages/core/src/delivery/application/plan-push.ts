@@ -1,4 +1,4 @@
-import { type ValidateDependencies, validate } from "../../governance/index";
+import type { Finding, ValidateDependencies } from "../../governance/index";
 import { InvalidInputError } from "../../kernel/errors";
 import type { NextCall } from "../../knowledge/index";
 import { baseOfFile } from "../../knowledge/index";
@@ -23,11 +23,11 @@ import {
 } from "../domain/change";
 import { childRowChanges, type RowOwner } from "../domain/child-rows";
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
-import { type GateResult, gateOf, planId } from "../domain/gate";
-import { readWaivers, UNCOMMITTED_WAIVERS } from "../domain/waivers";
+import { type GateResult, planId } from "../domain/gate";
 import { pushUnfinished, writeOrder } from "../domain/write-order";
 import type { DeliveryWorkspace, FluentPackage, FluentPackages, PushJournalStore } from "../ports";
 import { type FluentPlan, planFluent } from "./plan-fluent";
+import { gateFor } from "./plan-gate";
 
 export interface PlanQuery {
   readonly instance: string;
@@ -38,6 +38,8 @@ export interface PlanQuery {
 
 export interface PlanDependencies {
   readonly workspace: DeliveryWorkspace;
+  // Accelerator pack findings for the planned paths (ADR-0026: the gate's pack check).
+  readonly packGate?: (paths: readonly string[]) => Promise<readonly Finding[]>;
   // Fluent projects, built for delivery (ADR-0028 as amended); none when absent.
   readonly fluent?: FluentPackages;
   // A push that stopped part way leaves its journal until a pull shows what it wrote.
@@ -213,15 +215,6 @@ function checkedLabel(label: string): string {
   return label;
 }
 
-// validate over the change, with the committed waivers applied.
-async function gateFor(deps: PlanDependencies, commit: string): Promise<GateResult> {
-  const validation = await validate(deps.governance, { base: commit });
-  const waiverFile = await deps.workspace.waivers();
-  const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
-  const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;
-  return gateOf(validation.findings, waivers, waiverProblems, deps.workspace.metadataRoot);
-}
-
 const fluentChanges = (records: FluentPlan["records"]) =>
   records.map(({ project, scope, table, sysId, name, kind }) => ({
     project,
@@ -252,7 +245,11 @@ export async function computePlan(
   const fluent = await planFluent(deps, commit);
   const writes = changed.writes;
   const problems = [...changed.problems, ...fluent.problems];
-  const gate = await gateFor(deps, commit);
+  const gate = await gateFor(
+    deps,
+    commit,
+    writes.map((w) => w.path),
+  );
   const collisions = await collisionsOf(deps, writes, label);
   const ready =
     writes.length + fluent.packages.length > 0 &&

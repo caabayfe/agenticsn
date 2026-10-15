@@ -39,6 +39,11 @@ function optionFor(key: string, original: z.core.$ZodType): Option {
   if (field instanceof z.ZodArray && field.element instanceof z.ZodString) {
     return new Option(`--${flag} <values...>`, description);
   }
+  if (field instanceof z.ZodArray && field.element instanceof z.ZodNumber) {
+    return new Option(`--${flag} <numbers...>`, description).argParser(
+      (value: string, previous: number[] | undefined) => [...(previous ?? []), Number(value)],
+    );
+  }
   if (field instanceof z.ZodEnum) {
     return new Option(`--${flag} <value>`, description).choices(field.options.map(String));
   }

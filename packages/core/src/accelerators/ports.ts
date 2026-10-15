@@ -1,0 +1,62 @@
+import type { MaterializedFile, PatchTarget } from "./domain/materialize";
+import type { Template } from "./domain/templates";
+import type { PreviousAdd } from "./domain/upgrade";
+
+// Where accelerator packs come from: the first-party packs embedded in snagentic (ADR-0026).
+export interface PackSource {
+  // Pack ids, sorted.
+  ids(): Promise<readonly string[]>;
+  // A pack's accelerator.yaml, parsed; null when there is no such pack.
+  manifest(id: string): Promise<unknown | null>;
+  // Every file of the pack, by path in the pack ("metadata/base/global/...").
+  files(id: string): Promise<ReadonlyMap<string, string>>;
+}
+
+// The workspace side of `accelerator add` for one instance (ADR-0026, item 2): the pack's files
+// are committed to a pack branch with git plumbing, on the instance's mirror, then merged into
+// the working branch, so later versions meet the user's edits as a three-way merge.
+export interface PackWorkspace {
+  // The instance's mirror commit, or null before its first pull.
+  mirrorCommit(): Promise<string | null>;
+  // Whether the working branch contains that commit (the mirror is integrated).
+  includes(commit: string): Promise<boolean>;
+  // The mirrored records with these sys_ids at `commit`, by sys_id.
+  mirrored(commit: string, sysIds: readonly string[]): Promise<ReadonlyMap<string, PatchTarget>>;
+  // A YAML document's text, parsed.
+  parse(text: string): unknown;
+  // What the pack's last add wrote and kept; both empty before its first add.
+  previous(pack: string): Promise<PreviousAdd>;
+  // Commits the files onto the mirror commit as the pack branch's next commit, with the `keep`
+  // paths as the branch's last commit has them, and records both for `previous`; returns the
+  // branch's commit, unchanged when its content would be the same.
+  commit(
+    pack: string,
+    mirror: string,
+    files: readonly MaterializedFile[],
+    message: string,
+    keep: readonly string[],
+  ): Promise<string>;
+  // Merges the pack branch into the working branch; the files left in conflict, if any.
+  merge(pack: string): Promise<{ readonly branch: string; readonly conflicts: readonly string[] }>;
+}
+
+// A data directory's templates, one CSV per entity (ADR-0026, item 3). Customer data: read to
+// validate and load, never written or copied.
+export interface DataTemplates {
+  // Whether git tracks any file in the directory: customer data must not be committed.
+  tracked(directory: string): Promise<boolean>;
+  // A template, parsed; null when the file is missing.
+  read(directory: string, file: string): Promise<Template | null>;
+}
+
+export type ImportStatus = "inserted" | "updated" | "ignored" | "skipped" | "error";
+
+// The Import Set API on a development instance (spike S-B): one request per row, transformed
+// synchronously. Never retried: a row whose outcome is unknown fails, and the load stops.
+export interface ImportSetWriter {
+  post(
+    table: string,
+    row: Readonly<Record<string, string>>,
+    signal: AbortSignal,
+  ): Promise<{ readonly status: ImportStatus; readonly sysId: string }>;
+}

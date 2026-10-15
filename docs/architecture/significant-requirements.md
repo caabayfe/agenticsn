@@ -26,7 +26,7 @@ limits.
 | ASR-06 | Team scale | ServiceNow is pulled once per instance (centrally), not once per developer. Git distributes the result. | Pull runs unattended in a CI container. |
 | ASR-07 | Instance scale | Incremental pull and derived data scale to large instances. Derived data (index, graph, table model) is a pure function of a commit. | 250k mirrored records; daily incremental pull < 5 min *(initial)*. |
 | ASR-08 | Data protection | Credentials never reach the repository or logs. Secrets and business records are redacted or quarantined before anything is written to disk. | Secret scan of the mirror is a mandatory pull step. |
-| ASR-09 | Context economy | The agent interface stays small: at most 12 MCP tools, about 8–12 skills, and a short instructions file. | Budgets checked in CI. |
+| ASR-09 | Context economy | The agent interface stays small: at most 13 MCP tools (12 until ADR-0026), about 8–12 skills, and a short instructions file. | Budgets checked in CI. |
 | ASR-10 | Reviewability | A product owner can validate behavior without reading the code. Decisions are recorded as ADRs, simple rules are declarative files, and tests are named as specifications. | Every rule and use case has a readable spec. |
 | ASR-11 | Extensibility | New rules, rule packs and artifact types are added without changing the core. | A rule pack is an installable package. |
 | ASR-12 | Any change source | Governance validates a change regardless of origin: local workspace, git range or remote update set. | All three sources share one engine and one finding format. |

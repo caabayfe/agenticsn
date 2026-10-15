@@ -3,6 +3,7 @@ import {
   AuthenticationFailedError,
   type ConnectionStats,
   type FluentInstaller,
+  type ImportSetWriter,
   InstanceError,
   type InstanceProfile,
   type InstanceReader,
@@ -20,6 +21,7 @@ import { authorize, type RequestSender } from "./authorization";
 import { CicdPluginActivator } from "./cicd-plugin-activator";
 import { type ApiBody, ApiFluentInstaller } from "./fluent-installer";
 import type { HttpResponse } from "./http-types";
+import { ImportSetApiWriter } from "./import-set-writer";
 import { TableApiWriter } from "./table-api-writer";
 
 const MAX_PAGE_SIZE = 10_000;
@@ -77,6 +79,8 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   readonly writer: InstanceWriter = new TableApiWriter(this);
   // Fluent builds loaded and published through the ServiceNow IDE's endpoints (ADR-0028).
   readonly fluent: FluentInstaller = new ApiFluentInstaller(this);
+  // Accelerator data loads through the Import Set API (ADR-0026).
+  readonly imports: ImportSetWriter = new ImportSetApiWriter(this);
 
   // Every request goes through the scheduler, signed for the profile's auth method.
   private readonly scheduler: RequestSender;
@@ -126,7 +130,6 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     return result as Row[];
   }
 
-  // Count and latest raw sys_updated_on in one aggregate request.
   // Count and latest raw sys_updated_on in one aggregate request.
   async fingerprint(table: TableName, signal: AbortSignal): Promise<TableFingerprint> {
     const what = `statistics of ${table}`;

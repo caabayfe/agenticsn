@@ -143,7 +143,7 @@ Choosing the test:
 - **A use case:** a zod input and output schema plus a handler in
   `packages/cli/src/registry/`, calling one application service. Set `readOnly`,
   `destructive` and `requiresDevelopmentInstance` correctly. Mark `mcp: true` only if it
-  earns a place in the **12-tool MCP budget** (ADR-0002).
+  earns a place in the **13-tool MCP budget** (ADR-0002, ADR-0026).
 - **A rule:** a folder in `packages/rules-basic/` with:
   - metadata: ID, category, severity, description, remediation;
   - the implementation (ESLint rule API for scripts, YAML or TypeScript for metadata);

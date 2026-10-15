@@ -1,3 +1,4 @@
+import { ACCELERATOR_RULES } from "./accelerator-rules";
 import { ACL_RULES } from "./acl-rules";
 import { FLUENT_RULES } from "./fluent-rules";
 import type { Rule } from "./rule-types";
@@ -262,6 +263,7 @@ export const RULES: readonly Rule[] = [
     scripts: BROWSER,
   },
   ...ACL_RULES,
+  ...ACCELERATOR_RULES,
   ...FLUENT_RULES,
 ];
 

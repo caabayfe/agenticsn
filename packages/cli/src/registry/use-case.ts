@@ -3,12 +3,14 @@
 import type {
   ChangedRecords,
   CredentialStore,
+  DataTemplates,
   DeliveryWorkspace,
   ElevatedSessions,
   EnvironmentProbe,
   FluentInstaller,
   FluentPackages,
   FluentProjects,
+  ImportSetWriter,
   IncrementalMirror,
   InstalledBinary,
   InstanceName,
@@ -21,6 +23,8 @@ import type {
   MirrorInspector,
   MirrorIntegrator,
   MirrorMode,
+  PackSource,
+  PackWorkspace,
   PluginActivator,
   ProfileStore,
   PullRequests,
@@ -65,6 +69,8 @@ export interface ConnectionFactory {
       readonly writer: InstanceWriter;
       // Flow delivery (ADR-0028); absent from connections that cannot push flows.
       readonly fluent?: FluentInstaller;
+      // Accelerator data loads (ADR-0026); absent from connections that cannot load.
+      readonly imports?: ImportSetWriter;
     };
 }
 
@@ -103,6 +109,12 @@ export interface UseCaseContext {
   ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
   // An instance's mirror branch and working tree, for plan and push.
   readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;
+  // The accelerator packs snagentic ships (ADR-0026).
+  readonly packs: PackSource;
+  // Data templates in a directory (accelerator validate-data, load).
+  readonly dataTemplates: DataTemplates;
+  // The pack branches of one instance in a workspace (accelerator add).
+  readonly packWorkspace: (root: string, instance: InstanceName) => PackWorkspace;
   // Fluent projects under source/, built for delivery (ADR-0028 as amended).
   readonly fluentPackages: (root: string) => FluentPackages;
   // Fluent projects under source/, built to check them and write their keys; staged: as the

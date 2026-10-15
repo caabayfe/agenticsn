@@ -99,7 +99,9 @@ describe("generated MCP server", () => {
     const many = Array.from({ length: MCP_TOOL_BUDGET + 1 }, (_, index) =>
       echoUseCase({ name: `echo-${index}` }),
     );
-    expect(() => createMcpServer(many, FAKE_CONTEXT, "test")).toThrow(/budget is 12/);
+    expect(() => createMcpServer(many, FAKE_CONTEXT, "test")).toThrow(
+      `budget is ${MCP_TOOL_BUDGET}`,
+    );
   });
 
   it(`accepts exactly ${MCP_TOOL_BUDGET} MCP tools plus any number of CLI-only ones`, () => {
@@ -126,10 +128,11 @@ describe("ADR-0012 layer 3 on the MCP surface", () => {
 });
 
 describe("the MCP tools", () => {
-  it("are the v1.0 tools plus find, describe, advise, validate, plan_push and push", async () => {
+  it("are the v1.0 tools plus find, describe, advise, validate, plan_push, push and accelerator", async () => {
     const { tools } = await (await connect(USE_CASES, ["pdi"])).listTools();
     expect(tools.map((tool) => tool.name).sort()).toEqual(
       [
+        "accelerator",
         "advise",
         "describe",
         "doctor",

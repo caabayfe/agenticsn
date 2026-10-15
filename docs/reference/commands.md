@@ -390,6 +390,88 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `accelerator list`
+
+```
+snagentic accelerator list [options]
+```
+
+List the accelerator packs snagentic ships, with their capabilities and waves (ADR-0026).
+
+Changes the instance: no. MCP tool: none.
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `accelerator check`
+
+```
+snagentic accelerator check [pack] [options]
+```
+
+Accelerator packs (ADR-0026): without a pack, list them; with one, what its capabilities install and, with an instance, whether they can be installed there: each capability's state (ready, needs-plugins, not-entitled, blocked) and the exact commands that fix it. Reads the mirror only, never the instance.
+
+Changes the instance: no. MCP tool: `accelerator`.
+
+Options:
+
+- `--instance <value>`: check against this instance's mirrored plugins
+- `--waves <numbers...>`: install these waves (default: all)
+- `--capabilities <values...>`: install these capabilities
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `accelerator add`
+
+```
+snagentic accelerator add <pack> <instance> [options]
+```
+
+Write an accelerator pack's capabilities into the workspace (ADR-0026): new records as files, patches on the mirrored records, committed to the branch accelerator/<pack>/<instance> and merged into this one. Changes nothing on the instance: validate, plan_push and push deliver it. Refuses until accelerator check says every capability is ready.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--waves <numbers...>`: add these waves (default: all)
+- `--capabilities <values...>`: add these capabilities
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `accelerator validate-data`
+
+```
+snagentic accelerator validate-data <pack> <data> [options]
+```
+
+Check an accelerator pack's data templates (one CSV per entity in a directory) before any load: mandatory fields, references that resolve, repeated keys (ADR-0026). Needs no instance, so it also checks data for test and production, which snagentic never loads. Refuses a directory git tracks: customer data is never committed.
+
+Changes the instance: no. MCP tool: none.
+
+Options:
+
+- `--waves <numbers...>`: check these waves' entities (default: all)
+- `--capabilities <values...>`: check these capabilities' entities
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `accelerator load`
+
+```
+snagentic accelerator load <pack> <instance> <data> [options]
+```
+
+Load an accelerator pack's data templates into a development instance through the pack's import set tables (ADR-0026): every template is validated first and nothing loads until all pass; then each entity in order, one row per request, never retried, stopping after the first entity with rows the instance did not take. Reports counts and the business keys of failed rows, never other values. Test and production are loaded on the instance itself.
+
+Changes the instance: **yes, development instances only**. MCP tool: none.
+
+Options:
+
+- `--waves <numbers...>`: load these waves' entities (default: all)
+- `--capabilities <values...>`: load these capabilities' entities
+- `--confirm`: confirm that this writes records
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `doctor`
 
 ```
@@ -483,5 +565,10 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `instance` (string, required)
   - `id` (string, required): the plugin id, such as com.snc.incident_ai
   - `confirm` (boolean, optional): confirm that this changes the instance
+- `accelerator`: Accelerator packs (ADR-0026): without a pack, list them; with one, what its capabilities install and, with an instance, whether they can be installed there: each capability's state (ready, needs-plugins, not-entitled, blocked) and the exact commands that fix it. Reads the mirror only, never the instance.
+  - `pack` (string, optional): the pack id; omit to list the packs
+  - `instance` (string, optional): check against this instance's mirrored plugins
+  - `waves` (array, optional): install these waves (default: all)
+  - `capabilities` (array, optional): install these capabilities
 - `doctor`: Check that snagentic can work: git, OS keychain and search index on this machine, and, with --instance, credentials, connection, roles and timestamp handling of an instance.
   - `instance` (string, optional): also check this instance of the workspace

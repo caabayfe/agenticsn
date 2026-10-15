@@ -59,7 +59,7 @@ describe("list layout update (ADR-0029)", () => {
   it("is named as the platform records it: table and view, plus the domain outside global", () => {
     expect(listUpdateName(layout())).toBe("sys_ui_list_x_acme_app_task_null");
     expect(listUpdateName(layout({ view: { sysId: "c".repeat(32), name: "Mobile" } }))).toBe(
-      "sys_ui_list_x_acme_app_task_mobile",
+      "sys_ui_list_x_acme_app_task_Mobile",
     );
     expect(listUpdateName(layout({ domain: "d".repeat(32) }))).toBe(
       `sys_ui_list_x_acme_app_task_null_${"d".repeat(32)}`,

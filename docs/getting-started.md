@@ -174,11 +174,19 @@ the child rows of their section, list or form (`sys_ui_element`, `sys_ui_list_el
 
 - add a row with a new 32-character sys_id and the field that names its owner (`name` for a
   choice; `sys_ui_section`, `list_id` or `sys_ui_form` for layouts), or change a row's fields;
-- push never removes a row: set `inactive: 'true'` on a choice, and remove a form or list
-  field on the instance.
+- push never removes a row, except a list's columns: set `inactive: 'true'` on a choice, and
+  remove a form field on the instance.
 
 Push writes each row after its owner, and stops if the row changed on the instance since the
-pull. Flow, workflow and variable-value child rows stay read-only. Choices arrive on the first
+pull.
+
+A list layout (`<scope>/sys_ui_list/<table>--<sys_id>.yaml` and its
+`.children.sys_ui_list_element.yaml`) is pushed whole (ADR-0029). The platform records a list
+only as one "List Layout" update, so push loads the list with all its columns into the
+update set, in position order. Removing a column removes it from the list. A new list is a new
+list file with its columns file: the view is `Default view`, or the sys_id of a view in
+`global/sys_ui_view`. Related list layouts and personal lists are not pushed; change them on the
+instance. A list's table, view and domain identify it and cannot be changed. Flow, workflow and variable-value child rows stay read-only. Choices arrive on the first
 pull after upgrading to this version.
 
 ### A new application

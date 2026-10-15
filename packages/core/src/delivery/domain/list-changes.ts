@@ -1,7 +1,7 @@
 import { HASH_EXCLUDED_FIELDS } from "../../kernel/record-hash";
 import type { Operation, ParsedRecord, PlanProblem } from "./change";
 import type { ListColumn, ListLayout } from "./list-layout";
-import { listUpdateName } from "./list-layout";
+import { byPosition, listUpdateName } from "./list-layout";
 
 // A list layout edit, planned as the whole list (ADR-0029): push loads it as one List Layout
 // update, which the platform records, instead of writing rows it would not record. Pure.
@@ -162,7 +162,7 @@ export function listChange(
     table: fields["name"] ?? "",
     view,
     domain: identity.domain,
-    columns: is.map(columnOf),
+    columns: is.map(columnOf).sort(byPosition),
   };
   const base =
     before === null

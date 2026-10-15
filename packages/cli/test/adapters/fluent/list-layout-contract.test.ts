@@ -101,7 +101,7 @@ describe("list layout update, against the embedded SDK (ADR-0029)", () => {
       expect(outcome.success).toBe(true);
       for (const layout of LAYOUTS) {
         const built = readFileSync(
-          join(dir, "dist", "app", `${listUpdateName(layout)}.xml`),
+          join(dir, "dist", "app", `${listUpdateName(layout).toLowerCase()}.xml`),
           "utf8",
         );
         expect(listLayoutXml(layout, SCOPE)).toBe(built.trimEnd());

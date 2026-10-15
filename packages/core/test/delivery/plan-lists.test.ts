@@ -40,8 +40,12 @@ function lists(working: unknown[], changed = [COLUMNS], extra = {}) {
 }
 
 describe("computePlan, list layouts (ADR-0029)", () => {
-  it("plans an edited list as one list change, not as row writes", async () => {
-    const edited = [PULLED[1], PULLED[0], row("c".repeat(32), "priority", "2")];
+  it("plans an edited list as one list change, columns in position order, not as row writes", async () => {
+    const edited = [
+      PULLED[1],
+      row("c".repeat(32), "priority", "2"),
+      { ...PULLED[0], position: "3" },
+    ];
     const { plan, writes, lists: planned } = await computePlan(lists(edited).deps, QUERY);
     expect(writes).toEqual([]);
     expect(planned).toHaveLength(1);
@@ -55,7 +59,7 @@ describe("computePlan, list layouts (ADR-0029)", () => {
           view: "Default view",
           sysId: LIST_ID,
           path: `${LIST}.yaml`,
-          columns: ["state", "number", "priority"],
+          columns: ["state", "priority", "number"],
         },
       ],
       updateSets: ["snagentic: feature/p1", "snagentic: feature/p1 [x_acme_app]"],
@@ -83,7 +87,7 @@ describe("computePlan, list layouts (ADR-0029)", () => {
       }).deps;
     const found = await computePlan(planned({ [VIEW]: view }), QUERY);
     expect(found.plan.lists[0]?.view).toBe("Mobile");
-    expect(found.lists[0]?.updateName).toBe("sys_ui_list_x_acme_app_task_mobile");
+    expect(found.lists[0]?.updateName).toBe("sys_ui_list_x_acme_app_task_Mobile");
     const missing = await computePlan(planned({}), QUERY);
     expect(missing.plan.problems).toEqual([
       {

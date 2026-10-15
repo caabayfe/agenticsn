@@ -39,14 +39,16 @@ const element = (indent: string, name: string, text: string, attrs = "") =>
 
 const isDefault = (layout: ListLayout) => layout.view.sysId === DEFAULT_VIEW;
 
-// sys_ui_list_<table>_<view name, or null for the Default view>[_<domain>], lower case.
+// sys_ui_list_<table>_<view name, or null for the Default view>[_<domain>]. The platform keeps
+// the view name's case (sys_ui_list_<table>_Mobile on pdi2); the SDK lower-cases its file name.
 export function listUpdateName(layout: ListLayout): string {
-  const view = isDefault(layout) ? "NULL" : layout.view.name;
-  const name = ["sys_ui_list", layout.table, view].join("_").toLowerCase();
+  const view = isDefault(layout) ? "null" : layout.view.name;
+  const name = ["sys_ui_list", layout.table, view].join("_");
   return layout.domain === "global" ? name : `${name}_${layout.domain}`;
 }
 
-const byPosition = (a: ListColumn, b: ListColumn) =>
+// Columns in the order the list shows them.
+export const byPosition = (a: ListColumn, b: ListColumn) =>
   Number(a.position) - Number(b.position) || (a.element < b.element ? -1 : 1);
 
 export function listLayoutXml(

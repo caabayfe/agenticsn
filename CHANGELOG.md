@@ -4,6 +4,19 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- List layouts now travel with the update set (ADR-0029). The platform never records list
+  columns written through the Table API, so lists pushed since 1.5.0 reached the development
+  instance but not the batch. Push now loads a changed list whole, as the platform's own List
+  Layout update, through the Fluent load route into the scope's update set, keeping the list's
+  and columns' sys_ids. `plan-push` shows each list as one change with its columns in order.
+
+### Changed
+
+- Removing a row from a list's columns file removes that column on push. Related list layouts,
+  personal lists and changes to a list's table, view or domain are refused by the plan.
+
 ## [1.8.0] - 2026-10-15
 
 ### Added

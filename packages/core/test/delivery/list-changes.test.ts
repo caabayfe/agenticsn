@@ -108,7 +108,7 @@ describe("list layout changes (ADR-0029)", () => {
     expect(planned).toMatchObject({
       operation: "create",
       base: null,
-      updateName: "sys_ui_list_x_acme_app_task_mobile",
+      updateName: "sys_ui_list_x_acme_app_task_Mobile",
     });
   });
 

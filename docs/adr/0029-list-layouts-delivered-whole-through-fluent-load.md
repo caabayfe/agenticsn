@@ -6,7 +6,7 @@
 - Amends: 0025 (item 3, for `sys_ui_list` and `sys_ui_list_element`)
 - Relates to: 0028 (the `fluent/load` route), 0027 (domains)
 - Evidence: spike S14, `tools/spikes/s14-list-layouts/README.md` (pdi2, 2026-10-14), and the
-  live test in this ADR's pull request
+  live test below
 
 ## Context
 
@@ -69,6 +69,26 @@ user's preferences are untouched. The list keeps its sys_ids when the loaded upd
 - Form layouts (`sys_ui_section`, `sys_ui_element`) and related lists
   (`sys_ui_related_list_entry`) still go through the Table API. Whether the platform records
   them is to be tested the same way.
+
+## Live test (pdi2, 2026-10-15)
+
+Run with a release candidate of this change, on a branch of the pdi2 workspace, against a scratch
+table `x_2222332_s11_list_probe` pushed into the S11 test application. The platform created no
+list for it, so every list below was created from git.
+
+| Scenario | Instance after push | Update set | Pull, then integrate |
+|---|---|---|---|
+| A. New list, Default view, three columns | The list and its columns with the files' sys_ids | One List Layout update, `sys_ui_list_x_2222332_s11_list_probe_null`, in the scope's batch set; push reported it captured | Took the instance's copy under the same file; the next plan had nothing to push |
+| B. Reorder, remove one column, add one with `sum` | New order applied; the removed column deleted; the new one summed; sys_ids kept | The same update, replaced with the new columns | Clean; nothing to push |
+| C. New list in the Mobile view | Created with the files' sys_ids | One List Layout update, `sys_ui_list_x_2222332_s11_list_probe_Mobile` | Clean; nothing to push |
+| D. Swap the Mobile list's two columns (rebuilt binary, after the fixes) | New order; sys_ids kept | The same update, replaced | Clean; nothing to push |
+
+The platform keeps the view name's case in the update name (`_Mobile`), where the SDK
+lower-cases its file name; push reads the name from the list after loading, and the plan's
+collision check uses the platform's form.
+
+Not tested live: a list in a domain other than global, and moving the batch to a second
+instance.
 
 ## Alternatives considered
 

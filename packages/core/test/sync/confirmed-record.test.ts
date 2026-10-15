@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { instanceConfirms, instanceConfirmsRows, relocatedRecords } from "@snagentic/core";
+import {
+  instanceConfirms,
+  instanceConfirmsRows,
+  relocatedRecords,
+  replacementConfirms,
+} from "@snagentic/core";
 
 const SYS_ID = "4944d956393ce479c7b489974061fefd";
 
@@ -185,5 +190,50 @@ describe("instanceConfirmsRows (ADR-0025)", () => {
     expect(instanceConfirmsRows([row], [{ ...pulled, value: "revoke" }])).toBe(false);
     expect(instanceConfirmsRows({ x: 1 }, [pulled])).toBe(false);
     expect(instanceConfirmsRows([row], "rows")).toBe(false);
+  });
+});
+
+describe("replacementConfirms (ADR-0030)", () => {
+  const list = (fields: Record<string, string> = {}, domain = "global") => ({
+    _meta: { sys_class_name: "sys_ui_related_list", sys_domain: domain },
+    name: "task",
+    view: "Default view",
+    sys_user: "",
+    ...fields,
+  });
+  const entry = (sysId: string, relatedList: string, position: string) => ({
+    sys_id: sysId,
+    list_id: "x",
+    related_list: relatedList,
+    position,
+    filter: "",
+    order_by: "",
+    group_by_field: "",
+    sys_updated_on: "2026-10-15 22:03:25",
+  });
+  const local = {
+    document: list(),
+    rows: [entry("a", "task.parent", "0"), entry("b", "sys_email.instance", "1")],
+  };
+
+  it("confirms the same table, view, domain and entries under new sys_ids", () => {
+    const remote = {
+      document: list(),
+      rows: [entry("d", "sys_email.instance", "1"), entry("c", "task.parent", "0")],
+    };
+    expect(replacementConfirms(local, remote)).toBe(true);
+  });
+
+  it("does not confirm other entries, another view or another domain", () => {
+    expect(
+      replacementConfirms(local, { document: list(), rows: [entry("c", "task.parent", "0")] }),
+    ).toBe(false);
+    expect(replacementConfirms(local, { document: list({ view: "x" }), rows: local.rows })).toBe(
+      false,
+    );
+    expect(
+      replacementConfirms(local, { document: list({}, "d".repeat(32)), rows: local.rows }),
+    ).toBe(false);
+    expect(replacementConfirms(local, { document: list(), rows: "not rows" })).toBe(false);
   });
 });

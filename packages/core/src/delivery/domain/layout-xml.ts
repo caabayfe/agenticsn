@@ -46,6 +46,18 @@ export const INSERT_OR_UPDATE = attributes([
   ["apply_defaults", "true"],
 ]);
 
+// The record's stamp, when the load gives one (ADR-0030); the SDK's own build never does.
+export const stampElements = (
+  indent: string,
+  stamp: { readonly modCount: string; readonly updatedOn: string } | undefined,
+) =>
+  stamp === undefined
+    ? []
+    : [
+        element(indent, "sys_mod_count", stamp.modCount),
+        element(indent, "sys_updated_on", stamp.updatedOn),
+      ];
+
 // Rows in the order the layout shows them.
 export const byPosition = <T extends { readonly position: string }>(a: T, b: T) =>
   Number(a.position) - Number(b.position);

@@ -121,6 +121,12 @@ async function planOne(
     : { layout: { ...outcome.layout, sections }, problems: [] };
 }
 
+// A form names its sections, so sections load before forms; otherwise path order keeps the plan
+// id stable.
+const LOAD_ORDER: readonly string[] = ["list", "section", "form", "related"];
+const byLoadOrder = ([a, x]: [string, LayoutKindSpec], [b, y]: [string, LayoutKindSpec]) =>
+  LOAD_ORDER.indexOf(x.kind) - LOAD_ORDER.indexOf(y.kind) || (a < b ? -1 : a > b ? 1 : 0);
+
 // The layouts whose record or rows file changed since the pull, each planned whole.
 export async function planLayouts(
   workspace: DeliveryWorkspace,
@@ -134,7 +140,7 @@ export async function planLayouts(
     const spec = specOf(path);
     if (spec !== undefined) bases.set(baseOf(spec, path), spec);
   }
-  for (const [base, spec] of [...bases].sort(([a], [b]) => (a < b ? -1 : 1))) {
+  for (const [base, spec] of [...bases].sort(byLoadOrder)) {
     try {
       const outcome = await planOne(workspace, spec, base, commit);
       if (outcome.layout !== null) layouts.push(outcome.layout);

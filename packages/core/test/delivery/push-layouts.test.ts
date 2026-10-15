@@ -155,6 +155,7 @@ describe("push, layouts (ADR-0029, ADR-0030)", () => {
         `fluent load global ${kind.updateName}.xml into s2`,
       ]);
       expect(loaded[0]?.indexOf(B)).toBeLessThan(loaded[0]?.lastIndexOf(A) ?? 0);
+      expect(loaded[0]).toContain("2026-10-06 12:00:00");
       expect(result.written).toContainEqual({
         operation: "update",
         table: kind.table,
@@ -193,5 +194,51 @@ describe("push, layouts (ADR-0029, ADR-0030)", () => {
     await expect(
       push({ ...deps, fluentInstaller: null }, { ...QUERY, planId: plan.planId }),
     ).rejects.toMatchObject({ code: "fluent-load-unavailable" });
+  });
+
+  it("checks every layout before the first load, so a load that changes another one does not stop the push", async () => {
+    // As pdi2 does: loading a new section adds it to its form, which this push loads next.
+    const run = layoutSetup(LIST);
+    const OTHER = "d".repeat(32);
+    const base = `global/sys_ui_list/problem--${OTHER}`;
+    const rowsFile = `${base}.children.sys_ui_list_element.yaml`;
+    const other = record("sys_ui_list", OTHER, { ...LIST.fields, name: "problem" });
+    const otherRow = {
+      sys_id: "e".repeat(32),
+      list_id: OTHER,
+      element: "number",
+      position: "0",
+      sys_mod_count: "0",
+      sys_updated_on: PULLED_AT,
+    };
+    run.state.mirror[base] = other;
+    run.state.working[base] = other;
+    run.state.documents.mirror[rowsFile] = [otherRow];
+    run.state.documents.working[rowsFile] = [{ ...otherRow, position: "1" }];
+    run.state.changed.push(rowsFile);
+    run.tables["sys_ui_list"] = [
+      ...(run.tables["sys_ui_list"] ?? []),
+      { sys_id: OTHER, sys_mod_count: "", sys_updated_on: "" },
+    ];
+    run.tables["sys_ui_list_element"] = [
+      ...(run.tables["sys_ui_list_element"] ?? []),
+      { ...otherRow },
+    ];
+    const load = run.deps.fluentInstaller?.load;
+    const deps: PushDependencies = {
+      ...run.deps,
+      fluentInstaller: {
+        publish: async () => [],
+        load: async (scopeId, files, updateSet, signal) => {
+          await load?.(scopeId, files, updateSet, signal);
+          run.tables["sys_ui_list_element"] = (run.tables["sys_ui_list_element"] ?? []).map((r) =>
+            r["list_id"] === OTHER ? { ...r, sys_mod_count: "1" } : r,
+          );
+        },
+      },
+    };
+    const { plan } = await computePlan(deps, QUERY);
+    const result = await push(deps, { ...QUERY, planId: plan.planId });
+    expect(result.written.filter((w) => w.table === "sys_ui_list")).toHaveLength(2);
   });
 });

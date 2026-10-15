@@ -5,7 +5,9 @@ import {
   INSERT_OR_UPDATE,
   isDefaultView,
   type LayoutView,
+  stampElements,
 } from "./layout-xml";
+import type { LoadStamp } from "./load-stamp";
 
 export { DEFAULT_VIEW } from "./layout-xml";
 
@@ -51,6 +53,7 @@ export const byPosition = (a: ListColumn, b: ListColumn) =>
 export function listLayoutXml(
   layout: ListLayout,
   scope: { readonly name: string; readonly sysId: string },
+  stamp?: LoadStamp,
 ): string {
   // The coalesce keys the platform matches the list on.
   const keys = attributes([
@@ -92,6 +95,7 @@ export function listLayoutXml(
     element("      ", "view", layout.view.sysId, viewName),
     element("      ", "name", layout.table),
     element("      ", "sys_domain", layout.domain),
+    ...stampElements("      ", stamp),
     "    </sys_ui_list>",
   ]);
 }

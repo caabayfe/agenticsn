@@ -1,3 +1,4 @@
+import { formatRawTimestamp } from "../../kernel/raw-timestamp";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { GLOBAL } from "../domain/batch";
 import { needsElevation, type PlannedWrite } from "../domain/change";
@@ -15,7 +16,7 @@ import type {
 } from "../ports";
 import { elevatedSessionFor } from "./elevated-writes";
 import { deliverFluent, type FluentDelivery } from "./fluent-steps";
-import { deliverLayout, type LoadRun, loadUpdate } from "./layout-steps";
+import { deliverLayout, ensureLayoutsUnchanged, type LoadRun, loadUpdate } from "./layout-steps";
 import { settle, switchFor } from "./push-preferences";
 import {
   ensureUnchanged,
@@ -74,6 +75,7 @@ async function loadLayouts(run: ScopeRun, target: ScopeTarget, updateSet: string
       scope,
       updateSet,
       username: run.deps.username,
+      now: run.deps.now(),
     });
     loaded.push({ layout, captured: done });
   }
@@ -90,7 +92,10 @@ async function loadRecord(
 ) {
   const loadRun = loader(run, write.path);
   await ensureUnchanged(run.session, run.catalog, write, run.journal.current.steps.length);
-  const record = { table: write.table, sysId: write.sysId, fields: write.load };
+  // The update time is the push's; the mod count was set at plan time (plan-routes).
+  const updatedOn = formatRawTimestamp(run.deps.now().getTime());
+  const fields = { ...write.load, sys_updated_on: updatedOn };
+  const record = { table: write.table, sysId: write.sysId, fields };
   const scope = { name: target.name, sysId: target.id };
   const update = {
     ...record,
@@ -101,6 +106,7 @@ async function loadRecord(
     scope: { name: target.name, id: target.id },
     updateSet,
     username: run.deps.username,
+    now: run.deps.now(),
   });
 }
 
@@ -165,6 +171,7 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
   let fluent: FluentDelivery | null = null;
   let layouts: Awaited<ReturnType<typeof loadLayouts>> = [];
   try {
+    await ensureLayoutsUnchanged(session, target.layouts, journal.current.steps.length);
     await prefer("apps.current_app", target.id);
     set = await updateSetFor(run, target, application);
     // A scoped write makes the platform switch the user's global current update set too, so

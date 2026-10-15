@@ -8,6 +8,7 @@ import { classesToPull } from "../domain/pull-scope";
 import { chunks, isChildRowFile, type RecordChanges } from "../domain/record-changes";
 import { forEachConcurrently } from "./concurrently";
 import type { IncrementalDependencies } from "./incremental-dependencies";
+import { removeReplaced } from "./replaced-records";
 
 // sys_ids per download request: keeps the URL short and the page within the size target.
 const DOWNLOAD_BATCH = 100;
@@ -235,6 +236,7 @@ export async function applyRecordChanges(
       totals.deleted += 1;
     }
   }
+  totals.deleted += await removeReplaced(deps, created, signal);
   const requested = [...changes.changed.values()].flat();
   const unwritten = requested.filter((sysId) => !stored.has(sysId)).sort();
   return { ...totals, unreadable: unreadable.sort(), unwritten, created };

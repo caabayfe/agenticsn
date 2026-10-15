@@ -1,5 +1,6 @@
 import { formLayoutXml, formUpdateName } from "./form-layout";
 import { listLayoutXml, listUpdateName } from "./list-layout";
+import { type LoadStamp, loadStamp } from "./load-stamp";
 import type { PlannedLayout, Row } from "./planned-layout";
 import { relatedListLayoutXml, relatedListUpdateName } from "./related-list-layout";
 import { sectionLayoutXml, sectionUpdateName } from "./section-layout";
@@ -84,15 +85,19 @@ export function layoutUpdateName(layout: Layout): string {
   }
 }
 
-export function layoutXml(layout: Layout, scope: Scope): string {
+export function layoutXml(layout: Layout, scope: Scope, stamp?: LoadStamp): string {
   switch (layout.kind) {
     case "list":
-      return listLayoutXml(asList(layout), scope);
+      return listLayoutXml(asList(layout), scope, stamp);
     case "section":
-      return sectionLayoutXml(asSection(layout), scope);
+      return sectionLayoutXml(asSection(layout), scope, stamp);
     case "form":
-      return formLayoutXml(asForm(layout), scope);
+      return formLayoutXml(asForm(layout), scope, stamp);
     case "related":
-      return relatedListLayoutXml(asRelated(layout), scope);
+      return relatedListLayoutXml(asRelated(layout), scope, stamp);
   }
 }
+
+// The layout record's stamp: its sys_mod_count as pulled, raised by one, or 0 when new.
+export const layoutStamp = (layout: Layout, now: Date): LoadStamp =>
+  loadStamp(layout.base === null ? null : (layout.base.record.split("|")[0] ?? ""), now);

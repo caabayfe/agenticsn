@@ -1,5 +1,6 @@
 import { HASH_EXCLUDED_FIELDS } from "../../kernel/record-hash";
 import type { PlannedWrite } from "../domain/change";
+import { nextModCount } from "../domain/load-stamp";
 import { recordUpdateName } from "../domain/record-update";
 import { recordingOf, type TableAttributes } from "../domain/recording";
 import type { DeliveryWorkspace, TableDictionary } from "../ports";
@@ -26,17 +27,20 @@ async function tablesOf(
 }
 
 // The whole record to load: its content fields as the working tree holds them, its domain when
-// not global, never a field pull withholds (a secret) nor provenance.
+// not global, never a field pull withholds (a secret) nor provenance; and its next sys_mod_count,
+// so the instance stamps it as a write would (push adds the update time).
 async function loadOf(workspace: DeliveryWorkspace, write: PlannedWrite) {
   const record = await parsed(workspace, write.path.replace(/\.yaml$/, ""), null);
   if (record === null) return null;
-  const { fields, redacted, identity } = record.artifact;
+  const { fields, redacted, identity, meta } = record.artifact;
+  const pulled = write.operation === "create" ? null : (meta["sys_mod_count"] ?? "");
   const content = Object.entries(fields).filter(
     ([name]) => !HASH_EXCLUDED_FIELDS.has(name) && !redacted.includes(name),
   );
   return {
     ...Object.fromEntries(content),
     ...(identity.domain === "global" ? {} : { sys_domain: identity.domain }),
+    sys_mod_count: nextModCount(pulled),
   };
 }
 

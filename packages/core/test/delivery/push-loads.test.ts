@@ -134,6 +134,9 @@ describe("push, records the platform does not record (ADR-0030)", () => {
     expect(loaded[0]).toContain("<script>b();</script>");
     expect(loaded[0]).toContain("<run_type>daily</run_type>");
     expect(loaded[0]).not.toContain("sys_domain");
+    // Stamped as a write would be, so the next pull sees it (pdi2 kept the old time otherwise).
+    expect(loaded[0]).toContain("<sys_mod_count>1</sys_mod_count>");
+    expect(loaded[0]).toContain("<sys_updated_on>2026-10-06 12:00:00</sys_updated_on>");
     expect(result.written).toContainEqual(
       expect.objectContaining({ table: "sysauto_script", sysId: JOB_ID, captured: true }),
     );

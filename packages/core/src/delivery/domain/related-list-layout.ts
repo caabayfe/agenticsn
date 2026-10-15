@@ -1,4 +1,5 @@
 import { attributes, byPosition, isDefaultView, type LayoutView } from "./layout-xml";
+import type { LoadStamp } from "./load-stamp";
 
 // A form's related lists as the platform records them: one composite "Related Lists" update
 // holding the related list record and every entry (ADR-0030). The SDK has no plugin for it, and
@@ -38,18 +39,16 @@ const text = (value: string) => value.replace(/[&<>]/g, (c) => ESCAPES[c] ?? c);
 const tag = (name: string, value: string, attrs = "") =>
   value === "" ? `<${name}${attrs}/>` : `<${name}${attrs}>${text(value)}</${name}>`;
 
-export function relatedListLayoutXml(
-  layout: RelatedListLayout,
-  scope: { readonly name: string; readonly sysId: string },
-): string {
-  const defaultView = isDefaultView(layout.view);
+type Scope = { readonly name: string; readonly sysId: string };
+
+function entryTags(layout: RelatedListLayout): string[] {
   const listId = attributes([
     ["display_value", ""],
     ["name", layout.table],
     ["sys_domain", layout.domain],
     ["view", layout.view.sysId],
   ]);
-  const entries = [...layout.entries]
+  return [...layout.entries]
     .sort(byPosition)
     .map((e) =>
       [
@@ -65,11 +64,15 @@ export function relatedListLayoutXml(
         "</sys_ui_related_list_entry>",
       ].join(""),
     );
+}
+
+function recordTag(layout: RelatedListLayout, scope: Scope, stamp?: LoadStamp): string {
+  const defaultView = isDefaultView(layout.view);
   const view = attributes([
     ["display_value", defaultView ? layout.view.sysId : layout.view.name],
     ["name", defaultView ? "NULL" : layout.view.name],
   ]);
-  const record = [
+  return [
     '<sys_ui_related_list action="INSERT_OR_UPDATE">',
     ...["calculated_name", "filter"].map((f) => tag(f, "")),
     tag("name", layout.table),
@@ -83,13 +86,24 @@ export function relatedListLayoutXml(
     tag("sys_user", ""),
     tag("view", layout.view.sysId, view),
     tag("view_name", ""),
+    ...(stamp === undefined
+      ? []
+      : [tag("sys_mod_count", stamp.modCount), tag("sys_updated_on", stamp.updatedOn)]),
     "</sys_ui_related_list>",
   ].join("");
+}
+
+export function relatedListLayoutXml(
+  layout: RelatedListLayout,
+  scope: Scope,
+  stamp?: LoadStamp,
+): string {
   const root = attributes([
     ["sys_domain", layout.domain],
     ["table", layout.table],
     ["version", "3"],
-    ["view", defaultView ? "" : layout.view.name],
+    ["view", isDefaultView(layout.view) ? "" : layout.view.name],
   ]);
-  return `<?xml version="1.0" encoding="UTF-8"?><record_update><sys_ui_related${root}>${entries.join("")}${record}</sys_ui_related></record_update>`;
+  const body = `${entryTags(layout).join("")}${recordTag(layout, scope, stamp)}`;
+  return `<?xml version="1.0" encoding="UTF-8"?><record_update><sys_ui_related${root}>${body}</sys_ui_related></record_update>`;
 }

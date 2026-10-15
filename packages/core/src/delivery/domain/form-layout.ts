@@ -6,7 +6,9 @@ import {
   INSERT_OR_UPDATE,
   isDefaultView,
   type LayoutView,
+  stampElements,
 } from "./layout-xml";
+import type { LoadStamp } from "./load-stamp";
 
 // A form as the platform records it: one composite "Form Sections" update holding the form and
 // the sections it shows, in order (ADR-0030). The Table API's writes of these are recorded too,
@@ -68,7 +70,7 @@ function sectionRows(form: FormLayout): string[] {
     ]);
 }
 
-export function formLayoutXml(form: FormLayout, scope: Scope): string {
+export function formLayoutXml(form: FormLayout, scope: Scope, stamp?: LoadStamp): string {
   const view = isDefaultView(form.view)
     ? attributes([
         ["name", "NULL"],
@@ -93,6 +95,7 @@ export function formLayoutXml(form: FormLayout, scope: Scope): string {
     element("      ", "sys_user", ""),
     element("      ", "view", form.view.sysId, view),
     element("      ", "view_name", ""),
+    ...stampElements("      ", stamp),
     "    </sys_ui_form>",
   ]);
 }

@@ -78,3 +78,37 @@ export function instanceConfirmsRows(local: unknown, remote: unknown): boolean {
     );
   });
 }
+
+const RELATED_RECORD = ["name", "view", "sys_user"] as const;
+const RELATED_ENTRY = ["related_list", "position", "filter", "order_by", "group_by_field"] as const;
+
+const property = (value: unknown, name: string): unknown =>
+  typeof value === "object" && value !== null ? Reflect.get(value, name) : undefined;
+
+const domainOf = (document: unknown) =>
+  text(property(property(document, "_meta"), "sys_domain")) || "global";
+
+const field = (document: unknown, name: string) => text(property(document, name));
+
+// A form's related lists record pushed from here comes back under a new sys_id: the platform
+// replaces it on every save (ADR-0030). The instance's replacement confirms the local record when
+// it is for the same table, view, domain and user, with the same entries by content.
+export function replacementConfirms(
+  local: { readonly document: unknown; readonly rows: unknown },
+  remote: { readonly document: unknown; readonly rows: unknown },
+): boolean {
+  const same =
+    RELATED_RECORD.every((name) => field(local.document, name) === field(remote.document, name)) &&
+    domainOf(local.document) === domainOf(remote.document);
+  const entries = (rows: unknown) => {
+    const all = rowsOf(rows ?? []);
+    return all === null
+      ? null
+      : all
+          .map((row) => JSON.stringify(RELATED_ENTRY.map((name) => text(row[name]))))
+          .sort()
+          .join("\n");
+  };
+  const mine = entries(local.rows);
+  return same && mine !== null && mine === entries(remote.rows);
+}

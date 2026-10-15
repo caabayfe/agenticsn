@@ -2,7 +2,7 @@ import { TableName } from "../../kernel/table-name";
 import { RecordChangedOnInstanceError } from "../domain/errors";
 import { layoutVersion, type PlannedLayout } from "../domain/layout-changes";
 import { KIND_TABLE, layoutKindOf } from "../domain/layout-kinds";
-import { layoutXml } from "../domain/layout-render";
+import { layoutStamp, layoutXml } from "../domain/layout-render";
 import type { FluentInstaller, PushJournal, PushJournalStore } from "../ports";
 import { captured, type InstanceSession } from "./push-steps";
 
@@ -17,6 +17,8 @@ export interface LoadTarget {
   readonly scope: { readonly name: string; readonly id: string };
   readonly updateSet: string;
   readonly username: string;
+  // The push's time, stamped on the loaded record (ADR-0030).
+  readonly now: Date;
 }
 
 const versions = async (session: InstanceSession, table: string, query: string) => {
@@ -86,15 +88,28 @@ export async function loadUpdate(
   return captured(run.session, record, { updateSet: target.updateSet, username: target.username });
 }
 
-// Loads one layout whole, as the update the platform records for it (ADR-0029, ADR-0030).
+// Refuses the scope's layouts when one moved on the instance since the pull. Checked before the
+// scope's first write: loading a new form section makes the platform add it to its form (pdi2),
+// so a check made between loads would find the push's own change.
+export async function ensureLayoutsUnchanged(
+  session: InstanceSession,
+  layouts: readonly PlannedLayout[],
+  written: number,
+): Promise<void> {
+  for (const layout of layouts) {
+    if (!(await unchangedSincePull(session, layout))) {
+      throw new RecordChangedOnInstanceError(layout.path, written);
+    }
+  }
+}
+
+// Loads one layout whole, as the update the platform records for it (ADR-0029, ADR-0030), once
+// ensureLayoutsUnchanged has passed.
 export async function deliverLayout(
   run: LoadRun,
   layout: PlannedLayout,
   target: LoadTarget,
 ): Promise<boolean> {
-  if (!(await unchangedSincePull(run.session, layout))) {
-    throw new RecordChangedOnInstanceError(layout.path, run.journal.current.steps.length);
-  }
   const scope = { name: target.scope.name, sysId: target.scope.id };
   return loadUpdate(
     run,
@@ -102,7 +117,7 @@ export async function deliverLayout(
       table: KIND_TABLE[layout.kind],
       sysId: layout.sysId,
       updateName: layout.updateName,
-      xml: layoutXml(layout, scope),
+      xml: layoutXml(layout, scope, layoutStamp(layout, target.now)),
     },
     target,
   );

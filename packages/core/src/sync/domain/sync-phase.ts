@@ -1,4 +1,4 @@
-import { parseRawTimestamp } from "./raw-timestamp";
+import { parseRawTimestamp } from "../../kernel/raw-timestamp";
 
 // Where an instance stands in the pull -> integrate cycle, and the command that moves it on.
 export type SyncPhase = "never-pulled" | "interrupted" | "not-integrated" | "integrated";

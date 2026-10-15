@@ -6,7 +6,9 @@ import {
   INSERT_OR_UPDATE,
   isDefaultView,
   type LayoutView,
+  stampElements,
 } from "./layout-xml";
+import type { LoadStamp } from "./load-stamp";
 
 // A form section as the platform records it: one composite "Form Layout" update holding the
 // section and every field, separator and formatter on it (ADR-0030). The form is the one the
@@ -63,7 +65,7 @@ function elementRows(section: SectionLayout): string[] {
     ]);
 }
 
-function sectionRecord(section: SectionLayout, scope: Scope): string[] {
+function sectionRecord(section: SectionLayout, scope: Scope, stamp?: LoadStamp): string[] {
   const view = isDefaultView(section.view)
     ? attributes([
         ["name", "NULL"],
@@ -86,11 +88,12 @@ function sectionRecord(section: SectionLayout, scope: Scope): string[] {
     element("      ", "title", section.title),
     element("      ", "view_name", ""),
     element("      ", "view", section.view.sysId, view),
+    ...stampElements("      ", stamp),
     "    </sys_ui_section>",
   ];
 }
 
-export function sectionLayoutXml(section: SectionLayout, scope: Scope): string {
+export function sectionLayoutXml(section: SectionLayout, scope: Scope, stamp?: LoadStamp): string {
   const root = attributes([
     ["caption", section.caption],
     ["section_id", section.sysId],
@@ -100,6 +103,6 @@ export function sectionLayoutXml(section: SectionLayout, scope: Scope): string {
   ]);
   return compositeUpdate("sys_ui_section", root, [
     ...elementRows(section),
-    ...sectionRecord(section, scope),
+    ...sectionRecord(section, scope, stamp),
   ]);
 }

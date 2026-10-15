@@ -160,4 +160,34 @@ describe("computePlan, layouts (ADR-0029, ADR-0030)", () => {
       },
     ]);
   });
+
+  it("loads sections before the forms that show them", async () => {
+    const SECTION_ID = "e".repeat(32);
+    const FORM_ID = "f".repeat(32);
+    const section = record(
+      "sys_ui_section",
+      SECTION_ID,
+      { name: "x_acme_app_task", caption: "", view: "Default view" },
+      undefined,
+      "x_acme_app",
+    );
+    const form = record(
+      "sys_ui_form",
+      FORM_ID,
+      { name: "x_acme_app_task", view: "Default view" },
+      undefined,
+      "x_acme_app",
+    );
+    const SECTION = `x_acme_app/sys_ui_section/x-acme-app-task--${SECTION_ID}`;
+    const FORM = `x_acme_app/sys_ui_form/x-acme-app-task--${FORM_ID}`;
+    const base = setup();
+    const { layouts } = await computePlan(
+      setup({
+        working: { ...base.state.working, [SECTION]: section, [FORM]: form },
+        changed: [`${FORM}.yaml`, `${SECTION}.yaml`],
+      }).deps,
+      QUERY,
+    );
+    expect(layouts.map((l) => l.kind)).toEqual(["section", "form"]);
+  });
 });

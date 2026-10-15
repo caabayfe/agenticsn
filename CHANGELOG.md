@@ -4,16 +4,33 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-15
+
 ### Added
 
-- The ServiceNow SDK's build (4.13.6) ships inside the binary, for flows authored in Fluent
-  (ADR-0028). It loads only when a command builds flows, needs no Node or `node_modules`, and
-  sends no telemetry. `doctor` builds a test flow with it (`fluent` check).
+- Flows, subflows and custom actions, written in Fluent (the ServiceNow SDK's TypeScript
+  language) in projects under `source/<scope>/`, and delivered like any other change (ADR-0028).
+  `validate` builds every project the change touches; `plan-push` lists each flow, subflow and
+  action; `push` loads them into the batch update set, publishes them, and checks the update set
+  holds the published versions. A flow that already existed is inactive for a few seconds while
+  it is redelivered, which push reports. Mirrored flow records stay read-only.
+- The ServiceNow SDK's build (4.13.6) ships inside the binary. It loads only when a command
+  builds flows, needs no Node or `node_modules`, and sends no telemetry. `doctor` builds a test
+  flow with it (`fluent` check).
+- Rules for Fluent projects: SN-MNT-009 (block) build errors, at their file and line;
+  SN-MNT-010 (block) IDs not yet in `src/fluent/generated/keys.ts`; SN-MNT-011 (block) records
+  the build would delete; SN-UPG-003 (warn) a project that names an SDK version other than
+  snagentic's.
+- `fluent-keys` writes a project's `keys.ts`, where each new ID's sys_id is fixed once. The
+  pre-commit hook runs it on what is staged, so a commit that adds a flow carries its keys.
+  Run `snagentic agent install` to update an existing workspace's hook.
 
 ### Changed
 
 - The binary is compiled to bytecode: every command starts about twice as fast (`check` on one
   file: p95 54 ms instead of 121 ms on an Apple M-series laptop). It is larger (about 215 MB).
+- `validate --staged` builds Fluent projects as the index holds them, so a partial commit is
+  checked as it will be committed.
 
 ## [1.6.0] - 2026-10-14
 

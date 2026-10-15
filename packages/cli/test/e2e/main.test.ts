@@ -23,46 +23,60 @@ describe("snagentic entry point (real adapters)", () => {
     });
   });
 
-  it("runs doctor with the real local checks", async () => {
-    const { exitCode, stdout } = await snagentic("doctor", "--format", "json");
-    const report = JSON.parse(stdout);
-    expect(report.checks.map((check: { name: string }) => check.name)).toEqual([
-      "git",
-      "keychain",
-      "search-index",
-    ]);
-    expect(exitCode).toBe(report.ok ? 0 : 3);
-  });
+  // doctor builds a test flow with the embedded SDK (ADR-0028): about 4 s on a CI runner.
+  const DOCTOR_TIMEOUT = 30_000;
 
-  it("serves doctor as an MCP tool over stdio", async () => {
-    const client = new Client({ name: "e2e", version: "1.0.0" });
-    await client.connect(new StdioClientTransport({ command: "bun", args: [MAIN, "mcp"] }));
-    try {
-      const { tools } = await client.listTools();
-      expect(tools.map((tool) => tool.name).sort()).toEqual([
-        "advise",
-        "describe",
-        "doctor",
-        "find",
-        "plan_push",
-        "plugins",
-        "pull",
-        "status",
-        "update_sets",
-        "validate",
+  it(
+    "runs doctor with the real local checks",
+    async () => {
+      const { exitCode, stdout } = await snagentic("doctor", "--format", "json");
+      const report = JSON.parse(stdout);
+      expect(report.checks.map((check: { name: string }) => check.name)).toEqual([
+        "git",
+        "keychain",
+        "search-index",
+        "fluent",
       ]);
-      expect(client.getInstructions()).toStartWith("# ServiceNow workspace (snagentic)");
-      const { prompts } = await client.listPrompts();
-      expect(prompts.map((prompt) => prompt.name)).toEqual([
-        "design",
-        "review",
-        "explain",
-        "deliver",
-      ]);
-      const result = await client.callTool({ name: "doctor", arguments: {} });
-      expect(result.structuredContent).toHaveProperty("checks");
-    } finally {
-      await client.close();
-    }
-  });
+      // The embedded ServiceNow SDK builds its test flow from source too (ADR-0028).
+      expect(report.checks.find((c: { name: string }) => c.name === "fluent")?.status).toBe("ok");
+      expect(exitCode).toBe(report.ok ? 0 : 3);
+    },
+    DOCTOR_TIMEOUT,
+  );
+
+  it(
+    "serves doctor as an MCP tool over stdio",
+    async () => {
+      const client = new Client({ name: "e2e", version: "1.0.0" });
+      await client.connect(new StdioClientTransport({ command: "bun", args: [MAIN, "mcp"] }));
+      try {
+        const { tools } = await client.listTools();
+        expect(tools.map((tool) => tool.name).sort()).toEqual([
+          "advise",
+          "describe",
+          "doctor",
+          "find",
+          "plan_push",
+          "plugins",
+          "pull",
+          "status",
+          "update_sets",
+          "validate",
+        ]);
+        expect(client.getInstructions()).toStartWith("# ServiceNow workspace (snagentic)");
+        const { prompts } = await client.listPrompts();
+        expect(prompts.map((prompt) => prompt.name)).toEqual([
+          "design",
+          "review",
+          "explain",
+          "deliver",
+        ]);
+        const result = await client.callTool({ name: "doctor", arguments: {} });
+        expect(result.structuredContent).toHaveProperty("checks");
+      } finally {
+        await client.close();
+      }
+    },
+    DOCTOR_TIMEOUT,
+  );
 });

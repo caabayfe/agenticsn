@@ -1,6 +1,6 @@
 # 0029. List layouts are delivered whole, through the Fluent load route
 
-- Status: Proposed
+- Status: Proposed (generalized by 0030: forms, form sections, related lists and unrecorded records)
 - Date: 2026-10-15
 - Requirements: ASR-01, ASR-02, ASR-13, ASR-16
 - Amends: 0025 (item 3, for `sys_ui_list` and `sys_ui_list_element`)

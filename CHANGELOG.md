@@ -6,16 +6,26 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
-- List layouts now travel with the update set (ADR-0029). The platform never records list
-  columns written through the Table API, so lists pushed since 1.5.0 reached the development
-  instance but not the batch. Push now loads a changed list whole, as the platform's own List
-  Layout update, through the Fluent load route into the scope's update set, keeping the list's
-  and columns' sys_ids. `plan-push` shows each list as one change with its columns in order.
+- Everything push writes now travels with the update set (ADR-0029, ADR-0030). The platform
+  never records list layouts, form sections, related lists or scheduled jobs written through
+  the Table API, so these reached the development instance but not the batch, and form sections
+  were even reported as captured. Push now loads each of them as the update the platform
+  records, through the Fluent load route, in the form the ServiceNow SDK builds (related lists
+  in the platform's own form). It reads from the instance which classes need it.
+- A load is stamped like a write (modification count and time), so the next pull sees it, and
+  counts as captured only when it recorded a new update.
+- Pull keeps related lists in step: the platform gives them new sys_ids on every save, and pull
+  no longer keeps the old file. Integrate pairs a pushed related list with the instance's copy.
+- Pull no longer misses form sections in a customer domain changed on the instance.
 
 ### Changed
 
-- Removing a row from a list's columns file removes that column on push. Related list layouts,
-  personal lists and changes to a list's table, view or domain are refused by the plan.
+- Lists, forms, form sections and related lists are pushed whole, each as one change in the
+  plan with its rows in order. Removing a row removes it, including a section from a form.
+- The plan refuses what would not travel: an existing section's header, title or roles, related
+  list layouts of a list, personal layouts, and changes to a layout's table, view or domain.
+- Records the platform does not record in update sets, such as scheduled jobs, are marked
+  `loaded` in the plan.
 
 ## [1.8.0] - 2026-10-15
 

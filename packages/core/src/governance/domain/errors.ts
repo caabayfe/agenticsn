@@ -10,3 +10,14 @@ export class UnknownBaseError extends SnagenticError {
     );
   }
 }
+
+export class FluentKeysUnstagedError extends SnagenticError {
+  constructor(path: string) {
+    super(
+      "fluent-keys-unstaged",
+      "usage",
+      `${path} has changes that are not staged: snagentic will not overwrite them`,
+      "stage keys.ts (git add) or discard its changes, then commit again",
+    );
+  }
+}

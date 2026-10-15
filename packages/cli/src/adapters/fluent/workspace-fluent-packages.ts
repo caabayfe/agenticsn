@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import type { FluentPackage, FluentPackages, FluentProjects } from "@snagentic/core";
-import { buildInCopy } from "./build-in-copy";
+import { buildInCopy, fromWorkingTree } from "./build-in-copy";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
 
 const GZIPPED = /<([a-z_]+)>(H4sI[A-Za-z0-9+/=]+)<\/\1>/g;
@@ -61,7 +61,7 @@ export class WorkspaceFluentPackages implements FluentPackages {
     const packages: FluentPackage[] = [];
     for (const project of await this.projects.changedSince(commit)) {
       const source = join(this.workspace, project.path);
-      const files = await buildInCopy(this.load, source, async (copy, outcome) =>
+      const files = await buildInCopy(this.load, fromWorkingTree(source), async (copy, outcome) =>
         outcome.success ? builtFiles(join(copy, "dist", "app")) : null,
       );
       if (files === null) continue;

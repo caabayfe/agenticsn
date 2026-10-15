@@ -146,7 +146,12 @@ describe("installAgentPack", () => {
     const fresh = memoryFiles();
     await installAgentPack(fresh.port, "/w", PACK, BOTH);
     expect(fresh.executables).toEqual(["/w/.git/hooks/pre-commit"]);
-    expect(fresh.files.get("/w/.git/hooks/pre-commit")).toContain("snagentic validate");
+    const hook = fresh.files.get("/w/.git/hooks/pre-commit") ?? "";
+    // New Fluent IDs get their keys written and staged before validate checks the commit.
+    expect(hook.indexOf("snagentic fluent-keys --staged")).toBeGreaterThan(0);
+    expect(hook.indexOf("snagentic validate --staged")).toBeGreaterThan(
+      hook.indexOf("snagentic fluent-keys --staged"),
+    );
     const theirs = memoryFiles({ "/w/.git/hooks/pre-commit": "#!/bin/sh\nnpm test\n" });
     const results = await installAgentPack(theirs.port, "/w", PACK, BOTH);
     expect(results.at(-1)).toEqual({ path: ".git/hooks/pre-commit", status: "skipped" });

@@ -1,6 +1,7 @@
 // Public API of the governance context.
 
 export { type CheckQuery, type CheckResult, checkFiles } from "./application/check";
+export { type FluentKeysResult, writeFluentKeys } from "./application/fluent-keys";
 export {
   MAX_SCRIPT_BYTES,
   type Skipped,
@@ -9,7 +10,7 @@ export {
   type Validation,
   validate,
 } from "./application/validate";
-export { UnknownBaseError } from "./domain/errors";
+export { FluentKeysUnstagedError, UnknownBaseError } from "./domain/errors";
 export {
   evidenceOf,
   type Finding,

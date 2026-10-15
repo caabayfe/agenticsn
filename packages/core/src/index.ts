@@ -233,6 +233,8 @@ export {
   WorkspaceNotFoundError,
 } from "./workspace/domain/errors";
 export {
+  FLUENT_SOURCE_DIR,
+  fluentSourcePath,
   GITIGNORE,
   type InstancePaths,
   instancePaths,

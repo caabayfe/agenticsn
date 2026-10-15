@@ -6,8 +6,10 @@ export interface Finding {
   readonly ruleId: string;
   readonly severity: FindingSeverity;
   readonly title: string;
-  // The file to fix, relative to instances/<name>/metadata.
+  // The file to fix, relative to instances/<name>/metadata, or to the workspace when `root`
+  // says so (Fluent projects under source/, ADR-0028).
   readonly path: string;
+  readonly root?: "workspace";
   readonly field: string | null;
   readonly line: number | null;
   readonly message: string;

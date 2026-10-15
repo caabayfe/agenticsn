@@ -83,6 +83,7 @@ describe("validate", () => {
         instance: "pdi",
         base: "HEAD",
         records: 1,
+        fluentProjects: 0,
         passed: true,
         counts: { block: 0, warn: 0, info: 0 },
         findings: [],

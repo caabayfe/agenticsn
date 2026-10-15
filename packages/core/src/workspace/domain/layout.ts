@@ -44,3 +44,13 @@ export function metadataPath(name: InstanceName, workspace: string, path: string
   relative = relative.startsWith(metadata) ? relative.slice(metadata.length) : relative;
   return relative.startsWith("./") ? relative.slice(2) : relative;
 }
+
+// Fluent projects live in the workspace under source/<scope>/ (ADR-0028).
+export const FLUENT_SOURCE_DIR = "source";
+
+// A path under source/, relative to the workspace, or null for any other path.
+export function fluentSourcePath(workspace: string, path: string): string | null {
+  let relative = path.startsWith(`${workspace}/`) ? path.slice(workspace.length + 1) : path;
+  relative = relative.startsWith("./") ? relative.slice(2) : relative;
+  return relative.startsWith(`${FLUENT_SOURCE_DIR}/`) ? relative : null;
+}

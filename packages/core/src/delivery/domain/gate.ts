@@ -43,7 +43,8 @@ export function gateOf(
   const blocking: GateFinding[] = [];
   const waived: GateResult["waived"][number][] = [];
   for (const finding of findings.filter((f) => f.severity === "block")) {
-    const waiver = waiverFor(waivers, finding.ruleId, `${prefix}/${finding.path}`);
+    const where = finding.root === "workspace" ? finding.path : `${prefix}/${finding.path}`;
+    const waiver = waiverFor(waivers, finding.ruleId, where);
     if (waiver === null) {
       blocking.push(brief(finding));
     } else {

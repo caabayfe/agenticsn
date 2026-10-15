@@ -21,6 +21,9 @@ export interface PlannedWrite {
   // The update set entry the write lands in, when known before writing (a table's choices);
   // otherwise push reads the sys_update_name of the record, or of its owner.
   readonly updateName: string | null;
+  // Set for a record of a class the platform does not record when the Table API writes it
+  // (ADR-0030): the whole record, loaded as its update through fluent/load instead.
+  readonly load?: Readonly<Record<string, string>>;
 }
 
 export interface PlanProblem {

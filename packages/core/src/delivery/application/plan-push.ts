@@ -12,13 +12,21 @@ import { changeOf, needsElevation, type PlannedWrite, type PlanProblem } from ".
 import { childRowChanges, type RowOwner } from "../domain/child-rows";
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
 import { type GateResult, planId } from "../domain/gate";
-import type { PlannedList } from "../domain/list-changes";
+import type { PlannedLayout } from "../domain/layout-changes";
+import { KIND_TABLE, layoutKindOf } from "../domain/layout-kinds";
 import { pushUnfinished, writeOrder } from "../domain/write-order";
-import type { DeliveryWorkspace, FluentPackage, FluentPackages, PushJournalStore } from "../ports";
+import type {
+  DeliveryWorkspace,
+  FluentPackage,
+  FluentPackages,
+  PushJournalStore,
+  TableDictionary,
+} from "../ports";
 import { type FluentPlan, planFluent } from "./plan-fluent";
 import { gateFor } from "./plan-gate";
-import { isListFile, planLists } from "./plan-lists";
+import { isLayoutFile, planLayouts } from "./plan-layouts";
 import { parsed, pulledCopy } from "./plan-records";
+import { routeWrites } from "./plan-routes";
 
 export interface PlanQuery {
   readonly instance: string;
@@ -33,6 +41,9 @@ export interface PlanDependencies {
   readonly packGate?: (paths: readonly string[]) => Promise<readonly Finding[]>;
   // Fluent projects, built for delivery (ADR-0028 as amended); none when absent.
   readonly fluent?: FluentPackages;
+  // The instance's dictionary: which planned classes the platform does not record (ADR-0030).
+  // Without it every record write keeps the Table API.
+  readonly dictionary?: TableDictionary;
   // A push that stopped part way leaves its journal until a pull shows what it wrote.
   readonly journal: Pick<PushJournalStore, "read">;
   readonly governance: ValidateDependencies;
@@ -64,9 +75,13 @@ export interface PushPlan {
     readonly fields: readonly string[];
     // Written through a session elevated to security_admin (ADR-0024).
     readonly elevated: boolean;
+    // Loaded as its update through fluent/load, as the platform does not record the Table API's
+    // writes of its class (ADR-0030).
+    readonly loaded: boolean;
   }[];
-  // Each list layout, loaded whole as one List Layout update (ADR-0029), columns in order.
-  readonly lists: readonly ReturnType<typeof listChangeOf>[];
+  // Each layout (list, form, form section, related lists), loaded whole as one update the platform
+  // records (ADR-0029, ADR-0030), its rows in order.
+  readonly layouts: readonly ReturnType<typeof layoutChangeOf>[];
   // Each flow, subflow, action and other record a Fluent project's build installs: loaded
   // into the batch and published (ADR-0028 as amended).
   readonly fluent: readonly {
@@ -125,9 +140,9 @@ async function childRowWrites(deps: PlanDependencies, files: readonly string[], 
 
 async function writesAndProblems(deps: PlanDependencies, commit: string, instance: string) {
   const changed = await deps.workspace.changedFiles(commit);
-  // A list is delivered whole (ADR-0029), never as a record and rows.
-  const files = changed.filter((path) => !isListFile(path));
-  const listed = await planLists(deps.workspace, changed, commit);
+  // A layout is delivered whole (ADR-0029, ADR-0030), never as a record and rows.
+  const files = changed.filter((path) => !isLayoutFile(path));
+  const listed = await planLayouts(deps.workspace, changed, commit);
   const rows = await childRowWrites(deps, files, commit);
   const problems: PlanProblem[] = [...listed.problems, ...rows.problems];
   for (const path of changed) {
@@ -160,18 +175,18 @@ async function writesAndProblems(deps: PlanDependencies, commit: string, instanc
       reason: `push ${journal?.planId} stopped part way: run snagentic pull ${instance}, then integrate, before planning again`,
     });
   }
-  return { writes: writeOrder(writes), lists: listed.lists, problems };
+  return { writes: writeOrder(writes), layouts: listed.layouts, problems };
 }
 
-// Update records others hold: a record under <table>_<sys_id>, a list under its update name.
+// Update records others hold: a record under <table>_<sys_id>, a layout under its update name.
 async function collisionsOf(
   deps: PlanDependencies,
-  planned: { readonly writes: readonly PlannedWrite[]; readonly lists: readonly PlannedList[] },
+  planned: { readonly writes: readonly PlannedWrite[]; readonly layouts: readonly PlannedLayout[] },
   label: string,
 ): Promise<HeldRecord[]> {
   const entries = [
     ...planned.writes.map((w) => ({ path: w.path, record: `${w.table}_${w.sysId}` })),
-    ...planned.lists.map((l) => ({ path: l.path, record: l.updateName })),
+    ...planned.layouts.map((l) => ({ path: l.path, record: l.updateName })),
   ];
   const names = entries.map((entry) => entry.record);
   const held = await heldInOpenUpdateSets(deps.updateSets, names, deps.signal);
@@ -191,16 +206,25 @@ function checkedLabel(label: string): string {
   return label;
 }
 
-const listChangeOf = ({ operation, scope, path, layout }: PlannedList) => ({
-  operation,
-  scope,
+const changeSummary = ({ values, baseHash, load, ...change }: PlannedWrite) => ({
+  ...change,
+  fields: Object.keys(values),
+  elevated: needsElevation(change.table),
+  // Loaded as its update through fluent/load: the platform does not record a Table API write.
+  loaded: load !== undefined,
+});
+
+const layoutChangeOf = (layout: PlannedLayout) => ({
+  kind: layout.kind,
+  operation: layout.operation,
+  scope: layout.scope,
   table: layout.table,
   view: layout.view.name || layout.view.sysId,
-  // A list in a domain other than global is that domain's own layout of the table (ADR-0027).
+  // A layout in a domain other than global is that domain's own layout of the table (ADR-0027).
   domain: layout.domain,
   sysId: layout.sysId,
-  path,
-  columns: layout.columns.map((c) => c.element),
+  path: layout.path,
+  rows: layout.rows.map((row) => row[layoutKindOf(KIND_TABLE[layout.kind])?.label ?? ""] ?? ""),
 });
 
 const fluentChanges = (records: FluentPlan["records"]) =>
@@ -219,7 +243,7 @@ export async function computePlan(
 ): Promise<{
   readonly plan: PushPlan;
   readonly writes: readonly PlannedWrite[];
-  readonly lists: readonly PlannedList[];
+  readonly layouts: readonly PlannedLayout[];
   readonly fluent: readonly FluentPackage[];
 }> {
   const commit = await deps.workspace.mirrorCommit();
@@ -232,20 +256,21 @@ export async function computePlan(
   const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
   const changed = await writesAndProblems(deps, commit, query.instance);
   const fluent = await planFluent(deps, commit);
-  const { writes, lists } = changed;
+  const { layouts } = changed;
+  const writes = await routeWrites(deps, changed.writes);
   const problems = [...changed.problems, ...fluent.problems];
   const gate = await gateFor(
     deps,
     commit,
-    [...writes, ...lists].map((w) => w.path),
+    [...writes, ...layouts].map((w) => w.path),
   );
-  const collisions = await collisionsOf(deps, { writes, lists }, label);
+  const collisions = await collisionsOf(deps, { writes, layouts }, label);
   const ready =
-    writes.length + lists.length + fluent.packages.length > 0 &&
+    writes.length + layouts.length + fluent.packages.length > 0 &&
     problems.length === 0 &&
     gate.passed &&
     (collisions.length === 0 || query.allowCollisions);
-  const id = planId(commit, writes, gate, fluent.packages, lists);
+  const id = planId(commit, writes, gate, fluent.packages, layouts);
   const plan: PushPlan = {
     instance: query.instance,
     planId: id,
@@ -253,15 +278,11 @@ export async function computePlan(
     label,
     updateSets: batchUpdateSets(label, [
       ...writes.map((write) => write.scope),
-      ...lists.map((list) => list.scope),
+      ...layouts.map((layout) => layout.scope),
       ...fluent.packages.map((p) => p.scope),
     ]),
-    changes: writes.map(({ values, baseHash, ...change }) => ({
-      ...change,
-      fields: Object.keys(values),
-      elevated: needsElevation(change.table),
-    })),
-    lists: lists.map(listChangeOf),
+    changes: writes.map(changeSummary),
+    layouts: layouts.map(layoutChangeOf),
     fluent: fluentChanges(fluent.records),
     problems,
     gate,
@@ -273,5 +294,5 @@ export async function computePlan(
         ? []
         : [{ tool: "validate", args: { base: commit } }],
   };
-  return { plan, writes, lists, fluent: fluent.packages };
+  return { plan, writes, layouts, fluent: fluent.packages };
 }

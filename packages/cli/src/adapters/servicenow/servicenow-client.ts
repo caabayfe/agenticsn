@@ -12,6 +12,7 @@ import {
   type Row,
   type ServerCost,
   type ServerCostReader,
+  type TableDictionary,
   type TableFingerprint,
   TableName,
   type TableQuery,
@@ -22,6 +23,8 @@ import { CicdPluginActivator } from "./cicd-plugin-activator";
 import { type ApiBody, ApiFluentInstaller } from "./fluent-installer";
 import type { HttpResponse } from "./http-types";
 import { ImportSetApiWriter } from "./import-set-writer";
+import { InstanceTableDictionary } from "./instance-table-dictionary";
+import { costOf, costParams } from "./server-cost";
 import { TableApiWriter } from "./table-api-writer";
 
 const MAX_PAGE_SIZE = 10_000;
@@ -44,24 +47,6 @@ interface StatsResult {
   groupby_fields?: { field?: string; value?: string }[];
 }
 
-const COST_FIELDS = [
-  "response_time",
-  "sql_time",
-  "sql_count",
-  "cpu_time",
-  "business_rule_time",
-  "acl_time",
-  "semaphore_wait_time",
-];
-
-interface CostResult {
-  stats?: {
-    count?: string;
-    sum?: Record<string, string | undefined>;
-    max?: { response_time?: string };
-  };
-}
-
 function countOf(result: StatsResult | null | undefined): number | null {
   const count = Number(result?.stats?.count);
   return Number.isInteger(count) && count >= 0 ? count : null;
@@ -79,6 +64,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   readonly writer: InstanceWriter = new TableApiWriter(this);
   // Fluent builds loaded and published through the ServiceNow IDE's endpoints (ADR-0028).
   readonly fluent: FluentInstaller = new ApiFluentInstaller(this);
+  readonly dictionary: TableDictionary = new InstanceTableDictionary(this);
   // Accelerator data loads through the Import Set API (ADR-0026).
   readonly imports: ImportSetWriter = new ImportSetApiWriter(this);
 
@@ -231,31 +217,14 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
 
   async serverCost(since: string, signal: AbortSignal): Promise<ServerCost> {
     const what = "statistics of syslog_transaction";
-    const params = {
-      sysparm_query: `sys_created_on>=${since}^user_agent=${this.userAgent}`,
-      sysparm_count: "true",
-      sysparm_sum_fields: COST_FIELDS.join(","),
-      sysparm_max_fields: "response_time",
-    };
     const table = TableName.parse("syslog_transaction");
+    const params = costParams(since, this.userAgent);
     const { response, result } = await this.aggregate(table, params, signal, what);
-    const stats = (result as CostResult | null)?.stats;
-    const transactions = Number(stats?.count);
-    if (!Number.isInteger(transactions)) {
+    const cost = costOf(result);
+    if (cost === null) {
       throw this.unexpected(response, what);
     }
-    const sum = (field: string) => Number(stats?.sum?.[field] ?? 0) || 0;
-    return {
-      transactions,
-      responseMs: sum("response_time"),
-      maxResponseMs: Number(stats?.max?.response_time ?? 0) || 0,
-      sqlMs: sum("sql_time"),
-      sqlQueries: sum("sql_count"),
-      cpuMs: sum("cpu_time"),
-      businessRuleMs: sum("business_rule_time"),
-      aclMs: sum("acl_time"),
-      semaphoreWaitMs: sum("semaphore_wait_time"),
-    };
+    return cost;
   }
 
   stats(): ConnectionStats {

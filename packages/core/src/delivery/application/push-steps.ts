@@ -187,6 +187,25 @@ async function writeRow(session: InstanceSession, write: PlannedWrite, written: 
   }
 }
 
+// Refuses a record write when the instance's copy moved on since the pull: a create's record
+// exists, or an update's record hashes differently.
+export async function ensureUnchanged(
+  session: InstanceSession,
+  catalog: Catalog,
+  write: PlannedWrite,
+  written: number,
+): Promise<void> {
+  const current: Row | null = await first(session, write.table, `sys_id=${write.sysId}`, "all");
+  const moved =
+    write.operation === "create"
+      ? current !== null
+      : (current === null ? null : artifactFromRow(current, catalog, DEFAULT_REDACTION).hash) !==
+        write.baseHash;
+  if (moved) {
+    throw new RecordChangedOnInstanceError(write.path, written);
+  }
+}
+
 // One record: refuse if the instance's copy moved on since the pull, then write.
 export async function writeRecord(
   session: InstanceSession,
@@ -198,11 +217,8 @@ export async function writeRecord(
   if (write.owner !== null) {
     return writeRow(session, write, written);
   }
-  const current: Row | null = await first(session, write.table, `sys_id=${write.sysId}`, "all");
+  await ensureUnchanged(session, catalog, write, written);
   if (write.operation === "create") {
-    if (current !== null) {
-      throw new RecordChangedOnInstanceError(write.path, written);
-    }
     await session.writer.insert(
       write.table,
       { ...write.values, sys_id: write.sysId, sys_scope: scopeId },
@@ -210,40 +226,24 @@ export async function writeRecord(
     );
     return;
   }
-  const remoteHash =
-    current === null ? null : artifactFromRow(current, catalog, DEFAULT_REDACTION).hash;
-  if (remoteHash !== write.baseHash) {
-    throw new RecordChangedOnInstanceError(write.path, written);
-  }
   await session.writer.update(write.table, write.sysId, write.values, session.signal);
 }
 
-// The update set entry a write lands in: named by the platform, after the record itself or,
-// for a child row, the record that owns it (a list is sys_ui_list_<table>_<view>). A form
-// section and its fields are recorded as the form that shows the section.
-// What capture needs to know of a write: a list loaded whole (ADR-0029) passes its own.
+// What capture needs to know of a write: a layout or a loaded record passes its own name.
 type Recorded = Pick<PlannedWrite, "table" | "sysId" | "owner" | "updateName">;
 
+// The update set entry a write lands in: named by the platform, after the record itself or, for
+// a child row, the record that owns it (a table's choices are sys_choice_<table>_<element>).
+// Layouts are loaded whole and checked under their own update name (ADR-0030); a form section is
+// never recorded as its form, which is what the check assumed before.
 async function updateNameOf(session: InstanceSession, write: Recorded): Promise<string> {
   if (write.updateName !== null) {
     return write.updateName;
   }
   const { table, sysId } = write.owner ?? write;
-  const recorded = table === "sys_ui_section" ? await formOf(session, sysId) : { table, sysId };
-  const row = await first(session, recorded.table, `sys_id=${recorded.sysId}`, ["sys_update_name"]);
+  const row = await first(session, table, `sys_id=${sysId}`, ["sys_update_name"]);
   const name = row?.["sys_update_name"] ?? "";
-  return name === "" ? `${recorded.table}_${recorded.sysId}` : name;
-}
-
-// The form that shows a section, which the update set records the section's changes under.
-async function formOf(session: InstanceSession, section: string) {
-  const link = await first(session, "sys_ui_form_section", `sys_ui_section=${section}`, [
-    "sys_ui_form",
-  ]);
-  const form = link?.["sys_ui_form"] ?? "";
-  return form === ""
-    ? { table: "sys_ui_section", sysId: section }
-    : { table: "sys_ui_form", sysId: form };
+  return name === "" ? `${table}_${sysId}` : name;
 }
 
 // The platform recorded the write in the target update set. When it recorded it in the

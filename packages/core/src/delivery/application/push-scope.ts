@@ -1,8 +1,9 @@
 import type { Catalog } from "../../metadata/domain/catalog";
 import { GLOBAL } from "../domain/batch";
 import { needsElevation, type PlannedWrite } from "../domain/change";
-import { ListLoadUnavailableError } from "../domain/errors";
-import type { PlannedList } from "../domain/list-changes";
+import { FluentLoadUnavailableError } from "../domain/errors";
+import type { PlannedLayout } from "../domain/layout-changes";
+import { recordUpdateName, recordUpdateXml } from "../domain/record-update";
 import type {
   ElevatedSession,
   ElevatedSessions,
@@ -14,9 +15,15 @@ import type {
 } from "../ports";
 import { elevatedSessionFor } from "./elevated-writes";
 import { deliverFluent, type FluentDelivery } from "./fluent-steps";
-import { deliverList } from "./list-steps";
+import { deliverLayout, type LoadRun, loadUpdate } from "./layout-steps";
 import { settle, switchFor } from "./push-preferences";
-import { type InstanceSession, moveUpdate, openChild, writeRecord } from "./push-steps";
+import {
+  ensureUnchanged,
+  type InstanceSession,
+  moveUpdate,
+  openChild,
+  writeRecord,
+} from "./push-steps";
 
 interface ScopeRun {
   readonly deps: {
@@ -42,26 +49,59 @@ interface ScopeTarget {
   // The branch's batch: global's update set, and the parent of every other scope's.
   readonly batch: { readonly sysId: string; readonly name: string; readonly created: boolean };
   readonly writes: readonly PlannedWrite[];
-  // The scope's list layouts, each loaded whole after its records (ADR-0029).
-  readonly lists: readonly PlannedList[];
+  // The scope's layouts, each loaded whole after its records (ADR-0029, ADR-0030).
+  readonly layouts: readonly PlannedLayout[];
   // The scope's Fluent project build, loaded and published after its records.
   readonly fluent: FluentPackage | null;
 }
 
-// Loads the scope's lists after its records, as a list names the table and fields it shows.
-async function loadLists(run: ScopeRun, target: ScopeTarget, updateSet: string) {
+// What loads through fluent/load (ADR-0028's route) need; refused where it cannot be reached.
+function loader(run: ScopeRun, path: string): LoadRun {
   const { deps, session, journal } = run;
-  const loaded: { readonly list: PlannedList; readonly captured: boolean }[] = [];
-  for (const list of target.lists) {
-    if (deps.fluentInstaller === null) {
-      throw new ListLoadUnavailableError(list.path);
-    }
-    const listRun = { session, installer: deps.fluentInstaller, journal, store: deps.journal };
-    const scope = { name: target.name, id: target.id };
-    const done = await deliverList(listRun, list, { scope, updateSet, username: deps.username });
-    loaded.push({ list, captured: done });
+  if (deps.fluentInstaller === null) {
+    throw new FluentLoadUnavailableError(path);
+  }
+  return { session, installer: deps.fluentInstaller, journal, store: deps.journal };
+}
+
+// Loads the scope's layouts after its records, as a layout names the table and fields it shows.
+async function loadLayouts(run: ScopeRun, target: ScopeTarget, updateSet: string) {
+  const loaded: { readonly layout: PlannedLayout; readonly captured: boolean }[] = [];
+  const scope = { name: target.name, id: target.id };
+  for (const layout of target.layouts) {
+    const loadRun = loader(run, layout.path);
+    const done = await deliverLayout(loadRun, layout, {
+      scope,
+      updateSet,
+      username: run.deps.username,
+    });
+    loaded.push({ layout, captured: done });
   }
   return loaded;
+}
+
+// A record of a class the platform does not record: checked like a write, then loaded as its
+// update (ADR-0030).
+async function loadRecord(
+  run: ScopeRun,
+  write: PlannedWrite & { readonly load: Readonly<Record<string, string>> },
+  target: ScopeTarget,
+  updateSet: string,
+) {
+  const loadRun = loader(run, write.path);
+  await ensureUnchanged(run.session, run.catalog, write, run.journal.current.steps.length);
+  const record = { table: write.table, sysId: write.sysId, fields: write.load };
+  const scope = { name: target.name, sysId: target.id };
+  const update = {
+    ...record,
+    updateName: recordUpdateName(record),
+    xml: recordUpdateXml(record, scope),
+  };
+  await loadUpdate(loadRun, update, {
+    scope: { name: target.name, id: target.id },
+    updateSet,
+    username: run.deps.username,
+  });
 }
 
 // One write, journaled before and after so an interrupted push knows what reached the instance.
@@ -123,7 +163,7 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
   let elevated: ElevatedSession | null = null;
   let set: { sysId: string; name: string; created: boolean };
   let fluent: FluentDelivery | null = null;
-  let lists: Awaited<ReturnType<typeof loadLists>> = [];
+  let layouts: Awaited<ReturnType<typeof loadLayouts>> = [];
   try {
     await prefer("apps.current_app", target.id);
     set = await updateSetFor(run, target, application);
@@ -140,13 +180,17 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
       session.signal,
     );
     for (const write of target.writes.filter((w) => w !== application)) {
+      if (write.load !== undefined) {
+        await loadRecord(run, { ...write, load: write.load }, target, set.sysId);
+        continue;
+      }
       const through =
         elevated !== null && needsElevation(write.table)
           ? { ...session, writer: elevated.writer }
           : session;
       await writeStep(run, write, target, through);
     }
-    lists = await loadLists(run, target, set.sysId);
+    layouts = await loadLayouts(run, target, set.sysId);
     if (target.fluent !== null && deps.fluentInstaller !== null) {
       const delivery = {
         session,
@@ -163,5 +207,5 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
     throw error;
   }
   await settle(session, elevated, journal, save);
-  return { ...set, fluent, lists };
+  return { ...set, fluent, layouts };
 }

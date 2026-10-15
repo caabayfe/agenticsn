@@ -368,72 +368,75 @@ describe("push and the branch's pull request (ADR-0022)", () => {
 });
 
 describe("push: child rows (ADR-0025)", () => {
-  const SECTION_ID = "fedcba9876543210fedcba9876543210";
-  const SECTION = `global/sys_ui_section/u-review--${SECTION_ID}`;
-  const FIELDS = `${SECTION}.children.sys_ui_element.yaml`;
+  // A table's choices: rows still written one by one through the Table API, and recorded as the
+  // choice list sys_choice_<table>_<element>. Layout rows are delivered whole (ADR-0030).
+  const TABLE_ID = "fedcba9876543210fedcba9876543210";
+  const TABLE = `global/sys_db_object/u-review--${TABLE_ID}`;
+  const CHOICES = `${TABLE}.children.sys_choice.yaml`;
   const ROW = "1".repeat(32);
   const pulledRow = {
     sys_id: ROW,
-    sys_ui_section: SECTION_ID,
-    element: "number",
-    position: "0",
+    name: "u_review",
+    element: "state",
+    value: "open",
+    label: "Open",
     sys_mod_count: "0",
     sys_updated_on: "2026-10-13 10:00:00",
   };
-  const section = record("sys_ui_section", SECTION_ID, { name: "u_review", view: "Default" });
+  const table = record("sys_db_object", TABLE_ID, { name: "u_review", label: "Review" });
 
-  // As pdi2 does: a section and its fields are recorded as the form that shows the section.
-  const FORM = "f".repeat(32);
-  function sectionSetup(overrides: Partial<State>, onInstance: Record<string, string>[] = []) {
+  function choiceSetup(overrides: Partial<State>, onInstance: Record<string, string>[] = []) {
     const run = pushSetup(overrides);
-    run.tables["sys_ui_section"] = [
-      { sys_id: SECTION_ID, sys_update_name: `sys_ui_section_${SECTION_ID}` },
+    run.tables["sys_db_object"] = [
+      { sys_id: TABLE_ID, sys_update_name: `sys_db_object_${TABLE_ID}` },
     ];
-    run.tables["sys_ui_form"] = [{ sys_id: FORM, sys_update_name: `sys_ui_form_sections_${FORM}` }];
-    run.tables["sys_ui_form_section"] = [
-      { sys_id: "e".repeat(32), sys_ui_form: FORM, sys_ui_section: SECTION_ID },
-    ];
-    run.tables["sys_ui_element"] = onInstance;
+    run.tables["sys_choice"] = onInstance;
     const writer = memoryWriter(run.tables, run.calls, {
       on: true,
-      name: (table, row) =>
-        table === "sys_ui_element" || table === "sys_ui_section"
-          ? `sys_ui_form_sections_${FORM}`
-          : (row["sys_update_name"] ?? `${table}_${row["sys_id"] ?? ""}`),
+      name: (name, row) =>
+        name === "sys_choice"
+          ? `sys_choice_${row["name"] ?? "u_review"}_${row["element"] ?? "state"}`
+          : (row["sys_update_name"] ?? `${name}_${row["sys_id"] ?? ""}`),
     });
     return { ...run, deps: { ...run.deps, writer } };
   }
 
-  it("creates a row with its content fields and finds it captured as its owner", async () => {
-    const row = { sys_id: ROW, sys_ui_section: SECTION_ID, element: "decision", position: "1" };
-    const { deps, calls } = sectionSetup({
-      mirror: { ...setup().state.mirror, [SECTION]: section },
-      working: { ...setup().state.working, [SECTION]: section },
-      changed: [FIELDS],
-      documents: { mirror: {}, working: { [FIELDS]: [row] } },
+  it("creates a row with its content fields and finds it captured under its owner's name", async () => {
+    const row = {
+      sys_id: ROW,
+      name: "u_review",
+      element: "state",
+      value: "closed",
+      label: "Closed",
+    };
+    const { deps, calls } = choiceSetup({
+      mirror: { ...setup().state.mirror, [TABLE]: table },
+      working: { ...setup().state.working, [TABLE]: table },
+      changed: [CHOICES],
+      documents: { mirror: {}, working: { [CHOICES]: [row] } },
     });
     const result = await push(deps, { ...QUERY, planId: await planned(deps) });
-    expect(calls).toContain("insert sys_ui_element element,position,sys_id,sys_ui_section");
+    expect(calls).toContain("insert sys_choice element,label,name,sys_id,value");
     expect(result.written).toEqual([
-      expect.objectContaining({ table: "sys_ui_element", sysId: ROW, captured: true }),
+      expect.objectContaining({ table: "sys_choice", sysId: ROW, captured: true }),
     ]);
     expect(result.notCaptured).toBe(0);
   });
 
   it("updates a changed row, and stops when the instance changed it since the pull", async () => {
     const overrides = {
-      mirror: { ...setup().state.mirror, [SECTION]: section },
-      working: { ...setup().state.working, [SECTION]: section },
-      changed: [FIELDS],
+      mirror: { ...setup().state.mirror, [TABLE]: table },
+      working: { ...setup().state.working, [TABLE]: table },
+      changed: [CHOICES],
       documents: {
-        mirror: { [FIELDS]: [pulledRow] },
-        working: { [FIELDS]: [{ ...pulledRow, position: "4" }] },
+        mirror: { [CHOICES]: [pulledRow] },
+        working: { [CHOICES]: [{ ...pulledRow, label: "Opened" }] },
       },
     };
-    const fresh = sectionSetup(overrides, [{ ...pulledRow }]);
+    const fresh = choiceSetup(overrides, [{ ...pulledRow }]);
     await push(fresh.deps, { ...QUERY, planId: await planned(fresh.deps) });
-    expect(fresh.calls).toContain("update sys_ui_element position=4");
-    const moved = sectionSetup(overrides, [{ ...pulledRow, sys_mod_count: "1" }]);
+    expect(fresh.calls).toContain("update sys_choice label=Opened");
+    const moved = choiceSetup(overrides, [{ ...pulledRow, sys_mod_count: "1" }]);
     await expect(
       push(moved.deps, { ...QUERY, planId: await planned(moved.deps) }),
     ).rejects.toMatchObject({ code: "record-changed-on-instance" });

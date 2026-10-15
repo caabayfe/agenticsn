@@ -33,6 +33,7 @@ import type {
   ScriptChecker,
   ServerCostReader,
   SyncStateStore,
+  TableDictionary,
   TableStatistics,
   WorkspaceFiles,
   WorkspaceStore,
@@ -71,6 +72,8 @@ export interface ConnectionFactory {
       readonly fluent?: FluentInstaller;
       // Accelerator data loads (ADR-0026); absent from connections that cannot load.
       readonly imports?: ImportSetWriter;
+      // Which classes the platform records (ADR-0030); absent where it cannot be read.
+      readonly dictionary?: TableDictionary;
     };
 }
 

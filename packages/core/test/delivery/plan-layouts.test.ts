@@ -39,20 +39,21 @@ function lists(working: unknown[], changed = [COLUMNS], extra = {}) {
   });
 }
 
-describe("computePlan, list layouts (ADR-0029)", () => {
+describe("computePlan, layouts (ADR-0029, ADR-0030)", () => {
   it("plans an edited list as one list change, columns in position order, not as row writes", async () => {
     const edited = [
       PULLED[1],
       row("c".repeat(32), "priority", "2"),
       { ...PULLED[0], position: "3" },
     ];
-    const { plan, writes, lists: planned } = await computePlan(lists(edited).deps, QUERY);
+    const { plan, writes, layouts: planned } = await computePlan(lists(edited).deps, QUERY);
     expect(writes).toEqual([]);
     expect(planned).toHaveLength(1);
     expect(plan).toMatchObject({
       changes: [],
-      lists: [
+      layouts: [
         {
+          kind: "list",
           operation: "update",
           scope: "x_acme_app",
           table: "x_acme_app_task",
@@ -60,7 +61,7 @@ describe("computePlan, list layouts (ADR-0029)", () => {
           domain: "global",
           sysId: LIST_ID,
           path: `${LIST}.yaml`,
-          columns: ["state", "priority", "number"],
+          rows: ["state", "priority", "number"],
         },
       ],
       updateSets: ["snagentic: feature/p1", "snagentic: feature/p1 [x_acme_app]"],
@@ -87,8 +88,8 @@ describe("computePlan, list layouts (ADR-0029)", () => {
         changed: [COLUMNS],
       }).deps;
     const found = await computePlan(planned({ [VIEW]: view }), QUERY);
-    expect(found.plan.lists[0]?.view).toBe("Mobile");
-    expect(found.lists[0]?.updateName).toBe("sys_ui_list_x_acme_app_task_Mobile");
+    expect(found.plan.layouts[0]?.view).toBe("Mobile");
+    expect(found.layouts[0]?.updateName).toBe("sys_ui_list_x_acme_app_task_Mobile");
     const missing = await computePlan(planned({}), QUERY);
     expect(missing.plan.problems).toEqual([
       {
@@ -105,5 +106,58 @@ describe("computePlan, list layouts (ADR-0029)", () => {
     );
     expect(plan.ready).toBe(false);
     expect(plan.problems[0]?.reason).toContain("list_id must be");
+  });
+
+  it("plans a form whole, naming each section it shows as the platform matches it", async () => {
+    const FORM_ID = "f".repeat(32);
+    const FORM = `x_acme_app/sys_ui_form/x-acme-app-task--${FORM_ID}`;
+    const FORM_ROWS = `${FORM}.children.sys_ui_form_section.yaml`;
+    const SECTION_ID = "e".repeat(32);
+    const section = record(
+      "sys_ui_section",
+      SECTION_ID,
+      { name: "x_acme_app_task", caption: "Notes", view: "Default view" },
+      undefined,
+      "x_acme_app",
+    );
+    const form = record(
+      "sys_ui_form",
+      FORM_ID,
+      { name: "x_acme_app_task", view: "Default view" },
+      undefined,
+      "x_acme_app",
+    );
+    const sectionRow = {
+      sys_id: "1".repeat(32),
+      sys_ui_form: FORM_ID,
+      sys_ui_section: SECTION_ID,
+      position: "0",
+    };
+    const planned = (sections: Record<string, ReturnType<typeof record>>) => {
+      const base = setup();
+      return setup({
+        mirror: { ...base.state.mirror, [FORM]: form, ...sections },
+        working: { ...base.state.working, [FORM]: form, ...sections },
+        documents: { mirror: { [FORM_ROWS]: [] }, working: { [FORM_ROWS]: [sectionRow] } },
+        changed: [FORM_ROWS],
+      }).deps;
+    };
+    const found = await computePlan(
+      planned({ [`x_acme_app/sys_ui_section/x-acme-app-task--${SECTION_ID}`]: section }),
+      QUERY,
+    );
+    expect(found.plan.layouts).toEqual([
+      expect.objectContaining({ kind: "form", rows: [SECTION_ID] }),
+    ]);
+    expect(found.layouts[0]?.sections).toEqual({
+      [SECTION_ID]: { caption: "Notes", domain: "global", viewSysId: "Default view" },
+    });
+    const missing = await computePlan(planned({}), QUERY);
+    expect(missing.plan.problems).toEqual([
+      {
+        path: `${FORM}.yaml`,
+        reason: `row ${"1".repeat(32)}: the section ${SECTION_ID} is not in the workspace`,
+      },
+    ]);
   });
 });

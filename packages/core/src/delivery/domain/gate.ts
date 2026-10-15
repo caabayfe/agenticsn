@@ -2,7 +2,7 @@ import type { Finding, FindingSeverity } from "../../governance/domain/findings"
 import { canonicalJson } from "../../kernel/canonical-json";
 import { sha256Hex } from "../../kernel/sha256";
 import type { PlannedWrite } from "./change";
-import type { PlannedList } from "./list-changes";
+import type { PlannedLayout } from "./layout-changes";
 import { type Waiver, type WaiverProblem, waiverFor } from "./waivers";
 
 export interface GateFinding {
@@ -70,7 +70,7 @@ export function planId(
   writes: readonly PlannedWrite[],
   gate: GateResult,
   fluent: readonly { readonly project: string; readonly digest: string }[] = [],
-  lists: readonly PlannedList[] = [],
+  layouts: readonly PlannedLayout[] = [],
 ): string {
   const material = canonicalJson({
     mirror: mirrorCommit,
@@ -82,6 +82,8 @@ export function planId(
       values: Object.fromEntries(
         Object.entries(write.values).map(([name, value]) => [name, sha256Hex(value)]),
       ),
+      // A loaded record is bound by the whole record it loads (ADR-0030).
+      ...(write.load === undefined ? {} : { load: sha256Hex(JSON.stringify(write.load)) }),
     })),
     gate: {
       passed: gate.passed,
@@ -91,14 +93,11 @@ export function planId(
     ...(fluent.length === 0
       ? {}
       : { fluent: fluent.map((p) => `${p.project} ${p.digest}`).sort() }),
-    // A list is bound by its whole content and the versions it was pulled at (ADR-0029).
-    ...(lists.length === 0
+    // A layout is bound by its whole content and the versions it was pulled at (ADR-0029).
+    ...(layouts.length === 0
       ? {}
       : {
-          lists: lists.map(
-            (l) =>
-              `${l.operation} ${sha256Hex(JSON.stringify({ layout: l.layout, base: l.base }))}`,
-          ),
+          layouts: layouts.map((l) => `${l.operation} ${sha256Hex(JSON.stringify(l))}`),
         }),
   });
   return sha256Hex(material).slice(0, 16);

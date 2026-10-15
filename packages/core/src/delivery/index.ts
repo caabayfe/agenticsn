@@ -31,8 +31,8 @@ export {
   BranchNotPublishedError,
   ElevatedUserMismatchError,
   ElevationUnavailableError,
+  FluentLoadUnavailableError,
   IntegrationUserNotFoundError,
-  ListLoadUnavailableError,
   MirrorNotIntegratedError,
   NothingPulledYetError,
   PlanChangedError,
@@ -61,11 +61,21 @@ export {
 } from "./domain/form-layout";
 export { type GateFinding, type GateResult, gateOf, planId } from "./domain/gate";
 export {
-  type ListFiles,
-  listChange,
-  listVersion,
-  type PlannedList,
-} from "./domain/list-changes";
+  type LayoutFiles,
+  layoutChange,
+  layoutVersion,
+  type PlannedLayout,
+  type Row as LayoutRow,
+  type SectionRef,
+} from "./domain/layout-changes";
+export {
+  KIND_TABLE,
+  LAYOUT_KINDS,
+  type LayoutKind,
+  type LayoutKindSpec,
+  layoutKindOf,
+} from "./domain/layout-kinds";
+export { layoutUpdateName, layoutXml } from "./domain/layout-render";
 export {
   DEFAULT_VIEW,
   type ListColumn,
@@ -78,6 +88,7 @@ export {
   recordUpdateName,
   recordUpdateXml,
 } from "./domain/record-update";
+export { type Recording, recordingOf, type TableAttributes } from "./domain/recording";
 export {
   type RelatedListEntry,
   type RelatedListLayout,
@@ -112,4 +123,5 @@ export type {
   PushJournal,
   PushJournalStore,
   RecordFiles,
+  TableDictionary,
 } from "./ports";

@@ -1,8 +1,17 @@
+import {
+  attributes,
+  compositeUpdate,
+  element,
+  INSERT_OR_UPDATE,
+  isDefaultView,
+  type LayoutView,
+} from "./layout-xml";
+
+export { DEFAULT_VIEW } from "./layout-xml";
+
 // A list layout as the platform records it: one composite "List Layout" update holding the list
 // and every column (ADR-0029). The form is the one the ServiceNow SDK's List() builds
 // (list-plugin, SDK 4.13.6); a contract test in the cli package compares the two. Pure.
-
-export const DEFAULT_VIEW = "Default view";
 
 export interface ListColumn {
   readonly sysId: string;
@@ -18,26 +27,14 @@ export interface ListColumn {
 export interface ListLayout {
   readonly sysId: string;
   readonly table: string;
-  // The Default view's sys_id is literally "Default view"; its name is not used.
-  readonly view: { readonly sysId: string; readonly name: string };
+  // The Default view's name is not used.
+  readonly view: LayoutView;
   // "global" or the domain's sys_id.
   readonly domain: string;
   readonly columns: readonly ListColumn[];
 }
 
-const ESCAPES: Readonly<Record<string, string>> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-};
-const escapeXml = (value: string) => value.replace(/[&<>"]/g, (c) => ESCAPES[c] ?? c);
-const attributes = (values: readonly (readonly [string, string])[]) =>
-  values.map(([name, value]) => ` ${name}="${escapeXml(value)}"`).join("");
-const element = (indent: string, name: string, text: string, attrs = "") =>
-  `${indent}<${name}${attrs}>${escapeXml(text)}</${name}>`;
-
-const isDefault = (layout: ListLayout) => layout.view.sysId === DEFAULT_VIEW;
+const isDefault = (layout: ListLayout) => isDefaultView(layout.view);
 
 // sys_ui_list_<table>_<view name, or null for the Default view>[_<domain>]. The platform keeps
 // the view name's case (sys_ui_list_<table>_Mobile on pdi2); the SDK lower-cases its file name.
@@ -68,7 +65,7 @@ export function listLayoutXml(
   const columns = [...layout.columns]
     .sort(byPosition)
     .flatMap((c) => [
-      '    <sys_ui_list_element action="INSERT_OR_UPDATE" apply_defaults="true">',
+      `    <sys_ui_list_element${INSERT_OR_UPDATE}>`,
       element("      ", "sys_id", c.sysId),
       element("      ", "list_id", layout.sysId, keys),
       element("      ", "element", c.element),
@@ -87,19 +84,14 @@ export function listLayoutXml(
     ["view", isDefault(layout) ? "" : layout.view.name],
   ]);
   const viewName = attributes([["name", isDefault(layout) ? "NULL" : layout.view.name]]);
-  return [
-    '<?xml version="1.0"?>',
-    "<record_update>",
-    `  <sys_ui_list${root}>`,
+  return compositeUpdate("sys_ui_list", root, [
     ...columns,
-    '    <sys_ui_list action="INSERT_OR_UPDATE" apply_defaults="true">',
+    `    <sys_ui_list${INSERT_OR_UPDATE}>`,
     element("      ", "sys_id", layout.sysId),
     element("      ", "sys_scope", scope.sysId, attributes([["display_value", scope.name]])),
     element("      ", "view", layout.view.sysId, viewName),
     element("      ", "name", layout.table),
     element("      ", "sys_domain", layout.domain),
     "    </sys_ui_list>",
-    "  </sys_ui_list>",
-    "</record_update>",
-  ].join("\n");
+  ]);
 }

@@ -53,7 +53,7 @@ describe("list layout update (ADR-0029)", () => {
 
   it("escapes text and attribute values", () => {
     const xml = listLayoutXml(layout({ columns: [column("a".repeat(32), 'a<b&"c', 0)] }), SCOPE);
-    expect(xml).toContain("<element>a&lt;b&amp;&quot;c</element>");
+    expect(xml).toContain('<element>a&lt;b&amp;"c</element>');
   });
 
   it("is named as the platform records it: table and view, plus the domain outside global", () => {

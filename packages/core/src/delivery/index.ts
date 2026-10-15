@@ -53,6 +53,12 @@ export {
   holdsPublished,
   toPublish,
 } from "./domain/fluent-records";
+export {
+  type FormLayout,
+  type FormSectionRef,
+  formLayoutXml,
+  formUpdateName,
+} from "./domain/form-layout";
 export { type GateFinding, type GateResult, gateOf, planId } from "./domain/gate";
 export {
   type ListFiles,
@@ -67,6 +73,23 @@ export {
   listLayoutXml,
   listUpdateName,
 } from "./domain/list-layout";
+export {
+  type RecordUpdate,
+  recordUpdateName,
+  recordUpdateXml,
+} from "./domain/record-update";
+export {
+  type RelatedListEntry,
+  type RelatedListLayout,
+  relatedListLayoutXml,
+  relatedListUpdateName,
+} from "./domain/related-list-layout";
+export {
+  type SectionElement,
+  type SectionLayout,
+  sectionLayoutXml,
+  sectionUpdateName,
+} from "./domain/section-layout";
 export {
   globMatches,
   readWaivers,

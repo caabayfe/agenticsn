@@ -73,5 +73,8 @@ export interface FluentProjects {
   holding(paths: readonly string[]): Promise<readonly FluentProject[]>;
   // Builds a copy of the project; the workspace is never written.
   build(project: FluentProject): Promise<FluentBuild>;
+  // Writes a build's keys.ts into the project (and stages it, when the projects are the
+  // index's); the only write to Fluent source snagentic makes.
+  writeKeys(project: FluentProject, keys: string): Promise<void>;
   sdkVersion(): Promise<string>;
 }

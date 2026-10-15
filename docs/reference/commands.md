@@ -213,6 +213,22 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `fluent-keys`
+
+```
+snagentic fluent-keys [paths...] [options]
+```
+
+Write src/fluent/generated/keys.ts for the Fluent projects under source/ whose build adds IDs: each new Now.ID gets its sys_id once, and keys.ts is committed with the source so every later build names the record the same (rule SN-MNT-010). The pre-commit hook runs it with --staged, which builds what is staged and stages keys.ts. Writes no other file and calls no instance.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--staged`: build the projects as the index holds them and stage keys.ts (the pre-commit hook)
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `check`
 
 ```

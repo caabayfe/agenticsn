@@ -9,6 +9,7 @@ import type {
   EnvironmentProbe,
   FluentInstaller,
   FluentPackages,
+  FluentProjects,
   ImportSetWriter,
   IncrementalMirror,
   InstalledBinary,
@@ -116,6 +117,12 @@ export interface UseCaseContext {
   readonly packWorkspace: (root: string, instance: InstanceName) => PackWorkspace;
   // Fluent projects under source/, built for delivery (ADR-0028 as amended).
   readonly fluentPackages: (root: string) => FluentPackages;
+  // Fluent projects under source/, built to check them and write their keys; staged: as the
+  // index holds them, for the pre-commit hook.
+  readonly fluentProjects: (
+    root: string,
+    options?: { readonly staged?: boolean },
+  ) => FluentProjects;
   // The git platform, for the branch's pull request (ADR-0022).
   readonly pullRequests: (root: string) => PullRequests;
   // Where push journals its progress (.snagentic/<name>/push-journal.json).

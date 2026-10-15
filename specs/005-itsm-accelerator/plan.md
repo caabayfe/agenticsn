@@ -222,7 +222,7 @@ validate, review, plan and push, prove, record evidence).
   follows as v1.8.0. Release 1.6.0 (domains, spec 006) shipped meanwhile, so the plan's earlier
   "v1.5.0" became v1.8.0.
 
-- **P5 (open, 2026-10-14). Writing a Fluent project's generated keys.** validate reports new IDs
+- **P5 (decided 2026-10-15: the pre-commit hook writes and stages the keys, through the CLI-only `fluent-keys --staged`; built from the index so a partial commit carries only its own keys; a key without its source makes the SDK delete the record, so that matters). Was open, 2026-10-14. Writing a Fluent project's generated keys.** validate reports new IDs
   (SN-MNT-010) but nothing in snagentic writes them to `keys.ts`; the live test used the
   runtime directly. *Recommendation: a CLI-only use case, `snagentic fluent-keys <project>`
   (writes only `src/fluent/generated/keys.ts`, no instance, not an MCP tool), named in the

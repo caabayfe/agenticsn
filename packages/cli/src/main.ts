@@ -96,8 +96,10 @@ const context: UseCaseContext = {
       options,
     ),
     checker: new EslintScriptChecker(),
-    fluent: new WorkspaceFluentProjects(root, loadFluentRuntime),
+    fluent: new WorkspaceFluentProjects(root, loadFluentRuntime, options),
   }),
+  fluentProjects: (root, options = {}) =>
+    new WorkspaceFluentProjects(root, loadFluentRuntime, options),
   files: { create: createTextFile },
   workspaceFiles: fsWorkspaceFiles,
   delivery: (root, instance) => new GitDeliveryWorkspace(root, instance),

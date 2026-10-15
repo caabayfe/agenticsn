@@ -42,12 +42,14 @@ export function withAgentsImport(existing: string | null): string {
 
 const HOOK_MARK = "# snagentic: validate before every commit";
 
-// The pre-commit hook (ADR-0011, layer 4): validate, so a commit with block findings fails.
+// The pre-commit hook (ADR-0011, layer 4): write and stage the keys of new Fluent IDs, so they
+// are never forgotten (P5, spec 005), then validate, so a commit with block findings fails.
 // It skips quietly where snagentic is not installed, so the repository stays usable.
 export const PRE_COMMIT_HOOK = [
   "#!/bin/sh",
   `${HOOK_MARK} (ADR-0011). Installed by snagentic agent install.`,
   "command -v snagentic >/dev/null 2>&1 || exit 0",
+  "snagentic fluent-keys --staged --format agent || exit 1",
   "exec snagentic validate --staged --format agent",
   "",
 ].join("\n");

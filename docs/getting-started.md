@@ -216,8 +216,12 @@ source/global/
 ```
 
 `validate` builds every project the change touches and reports build errors, IDs not yet in
-`keys.ts`, records the build would delete, and an SDK version other than snagentic's. `plan-push`
-lists each flow, subflow and action; `push` loads them into the batch, publishes them, and checks
+`keys.ts`, records the build would delete, and an SDK version other than snagentic's. You never
+write `keys.ts` by hand: when a commit adds a flow, the pre-commit hook (`snagentic agent
+install`) builds what is staged, writes the new IDs to `keys.ts` and adds it to the commit.
+Without the hook, run `snagentic fluent-keys source/<scope>` and commit `keys.ts` with the
+source; `validate`, `plan-push` and CI block a project whose keys are missing.
+`plan-push` lists each flow, subflow and action; `push` loads them into the batch, publishes them, and checks
 the update set holds the published versions. A flow that already existed is inactive for a few
 seconds while it is redelivered: records created meanwhile do not trigger it, which push reports.
 Mirrored flow records stay read-only; to keep a change made in Flow Designer, bring it back into

@@ -23,7 +23,7 @@ const project = (path: string, declaredSdk: string | null = "4.13.6"): FluentPro
   path,
   declaredSdk,
 });
-const clean: FluentBuild = { built: true, keysChanged: false, deletes: [] };
+const clean: FluentBuild = { built: true, keys: null, deletes: [] };
 
 function fakeFluent(
   changed: readonly FluentProject[],
@@ -38,6 +38,7 @@ function fakeFluent(
       return builds[p.path] ?? clean;
     },
     sdkVersion: async () => "4.13.6",
+    writeKeys: async () => {},
   };
 }
 
@@ -74,7 +75,7 @@ describe("validate, Fluent projects (ADR-0028)", () => {
   it("blocks until the generated keys are committed", async () => {
     const result = await run(
       fakeFluent([project("source/x_app")], {
-        "source/x_app": { built: true, keysChanged: true, deletes: [] },
+        "source/x_app": { built: true, keys: { committed: null, built: "k" }, deletes: [] },
       }),
     );
     expect(result.findings).toEqual([
@@ -90,7 +91,7 @@ describe("validate, Fluent projects (ADR-0028)", () => {
       fakeFluent([project("source/x_app")], {
         "source/x_app": {
           built: true,
-          keysChanged: false,
+          keys: null,
           deletes: ["sys_choice_var__m_sys_hub_action_input_43400a15_sort_type"],
         },
       }),

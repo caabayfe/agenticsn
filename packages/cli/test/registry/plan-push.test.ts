@@ -150,9 +150,20 @@ describe("plan-push rendering", () => {
             scope: "global",
             table: "incident",
             view: "Default view",
+            domain: "global",
             sysId: "l",
             path: "global/sys_ui_list/incident--l.yaml",
             columns: ["number", "state"],
+          },
+          {
+            operation: "create",
+            scope: "global",
+            table: "incident",
+            view: "Default view",
+            domain: "d".repeat(32),
+            sysId: "m",
+            path: "domains/d/global/sys_ui_list/incident--m.yaml",
+            columns: ["number"],
           },
         ],
         fluent: [],
@@ -193,5 +204,6 @@ describe("plan-push rendering", () => {
     expect(text).toContain(
       "update list incident (Default view)  global/sys_ui_list/incident--l.yaml  columns: number, state",
     );
+    expect(text).toContain(`create list incident (Default view, domain ${"d".repeat(32)})`);
   });
 });

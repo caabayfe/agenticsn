@@ -40,6 +40,7 @@ export const PlanOutput = z.object({
         scope: z.string(),
         table: z.string(),
         view: z.string(),
+        domain: z.string().describe('"global" or the sys_id of the domain the layout applies to'),
         sysId: z.string(),
         path: z.string(),
         columns: z.array(z.string()).readonly(),
@@ -146,7 +147,7 @@ export const planPush = defineUseCase({
       ),
       ...output.lists.map(
         (l) =>
-          `${l.operation.padEnd(6)} list ${l.table} (${l.view})  ${l.path}  columns: ${l.columns.join(", ")}`,
+          `${l.operation.padEnd(6)} list ${l.table} (${l.view}${l.domain === "global" ? "" : `, domain ${l.domain}`})  ${l.path}  columns: ${l.columns.join(", ")}`,
       ),
       ...output.fluent.map((f) => `${f.kind.padEnd(7)} ${f.name}  ${f.project}  (publish)`),
       ...output.problems.map((p) => `problem: ${p.path}: ${p.reason}`),

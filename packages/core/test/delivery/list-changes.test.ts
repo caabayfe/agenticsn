@@ -112,6 +112,21 @@ describe("list layout changes (ADR-0029)", () => {
     });
   });
 
+  it("plans a domain's own list in its domain, and refuses moving it to another (ADR-0027)", () => {
+    const DOMAIN = "9".repeat(32);
+    const inDomain: ListFiles = { record: list({}, { sys_domain: DOMAIN }), rows: pulled.rows };
+    const created = listChange(PATH, null, inDomain, DEFAULT).list;
+    expect(created?.layout.domain).toBe(DOMAIN);
+    expect(created?.updateName).toBe(`sys_ui_list_x_acme_app_task_null_${DOMAIN}`);
+    expect(listChange(PATH, pulled, inDomain, DEFAULT).problems).toEqual([
+      {
+        path: PATH,
+        reason:
+          "domain changed: a list's table, view and domain identify it; add a new list file instead",
+      },
+    ]);
+  });
+
   it("refuses what it cannot deliver whole, naming the way out", () => {
     const reasons = (after: ListFiles | null, before: ListFiles | null = pulled) =>
       listChange(PATH, before, after, DEFAULT).problems.map((p) => p.reason);

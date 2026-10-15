@@ -196,6 +196,8 @@ const listChangeOf = ({ operation, scope, path, layout }: PlannedList) => ({
   scope,
   table: layout.table,
   view: layout.view.name || layout.view.sysId,
+  // A list in a domain other than global is that domain's own layout of the table (ADR-0027).
+  domain: layout.domain,
   sysId: layout.sysId,
   path,
   columns: layout.columns.map((c) => c.element),

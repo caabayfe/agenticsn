@@ -57,6 +57,7 @@ describe("computePlan, list layouts (ADR-0029)", () => {
           scope: "x_acme_app",
           table: "x_acme_app_task",
           view: "Default view",
+          domain: "global",
           sysId: LIST_ID,
           path: `${LIST}.yaml`,
           columns: ["state", "priority", "number"],

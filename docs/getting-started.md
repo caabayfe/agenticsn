@@ -185,8 +185,10 @@ A list layout (`<scope>/sys_ui_list/<table>--<sys_id>.yaml` and its
 only as one "List Layout" update, so push loads the list with all its columns into the
 update set, in position order. Removing a column removes it from the list. A new list is a new
 list file with its columns file: the view is `Default view`, or the sys_id of a view in
-`global/sys_ui_view`. Related list layouts and personal lists are not pushed; change them on the
-instance. A list's table, view and domain identify it and cannot be changed. Flow, workflow and variable-value child rows stay read-only. Choices arrive on the first
+`global/sys_ui_view`. A list in a domain other than global is that domain's own layout of the
+table: put it under `domains/<domain>/` with `_meta.sys_domain` set, and the plan names the
+domain. Related list layouts and personal lists are not pushed; change them on the instance. A
+list's table, view and domain identify it and cannot be changed. Flow, workflow and variable-value child rows stay read-only. Choices arrive on the first
 pull after upgrading to this version.
 
 ### A new application

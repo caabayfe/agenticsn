@@ -82,13 +82,16 @@ list for it, so every list below was created from git.
 | B. Reorder, remove one column, add one with `sum` | New order applied; the removed column deleted; the new one summed; sys_ids kept | The same update, replaced with the new columns | Clean; nothing to push |
 | C. New list in the Mobile view | Created with the files' sys_ids | One List Layout update, `sys_ui_list_x_2222332_s11_list_probe_Mobile` | Clean; nothing to push |
 | D. Swap the Mobile list's two columns (rebuilt binary, after the fixes) | New order; sys_ids kept | The same update, replaced | Clean; nothing to push |
+| E. New list for the Default view in the Default domain (`09ff…`), as admin in global | Created in that domain with the files' sys_ids; the global list untouched | One List Layout update, `sys_ui_list_x_2222332_s11_list_probe_null_09ff3d105f231000b12e3572f2b4775d` | Clean; nothing to push |
+| F. Reorder that domain's list and remove a column | Applied in the domain; removed column deleted; the global list untouched | The domain's update, replaced | Clean; nothing to push |
 
 The platform keeps the view name's case in the update name (`_Mobile`), where the SDK
 lower-cases its file name; push reads the name from the list after loading, and the plan's
 collision check uses the platform's form.
 
-Not tested live: a list in a domain other than global, and moving the batch to a second
-instance.
+A list in a domain other than global is that domain's own layout of the table: a separate list,
+named with the domain's sys_id, which the plan shows. Moving a list to another domain is refused,
+as for any identity change. Not tested live: moving the batch to a second instance.
 
 ## Alternatives considered
 

@@ -158,35 +158,27 @@ describe("layout changes (ADR-0029, ADR-0030)", () => {
     expect(layout?.rows.map((r) => r["element"])).toEqual(["number", ".split"]);
   });
 
-  it("refuses a form section change the platform would not record: its own fields alone", () => {
+  it("refuses changing an existing form section's own fields, which never reach its update", () => {
     const element = row("section", A, {
       element: "number",
       position: "0",
       type: "",
       sys_ui_formatter: "",
     });
-    const pulled = files("section", [element], {
-      caption: "",
-      header: "false",
-      title: "false",
-      roles: "",
-    });
-    const headerOnly = files("section", [element], {
-      caption: "",
-      header: "true",
-      title: "false",
-      roles: "",
-    });
-    expect(change("section", pulled, headerOnly).problems.map((p) => p.reason)).toEqual([
-      "the platform records a form section's header, title and roles only with a change to its rows: change a row in the same push, or set them on the instance",
+    const fields = (header: string) => ({ caption: "", header, title: "false", roles: "" });
+    const pulled = files("section", [element], fields("false"));
+    const reasons = (after: LayoutFiles) =>
+      change("section", pulled, after).problems.map((p) => p.reason);
+    const refusal =
+      "header of an existing form section cannot travel with the update set: the platform records its rows and the form section as it was; set it on the instance, or leave it as pulled";
+    expect(reasons(files("section", [element], fields("true")))).toEqual([refusal]);
+    expect(reasons(files("section", [{ ...element, position: "1" }], fields("true")))).toEqual([
+      refusal,
     ]);
-    const withRow = files("section", [{ ...element, position: "1" }], {
-      caption: "",
-      header: "true",
-      title: "false",
-      roles: "",
-    });
-    expect(change("section", pulled, withRow).problems).toEqual([]);
+    // A new section carries them (pdi2).
+    expect(change("section", null, files("section", [element], fields("true"))).problems).toEqual(
+      [],
+    );
   });
 
   it("plans a form with its sections in order, and a related lists layout named after its view", () => {

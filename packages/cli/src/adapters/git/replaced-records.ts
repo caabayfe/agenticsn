@@ -108,3 +108,36 @@ export async function takeTheirsNew(
   }
   return taken;
 }
+
+// A related lists record created here and pushed comes back under the sys_id the platform gave
+// it: both files are new, so nothing conflicts. The local file goes when the instance's confirms
+// it (ADR-0030), as takeRelocated does for a record the platform renamed.
+export async function takeReplacedNew(
+  root: string,
+  where: { readonly metadata: string; readonly branch: string },
+): Promise<string[]> {
+  const fork = await mergeBase(root, where.branch);
+  if (fork === null) return [];
+  const added = async (rev: string) =>
+    lines(
+      await runGitOrThrow(
+        ["diff", "--name-only", "--no-renames", "--diff-filter=A", fork, rev, "--", where.metadata],
+        root,
+      ),
+    ).filter((path) => RELATED.test(path) && !path.includes(".children."));
+  const theirs = await added(where.branch);
+  if (theirs.length === 0) return [];
+  const confirmed: string[] = [];
+  for (const path of (await added("HEAD")).filter((p) => !theirs.includes(p))) {
+    const mine = await copyAt(root, "HEAD", path);
+    const key = nameKey(where.metadata, path);
+    for (const replacement of theirs.filter((other) => nameKey(where.metadata, other) === key)) {
+      if (replacementConfirms(mine, await copyAt(root, where.branch, replacement))) {
+        await runGitOrThrow(["rm", "-q", "--", path, path.replace(/\.yaml$/, ROWS)], root);
+        confirmed.push(replacement);
+        break;
+      }
+    }
+  }
+  return confirmed;
+}

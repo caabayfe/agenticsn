@@ -60,7 +60,14 @@ function recordProblems(spec: LayoutKindSpec, before: LayoutFiles | null, after:
     .filter((f) => !carried.has(f) && !HASH_EXCLUDED_FIELDS.has(f) && changed(f))
     .sort();
   const names = list([...spec.identity, "domain"]);
+  const createOnly = spec.fieldsOnCreateOnly === true ? spec.recordFields.filter(changed) : [];
+  const them = createOnly.length === 1 ? "it" : "them";
   return [
+    ...(createOnly.length === 0
+      ? []
+      : [
+          `${list(createOnly)} of an existing ${spec.noun} cannot travel with the update set: the platform records its rows and the ${spec.noun} as it was; set ${them} on the instance, or leave ${them} as pulled`,
+        ]),
     ...identity.map(
       (f) => `${f} changed: a ${spec.noun}'s ${names} identify it; add a new file instead`,
     ),
@@ -128,9 +135,6 @@ function unchanged(
 }
 
 const byRowPosition = (a: Row, b: Row) => Number(a["position"] ?? "") - Number(b["position"] ?? "");
-
-const sameRows = (was: readonly Row[], is: readonly Row[]) =>
-  was.map(content).sort().join("\n") === is.map(content).sort().join("\n");
 
 const carriedRow = (spec: LayoutKindSpec, row: Row): Row =>
   Object.fromEntries(["sys_id", ...spec.rowFields].map((f) => [f, row[f] ?? ""]));
@@ -202,11 +206,6 @@ export function layoutChange(
   ];
   if (problems.length > 0) return fail(problems);
   if (before !== null && unchanged(spec, before, after, was, is)) return fail([]);
-  if (before !== null && spec.recordedWithRowsOnly === true && sameRows(was, is)) {
-    return fail([
-      `the platform records a ${spec.noun}'s ${list(spec.recordFields)} only with a change to its rows: change a row in the same push, or set them on the instance`,
-    ]);
-  }
   const layout = planned(spec, path, before, after, is, view);
   const pulledName = before?.record.artifact.meta["sys_update_name"] ?? "";
   // A list keeps the name the platform gave it; every other kind's name follows from the record.

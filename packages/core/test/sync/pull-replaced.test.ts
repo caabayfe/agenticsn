@@ -46,6 +46,7 @@ describe("pullIncremental: replaced related lists (ADR-0030)", () => {
     const { incremental, tables } = await pulledInstance(withRelatedLists);
     tables["sys_ui_related_list"] = [{ ...related(7), sys_updated_on: CHANGED, filter: "x" }];
     const { queries } = await incremental();
-    expect(queries.filter((q) => q.query.startsWith("sys_idIN"))).toEqual([]);
+    // The existence check asks for sys_id only; the record's own download asks for all fields.
+    expect(queries.filter((q) => q.query.startsWith("sys_idIN") && q.fields !== "all")).toEqual([]);
   });
 });

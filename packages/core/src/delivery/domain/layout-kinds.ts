@@ -27,9 +27,10 @@ export interface LayoutKindSpec {
   readonly refused: readonly { readonly fields: readonly string[]; readonly reason: string }[];
   // What the plan and its problems call it.
   readonly noun: string;
-  // The platform records the update only when the rows change: a change to the record's own
-  // fields alone is applied but never recorded (a form section on pdi2, ADR-0030).
-  readonly recordedWithRowsOnly?: true;
+  // The record's own fields reach the update only when the record is created: for an existing
+  // one the platform records the rows, and the record as it was (a form section on pdi2,
+  // ADR-0030), so changing them would apply without travelling.
+  readonly fieldsOnCreateOnly?: true;
 }
 
 const PERSONAL = (noun: string) => ({
@@ -72,7 +73,7 @@ export const LAYOUT_KINDS: readonly LayoutKindSpec[] = [
     booleans: [],
     refused: [PERSONAL("form layout")],
     noun: "form section",
-    recordedWithRowsOnly: true,
+    fieldsOnCreateOnly: true,
   },
   {
     kind: "form",

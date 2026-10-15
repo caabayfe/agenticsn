@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { takeReplaced, takeTheirsNew } from "../../../src/adapters/git/replaced-records";
+import {
+  takeReplaced,
+  takeReplacedNew,
+  takeTheirsNew,
+} from "../../../src/adapters/git/replaced-records";
 import { runGit, runGitOrThrow } from "../../../src/adapters/git/run-git";
 
 const temporary: string[] = [];
@@ -142,5 +146,32 @@ describe("integrate: related lists the instance replaced (ADR-0030)", () => {
     expect(taken).toEqual(unmerged);
     expect(await git(root, "diff", "--name-only", "--diff-filter=U")).toBe("");
     expect(await git(root, "ls-files", FOLDER)).toContain(NEW);
+  });
+
+  it("drops a related lists file created here once the instance's, under its own sys_id, confirms it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "replaced-"));
+    temporary.push(root);
+    await git(root, "init", "-q", "-b", "main");
+    await git(root, "config", "user.name", "t");
+    await git(root, "config", "user.email", "t@t");
+    await writeFile(join(root, "README"), "x");
+    await git(root, "add", ".");
+    await git(root, "commit", "-qm", "start");
+    await git(root, "branch", BRANCH);
+    await put(root, OLD, ["task.parent"]);
+    await git(root, "add", ".");
+    await git(root, "commit", "-qm", "create here");
+    await git(root, "checkout", "-q", BRANCH);
+    await put(root, NEW, ["task.parent"]);
+    await git(root, "add", ".");
+    await git(root, "commit", "-qm", "pull: the instance's copy");
+    await git(root, "checkout", "-q", "main");
+    await runGit(["merge", "--no-commit", BRANCH], root);
+    expect(await takeReplacedNew(root, { metadata: META, branch: BRANCH })).toEqual([
+      `${file(NEW)}.yaml`,
+    ]);
+    const listed = await git(root, "ls-files", FOLDER);
+    expect(listed).not.toContain(OLD);
+    expect(listed).toContain(NEW);
   });
 });

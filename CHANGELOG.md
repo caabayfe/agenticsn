@@ -4,6 +4,31 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-15
+
+### Added
+
+- Accelerator packs (ADR-0026): ready-made records and data templates for a product area, in
+  capabilities installed wave by wave. `accelerator list` and `accelerator check` (MCP tool
+  `accelerator`, read-only; the MCP budget is now 13 tools) say whether each capability is
+  ready, needs plugins, is not entitled or is blocked, with the commands that make it ready.
+- `accelerator add` writes a pack's records into the workspace and applies its patches to the
+  mirrored records, on the branch `accelerator/<pack>/<instance>` merged into the current one;
+  `validate`, `plan-push` and `push` deliver them as usual. Adding the same version again
+  changes nothing, fields pull does not mirror (such as secret-like property values) are never
+  written, and a later version merges with your edits: a record it no longer ships is kept and
+  reported, never deleted.
+- Rule SN-MNT-012 (block): a planned write of a pack capability that is not ready on the
+  instance.
+- `accelerator validate-data` checks a pack's CSV data templates (mandatory fields, references,
+  repeated keys) and refuses a directory git tracks. `accelerator load` loads them into a
+  development instance with `--confirm`, one row per request through the pack's import set
+  tables, in dependency order, never retried; loading again leaves rows unchanged.
+- The deliver skill guides an agent through checking and adding a pack; it never activates
+  plugins or loads data itself.
+- The binary embeds the packs under its configured pack folders, loaded only by accelerator
+  commands. No pack ships in this release; the first, for ITSM, follows.
+
 ## [1.7.0] - 2026-10-15
 
 ### Added

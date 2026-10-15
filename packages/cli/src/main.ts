@@ -11,6 +11,7 @@ import { GhPullRequests } from "./adapters/delivery/gh-pull-requests";
 import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
 import { fluentProbe } from "./adapters/fluent/fluent-probe";
 import { loadFluentRuntime } from "./adapters/fluent/fluent-runtime-loader";
+import { WorkspaceFluentPackages } from "./adapters/fluent/workspace-fluent-packages";
 import { WorkspaceFluentProjects } from "./adapters/fluent/workspace-fluent-projects";
 import { createTextFile } from "./adapters/fs/create-text-file";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
@@ -92,11 +93,19 @@ const context: UseCaseContext = {
       options,
     ),
     checker: new EslintScriptChecker(),
-    fluent: new WorkspaceFluentProjects(root, loadFluentRuntime),
+    fluent: new WorkspaceFluentProjects(root, loadFluentRuntime, options),
   }),
+  fluentProjects: (root, options = {}) =>
+    new WorkspaceFluentProjects(root, loadFluentRuntime, options),
   files: { create: createTextFile },
   workspaceFiles: fsWorkspaceFiles,
   delivery: (root, instance) => new GitDeliveryWorkspace(root, instance),
+  fluentPackages: (root) =>
+    new WorkspaceFluentPackages(
+      root,
+      new WorkspaceFluentProjects(root, loadFluentRuntime),
+      loadFluentRuntime,
+    ),
   pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),

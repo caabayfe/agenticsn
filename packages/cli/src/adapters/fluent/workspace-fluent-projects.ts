@@ -1,19 +1,18 @@
-import { cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import {
   FLUENT_KEYS_FILE,
   FLUENT_SOURCE_DIR,
   type FluentBuild,
+  FluentKeysUnstagedError,
   type FluentProject,
   type FluentProjects,
 } from "@snagentic/core";
-import { runGitOrThrow } from "../git/run-git";
+import { runGit, runGitOrThrow } from "../git/run-git";
+import { buildInCopy, fromIndex, fromWorkingTree } from "./build-in-copy";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
 
 const lines = (text: string) => text.split("\n").filter(Boolean);
-// Build output and installed dependencies are never part of a project's source.
-const NOT_SOURCE = new Set(["node_modules", "dist", ".now"]);
 const DELETE_RECORD = /action="DELETE"[\s\S]*?<sys_update_name>([^<]+)<\/sys_update_name>/;
 
 const readText = (path: string) => readFile(path, "utf8").catch(() => null);
@@ -44,22 +43,39 @@ async function deletesIn(directory: string): Promise<string[]> {
 
 // The workspace's Fluent projects under source/<scope>/, built with the embedded SDK in a
 // temporary copy so validate and plan never write to the workspace (ADR-0028 as amended).
+// Staged: the projects as the index holds them, for the pre-commit hook.
 export class WorkspaceFluentProjects implements FluentProjects {
+  private readonly staged: boolean;
+
   constructor(
     private readonly workspace: string,
     private readonly load: LoadFluentRuntime,
-  ) {}
+    options: { readonly staged?: boolean } = {},
+  ) {
+    this.staged = options.staged === true;
+  }
 
   async changedSince(commit: string): Promise<readonly FluentProject[]> {
+    const index = this.staged ? ["--cached"] : [];
     const changed = await runGitOrThrow(
-      ["diff", "--name-only", "--no-renames", commit, "--", FLUENT_SOURCE_DIR],
+      ["diff", ...index, "--name-only", "--no-renames", commit, "--", FLUENT_SOURCE_DIR],
       this.workspace,
     );
-    const added = await runGitOrThrow(
-      ["ls-files", "--others", "--exclude-standard", "--", FLUENT_SOURCE_DIR],
-      this.workspace,
-    );
+    const added = this.staged
+      ? ""
+      : await runGitOrThrow(
+          ["ls-files", "--others", "--exclude-standard", "--", FLUENT_SOURCE_DIR],
+          this.workspace,
+        );
     return this.holding([...lines(changed), ...lines(added)]);
+  }
+
+  // keys.ts as the projects are read: from the index when staged.
+  private async committedKeys(project: FluentProject): Promise<string | null> {
+    const path = `${project.path}/${FLUENT_KEYS_FILE}`;
+    if (!this.staged) return readText(join(this.workspace, path));
+    const shown = await runGit(["show", `:${path}`], this.workspace);
+    return shown.exitCode === 0 ? shown.stdout : null;
   }
 
   async holding(paths: readonly string[]): Promise<readonly FluentProject[]> {
@@ -80,26 +96,32 @@ export class WorkspaceFluentProjects implements FluentProjects {
   }
 
   async build(project: FluentProject): Promise<FluentBuild> {
-    const runtime = await this.load();
-    const source = join(this.workspace, project.path);
-    const copy = join(await mkdtemp(join(tmpdir(), "snagentic-fluent-")), "project");
-    try {
-      await cp(source, copy, {
-        recursive: true,
-        filter: (path) => !NOT_SOURCE.has(path.slice(source.length + 1).split(/[\\/]/)[0] ?? ""),
-      });
-      const outcome = await runtime.build(copy);
+    const fill = this.staged
+      ? fromIndex(this.workspace, project.path)
+      : fromWorkingTree(join(this.workspace, project.path));
+    const committed = await this.committedKeys(project);
+    return buildInCopy(this.load, fill, async (copy, outcome) => {
       if (!outcome.success) return { built: false, errors: outcome.errors };
-      const before = await readText(join(source, FLUENT_KEYS_FILE));
-      const after = await readText(join(copy, FLUENT_KEYS_FILE));
+      const built = await readText(join(copy, FLUENT_KEYS_FILE));
       return {
         built: true,
-        keysChanged: before !== after,
+        keys: built === null || built === committed ? null : { committed, built },
         deletes: await deletesIn(join(copy, "dist", "app")),
       };
-    } finally {
-      await rm(join(copy, ".."), { recursive: true, force: true });
+    });
+  }
+
+  async writeKeys(project: FluentProject, keys: string): Promise<void> {
+    const path = `${project.path}/${FLUENT_KEYS_FILE}`;
+    const file = join(this.workspace, path);
+    // Staged, the keys were built from the index: they replace the working tree's only when
+    // it holds what the index holds, so no unstaged edit is lost.
+    if (this.staged && (await readText(file)) !== (await this.committedKeys(project))) {
+      throw new FluentKeysUnstagedError(path);
     }
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, keys);
+    if (this.staged) await runGitOrThrow(["add", "--", path], this.workspace);
   }
 
   async sdkVersion(): Promise<string> {

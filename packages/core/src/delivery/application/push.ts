@@ -11,6 +11,8 @@ import {
 } from "../domain/errors";
 import type {
   ElevatedSessions,
+  FluentInstaller,
+  FluentPackage,
   InstanceWriter,
   PullRequests,
   PushJournal,
@@ -18,6 +20,7 @@ import type {
   SwitchedPreference,
 } from "../ports";
 import { ensureElevationAvailable } from "./elevated-writes";
+import { checkFlowDomains, type DeliveredFluentRecord } from "./fluent-steps";
 import { computePlan, type PlanDependencies, type PlanQuery } from "./plan-push";
 import { type PullRequestOutcome, pullRequestFor } from "./pull-request";
 import { settle, switchFor } from "./push-preferences";
@@ -43,6 +46,8 @@ export interface PushDependencies extends PlanDependencies {
   readonly pullRequests: PullRequests;
   // Opens sessions elevated to security_admin for ACLs; null unless opted in (ADR-0024).
   readonly elevatedSessions: ElevatedSessions | null;
+  // Loads and publishes Fluent builds (ADR-0028 as amended); null where flows cannot be pushed.
+  readonly fluentInstaller: FluentInstaller | null;
 }
 
 export interface PushQuery extends PlanQuery {
@@ -78,6 +83,10 @@ export interface PushResult {
     // Written through a session elevated to security_admin (ADR-0024).
     elevated: boolean;
   }[];
+  // Flows, subflows, actions and other records Fluent builds installed (ADR-0028 as amended).
+  readonly fluent: readonly DeliveredFluentRecord[];
+  // The longest time a redelivered flow was inactive (load to publish), or null without flows.
+  readonly flowsInactiveMs: number | null;
   // Writes the platform did not record in the update set: they will not travel with it.
   readonly notCaptured: number;
   readonly next: readonly NextCall[];
@@ -162,21 +171,32 @@ async function writeAll(
     readonly label: string;
     readonly batch: OpenedUpdateSet;
     readonly writes: readonly PlannedWrite[];
+    readonly fluent: readonly FluentPackage[];
     readonly user: string;
+    readonly liveFlows: ReadonlySet<string>;
   },
   catalog: Catalog,
 ) {
   const link = (set: { sysId: string }) => `${deps.url}/sys_update_set.do?sys_id=${set.sysId}`;
   const written: PushResult["written"][number][] = [];
   const updateSets: PushResult["updateSets"][number][] = [];
-  for (const scope of [...new Set(run.writes.map((w) => w.scope))].sort()) {
+  const fluent: DeliveredFluentRecord[] = [];
+  let inactive: number | null = null;
+  const scopes = [...run.writes.map((w) => w.scope), ...run.fluent.map((p) => p.scope)];
+  for (const scope of [...new Set(scopes)].sort()) {
     const scoped = run.writes.filter((w) => w.scope === scope);
-    const target = { name: scope, id: scopeId(catalog, scope, run.writes), user: run.user };
-    const set = await pushScope(
-      { deps, session, journal, catalog },
+    const project = run.fluent.find((p) => p.scope === scope) ?? null;
+    const id = project?.scopeId ?? scopeId(catalog, scope, run.writes);
+    const target = { name: scope, id, user: run.user, fluent: project };
+    const { fluent: delivered, ...set } = await pushScope(
+      { deps, session, journal, catalog, liveFlows: run.liveFlows },
       { ...target, writes: scoped, label: run.label, batch: run.batch },
     );
     updateSets.push({ scope, ...set, link: link(set) });
+    if (delivered !== null) {
+      fluent.push(...delivered.records);
+      if (delivered.inactiveMs !== null) inactive = Math.max(inactive ?? 0, delivered.inactiveMs);
+    }
     for (const write of scoped) {
       const { operation, table, sysId: record, path } = write;
       const done = await captured(session, write, {
@@ -187,7 +207,7 @@ async function writeAll(
       written.push({ operation, table, sysId: record, path, captured: done, elevated });
     }
   }
-  return { written, updateSets };
+  return { written, updateSets, fluent, inactive };
 }
 
 // Writes a reviewed plan to the development instance, into the branch's batch of update sets.
@@ -197,7 +217,11 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
     writer: deps.writer,
     signal: deps.signal,
   };
-  const { plan, writes } = await preflight(deps, query, session);
+  const { plan, writes, fluent: packages } = await preflight(deps, query, session);
+  const liveFlows =
+    packages.length > 0
+      ? await checkFlowDomains(session, deps.username, packages)
+      : new Set<string>();
   const pullRequest = await pullRequestFor(deps, { ...query, label: plan.label, writes });
   const catalog = new Catalog(deps.catalog);
   const user = await userSysId(session, deps.username);
@@ -213,11 +237,11 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
   await deps.journal.write(journal.current);
   const pr = "url" in pullRequest ? pullRequest.url : undefined;
   const batch = await openGlobalBatch(deps, session, journal, { label: plan.label, user, pr });
-  const { written, updateSets } = await writeAll(
+  const { written, updateSets, fluent, inactive } = await writeAll(
     deps,
     session,
     journal,
-    { label: plan.label, batch, writes, user },
+    { label: plan.label, batch, writes, fluent: packages, user, liveFlows },
     catalog,
   );
   await deps.journal.clear();
@@ -228,7 +252,9 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
     pullRequest,
     updateSets,
     written,
-    notCaptured: written.filter((w) => !w.captured).length,
+    fluent,
+    flowsInactiveMs: inactive,
+    notCaptured: [...written, ...fluent].filter((w) => !w.captured).length,
     next: [
       { tool: "pull", args: { instance: query.instance } },
       { tool: "status", args: { instance: query.instance } },

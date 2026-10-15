@@ -57,6 +57,7 @@ describe("plan-push", () => {
     expect(output).toMatchObject({
       instance: "pdi",
       changes: [{ operation: "update", table: "sys_script_include", fields: ["script"] }],
+      fluent: [],
       problems: [],
       gate: { passed: true },
       ready: true,
@@ -143,6 +144,7 @@ describe("plan-push rendering", () => {
             elevated: false,
           },
         ],
+        fluent: [],
         problems: [],
         gate: {
           passed: true,

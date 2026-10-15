@@ -26,7 +26,8 @@ import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/error
 import { type GateResult, gateOf, planId } from "../domain/gate";
 import { readWaivers, UNCOMMITTED_WAIVERS } from "../domain/waivers";
 import { pushUnfinished, writeOrder } from "../domain/write-order";
-import type { DeliveryWorkspace, PushJournalStore } from "../ports";
+import type { DeliveryWorkspace, FluentPackage, FluentPackages, PushJournalStore } from "../ports";
+import { type FluentPlan, planFluent } from "./plan-fluent";
 
 export interface PlanQuery {
   readonly instance: string;
@@ -37,6 +38,8 @@ export interface PlanQuery {
 
 export interface PlanDependencies {
   readonly workspace: DeliveryWorkspace;
+  // Fluent projects, built for delivery (ADR-0028 as amended); none when absent.
+  readonly fluent?: FluentPackages;
   // A push that stopped part way leaves its journal until a pull shows what it wrote.
   readonly journal: Pick<PushJournalStore, "read">;
   readonly governance: ValidateDependencies;
@@ -68,6 +71,16 @@ export interface PushPlan {
     readonly fields: readonly string[];
     // Written through a session elevated to security_admin (ADR-0024).
     readonly elevated: boolean;
+  }[];
+  // Each flow, subflow, action and other record a Fluent project's build installs: loaded
+  // into the batch and published (ADR-0028 as amended).
+  readonly fluent: readonly {
+    readonly project: string;
+    readonly scope: string;
+    readonly table: string;
+    readonly sysId: string;
+    readonly name: string;
+    readonly kind: string;
   }[];
   readonly problems: readonly PlanProblem[];
   readonly gate: GateResult;
@@ -200,10 +213,33 @@ function checkedLabel(label: string): string {
   return label;
 }
 
+// validate over the change, with the committed waivers applied.
+async function gateFor(deps: PlanDependencies, commit: string): Promise<GateResult> {
+  const validation = await validate(deps.governance, { base: commit });
+  const waiverFile = await deps.workspace.waivers();
+  const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
+  const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;
+  return gateOf(validation.findings, waivers, waiverProblems, deps.workspace.metadataRoot);
+}
+
+const fluentChanges = (records: FluentPlan["records"]) =>
+  records.map(({ project, scope, table, sysId, name, kind }) => ({
+    project,
+    scope,
+    table,
+    sysId,
+    name,
+    kind,
+  }));
+
 export async function computePlan(
   deps: PlanDependencies,
   query: PlanQuery,
-): Promise<{ readonly plan: PushPlan; readonly writes: readonly PlannedWrite[] }> {
+): Promise<{
+  readonly plan: PushPlan;
+  readonly writes: readonly PlannedWrite[];
+  readonly fluent: readonly FluentPackage[];
+}> {
   const commit = await deps.workspace.mirrorCommit();
   if (commit === null) {
     throw new NothingPulledYetError(query.instance);
@@ -212,33 +248,33 @@ export async function computePlan(
     throw new MirrorNotIntegratedError(query.instance);
   }
   const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
-  const { writes, problems } = await writesAndProblems(deps, commit, query.instance);
-  const validation = await validate(deps.governance, { base: commit });
-  const waiverFile = await deps.workspace.waivers();
-  const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
-  const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;
-  const gate = gateOf(validation.findings, waivers, waiverProblems, deps.workspace.metadataRoot);
+  const changed = await writesAndProblems(deps, commit, query.instance);
+  const fluent = await planFluent(deps, commit);
+  const writes = changed.writes;
+  const problems = [...changed.problems, ...fluent.problems];
+  const gate = await gateFor(deps, commit);
   const collisions = await collisionsOf(deps, writes, label);
   const ready =
-    writes.length > 0 &&
+    writes.length + fluent.packages.length > 0 &&
     problems.length === 0 &&
     gate.passed &&
     (collisions.length === 0 || query.allowCollisions);
-  const id = planId(commit, writes, gate);
+  const id = planId(commit, writes, gate, fluent.packages);
   const plan: PushPlan = {
     instance: query.instance,
     planId: id,
     mirrorCommit: commit,
     label,
-    updateSets: batchUpdateSets(
-      label,
-      writes.map((write) => write.scope),
-    ),
+    updateSets: batchUpdateSets(label, [
+      ...writes.map((write) => write.scope),
+      ...fluent.packages.map((p) => p.scope),
+    ]),
     changes: writes.map(({ values, baseHash, ...change }) => ({
       ...change,
       fields: Object.keys(values),
       elevated: needsElevation(change.table),
     })),
+    fluent: fluentChanges(fluent.records),
     problems,
     gate,
     collisions,
@@ -249,5 +285,5 @@ export async function computePlan(
         ? []
         : [{ tool: "validate", args: { base: commit } }],
   };
-  return { plan, writes };
+  return { plan, writes, fluent: fluent.packages };
 }

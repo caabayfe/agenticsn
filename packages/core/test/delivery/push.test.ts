@@ -83,6 +83,7 @@ function pushSetup(overrides: Partial<State> = {}, options = { capture: true }) 
     url: "https://dev.example.com",
     pullRequests: pullRequests.port,
     elevatedSessions: null,
+    fluentInstaller: null,
   };
   return { ...base, deps, calls, journal, platform: pullRequests.platform };
 }

@@ -200,6 +200,33 @@ it on every create (global when the file names none, never the session's domain)
 it moves the record, which the plan shows (ADR-0027). Build an application's logic in global;
 use a customer's domain only for that customer's own changes.
 
+### Flows
+
+Flows, subflows and custom actions are written in Fluent, the ServiceNow SDK's TypeScript
+language, and pushed like any other change (ADR-0028). snagentic ships the SDK's build (4.13.6)
+inside the binary: no Node and no `node_modules`, and no telemetry. Put each application's flows
+in a project under `source/<scope>/`:
+
+```text
+source/global/
+  now.config.json                 { "scope": "global", "scopeId": "global", "type": "configuration" }
+  package.json
+  src/fluent/page-on-call.now.ts  Flow, Subflow and Action from @servicenow/sdk/automation
+  src/fluent/generated/keys.ts    the sys_id of each Now.ID: commit it with the source
+```
+
+`validate` builds every project the change touches and reports build errors, IDs not yet in
+`keys.ts`, records the build would delete, and an SDK version other than snagentic's. You never
+write `keys.ts` by hand: when a commit adds a flow, the pre-commit hook (`snagentic agent
+install`) builds what is staged, writes the new IDs to `keys.ts` and adds it to the commit.
+Without the hook, run `snagentic fluent-keys source/<scope>` and commit `keys.ts` with the
+source; `validate`, `plan-push` and CI block a project whose keys are missing.
+`plan-push` lists each flow, subflow and action; `push` loads them into the batch, publishes them, and checks
+the update set holds the published versions. A flow that already existed is inactive for a few
+seconds while it is redelivered: records created meanwhile do not trigger it, which push reports.
+Mirrored flow records stay read-only; to keep a change made in Flow Designer, bring it back into
+the Fluent source.
+
 ### ACLs
 
 Writing ACLs (`sys_security_acl`, `sys_security_acl_role`) needs the elevated

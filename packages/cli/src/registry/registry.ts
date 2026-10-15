@@ -6,6 +6,7 @@ import { check } from "./check";
 import { describe } from "./describe";
 import { doctor } from "./doctor";
 import { find } from "./find";
+import { fluentKeys } from "./fluent-keys";
 import { init } from "./init";
 import { instanceAdd } from "./instance-add";
 import { instanceList } from "./instance-list";
@@ -42,6 +43,7 @@ export const USE_CASES: readonly UseCase[] = [
   describe,
   advise,
   validate,
+  fluentKeys,
   check,
   planPush,
   push,

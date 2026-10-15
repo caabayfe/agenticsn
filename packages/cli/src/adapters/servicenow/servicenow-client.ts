@@ -2,6 +2,7 @@ import {
   AccessDeniedError,
   AuthenticationFailedError,
   type ConnectionStats,
+  type FluentInstaller,
   InstanceError,
   type InstanceProfile,
   type InstanceReader,
@@ -17,6 +18,7 @@ import {
 } from "@snagentic/core";
 import { authorize, type RequestSender } from "./authorization";
 import { CicdPluginActivator } from "./cicd-plugin-activator";
+import { type ApiBody, ApiFluentInstaller } from "./fluent-installer";
 import type { HttpResponse } from "./http-types";
 import { TableApiWriter } from "./table-api-writer";
 
@@ -24,8 +26,12 @@ const MAX_PAGE_SIZE = 10_000;
 
 function errorMessage(body: string): string {
   try {
-    const parsed: { error?: { message?: string; detail?: string } } = JSON.parse(body);
-    return [parsed.error?.message, parsed.error?.detail].filter(Boolean).join(": ") || "no details";
+    // The Table API's { error: { message, detail } }; the Fluent endpoints' { result: { error } }.
+    const parsed: { error?: { message?: string; detail?: string }; result?: { error?: unknown } } =
+      JSON.parse(body);
+    const fluent = typeof parsed.result?.error === "string" ? parsed.result.error : undefined;
+    const table = [parsed.error?.message, parsed.error?.detail].filter(Boolean).join(": ");
+    return table || fluent || "no details";
   } catch {
     return "no details";
   }
@@ -69,6 +75,8 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   readonly plugins: PluginActivator = new CicdPluginActivator(this);
   // Table API writes, for push to development instances.
   readonly writer: InstanceWriter = new TableApiWriter(this);
+  // Fluent builds loaded and published through the ServiceNow IDE's endpoints (ADR-0028).
+  readonly fluent: FluentInstaller = new ApiFluentInstaller(this);
 
   // Every request goes through the scheduler, signed for the profile's auth method.
   private readonly scheduler: RequestSender;
@@ -185,22 +193,22 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     return this.result(await this.scheduler.send(request, signal), what, "write");
   }
 
-  // Any other API of the instance, as JSON: the parsed `result`, with the same error handling.
-  // `path` is an absolute API path such as /api/sn_cicd/progress/<id>.
+  // Any other API of the instance: the parsed `result`, with the same error handling. `path` is
+  // absolute (/api/sn_cicd/progress/<id>); a POST sends `post.body` ({} by default). Statuses in
+  // `post.answers` are answers, not errors (activate_flows answers 422 with per-flow results).
   async callApi(
     method: "GET" | "POST",
     path: string,
     what: string,
     signal: AbortSignal,
+    post: ApiBody = {},
   ): Promise<unknown> {
     const url = new URL(path, this.profile.url);
-    const headers =
-      method === "POST" ? { ...this.headers, "Content-Type": "application/json" } : this.headers;
-    const response = await this.scheduler.send(
-      { method, url: url.href, headers, ...(method === "POST" ? { body: "{}" } : {}) },
-      signal,
-    );
-    return this.result(response, what, method === "POST" ? "write" : "read");
+    const type = { "Content-Type": post.contentType ?? "application/json" };
+    const headers = method === "POST" ? { ...this.headers, ...type } : this.headers;
+    const body = method === "POST" ? { body: post.body ?? "{}" } : {};
+    const response = await this.scheduler.send({ method, url: url.href, headers, ...body }, signal);
+    return this.result(response, what, method === "POST" ? "write" : "read", post.answers);
   }
 
   private async aggregate(
@@ -256,6 +264,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     response: HttpResponse,
     what: string,
     access: "read" | "write" = "read",
+    answers: readonly number[] = [],
   ): Promise<unknown> {
     const body = await response.text();
     if (response.status === 401) {
@@ -265,7 +274,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       throw new AccessDeniedError(what, errorMessage(body), access);
     }
     const transaction = response.headers.get("x-transaction-id") ?? "unknown";
-    if (response.status < 200 || response.status >= 300) {
+    if ((response.status < 200 || response.status >= 300) && !answers.includes(response.status)) {
       throw new InstanceError(
         `${what}: HTTP ${response.status}: ${errorMessage(body)} (transaction ${transaction})`,
       );

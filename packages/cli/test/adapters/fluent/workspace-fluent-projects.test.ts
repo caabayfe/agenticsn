@@ -1,29 +1,20 @@
 import { describe, expect, it } from "bun:test";
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { FluentKeysUnstagedError } from "@snagentic/core";
 import { loadFluentRuntime } from "../../../src/adapters/fluent/fluent-runtime-loader";
 import { WorkspaceFluentProjects } from "../../../src/adapters/fluent/workspace-fluent-projects";
 import { runGitOrThrow } from "../../../src/adapters/git/run-git";
-import { FLUENT_FIXTURES, KEYS_FILE } from "../../support/fluent-fixtures";
+import { fluentWorkspace, KEYS_FILE } from "../../support/fluent-fixtures";
 
 const BUILD_TIMEOUT = 60_000;
+const git = (root: string, ...args: string[]) => runGitOrThrow(args, root);
+const property = (id: string) =>
+  `import { Property } from '@servicenow/sdk/core'\n\nProperty({ $id: Now.ID['${id}'], name: 'x_2222332_s11.${id}', value: 'on' })\n`;
 const PROJECT = "source/x_2222332_s11";
 
-// A git workspace holding the S11 Fluent project, committed.
 async function workspace(): Promise<{ root: string; projects: WorkspaceFluentProjects }> {
-  const root = mkdtempSync(join(tmpdir(), "fluent-workspace-"));
-  cpSync(join(FLUENT_FIXTURES, "s11-flows"), join(root, PROJECT), {
-    recursive: true,
-    filter: (p) => !p.includes(`${join("s11-flows", "expected")}`),
-  });
-  for (const args of [
-    ["init", "-q", "-b", "main"],
-    ["add", "."],
-    ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "s11"],
-  ]) {
-    await runGitOrThrow(args, root);
-  }
+  const root = await fluentWorkspace(PROJECT);
   return { root, projects: new WorkspaceFluentProjects(root, loadFluentRuntime) };
 }
 
@@ -54,7 +45,7 @@ describe("workspace Fluent projects", () => {
       if (project === undefined) throw new Error("no project");
       expect(await projects.build(project)).toEqual({
         built: true,
-        keysChanged: false,
+        keys: null,
         deletes: [],
       });
       expect((await runGitOrThrow(["status", "--porcelain"], root)).trim()).toBe("");
@@ -82,7 +73,10 @@ describe("workspace Fluent projects", () => {
       const [project] = await projects.holding([`${PROJECT}/package.json`]);
       if (project === undefined) throw new Error("no project");
       const build = await projects.build(project);
-      expect(build).toMatchObject({ built: true, keysChanged: true });
+      expect(build).toMatchObject({
+        built: true,
+        keys: { built: expect.stringContaining("extra") },
+      });
       expect(build.built && build.deletes).toEqual([
         "sys_properties_0123456789abcdef0123456789abcdef",
       ]);
@@ -109,6 +103,66 @@ describe("workspace Fluent projects", () => {
     },
     BUILD_TIMEOUT,
   );
+
+  it(
+    "writes a build's keys into the project, and only there, when not staged",
+    async () => {
+      const { root, projects } = await workspace();
+      writeFileSync(join(root, PROJECT, "src/fluent/extra.now.ts"), property("extra"));
+      const [project] = await projects.changedSince("HEAD");
+      if (project === undefined) throw new Error("no project");
+      const build = await projects.build(project);
+      if (!build.built || build.keys === null) throw new Error("no new keys");
+      await projects.writeKeys(project, build.keys.built);
+      expect(readFileSync(join(root, PROJECT, KEYS_FILE), "utf8")).toBe(build.keys.built);
+      expect(await projects.build(project)).toMatchObject({ keys: null });
+      // Nothing staged: the user commits it.
+      expect(await git(root, "diff", "--cached", "--name-only")).toBe("");
+    },
+    BUILD_TIMEOUT,
+  );
+
+  it(
+    "staged, builds the commit as the index holds it, and stages only that commit's keys",
+    async () => {
+      const { root } = await workspace();
+      const staged = new WorkspaceFluentProjects(root, loadFluentRuntime, { staged: true });
+      // Two new properties; only one goes into this commit.
+      writeFileSync(join(root, PROJECT, "src/fluent/in.now.ts"), property("in_commit"));
+      writeFileSync(join(root, PROJECT, "src/fluent/out.now.ts"), property("left_out"));
+      await git(root, "add", `${PROJECT}/src/fluent/in.now.ts`);
+      const [project] = await staged.changedSince("HEAD");
+      if (project === undefined) throw new Error("no project");
+      const build = await staged.build(project);
+      if (!build.built || build.keys === null) throw new Error("no new keys");
+      expect(build.keys.built).toContain("in_commit");
+      expect(build.keys.built).not.toContain("left_out");
+      await staged.writeKeys(project, build.keys.built);
+      expect((await git(root, "diff", "--cached", "--name-only")).trim().split("\n")).toEqual([
+        `${PROJECT}/src/fluent/generated/keys.ts`,
+        `${PROJECT}/src/fluent/in.now.ts`,
+      ]);
+      expect(await staged.build(project)).toMatchObject({ keys: null, deletes: [] });
+    },
+    BUILD_TIMEOUT,
+  );
+
+  it("staged, sees no project without staged changes", async () => {
+    const { root } = await workspace();
+    writeFileSync(join(root, PROJECT, "src/fluent/extra.now.ts"), property("extra"));
+    const staged = new WorkspaceFluentProjects(root, loadFluentRuntime, { staged: true });
+    expect(await staged.changedSince("HEAD")).toEqual([]);
+  });
+
+  it("staged, refuses to overwrite keys.ts edits that are not staged", async () => {
+    const { root } = await workspace();
+    const keys = join(root, PROJECT, KEYS_FILE);
+    writeFileSync(keys, `${readFileSync(keys, "utf8")}// mine\n`);
+    const staged = new WorkspaceFluentProjects(root, loadFluentRuntime, { staged: true });
+    const project = { path: PROJECT, declaredSdk: "4.13.6" };
+    await expect(staged.writeKeys(project, "new")).rejects.toThrow(FluentKeysUnstagedError);
+    expect(readFileSync(keys, "utf8")).toEndWith("// mine\n");
+  });
 
   it("names the SDK version it builds with", async () => {
     const { projects } = await workspace();

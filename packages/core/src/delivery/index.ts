@@ -44,6 +44,14 @@ export {
   UnfinishedPushError,
   UpdateSetScopeError,
 } from "./domain/errors";
+export { FlowDomainMismatchError, FlowPublishFailedError } from "./domain/fluent-errors";
+export {
+  type FluentRecord,
+  type FluentRecordKind,
+  fluentRecordOf,
+  holdsPublished,
+  toPublish,
+} from "./domain/fluent-records";
 export { type GateFinding, type GateResult, gateOf, planId } from "./domain/gate";
 export {
   globMatches,
@@ -57,6 +65,10 @@ export type {
   DeliveryWorkspace,
   ElevatedSession,
   ElevatedSessions,
+  FluentInstaller,
+  FluentPackage,
+  FluentPackages,
+  FluentPublishResult,
   InstanceWriter,
   PullRequestLookup,
   PullRequests,

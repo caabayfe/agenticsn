@@ -20,8 +20,9 @@ export interface FluentBuildError {
 export type FluentBuild =
   | {
       readonly built: true;
-      // The build would change src/fluent/generated/keys.ts: new IDs not committed yet.
-      readonly keysChanged: boolean;
+      // When the build changes src/fluent/generated/keys.ts (new IDs not committed yet): the
+      // project's keys.ts (null when it has none) and the one the build wrote.
+      readonly keys: { readonly committed: string | null; readonly built: string } | null;
       // Update names of the records the build would delete.
       readonly deletes: readonly string[];
     }
@@ -80,7 +81,7 @@ export function fluentFindings(
     }
     return findings;
   }
-  if (build.keysChanged) {
+  if (build.keys !== null) {
     findings.push(
       finding(
         "SN-MNT-010",

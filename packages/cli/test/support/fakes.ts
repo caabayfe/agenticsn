@@ -55,6 +55,14 @@ const NO_CREDENTIALS: CredentialStore = {
 };
 
 export const FAKE_CONTEXT: UseCaseContext = {
+  fluentPackages: () => ({ changedSince: async () => [] }),
+  fluentProjects: () => ({
+    changedSince: async () => [],
+    holding: async () => [],
+    build: async () => ({ built: true, keys: null, deletes: [] }),
+    sdkVersion: async () => "4.13.6",
+    writeKeys: async () => {},
+  }),
   environmentProbes: [fakeProbe("git", "ok"), fakeProbe("keychain", "unavailable")],
   workspaces: NO_WORKSPACES,
   profiles: NO_PROFILES,

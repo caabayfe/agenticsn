@@ -23,7 +23,7 @@ export const FLUENT_RULES: readonly Rule[] = [
     title: "Commit the generated keys of a Fluent project",
     why: "The first build of a new Now.ID picks a random sys_id and writes it to src/fluent/generated/keys.ts. Until that file is committed, every build names the records differently and plan and push disagree.",
     remediation:
-      "Run validate, then commit src/fluent/generated/keys.ts with the source that added the new IDs.",
+      "Commit through the pre-commit hook, which writes and stages keys.ts, or run snagentic fluent-keys with the project folder and commit src/fluent/generated/keys.ts with the source that added the new IDs.",
     scripts: [],
     classes: FLOWS,
   },

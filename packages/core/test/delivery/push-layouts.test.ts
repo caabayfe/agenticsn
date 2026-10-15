@@ -241,4 +241,28 @@ describe("push, layouts (ADR-0029, ADR-0030)", () => {
     const result = await push(deps, { ...QUERY, planId: plan.planId });
     expect(result.written.filter((w) => w.table === "sys_ui_list")).toHaveLength(2);
   });
+
+  it("reports a load the platform applied without recording it as not captured", async () => {
+    const run = layoutSetup(SECTION);
+    // An older update of the section is in the batch already; this load records nothing new.
+    run.tables["sys_update_xml"] = [
+      {
+        sys_id: "old",
+        name: SECTION.updateName,
+        update_set: "s2",
+        sys_mod_count: "1",
+        sys_updated_on: PULLED_AT,
+      },
+    ];
+    const deps: PushDependencies = {
+      ...run.deps,
+      fluentInstaller: { publish: async () => [], load: async () => {} },
+    };
+    const { plan } = await computePlan(deps, QUERY);
+    const result = await push(deps, { ...QUERY, planId: plan.planId });
+    expect(result.written).toContainEqual(
+      expect.objectContaining({ table: "sys_ui_section", captured: false }),
+    );
+    expect(result.notCaptured).toBe(1);
+  });
 });

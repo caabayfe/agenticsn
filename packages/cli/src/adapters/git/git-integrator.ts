@@ -11,7 +11,7 @@ import {
 } from "@snagentic/core";
 import { fromYamlStrings } from "../yaml/own-style";
 import { childFilesConfirmed, takeConfirmedRows } from "./confirmed-rows";
-import { takeReplaced } from "./replaced-records";
+import { takeReplaced, takeTheirsNew } from "./replaced-records";
 import { runGit, runGitOrThrow } from "./run-git";
 
 class IntegrationBlockedError extends SnagenticError {
@@ -261,6 +261,7 @@ async function merge(
   const moved = related ? await takeRelocated(root, read, where) : NOTHING_MOVED;
   const unmerged = async () =>
     lines(await runGitOrThrow(["diff", "--name-only", "--diff-filter=U"], root));
+  await takeTheirsNew(root, branch, await unmerged());
   const replaced = await takeReplaced(root, where, await unmerged());
   const rows = await takeConfirmedRows(root, branch, await unmerged());
   const confirmed = [...pushed, ...moved.confirmed, ...replaced, ...rows];

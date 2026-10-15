@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { takeReplaced } from "../../../src/adapters/git/replaced-records";
+import { takeReplaced, takeTheirsNew } from "../../../src/adapters/git/replaced-records";
 import { runGit, runGitOrThrow } from "../../../src/adapters/git/run-git";
 
 const temporary: string[] = [];
@@ -95,5 +95,52 @@ describe("integrate: related lists the instance replaced (ADR-0030)", () => {
     expect(await takeReplaced("/nowhere", { metadata: META, branch: BRANCH }, ["x.yaml"])).toEqual(
       [],
     );
+  });
+
+  it("takes a file only the instance has, which git reports as deleted by this branch", async () => {
+    // The stale related lists file was removed here; the instance's replacement has the same
+    // entries, so git takes it for a rename of the removed file.
+    const root = await mkdtemp(join(tmpdir(), "replaced-"));
+    temporary.push(root);
+    await git(root, "init", "-q", "-b", "main");
+    await git(root, "config", "user.name", "t");
+    await git(root, "config", "user.email", "t@t");
+    await put(root, OLD, ["task.parent", "sys_email.instance"]);
+    await git(root, "add", ".");
+    await git(root, "commit", "-qm", "pull");
+    await git(root, "branch", BRANCH);
+    await git(
+      root,
+      "rm",
+      "-q",
+      `${file(OLD)}.yaml`,
+      `${file(OLD)}.children.sys_ui_related_list_entry.yaml`,
+    );
+    await git(root, "commit", "-qm", "drop the stale file");
+    await git(root, "checkout", "-q", BRANCH);
+    await git(
+      root,
+      "rm",
+      "-q",
+      `${file(OLD)}.yaml`,
+      `${file(OLD)}.children.sys_ui_related_list_entry.yaml`,
+    );
+    await put(root, NEW, ["task.parent", "sys_email.instance"]);
+    await writeFile(
+      join(root, `${file(NEW)}.yaml`),
+      record(NEW).replace("sys_user: ''", "sys_user: ''\nfilter: ''"),
+    );
+    await git(root, "add", ".");
+    await git(root, "commit", "-qm", "pull: replaced");
+    await git(root, "checkout", "-q", "main");
+    await runGit(["merge", "--no-commit", BRANCH], root);
+    const unmerged = (await git(root, "diff", "--name-only", "--diff-filter=U"))
+      .split("\n")
+      .filter(Boolean);
+    expect(unmerged.length).toBeGreaterThan(0);
+    const taken = await takeTheirsNew(root, BRANCH, unmerged);
+    expect(taken).toEqual(unmerged);
+    expect(await git(root, "diff", "--name-only", "--diff-filter=U")).toBe("");
+    expect(await git(root, "ls-files", FOLDER)).toContain(NEW);
   });
 });

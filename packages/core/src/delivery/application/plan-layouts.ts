@@ -93,6 +93,18 @@ async function sectionsOf(workspace: DeliveryWorkspace, layout: PlannedLayout, c
   return { sections, missing };
 }
 
+// A related lists file removed while another file of the same name (table and view) remains:
+// the platform replaced the record under a new sys_id (ADR-0030), so the removal is not a delete.
+async function replacedHere(workspace: DeliveryWorkspace, spec: LayoutKindSpec, base: string) {
+  if (spec.kind !== "related") return false;
+  const address = recordAddress(base);
+  if (address === null) return false;
+  const name = (b: string) => b.slice(b.lastIndexOf("/") + 1).replace(/--[0-9a-f]{32}$/, "");
+  const folder = address.folder.replace(/^domains\/[^/]+\//, "");
+  const others = await workspace.recordsIn(folder, null);
+  return others.some((other) => other !== base && name(other) === name(base));
+}
+
 async function planOne(
   workspace: DeliveryWorkspace,
   spec: LayoutKindSpec,
@@ -104,7 +116,9 @@ async function planOne(
   const before = pulled === null ? null : await filesAt(workspace, spec, pulled, commit);
   const after = await filesAt(workspace, spec, base, null);
   const current = after ?? before;
-  if (current === null) return { layout: null, problems: [] };
+  if (current === null || (after === null && (await replacedHere(workspace, spec, base)))) {
+    return { layout: null, problems: [] };
+  }
   const view: LayoutView | string = await viewOf(
     workspace,
     current.record.artifact.fields["view"] ?? "",

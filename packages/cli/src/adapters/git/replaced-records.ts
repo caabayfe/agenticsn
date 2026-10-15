@@ -12,6 +12,12 @@ const ROWS = ".children.sys_ui_related_list_entry.yaml";
 
 const lines = (text: string) => text.split("\n").filter((line) => line !== "");
 
+// The merge base, or null for unrelated histories (a workspace's first integrate).
+async function mergeBase(root: string, branch: string): Promise<string | null> {
+  const found = await runGit(["merge-base", "HEAD", branch], root);
+  return found.exitCode === 0 ? found.stdout.trim() : null;
+}
+
 // <identity folder>/<file name without sys_id>, relative to the metadata root.
 function nameKey(metadata: string, path: string) {
   const relative = path.slice(metadata.length + 1).replace(/\.yaml$/, "");
@@ -44,7 +50,8 @@ export async function takeReplaced(
     ),
   ];
   if (edited.length === 0) return [];
-  const fork = (await runGitOrThrow(["merge-base", "HEAD", where.branch], root)).trim();
+  const fork = await mergeBase(root, where.branch);
+  if (fork === null) return [];
   const added = lines(
     await runGitOrThrow(
       [
@@ -77,4 +84,27 @@ export async function takeReplaced(
     }
   }
   return confirmed;
+}
+
+// A conflicted file neither the merge base nor this branch ever had is the instance's: git's
+// rename detection pairs a removed record with an unrelated new one of similar content (a
+// replaced related lists record), and reports the new file as "deleted by us".
+export async function takeTheirsNew(
+  root: string,
+  branch: string,
+  unmerged: readonly string[],
+): Promise<string[]> {
+  if (unmerged.length === 0) return [];
+  const fork = await mergeBase(root, branch);
+  const had = async (rev: string | null, path: string) =>
+    rev !== null && (await runGit(["cat-file", "-e", `${rev}:${path}`], root)).exitCode === 0;
+  const taken: string[] = [];
+  for (const path of unmerged) {
+    if (!(await had("HEAD", path)) && !(await had(fork, path)) && (await had(branch, path))) {
+      await runGitOrThrow(["checkout", "--theirs", "--", path], root);
+      await runGitOrThrow(["add", "--", path], root);
+      taken.push(path);
+    }
+  }
+  return taken;
 }

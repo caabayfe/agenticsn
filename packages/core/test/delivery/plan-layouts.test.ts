@@ -190,4 +190,34 @@ describe("computePlan, layouts (ADR-0029, ADR-0030)", () => {
     );
     expect(layouts.map((l) => l.kind)).toEqual(["section", "form"]);
   });
+
+  it("takes a related lists file removed beside its replacement for a replaced record, not a delete", async () => {
+    const OLD = "a".repeat(32);
+    const NEW = "b".repeat(32);
+    const file = (id: string) => `x_acme_app/sys_ui_related_list/task-default-view--${id}`;
+    const related = (id: string) =>
+      record(
+        "sys_ui_related_list",
+        id,
+        { name: "x_acme_app_task", view: "Default view" },
+        undefined,
+        "x_acme_app",
+      );
+    const base = setup();
+    const planned = (working: Record<string, ReturnType<typeof record>>) =>
+      computePlan(
+        setup({
+          mirror: { ...base.state.mirror, [file(OLD)]: related(OLD), [file(NEW)]: related(NEW) },
+          working: { ...base.state.working, ...working },
+          changed: [`${file(OLD)}.yaml`],
+        }).deps,
+        QUERY,
+      );
+    expect((await planned({ [file(NEW)]: related(NEW) })).plan.problems).toEqual([]);
+    expect((await planned({})).plan.problems).toEqual([
+      expect.objectContaining({
+        reason: expect.stringContaining("deleting a related lists layout"),
+      }),
+    ]);
+  });
 });

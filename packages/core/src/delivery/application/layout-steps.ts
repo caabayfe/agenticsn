@@ -4,7 +4,7 @@ import { layoutVersion, type PlannedLayout } from "../domain/layout-changes";
 import { KIND_TABLE, layoutKindOf } from "../domain/layout-kinds";
 import { layoutStamp, layoutXml } from "../domain/layout-render";
 import type { FluentInstaller, PushJournal, PushJournalStore } from "../ports";
-import { captured, type InstanceSession } from "./push-steps";
+import { captured, type InstanceSession, updateVersions } from "./push-steps";
 
 export interface LoadRun {
   readonly session: InstanceSession;
@@ -75,6 +75,7 @@ export async function loadUpdate(
   target: LoadTarget,
 ): Promise<boolean> {
   const step = { table: update.table, sysId: update.sysId };
+  const before = await updateVersions(run.session, update.updateName);
   await journaled(run, step, "sending");
   const file = { name: `${update.updateName}.xml`, content: update.xml };
   await run.installer.load(target.scope.id, [file], target.updateSet, run.session.signal);
@@ -85,7 +86,8 @@ export async function loadUpdate(
     owner: null,
     updateName: update.updateName,
   };
-  return captured(run.session, record, { updateSet: target.updateSet, username: target.username });
+  const into = { updateSet: target.updateSet, username: target.username };
+  return captured(run.session, record, into, before);
 }
 
 // Refuses the scope's layouts when one moved on the instance since the pull. Checked before the

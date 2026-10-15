@@ -125,7 +125,7 @@ describe("GitDeliveryWorkspace", () => {
 });
 
 describe("plan-push rendering", () => {
-  it("shows waived findings, waiver problems and records held elsewhere", () => {
+  it("shows lists, waived findings, waiver problems and records held elsewhere", () => {
     const text = planPush.render(
       {
         instance: "pdi",
@@ -142,6 +142,17 @@ describe("plan-push rendering", () => {
             path: "p.yaml",
             fields: ["a"],
             elevated: false,
+          },
+        ],
+        lists: [
+          {
+            operation: "update",
+            scope: "global",
+            table: "incident",
+            view: "Default view",
+            sysId: "l",
+            path: "global/sys_ui_list/incident--l.yaml",
+            columns: ["number", "state"],
           },
         ],
         fluent: [],
@@ -179,5 +190,8 @@ describe("plan-push rendering", () => {
     expect(text).toContain("waivers.yaml entry 2: expired on 2026-01-01");
     expect(text).toContain(`held:    p.yaml in "Pat's work" (pat)`);
     expect(text).toContain("update sets: none");
+    expect(text).toContain(
+      "update list incident (Default view)  global/sys_ui_list/incident--l.yaml  columns: number, state",
+    );
   });
 });

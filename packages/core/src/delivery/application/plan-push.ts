@@ -3,31 +3,22 @@ import { InvalidInputError } from "../../kernel/errors";
 import type { NextCall } from "../../knowledge/index";
 import { baseOfFile } from "../../knowledge/index";
 import {
-  identityFolder,
-  parseRecord,
-  recordAddress,
-  relocatedRecords,
-} from "../../metadata/domain/record-layout";
-import {
   heldInOpenUpdateSets,
   type RecordHolder,
   type UpdateSetDependencies,
 } from "../../updatesets/index";
 import { batchUpdateSets, inBatch } from "../domain/batch";
-import {
-  changeOf,
-  needsElevation,
-  type ParsedRecord,
-  type PlannedWrite,
-  type PlanProblem,
-} from "../domain/change";
+import { changeOf, needsElevation, type PlannedWrite, type PlanProblem } from "../domain/change";
 import { childRowChanges, type RowOwner } from "../domain/child-rows";
 import { MirrorNotIntegratedError, NothingPulledYetError } from "../domain/errors";
 import { type GateResult, planId } from "../domain/gate";
+import type { PlannedList } from "../domain/list-changes";
 import { pushUnfinished, writeOrder } from "../domain/write-order";
 import type { DeliveryWorkspace, FluentPackage, FluentPackages, PushJournalStore } from "../ports";
 import { type FluentPlan, planFluent } from "./plan-fluent";
 import { gateFor } from "./plan-gate";
+import { isListFile, planLists } from "./plan-lists";
+import { parsed, pulledCopy } from "./plan-records";
 
 export interface PlanQuery {
   readonly instance: string;
@@ -74,6 +65,8 @@ export interface PushPlan {
     // Written through a session elevated to security_admin (ADR-0024).
     readonly elevated: boolean;
   }[];
+  // Each list layout, loaded whole as one List Layout update (ADR-0029), columns in order.
+  readonly lists: readonly ReturnType<typeof listChangeOf>[];
   // Each flow, subflow, action and other record a Fluent project's build installs: loaded
   // into the batch and published (ADR-0028 as amended).
   readonly fluent: readonly {
@@ -96,35 +89,11 @@ const CONFLICT = /^(<{7}|>{7}|={7})( |$)/m;
 const CHILD_SUFFIX = /\.children\.[^/]+\.yaml$/;
 const isChildRows = (path: string) => CHILD_SUFFIX.test(path);
 
-async function parsed(
-  deps: PlanDependencies,
-  base: string,
-  at: string | null,
-): Promise<ParsedRecord | null> {
-  const stored = await deps.workspace.read(base, at);
-  return stored === null ? null : parseRecord(stored.document, stored.files);
-}
-
-// The record as last pulled: at the same path, or under the name the platform gave it when a
-// record created here was pushed and pulled back (same folder and sys_id).
-async function pulledCopy(
-  deps: PlanDependencies,
-  base: string,
-  commit: string,
-): Promise<ParsedRecord | null> {
-  const same = await parsed(deps, base, commit);
-  const address = recordAddress(base);
-  if (same !== null || address === null) {
-    return same;
-  }
-  const folder = identityFolder(address.folder);
-  const [moved] = relocatedRecords([base], await deps.workspace.recordsIn(folder, commit));
-  return moved === undefined ? null : parsed(deps, moved.mirror, commit);
-}
-
 // The record whose file holds a child-row file's rows, as it is in the working tree.
 async function rowOwner(deps: PlanDependencies, path: string): Promise<RowOwner | null> {
-  const owner = await parsed(deps, path.replace(CHILD_SUFFIX, ""), null).catch(() => null);
+  const owner = await parsed(deps.workspace, path.replace(CHILD_SUFFIX, ""), null).catch(
+    () => null,
+  );
   if (owner === null) {
     return null;
   }
@@ -155,10 +124,13 @@ async function childRowWrites(deps: PlanDependencies, files: readonly string[], 
 }
 
 async function writesAndProblems(deps: PlanDependencies, commit: string, instance: string) {
-  const files = await deps.workspace.changedFiles(commit);
+  const changed = await deps.workspace.changedFiles(commit);
+  // A list is delivered whole (ADR-0029), never as a record and rows.
+  const files = changed.filter((path) => !isListFile(path));
+  const listed = await planLists(deps.workspace, changed, commit);
   const rows = await childRowWrites(deps, files, commit);
-  const problems: PlanProblem[] = [...rows.problems];
-  for (const path of files) {
+  const problems: PlanProblem[] = [...listed.problems, ...rows.problems];
+  for (const path of changed) {
     if (CONFLICT.test((await deps.workspace.text(path)) ?? "")) {
       problems.push({ path, reason: "conflict markers remain: resolve the merge first" });
     }
@@ -168,8 +140,8 @@ async function writesAndProblems(deps: PlanDependencies, commit: string, instanc
     try {
       const outcome = changeOf(
         `${base}.yaml`,
-        await pulledCopy(deps, base, commit),
-        await parsed(deps, base, null),
+        await pulledCopy(deps.workspace, base, commit),
+        await parsed(deps.workspace, base, null),
         { elevation: deps.elevation },
       );
       if (outcome.kind === "write") {
@@ -188,20 +160,24 @@ async function writesAndProblems(deps: PlanDependencies, commit: string, instanc
       reason: `push ${journal?.planId} stopped part way: run snagentic pull ${instance}, then integrate, before planning again`,
     });
   }
-  return { writes: writeOrder(writes), problems };
+  return { writes: writeOrder(writes), lists: listed.lists, problems };
 }
 
+// Update records others hold: a record under <table>_<sys_id>, a list under its update name.
 async function collisionsOf(
   deps: PlanDependencies,
-  writes: readonly PlannedWrite[],
+  planned: { readonly writes: readonly PlannedWrite[]; readonly lists: readonly PlannedList[] },
   label: string,
 ): Promise<HeldRecord[]> {
-  const names = writes.map((write) => `${write.table}_${write.sysId}`);
+  const entries = [
+    ...planned.writes.map((w) => ({ path: w.path, record: `${w.table}_${w.sysId}` })),
+    ...planned.lists.map((l) => ({ path: l.path, record: l.updateName })),
+  ];
+  const names = entries.map((entry) => entry.record);
   const held = await heldInOpenUpdateSets(deps.updateSets, names, deps.signal);
-  return writes.flatMap((write) => {
-    const record = `${write.table}_${write.sysId}`;
+  return entries.flatMap(({ path, record }) => {
     const others = (held.get(record) ?? []).filter((h) => !inBatch(label, h.updateSetName));
-    return others.length === 0 ? [] : [{ path: write.path, record, heldBy: others }];
+    return others.length === 0 ? [] : [{ path, record, heldBy: others }];
   });
 }
 
@@ -214,6 +190,16 @@ function checkedLabel(label: string): string {
   }
   return label;
 }
+
+const listChangeOf = ({ operation, scope, path, layout }: PlannedList) => ({
+  operation,
+  scope,
+  table: layout.table,
+  view: layout.view.name || layout.view.sysId,
+  sysId: layout.sysId,
+  path,
+  columns: layout.columns.map((c) => c.element),
+});
 
 const fluentChanges = (records: FluentPlan["records"]) =>
   records.map(({ project, scope, table, sysId, name, kind }) => ({
@@ -231,6 +217,7 @@ export async function computePlan(
 ): Promise<{
   readonly plan: PushPlan;
   readonly writes: readonly PlannedWrite[];
+  readonly lists: readonly PlannedList[];
   readonly fluent: readonly FluentPackage[];
 }> {
   const commit = await deps.workspace.mirrorCommit();
@@ -243,20 +230,20 @@ export async function computePlan(
   const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
   const changed = await writesAndProblems(deps, commit, query.instance);
   const fluent = await planFluent(deps, commit);
-  const writes = changed.writes;
+  const { writes, lists } = changed;
   const problems = [...changed.problems, ...fluent.problems];
   const gate = await gateFor(
     deps,
     commit,
-    writes.map((w) => w.path),
+    [...writes, ...lists].map((w) => w.path),
   );
-  const collisions = await collisionsOf(deps, writes, label);
+  const collisions = await collisionsOf(deps, { writes, lists }, label);
   const ready =
-    writes.length + fluent.packages.length > 0 &&
+    writes.length + lists.length + fluent.packages.length > 0 &&
     problems.length === 0 &&
     gate.passed &&
     (collisions.length === 0 || query.allowCollisions);
-  const id = planId(commit, writes, gate, fluent.packages);
+  const id = planId(commit, writes, gate, fluent.packages, lists);
   const plan: PushPlan = {
     instance: query.instance,
     planId: id,
@@ -264,6 +251,7 @@ export async function computePlan(
     label,
     updateSets: batchUpdateSets(label, [
       ...writes.map((write) => write.scope),
+      ...lists.map((list) => list.scope),
       ...fluent.packages.map((p) => p.scope),
     ]),
     changes: writes.map(({ values, baseHash, ...change }) => ({
@@ -271,6 +259,7 @@ export async function computePlan(
       fields: Object.keys(values),
       elevated: needsElevation(change.table),
     })),
+    lists: lists.map(listChangeOf),
     fluent: fluentChanges(fluent.records),
     problems,
     gate,
@@ -282,5 +271,5 @@ export async function computePlan(
         ? []
         : [{ tool: "validate", args: { base: commit } }],
   };
-  return { plan, writes, fluent: fluent.packages };
+  return { plan, writes, lists, fluent: fluent.packages };
 }

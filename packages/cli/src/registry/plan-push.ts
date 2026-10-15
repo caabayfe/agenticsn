@@ -33,6 +33,20 @@ export const PlanOutput = z.object({
       }),
     )
     .readonly(),
+  lists: z
+    .array(
+      z.object({
+        operation: z.enum(["update", "create"]),
+        scope: z.string(),
+        table: z.string(),
+        view: z.string(),
+        sysId: z.string(),
+        path: z.string(),
+        columns: z.array(z.string()).readonly(),
+      }),
+    )
+    .readonly()
+    .describe("list layouts, each loaded whole with its columns in this order (ADR-0029)"),
   fluent: z
     .array(
       z.object({
@@ -130,6 +144,10 @@ export const planPush = defineUseCase({
         (c) =>
           `${c.operation.padEnd(6)} ${c.table}  ${c.path}  (${c.fields.join(", ")})${c.elevated ? "  elevated: security_admin" : ""}`,
       ),
+      ...output.lists.map(
+        (l) =>
+          `${l.operation.padEnd(6)} list ${l.table} (${l.view})  ${l.path}  columns: ${l.columns.join(", ")}`,
+      ),
       ...output.fluent.map((f) => `${f.kind.padEnd(7)} ${f.name}  ${f.project}  (publish)`),
       ...output.problems.map((p) => `problem: ${p.path}: ${p.reason}`),
       ...output.gate.blocking.map(
@@ -148,11 +166,11 @@ export const planPush = defineUseCase({
       `update sets: ${output.updateSets.join(", ") || "none"}`,
       output.ready
         ? `ready: snagentic push --instance ${output.instance} --plan ${output.planId} --confirm`
-        : output.changes.length + output.fluent.length === 0
+        : output.changes.length + output.lists.length + output.fluent.length === 0
           ? "nothing to push"
           : "not ready: fix the items above, then plan again",
     ];
     return lines.join("\n");
   },
-  exitCode: (output) => (output.ready || output.changes.length === 0 ? 0 : 1),
+  exitCode: (output) => (output.ready || output.changes.length + output.lists.length === 0 ? 0 : 1),
 });

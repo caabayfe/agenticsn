@@ -164,3 +164,14 @@ export class BranchNotPublishedError extends SnagenticError {
     );
   }
 }
+
+export class ListLoadUnavailableError extends SnagenticError {
+  constructor(path: string) {
+    super(
+      "list-load-unavailable",
+      "precondition",
+      `${path}: list layouts are delivered through the instance's Fluent load endpoint, which this connection cannot reach`,
+      "push from the snagentic CLI or MCP server, which load list layouts (ADR-0029)",
+    );
+  }
+}

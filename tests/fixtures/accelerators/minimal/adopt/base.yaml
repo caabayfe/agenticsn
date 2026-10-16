@@ -1,0 +1,5 @@
+# Out-of-box records the base capability customizes: adopt each into source, then change it as
+# its note says. Here, the spike S11 scratch application on pdi2, a record the pack does not own.
+- table: sys_app
+  sys_id: 489da54ae67c4a3e9f1e1e4347e9119b
+  note: "set short_description to 'Spike S11 scratch application (described by the minimal test pack)'"

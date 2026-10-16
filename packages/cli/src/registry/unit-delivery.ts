@@ -25,11 +25,7 @@ export function unitPlanDependencies(
     governance: context.governance(root, instance),
     packGate: (paths) =>
       packFindings(
-        {
-          packs: context.packs,
-          inventory: context.inventory,
-          workspace: context.packWorkspace(root, instance),
-        },
+        { packs: context.packs, inventory: context.inventory },
         { instance: { root, name: instance }, paths, snagentic: VERSION },
       ),
     updateSets: { pager, statistics: reader, now: context.clock },

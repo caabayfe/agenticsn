@@ -434,7 +434,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic accelerator add <pack> <instance> [options]
 ```
 
-Write an accelerator pack's capabilities into the workspace (ADR-0026): new records as files, patches on the mirrored records, committed to the branch accelerator/<pack>/<instance> and merged into this one. Changes nothing on the instance: validate, plan_push and push deliver it. Refuses until accelerator check says every capability is ready.
+Write an accelerator pack's capabilities into the workspace (ADR-0026, ADR-0031): their Fluent source into the projects under source/, committed to the branch accelerator/<pack>/<instance> and merged into this one, and the out-of-box records they customize, to adopt and edit next. Changes nothing on the instance: validate, plan_push and push deliver it. Refuses until accelerator check says every capability is ready.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

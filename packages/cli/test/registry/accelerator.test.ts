@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { parse } from "yaml";
 import { CsvDataTemplates } from "../../src/adapters/accelerators/csv-data-templates";
 import { DirectoryPackSource } from "../../src/adapters/accelerators/directory-pack-source";
 import { acceleratorAdd } from "../../src/registry/accelerator-add";
@@ -118,20 +119,7 @@ describe("accelerator use cases", () => {
     const workspace = {
       mirrorCommit: async () => "m1",
       includes: async () => true,
-      mirrored: async (_commit: string, ids: readonly string[]) =>
-        new Map(
-          ids
-            .filter((id) => id.startsWith("489da54a"))
-            .map((id) => [id, { path: `x_2222332_s11/sys_app/s11--${id}.yaml`, document: {} }]),
-        ),
-      parse: (text: string) =>
-        text.includes("sys_id: 489da54a")
-          ? {
-              table: "sys_app",
-              sys_id: "489da54ae67c4a3e9f1e1e4347e9119b",
-              fields: { short_description: "x" },
-            }
-          : {},
+      parse: (text: string): unknown => parse(text),
       previous: async () => ({ written: [], kept: [] }),
       commit: async () => "c1",
       merge: async () => ({ branch: "accelerator/minimal/pdi2", conflicts: [] }),
@@ -154,12 +142,30 @@ describe("accelerator use cases", () => {
     expect(output).toMatchObject({
       selected: ["base", "extra"],
       commit: "c1",
-      copied: 2,
-      patched: 1,
+      copied: [
+        "source/global/src/fluent/app.now.ts",
+        "source/global/src/fluent/generated/keys.ts",
+        "source/x_snagentic_min/now.config.json",
+        "source/x_snagentic_min/package.json",
+        "source/x_snagentic_min/src/fluent/generated/keys.ts",
+        "source/x_snagentic_min/src/fluent/properties.now.ts",
+      ],
+      adoptions: [
+        {
+          capability: "base",
+          table: "sys_app",
+          sysId: "489da54ae67c4a3e9f1e1e4347e9119b",
+          note: "set short_description to 'Spike S11 scratch application (described by the minimal test pack)'",
+        },
+      ],
       conflicts: [],
     });
     const text = acceleratorAdd.render(output as never, "text");
-    expect(text).toContain("added minimal 1.0.0 (base, extra)");
+    expect(text).toContain("added minimal 1.0.0 (base, extra): 6 file(s)");
+    expect(text).toContain("  source/x_snagentic_min/src/fluent/properties.now.ts");
+    expect(text).toContain(
+      "next (base): snagentic adopt --instance pdi2 sys_app:489da54ae67c4a3e9f1e1e4347e9119b, then set short_description to",
+    );
     expect(text).toContain("next: snagentic validate");
     const conflicted = { ...(output as never as Record<string, unknown>), conflicts: ["a.yaml"] };
     expect(acceleratorAdd.render(conflicted as never, "text")).toContain("conflict: a.yaml");

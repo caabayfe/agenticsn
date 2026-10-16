@@ -21,7 +21,7 @@ export const DELIVER: Skill = {
     "`push` says the plan changed: run `plan_push` again and show the new plan before pushing.",
     "`pullRequest` status `none`: offer to open a draft pull request (`draftPr`) on the next push; it needs the changes committed first.",
     "`notCaptured` or `notApplied` is above 0: tell the user which units to check on the instance before the update set moves.",
-    "The user wants an accelerator pack: `accelerator` with the `pack` and `instance`; show each capability's `state` and its `next` commands. Once every capability is `ready`, run snagentic accelerator add with the pack and instance, then plan as above.",
+    "The user wants an accelerator pack: `accelerator` with the `pack` and `instance`; show each capability's `state` and its `next` commands. Once every capability is `ready`, run snagentic accelerator add with the pack and instance; for each record it lists to adopt, call `adopt` with the `instance` and the record as table:sys_id in `records`, then make the change its note names in the adopted source; then plan as above.",
     "snagentic accelerator add reports conflicts: they are the user's edits meeting the pack's; resolve them with the user, commit, then plan. Files it says are no longer in the pack are kept: leave them unless the user asks.",
     "The pack has `data` to load: after the push, tell the user to fill its templates outside the workspace and run snagentic accelerator validate-data, then snagentic accelerator load with --confirm themselves.",
   ],

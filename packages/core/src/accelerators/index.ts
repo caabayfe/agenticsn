@@ -29,10 +29,11 @@ export type {
   PluginRequirement,
 } from "./domain/manifest-types";
 export {
+  type Adoption,
+  type Materialized,
   type MaterializedFile,
   type MaterializeInput,
   materialize,
-  type PatchTarget,
 } from "./domain/materialize";
 export {
   type CapabilityReport,

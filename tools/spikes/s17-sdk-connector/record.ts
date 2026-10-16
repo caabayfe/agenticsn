@@ -7,14 +7,21 @@ import { connect, signal } from "../s9-acl-delivery/connect";
 
 const [workspace = "", instance = "", project = "", out = "", ...pairs] = process.argv.slice(2);
 const records = [];
-for (let i = 0; i + 1 < pairs.length; i += 2) records.push({ table: pairs[i] ?? "", sysId: pairs[i + 1] ?? "" });
+for (let i = 0; i + 1 < pairs.length; i += 2)
+  records.push({ table: pairs[i] ?? "", sysId: pairs[i + 1] ?? "" });
 const client = await connect(workspace, instance);
 const exchanges: unknown[] = [];
 const runtime = await loadFluentRuntime();
 const host = "https://instance.example.com/";
 const outcome = await runtime.transform(project, records, host, async (request) => {
-  const answer = await client.exchange({ ...request, url: new URL(request.url).pathname + new URL(request.url).search }, signal);
-  exchanges.push({ request: { ...request, url: new URL(request.url).pathname + new URL(request.url).search }, answer });
+  const answer = await client.exchange(
+    { ...request, url: new URL(request.url).pathname + new URL(request.url).search },
+    signal,
+  );
+  exchanges.push({
+    request: { ...request, url: new URL(request.url).pathname + new URL(request.url).search },
+    answer,
+  });
   return answer;
 });
 writeFileSync(out, `${JSON.stringify({ records, exchanges }, null, 2)}\n`);

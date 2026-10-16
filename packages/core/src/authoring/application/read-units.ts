@@ -39,7 +39,14 @@ async function list(
   signal: AbortSignal,
 ): Promise<Row[]> {
   const rows: Row[] = [];
-  const listing = { kind: "snapshot" as const, table: TableName.parse(table), base, fields };
+  // Every domain: a unit's rows may live in another domain than its head (S17 on pdi2).
+  const listing = {
+    kind: "snapshot" as const,
+    table: TableName.parse(table),
+    base,
+    fields,
+    allDomains: true,
+  };
   for await (const row of pager.rows(listing, signal)) rows.push(row);
   return rows;
 }
@@ -51,17 +58,19 @@ const condition = (field: string, value: string) =>
 async function headsById(pager: KeysetPager, units: readonly BuiltUnit[], signal: AbortSignal) {
   const found = new Map<string, Row>();
   const byTable = Map.groupBy(units, (unit) => unit.head.table);
-  for (const [table, group] of byTable) {
+  // Listings run together; the instance's request scheduler sets the pace (ADR-0016).
+  const listings = [...byTable].flatMap(([table, group]) => {
     const fields = fieldsFor(
       group.map((u) => u.head.fields),
       unitSpec(table).coalesce ?? [],
     );
-    for (const chunk of chunks(group.map((u) => u.head.sysId).filter(Boolean))) {
-      for (const row of await list(pager, table, `sys_idIN${chunk.join(",")}`, fields, signal)) {
-        found.set(`${table}:${row["sys_id"]}`, row);
-      }
-    }
-  }
+    return chunks(group.map((u) => u.head.sysId).filter(Boolean)).map((chunk) =>
+      list(pager, table, `sys_idIN${chunk.join(",")}`, fields, signal).then((rows) => {
+        for (const row of rows) found.set(`${table}:${row["sys_id"]}`, row);
+      }),
+    );
+  });
+  await Promise.all(listings);
   return units.map((unit) => found.get(`${unit.head.table}:${unit.head.sysId}`) ?? null);
 }
 
@@ -85,33 +94,40 @@ function keyGroups(units: readonly KeyedUnit[]): Map<string, KeyedUnit[]> {
   });
 }
 
+// One key group's listing: each unit's head, when exactly one row has its keys.
+async function readGroup(
+  pager: KeysetPager,
+  group: readonly KeyedUnit[],
+  signal: AbortSignal,
+): Promise<[string, Row][]> {
+  const first = group[0];
+  if (first === undefined) return [];
+  const entries = Object.entries(first.values);
+  const [lastField = "", lastValue = ""] = entries.at(-1) ?? [];
+  const lasts = group.map(({ values }) => values[lastField] ?? "");
+  const last =
+    group.length === 1 ? condition(lastField, lastValue) : `${lastField}IN${lasts.join(",")}`;
+  const base = [...entries.slice(0, -1).map(([f, v]) => condition(f, v)), last].join("^");
+  const fields = fieldsFor(
+    group.map(({ unit }) => unit.head.fields),
+    Object.keys(first.values),
+  );
+  const rows = await list(pager, first.unit.head.table, base, fields, signal);
+  return group.flatMap(({ unit, values }): [string, Row][] => {
+    const matches = rows.filter((row) => sameKeys(row, values));
+    return matches.length === 1 && matches[0] !== undefined ? [[unit.updateName, matches[0]]] : [];
+  });
+}
+
 // Heads the platform matches by content (dictionary entries, labels, layouts), by update name.
 async function headsByKeys(pager: KeysetPager, units: readonly BuiltUnit[], signal: AbortSignal) {
   const keyed = units.flatMap((unit) => {
     const values = coalesceValues(unit);
     return values === null ? [] : [{ unit, values }];
   });
-  const found = new Map<string, Row>();
-  for (const group of keyGroups(keyed).values()) {
-    const first = group[0];
-    if (first === undefined) continue;
-    const entries = Object.entries(first.values);
-    const [lastField = "", lastValue = ""] = entries.at(-1) ?? [];
-    const lasts = group.map(({ values }) => values[lastField] ?? "");
-    const last =
-      group.length === 1 ? condition(lastField, lastValue) : `${lastField}IN${lasts.join(",")}`;
-    const base = [...entries.slice(0, -1).map(([f, v]) => condition(f, v)), last].join("^");
-    const fields = fieldsFor(
-      group.map(({ unit }) => unit.head.fields),
-      Object.keys(first.values),
-    );
-    const rows = await list(pager, first.unit.head.table, base, fields, signal);
-    for (const { unit, values } of group) {
-      const matches = rows.filter((row) => sameKeys(row, values));
-      if (matches.length === 1 && matches[0] !== undefined) found.set(unit.updateName, matches[0]);
-    }
-  }
-  return found;
+  const groups = [...keyGroups(keyed).values()];
+  const found = await Promise.all(groups.map((group) => readGroup(pager, group, signal)));
+  return new Map(found.flat());
 }
 
 async function rowsOf(
@@ -159,10 +175,9 @@ export async function readUnits(
   const byId = await headsById(pager, units, signal);
   const missing = units.filter((_, index) => byId[index] === null);
   const byKeys = await headsByKeys(pager, missing, signal);
-  const copies = new Map<string, InstanceCopy | null>();
-  for (const [index, unit] of units.entries()) {
+  const read = units.map(async (unit, index): Promise<[string, InstanceCopy | null]> => {
     const head = byId[index] ?? byKeys.get(unit.updateName) ?? null;
-    copies.set(unit.updateName, head === null ? null : await copyOf(pager, unit, head, signal));
-  }
-  return copies;
+    return [unit.updateName, head === null ? null : await copyOf(pager, unit, head, signal)];
+  });
+  return new Map(await Promise.all(read));
 }

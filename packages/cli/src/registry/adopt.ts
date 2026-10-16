@@ -45,6 +45,10 @@ export const adopt = defineUseCase({
       )
       .readonly(),
     files: z.array(z.string()).readonly(),
+    unmanaged: z
+      .array(z.string())
+      .readonly()
+      .describe("records the SDK cannot express: they stay on the instance, outside source"),
   }),
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: true },
   mcp: false,
@@ -79,6 +83,9 @@ export const adopt = defineUseCase({
       ...[...losses].map(
         (loss) =>
           `  ${loss}: ${Object.entries(LOSS_DESCRIPTIONS).find(([id]) => id === loss)?.[1] ?? ""}`,
+      ),
+      ...output.unmanaged.map(
+        (r) => `not adopted: ${r} (the SDK cannot express it; it stays as it is)`,
       ),
       `${output.files.length} source file(s) written; review and commit them with the ledger`,
     ].join("\n");

@@ -105,6 +105,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       sysparm_display_value: "false",
       sysparm_exclude_reference_link: "true",
       sysparm_no_count: "true",
+      ...(query.allDomains === true ? { sysparm_query_no_domain: "true" } : {}),
     }).toString();
     const response = await this.scheduler.send(
       { method: "GET", url: url.href, headers: this.headers },

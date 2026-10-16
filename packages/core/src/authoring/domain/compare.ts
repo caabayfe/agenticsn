@@ -20,6 +20,8 @@ const IGNORED: ReadonlySet<string> = new Set([
   "sys_name",
   "sys_tags",
   "sys_policy",
+  // The platform's own size bucket for a table (its collection entry), never authored.
+  "sizeclass",
 ]);
 
 export type Difference =

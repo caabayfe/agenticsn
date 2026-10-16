@@ -8,7 +8,7 @@ import {
   AdoptTransformFailedError,
   AdoptUnexplainedDifferenceError,
 } from "../domain/adopt-errors";
-import { compareUnit } from "../domain/compare";
+import { compareUnit, type Difference } from "../domain/compare";
 import { unitDigest } from "../domain/digest";
 import { type LedgerEntry, withEntries } from "../domain/ledger";
 import { knownLoss, type LossId } from "../domain/losses";
@@ -47,6 +47,9 @@ export interface AdoptResult {
   readonly projects: readonly { readonly path: string; readonly created: boolean }[];
   readonly units: readonly AdoptedUnit[];
   readonly files: readonly string[];
+  // Records asked for that the SDK expresses with no unit of their class (table licensing
+  // configs, S16): they stay on the instance, unmanaged by source.
+  readonly unmanaged: readonly string[];
 }
 
 interface Located {
@@ -116,6 +119,15 @@ function adoptedUnits(draft: SourceDraft): BuiltUnit[] {
   return draft.after.filter((unit) => before.get(unit.updateName) !== unitDigest(unit));
 }
 
+const shown = (value: string) =>
+  JSON.stringify(value.length > 40 ? `${value.slice(0, 40)}…` : value);
+
+function explain(difference: Difference): string {
+  return difference.kind === "field"
+    ? `${difference.table}.${difference.field} would be ${shown(difference.built)}, is ${shown(difference.instance)}`
+    : `${difference.table} rows would be [${difference.built.join(", ")}], are [${difference.instance.join(", ")}]`;
+}
+
 function describe(unit: BuiltUnit, detail: string) {
   return `${unit.updateName}: ${detail}`;
 }
@@ -130,14 +142,19 @@ function entryFor(
     problems.push(describe(unit, "the build makes a record the instance does not hold"));
     return null;
   }
+  if (copy.foreignRows > 0) {
+    // The SDK writes a composite's rows in one domain (S16); here they live in another.
+    problems.push(
+      describe(unit, `${copy.foreignRows} of its rows are in a domain the SDK would not keep`),
+    );
+    return null;
+  }
   const differences = unitSpec(unit.head.table).comparable ? compareUnit(unit, copy) : [];
   const losses = new Set<LossId>();
   for (const difference of differences) {
     const loss = knownLoss(difference);
     if (loss !== null) losses.add(loss);
-    else if (difference.kind === "field")
-      problems.push(describe(unit, `${difference.table}.${difference.field}`));
-    else problems.push(describe(unit, `the rows of ${difference.table}`));
+    else problems.push(describe(unit, explain(difference)));
   }
   return { build: unitDigest(unit), instance: copy.version, losses: [...losses].sort() };
 }
@@ -147,7 +164,7 @@ async function adoptInto(
   project: SourceProject,
   targets: readonly TransformTarget[],
   instance: string,
-): Promise<{ units: AdoptedUnit[]; files: string[] }> {
+): Promise<{ units: AdoptedUnit[]; files: string[]; unmanaged: string[] }> {
   const { toolchain, access, reader, workspace, signal } = dependencies;
   const outcome = await toolchain.draftTransform(project, targets, access);
   if (!outcome.ok) throw new AdoptTransformFailedError(project.scope, outcome.message);
@@ -173,7 +190,15 @@ async function adoptInto(
       losses: entries.get(unit.updateName)?.losses ?? [],
     })),
     files: outcome.draft.changed.map((file) => `${project.path}/${file}`),
+    unmanaged: unexpressed(targets, outcome.draft.after),
   };
+}
+
+function unexpressed(targets: readonly TransformTarget[], units: readonly BuiltUnit[]): string[] {
+  const tables = new Set(
+    units.flatMap((unit) => [unit.head.table, ...unit.children.map((c) => c.table)]),
+  );
+  return targets.filter((t) => !tables.has(t.table)).map((t) => `${t.table}:${t.sysId}`);
 }
 
 export async function adopt(
@@ -185,6 +210,7 @@ export async function adopt(
   const projects: { path: string; created: boolean }[] = [];
   const units: AdoptedUnit[] = [];
   const files: string[] = [];
+  const unmanaged: string[] = [];
   for (const [name, group] of [...byScope].sort(([a], [b]) => (a < b ? -1 : 1))) {
     const existing = await dependencies.workspace.project(name);
     const scope = group[0]?.scope ?? { name, sysId: name };
@@ -198,6 +224,7 @@ export async function adopt(
     );
     units.push(...adopted.units);
     files.push(...adopted.files);
+    unmanaged.push(...adopted.unmanaged);
   }
-  return { projects, units, files };
+  return { projects, units, files, unmanaged };
 }

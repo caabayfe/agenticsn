@@ -102,6 +102,7 @@ describe("adopt (ADR-0031 item 3)", () => {
       },
     ]);
     expect(result.files).toEqual(["source/x_2222332_s11/src/fluent/generated/si.now.ts"]);
+    expect(result.unmanaged).toEqual([]);
     expect(tools.applied).toEqual(["source/x_2222332_s11"]);
     expect(tools.asked).toEqual([
       {

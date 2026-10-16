@@ -103,8 +103,16 @@ export function plannedOrProblem(
 // gate: any edit, any save on the instance, any finding or waiver gives another id.
 export function unitPlanId(units: readonly PlannedUnit[], gate: GateResult): string {
   const material = canonicalJson({
+    // A deletion's update name holds a random sys_id: it is bound by what it deletes.
     units: units.map((u) =>
-      [u.project, u.updateName, u.operation, u.digest, u.ledger ?? "", u.version ?? ""].join(" "),
+      [
+        u.project,
+        u.operation === "delete" ? `${u.table} ${u.removes ?? ""}` : u.updateName,
+        u.operation,
+        u.digest,
+        u.ledger ?? "",
+        u.version ?? "",
+      ].join(" "),
     ),
     gate: {
       passed: gate.passed,

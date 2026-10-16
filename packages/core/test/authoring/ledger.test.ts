@@ -101,4 +101,18 @@ describe("unitDigest", () => {
     );
     expect(unitDigest(revocationList(["number", "outcome", "state"]))).not.toBe(unitDigest(list));
   });
+
+  it("names a Now.del by what it deletes, whatever sys_id the build gave it", () => {
+    const deletion = (sysId: string) => ({
+      ...unit(
+        `sys_properties_${sysId}`,
+        record("sys_properties", sysId, { sys_id: sysId, name: "x.y" }),
+      ),
+      head: {
+        ...record("sys_properties", sysId, { sys_id: sysId, name: "x.y" }),
+        action: "DELETE" as const,
+      },
+    });
+    expect(unitDigest(deletion("1".repeat(32)))).toBe(unitDigest(deletion("2".repeat(32))));
+  });
 });

@@ -13,7 +13,17 @@ function stable(record: UnitRecord): Record<string, string> {
   return { ...fields, "@table": record.table, "@sys_id": record.sysId, "@action": record.action };
 }
 
+// A Now.del by keys gets a new random sys_id on every build (S16 F3): it is named by its table
+// and the keys it deletes by.
+function deletionDigest(unit: BuiltUnit): string {
+  const keys = Object.entries(unit.head.fields).filter(([field]) => !field.startsWith("sys_"));
+  return sha256Hex(
+    canonicalJson({ delete: unit.head.table, keys: Object.fromEntries(keys) }),
+  ).slice(0, 32);
+}
+
 export function unitDigest(unit: BuiltUnit): string {
+  if (unit.head.action === "DELETE") return deletionDigest(unit);
   const children = unit.children.map(stable).sort((a, b) => {
     const left = `${a["@table"]}|${a["@sys_id"]}`;
     const right = `${b["@table"]}|${b["@sys_id"]}`;

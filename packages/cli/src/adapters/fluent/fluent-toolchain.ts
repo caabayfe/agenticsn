@@ -2,6 +2,7 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
+  BuildOutcome,
   BuiltUnit,
   DraftOutcome,
   FluentToolchain,
@@ -27,15 +28,22 @@ async function sourceFiles(root: string): Promise<Map<string, string>> {
   return files;
 }
 
-// The units a build wrote under dist/app.
-export async function unitsIn(project: string): Promise<BuiltUnit[]> {
+// The files a build wrote under dist/app, by name relative to it.
+async function builtFiles(project: string): Promise<Map<string, string>> {
   const output = join(project, "dist", "app");
   const names = await readdir(output, { recursive: true }).catch(() => []);
-  const units: BuiltUnit[] = [];
+  const files = new Map<string, string>();
   for (const name of names.filter((n) => n.endsWith(".xml")).sort()) {
-    units.push(builtUnitOf(name, await readFile(join(output, name), "utf8")));
+    files.set(name, await readFile(join(output, name), "utf8"));
   }
-  return units;
+  return files;
+}
+
+const unitsOf = (files: ReadonlyMap<string, string>): BuiltUnit[] =>
+  [...files].map(([name, xml]) => builtUnitOf(name, xml));
+
+export async function unitsIn(project: string): Promise<BuiltUnit[]> {
+  return unitsOf(await builtFiles(project));
 }
 
 // The embedded SDK working on copies of the workspace's projects: the workspace is written
@@ -45,6 +53,30 @@ export class SdkToolchain implements FluentToolchain {
     private readonly workspace: string,
     private readonly load: LoadFluentRuntime,
   ) {}
+
+  async build(project: SourceProject): Promise<BuildOutcome> {
+    const runtime = await this.load();
+    const scratch = await mkdtemp(join(tmpdir(), "snagentic-build-"));
+    const copy = join(scratch, "project");
+    try {
+      await fromWorkingTree(join(this.workspace, project.path))(copy);
+      const outcome = await runtime.build(copy);
+      if (!outcome.success) {
+        const first = outcome.errors[0];
+        return {
+          ok: false,
+          message:
+            first === undefined
+              ? "the build failed"
+              : `${first.file}:${first.line} ${first.message}`,
+        };
+      }
+      const files = await builtFiles(copy);
+      return { ok: true, units: unitsOf(files), files };
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+  }
 
   async draftTransform(
     project: SourceProject,

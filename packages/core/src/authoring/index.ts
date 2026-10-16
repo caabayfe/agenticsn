@@ -57,6 +57,7 @@ export { VERSION_FIELDS, versionOf } from "./domain/unit-version";
 export { comparedValue, NAMED_REFERENCES, normalizeValue, sameValue } from "./domain/values";
 export type {
   AuthoringWorkspace,
+  BuildOutcome,
   DraftOutcome,
   FluentToolchain,
   SdkAccess,

@@ -71,6 +71,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
   fluentPackages: () => ({ changedSince: async () => [] }),
   authoring: () => ({
     workspace: {
+      projects: async () => [],
       project: async () => null,
       scaffold: async ({ name, sysId }) => ({
         path: `source/${name}`,
@@ -84,6 +85,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
       mergeFiles: async () => [],
     },
     toolchain: {
+      build: async () => ({ ok: false, message: "no SDK in the fake context" }),
       draftTransform: async () => ({ ok: false, message: "no SDK in the fake context" }),
     },
   }),

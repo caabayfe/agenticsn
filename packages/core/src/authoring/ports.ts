@@ -10,6 +10,8 @@ export interface SourceProject {
 }
 
 export interface AuthoringWorkspace {
+  // Every project under source/, sorted by path.
+  projects(): Promise<readonly SourceProject[]>;
   project(scope: string): Promise<SourceProject | null>;
   // Creates source/<scope>/ as a `configuration` project for the embedded SDK.
   scaffold(scope: { readonly name: string; readonly sysId: string }): Promise<SourceProject>;
@@ -58,7 +60,19 @@ export type DraftOutcome =
   | { readonly ok: true; readonly draft: SourceDraft }
   | { readonly ok: false; readonly message: string };
 
+// A project's build: its units, and each built file's XML by file name (relative to the build
+// output), which is what a load sends.
+export type BuildOutcome =
+  | {
+      readonly ok: true;
+      readonly units: readonly BuiltUnit[];
+      readonly files: ReadonlyMap<string, string>;
+    }
+  | { readonly ok: false; readonly message: string };
+
 export interface FluentToolchain {
+  // Builds a copy of the project as the working tree holds it; the workspace is never written.
+  build(project: SourceProject): Promise<BuildOutcome>;
   // In a copy of the project as the working tree holds it, or as `commit` held it: build,
   // transform the records from the instance, build again.
   draftTransform(

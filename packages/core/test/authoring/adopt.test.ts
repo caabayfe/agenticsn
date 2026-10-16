@@ -3,16 +3,12 @@ import {
   AdoptRecordsNotFoundError,
   AdoptStoreApplicationError,
   AdoptUnexplainedDifferenceError,
-  type AuthoringWorkspace,
   adopt,
   type BuiltUnit,
-  EMPTY_LEDGER,
-  type FluentToolchain,
-  type Ledger,
   NothingAdoptedError,
-  type SourceProject,
 } from "@snagentic/core";
 import { fakeInstance } from "../support/fake-instance";
+import { memoryToolchain, memoryWorkspace } from "../support/memory-authoring";
 import { record, SCRIPT_INCLUDE_ID, scriptInclude, unit } from "./units";
 
 const SCOPE_ID = "489da54ae67c4a3e9f1e1e4347e9119b";
@@ -43,46 +39,8 @@ const instance = (overrides: Record<string, string> = {}, scopeClass = "sys_app"
     sys_scope: [{ sys_id: SCOPE_ID, scope: "x_2222332_s11", sys_class_name: scopeClass }],
   });
 
-function memoryWorkspace(base: string | null = null) {
-  const projects = new Map<string, SourceProject>();
-  const ledgers = new Map<string, Ledger>();
-  const written = new Map<string, string>();
-  const merged: unknown[] = [];
-  const workspace: AuthoringWorkspace = {
-    project: async (scope) => projects.get(scope) ?? null,
-    scaffold: async ({ name, sysId }) => {
-      const project = { path: `source/${name}`, scope: name, scopeId: sysId };
-      projects.set(name, project);
-      return project;
-    },
-    readLedger: async (project) => ledgers.get(project.path) ?? EMPTY_LEDGER,
-    writeLedger: async (project, ledger) => {
-      ledgers.set(project.path, ledger);
-    },
-    writeFiles: async (project, files) => {
-      for (const [path, text] of files) written.set(`${project.path}/${path}`, text);
-    },
-    ledgerCommit: async () => base,
-    mergeFiles: async (project, from, files) => {
-      merged.push({ project: project.path, from, files: [...files.keys()] });
-      return [];
-    },
-  };
-  return { workspace, projects, ledgers, written, merged };
-}
-
-// A toolchain whose transform turns the project's build from `before` into `after`.
-function toolchain(after: readonly BuiltUnit[], before: readonly BuiltUnit[] = []) {
-  const asked: unknown[] = [];
-  const chain: FluentToolchain = {
-    draftTransform: async (project, records, _access, commit) => {
-      asked.push({ project: project.path, records, ...(commit === undefined ? {} : { commit }) });
-      const files = new Map([["src/fluent/generated/si.now.ts", "ScriptInclude({})"]]);
-      return { ok: true, draft: { before, after, files } };
-    },
-  };
-  return { chain, asked };
-}
+const toolchain = (after: readonly BuiltUnit[], before: readonly BuiltUnit[] = []) =>
+  memoryToolchain({ after, before });
 
 describe("adopt (ADR-0031 item 3)", () => {
   it("scaffolds the scope's project, writes the source and records what the instance held", async () => {

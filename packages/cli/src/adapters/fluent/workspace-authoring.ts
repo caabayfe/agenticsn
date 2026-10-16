@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
@@ -37,6 +37,16 @@ export class WorkspaceAuthoring implements AuthoringWorkspace {
     private readonly workspace: string,
     private readonly load: LoadFluentRuntime,
   ) {}
+
+  async projects(): Promise<readonly SourceProject[]> {
+    const folders = await readdir(join(this.workspace, FLUENT_SOURCE_DIR)).catch(() => []);
+    const found: SourceProject[] = [];
+    for (const folder of [...folders].sort()) {
+      const project = await this.project(folder);
+      if (project !== null) found.push(project);
+    }
+    return found;
+  }
 
   async project(scope: string): Promise<SourceProject | null> {
     const path = `${FLUENT_SOURCE_DIR}/${scope}`;

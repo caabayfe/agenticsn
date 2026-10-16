@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { compareUnit, knownLoss } from "@snagentic/core";
+import { coalesceValues, compareUnit, knownLoss, unitName } from "@snagentic/core";
 import { copy, listCopy, record, revocationList, scriptInclude, unit } from "./units";
 
 const INSTANCE_SCRIPT_INCLUDE = {
@@ -193,5 +193,29 @@ describe("knownLoss (S16, S17)", () => {
 
   it("explains nothing else", () => {
     expect(knownLoss(field("sys_script_include", "description", "new", "old"))).toBeNull();
+  });
+});
+
+describe("unit helpers", () => {
+  it("finds a Now.del's record by the keys it names, and has no keys for one that names none", () => {
+    const named = {
+      ...unit(
+        "sys_properties_x",
+        record("sys_properties", "a".repeat(32), { sys_id: "a".repeat(32), name: "x.y" }),
+      ),
+    };
+    const deletion = { ...named, head: { ...named.head, action: "DELETE" as const } };
+    expect(coalesceValues(deletion)).toEqual({ name: "x.y" });
+    const bare = { ...deletion, head: { ...deletion.head, fields: { sys_id: "a".repeat(32) } } };
+    expect(coalesceValues(bare)).toBeNull();
+  });
+
+  it("names a unit by its record's name, or by its update name", () => {
+    expect(unitName(unit("u1", record("sys_script", "a".repeat(32), { name: "Rule" })))).toBe(
+      "Rule",
+    );
+    expect(
+      unitName(unit("u2", record("sys_ui_list_element", "a".repeat(32), { position: "1" }))),
+    ).toBe("u2");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { computeUnitPlan, unitDigest } from "@snagentic/core";
+import { computeUnitPlan, unitDigest, unitPlanId } from "@snagentic/core";
 import {
   QUERY,
   SCOPE_ID,
@@ -94,5 +94,22 @@ describe("plan on built units (ADR-0031, ADR-0033)", () => {
     saveOnInstance(tables, { sys_updated_on: "2026-10-16 09:00:00" });
     expect((await computeUnitPlan(deps, QUERY)).plan.planId).not.toBe(first);
     expect(unitDigest(scriptInclude("x"))).toHaveLength(32);
+  });
+});
+
+describe("unitPlanId", () => {
+  it("changes with the gate's blocking and waived findings", () => {
+    const finding = {
+      ruleId: "SN-SEC-001",
+      severity: "block" as const,
+      path: "p",
+      line: 1,
+      message: "m",
+    };
+    const gate = { passed: true, blocking: [], waived: [], warnings: 0, waiverProblems: [] };
+    const blocked = { ...gate, passed: false, blocking: [finding] };
+    const waived = { ...gate, waived: [{ ...finding, reason: "r", approver: "pat" }] };
+    const ids = new Set([unitPlanId([], gate), unitPlanId([], blocked), unitPlanId([], waived)]);
+    expect(ids.size).toBe(3);
   });
 });

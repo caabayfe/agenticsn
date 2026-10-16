@@ -258,7 +258,7 @@ Changes the instance: **yes, development instances only**. MCP tool: none.
 
 Options:
 
-- `--instance <value>`: default: the workspace's only instance
+- `--instance <value>`: the development instance the records are read from
 - `--refresh`: re-read adopted records changed on the instance, merged with local work as git merges
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
@@ -269,7 +269,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic plan-push [options]
 ```
 
-Plan delivering the workspace's changes to the instance: the records and fields that would change, the update sets they go into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
+Plan delivering the workspace's Fluent source to the instance: each unit (one update) that would be created, loaded or deleted, compared with the instance's live copy, the update sets it goes into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
 
 Changes the instance: no. MCP tool: `plan_push`.
 
@@ -287,7 +287,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic push [options]
 ```
 
-Deliver a reviewed plan to the development instance: writes the planned records into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace.
+Deliver a reviewed plan to the development instance: loads the planned units of the Fluent source (fluent/load) into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, checks each was captured and reads it back, then commits the ledgers. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace.
 
 Changes the instance: **yes, development instances only**. MCP tool: `push`.
 
@@ -556,11 +556,11 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `base` (string, optional): commit, branch or tag to compare with; findings already there are not reported
   - `instance` (string, optional): default: the workspace's only instance
   - `staged` (boolean, optional): check only what is staged for commit, as the index holds it (the pre-commit hook)
-- `plan_push`: Plan delivering the workspace's changes to the instance: the records and fields that would change, the update sets they go into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
+- `plan_push`: Plan delivering the workspace's Fluent source to the instance: each unit (one update) that would be created, loaded or deleted, compared with the instance's live copy, the update sets it goes into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
   - `instance` (string, optional): default: the workspace's only instance
   - `label` (string, optional): names the update sets (default: the git branch)
   - `allowCollisions` (boolean, optional): accept records already held in someone else's open update set
-- `push`: Deliver a reviewed plan to the development instance: writes the planned records into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. Destructive: hosts ask before running it.
+- `push`: Deliver a reviewed plan to the development instance: loads the planned units of the Fluent source (fluent/load) into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, checks each was captured and reads it back, then commits the ledgers. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. Destructive: hosts ask before running it.
   - `instance` (string, required): the development instance
   - `plan` (string, required): the planId from plan_push
   - `confirm` (boolean, optional): true once the user approved the plan

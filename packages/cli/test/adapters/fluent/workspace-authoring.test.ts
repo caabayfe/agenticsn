@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EMPTY_LEDGER, LedgerUncommittedError, withEntries } from "@snagentic/core";
+import { fromCommit } from "../../../src/adapters/fluent/build-in-copy";
 import { WorkspaceAuthoring } from "../../../src/adapters/fluent/workspace-authoring";
 import { runGitOrThrow } from "../../../src/adapters/git/run-git";
 
@@ -92,5 +93,21 @@ describe("WorkspaceAuthoring", () => {
     const merged = readFileSync(join(root, "source/x_app", SCRIPT), "utf8");
     expect(merged).toContain("<<<<<<< local");
     expect(merged).toContain(">>>>>>> instance");
+  });
+});
+
+describe("fromCommit", () => {
+  it("copies a project as a commit held it, leaving the working tree alone", async () => {
+    const { root, authoring, project } = await repository();
+    await authoring.writeFiles(project, new Map([[SCRIPT, lines("var a = 1;")]]));
+    const base = await commitAll(root, "adopt");
+    writeFileSync(join(root, "source/x_app", SCRIPT), lines("var a = 2;"));
+    const scratch = mkdtempSync(join(tmpdir(), "snagentic-from-commit-"));
+    await fromCommit(root, project.path, base)(join(scratch, "copy"));
+    expect(readFileSync(join(scratch, "copy", SCRIPT), "utf8")).toBe(lines("var a = 1;"));
+    expect(readFileSync(join(root, "source/x_app", SCRIPT), "utf8")).toBe(lines("var a = 2;"));
+    await expect(
+      fromCommit(root, project.path, "0".repeat(40))(join(scratch, "other")),
+    ).rejects.toThrow();
   });
 });

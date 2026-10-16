@@ -104,6 +104,17 @@ describe("SchedulerConnector", () => {
     ]);
   });
 
+  it("answers the host it was given, and gives the SDK no credential to sign in with", async () => {
+    const connector = new SchedulerConnector("https://instance.example.com/", async () => answer);
+    expect(connector.getHost().href).toBe("https://instance.example.com/");
+    // The SDK's own request path signs in first: it is refused before anything is sent.
+    const ownFetch: unknown = Reflect.get(connector, "fetchOnce");
+    if (typeof ownFetch !== "function") throw new Error("the SDK's connector changed");
+    await expect(ownFetch.call(connector, "/api/now/table/sys_scope")).rejects.toBeInstanceOf(
+      SdkRouteRefusedError,
+    );
+  });
+
   it("refuses a write before anything is sent", async () => {
     const sent: unknown[] = [];
     const connector = new SchedulerConnector("https://instance.example.com/", async (request) => {

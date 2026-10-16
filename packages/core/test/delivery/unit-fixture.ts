@@ -56,7 +56,6 @@ function memoryJournal() {
     clear: async () => {
       stored = null;
     },
-    current: () => stored,
   };
 }
 
@@ -66,6 +65,7 @@ function installer(
   tables: Record<string, Row[]>,
   units: () => readonly BuiltUnit[],
   calls: string[],
+  refused: ReadonlySet<string>,
 ): FluentInstaller {
   return {
     load: async (scopeId, files, updateSet) => {
@@ -74,6 +74,12 @@ function installer(
         const unit = units().find((u) => u.file === file.name);
         if (unit === undefined) continue;
         const rows = tables[unit.head.table] ?? [];
+        if (unit.head.action === "DELETE") {
+          // Now.del by keys: the record that has them goes.
+          const keys = Object.entries(unit.head.fields).filter(([f]) => !f.startsWith("sys_"));
+          tables[unit.head.table] = rows.filter((r) => !keys.every(([f, v]) => r[f] === v));
+          continue;
+        }
         const current = rows.find((r) => r["sys_id"] === unit.head.sysId);
         const count = String(Number(current?.["sys_mod_count"] ?? "-1") + 1);
         const row = {
@@ -96,7 +102,14 @@ function installer(
         ];
       }
     },
-    publish: async () => [],
+    publish: async (scope, targets) => {
+      calls.push(`publish ${scope} flows=${targets.flows.join(",")}`);
+      return targets.flows.map((sysId) => ({
+        sysId,
+        published: !refused.has(sysId),
+        message: "No trigger",
+      }));
+    },
   };
 }
 
@@ -116,7 +129,9 @@ export function unitSetup(
     const entry = { build: unitDigest(adopted), instance: VERSION, losses: [], ...options.ledger };
     authoring.ledgers.set(project.path, withEntries(new Map(), "dev", new Map([[SI_UNIT, entry]])));
   }
-  const toolchain = memoryToolchain({ builds });
+  const xml = new Map<string, string>();
+  const toolchain = memoryToolchain({ builds, xml });
+  const refused = new Set<string>();
   const calls: string[] = [];
   const journal = memoryJournal();
   const deps: UnitPushDependencies = {
@@ -132,9 +147,9 @@ export function unitSetup(
       defaultBranch: async () => "main",
       openDraft: async () => "",
     },
-    installer: installer(base.tables, () => builds.get(project.path) ?? [], calls),
+    installer: installer(base.tables, () => [...builds.values()].flat(), calls, refused),
   };
-  return { ...base, deps, authoring, project, builds, calls, journal };
+  return { ...base, deps, authoring, project, builds, calls, journal, xml, refused };
 }
 
 export const QUERY = { instance: "dev", allowCollisions: false };

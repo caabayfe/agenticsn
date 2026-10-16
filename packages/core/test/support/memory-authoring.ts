@@ -49,13 +49,20 @@ export function memoryToolchain(
     readonly after?: readonly BuiltUnit[];
     readonly before?: readonly BuiltUnit[];
     readonly builds?: ReadonlyMap<string, readonly BuiltUnit[]>;
+    // A built file's XML by update name; a placeholder otherwise.
+    readonly xml?: ReadonlyMap<string, string>;
   } = {},
 ) {
   const asked: unknown[] = [];
   const chain: FluentToolchain = {
     build: async (project) => {
       const units = options.builds?.get(project.path) ?? [];
-      const files = new Map(units.map((unit) => [unit.file, `<xml>${unit.updateName}</xml>`]));
+      const files = new Map(
+        units.map((unit) => [
+          unit.file,
+          options.xml?.get(unit.updateName) ?? `<xml>${unit.updateName}</xml>`,
+        ]),
+      );
       return { ok: true, units, files };
     },
     draftTransform: async (project, records, _access, commit) => {

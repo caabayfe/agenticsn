@@ -1,68 +1,31 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type InstanceProfile, recordHash } from "@snagentic/core";
-import { runGitOrThrow } from "../../src/adapters/git/run-git";
-import { toYaml } from "../../src/adapters/yaml/own-style";
+import { PushConfirmationRequiredError } from "@snagentic/core";
 import { executeUseCase } from "../../src/registry/execute";
 import { planPush } from "../../src/registry/plan-push";
 import { push } from "../../src/registry/push";
-import { instanceWorkspace } from "../support/instance-workspace";
+import { SI_UNIT, unitWorkspace } from "../support/unit-workspace";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
   await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
 });
 
-const META = "instances/pdi/metadata";
-const SYS_ID = "0123456789abcdef0123456789abcdef";
-const INCLUDE = `global/sys_script_include/util--${SYS_ID}`;
-const FIELDS = { name: "Util", description: "Helpers", script: "var Util = Class.create();" };
-
-async function workspace() {
-  const ws = await instanceWorkspace({
-    sys_user: [{ sys_id: "u1", user_name: "admin" }],
-    sys_update_set: [],
-    sys_update_xml: [],
-    sys_user_preference: [],
-    sys_script_include: [
-      { sys_id: SYS_ID, sys_class_name: "sys_script_include", sys_scope: "global", ...FIELDS },
-    ],
-  });
+async function workspace(source: string) {
+  const ws = await unitWorkspace({ source, instance: "" });
   cleanups.push(ws.cleanup);
-  const write = async (path: string, content: string) => {
-    await mkdir(join(ws.root, META, path, ".."), { recursive: true });
-    await writeFile(join(ws.root, META, path), content);
-  };
-  await write(
-    `${INCLUDE}.yaml`,
-    toYaml({
-      _meta: {
-        sys_class_name: "sys_script_include",
-        sys_id: SYS_ID,
-        scope: "global",
-        hash: recordHash("sys_script_include", FIELDS),
-      },
-      name: FIELDS.name,
-      description: FIELDS.description,
-    }),
-  );
-  await write(`${INCLUDE}.script.js`, `${FIELDS.script}\n`);
-  await runGitOrThrow(["add", "instances"], ws.root);
-  await runGitOrThrow(
-    ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "pull"],
-    ws.root,
-  );
-  await runGitOrThrow(["branch", "servicenow-remote/pdi"], ws.root);
-  return { ...ws, write };
+  return ws;
 }
 
-describe("push", () => {
-  it("writes a reviewed plan into the branch's update set and reports it", async () => {
-    const { context, write, instance, root } = await workspace();
-    await write(`${INCLUDE}.script.js`, "var Util = Class.create();\nUtil.prototype = {};\n");
+describe("push (ADR-0031 item 4)", () => {
+  it("loads a reviewed plan, stamped, into the branch's update sets, and commits the ledger", async () => {
+    const { context, root, loads, tables, git } = await workspace("Edited in source.");
     const plan = await executeUseCase(planPush, {}, context);
+    expect(plan.output).toMatchObject({
+      ready: true,
+      units: [{ updateName: SI_UNIT, operation: "load" }],
+    });
     const planId = String(plan.output["planId"]);
     const { output, exitCode } = await executeUseCase(
       push,
@@ -73,24 +36,35 @@ describe("push", () => {
     expect(output).toMatchObject({
       planId,
       batch: { name: "snagentic: main", created: true },
-      pullRequest: { status: "unavailable", reason: "no git platform in tests" },
-      updateSets: [{ name: "snagentic: main", created: true }],
-      written: [{ operation: "update", table: "sys_script_include", captured: true }],
-      fluent: [],
-      flowsInactiveMs: null,
+      updateSets: [
+        { scope: "x_2222332_s11", name: "snagentic: main [x_2222332_s11]", created: true },
+      ],
+      units: [{ updateName: SI_UNIT, operation: "load", captured: true, applied: true }],
       notCaptured: 0,
+      notApplied: 0,
     });
-    expect(instance.writes).toContain(
-      "update sys_script_include script=var Util = Class.create();\nUtil.prototype = {};",
-    );
+    // Stamped as a save would (ADR-0030 item 5).
+    expect(loads[0]).toContain("<sys_mod_count>2</sys_mod_count>");
+    expect(tables["sys_script_include"]?.[0]?.["description"]).toBe("Edited in source.");
     expect(existsSync(join(root, ".snagentic/pdi/push-journal.json"))).toBe(false);
-    const text = push.render(output as never, "text");
-    expect(text).toContain("batch created: snagentic: main ");
-    expect(text).not.toContain("update set created");
-    expect(text).toContain("next: snagentic pull pdi, then snagentic integrate pdi");
+    expect(await git("log", "-1", "--format=%s")).toContain(
+      `chore(snagentic): ledger after push ${planId} to pdi`,
+    );
+    expect(await git("status", "--porcelain", "--", "source")).toBe("");
+    const again = await executeUseCase(planPush, {}, context);
+    expect(planPush.render(again.output as never, "text")).toContain("nothing to push");
   });
 
-  it("shows the batch once, then each other scope's child update set", () => {
+  it("refuses without confirmation", async () => {
+    const { context } = await workspace("Edited in source.");
+    const plan = await executeUseCase(planPush, {}, context);
+    const planId = String(plan.output["planId"]);
+    await expect(
+      executeUseCase(push, { instance: "pdi", plan: planId }, context),
+    ).rejects.toBeInstanceOf(PushConfirmationRequiredError);
+  });
+
+  it("shows the batch once, each other scope's update set, and what did not land as built", () => {
     const set = (name: string, sysId: string) => ({
       name,
       sysId,
@@ -107,175 +81,31 @@ describe("push", () => {
           { scope: "global", ...set("snagentic: main", "b1") },
           { scope: "x_acme", ...set("snagentic: main [x_acme]", "c1") },
         ],
-        written: [],
-        fluent: [],
-        flowsInactiveMs: null,
+        units: [
+          {
+            project: "source/x_acme",
+            updateName: "u1",
+            table: "t",
+            name: "n",
+            operation: "load",
+            captured: true,
+            applied: false,
+          },
+        ],
         notCaptured: 0,
+        notApplied: 1,
+        ledgerCommit: "0123456789abcdef",
         next: [],
       },
       "text",
     );
-    expect(text.split("\n").slice(0, 3)).toEqual([
+    expect(text.split("\n")).toEqual([
       "batch reused: snagentic: main  l/b1",
       "pull request: https://github.com/a/b/pull/1",
       "update set reused: snagentic: main [x_acme]  l/c1",
+      "load   u1  NOT applied as built",
+      "ledger committed: 0123456789",
+      "0 load(s) not captured, 1 not applied as built: check them on the instance before moving the update set",
     ]);
-  });
-
-  it("says what the batch is linked to on the git platform", () => {
-    const base = {
-      instance: "pdi",
-      planId: "p",
-      batch: { name: "snagentic: main", sysId: "b1", created: false, link: "l" },
-      updateSets: [],
-      written: [],
-      fluent: [],
-      flowsInactiveMs: null,
-      notCaptured: 0,
-      next: [],
-    };
-    const line = (pullRequest: Parameters<typeof push.render>[0]["pullRequest"]) =>
-      push.render({ ...base, pullRequest }, "text").split("\n")[1];
-    expect(line({ status: "created", url: "https://g/pull/2" })).toBe(
-      "draft pull request opened: https://g/pull/2",
-    );
-    expect(line({ status: "unavailable", reason: "gh is not installed" })).toBe(
-      "no pull request linked: gh is not installed",
-    );
-  });
-
-  it("writes ACLs through an elevated session on an instance opted in at login (ADR-0024)", async () => {
-    const { context, write } = await workspace();
-    const ACL_ID = "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0";
-    const fields = { name: "incident", operation: "read", type: "record" };
-    await write(
-      `global/sys_security_acl/incident--${ACL_ID}.yaml`,
-      toYaml({
-        _meta: {
-          sys_class_name: "sys_security_acl",
-          sys_id: ACL_ID,
-          scope: "global",
-          hash: recordHash("sys_security_acl", fields),
-        },
-        ...fields,
-      }),
-    );
-    const blocked = await executeUseCase(planPush, {}, context);
-    expect(JSON.stringify(blocked.output["problems"])).toContain("--allow-elevation");
-
-    const elevated: string[] = [];
-    const opted = {
-      ...context,
-      credentials: {
-        ...context.credentials,
-        read: async (profile: InstanceProfile) => ({
-          secret: "pw",
-          source: "keychain" as const,
-          trusted: { url: profile.url, kind: profile.kind, elevation: true },
-        }),
-      },
-      elevatedSessions: () => ({
-        open: async () => ({
-          username: "admin",
-          writer: {
-            insert: async (table: string) => {
-              elevated.push(`insert ${table}`);
-              return { sys_id: ACL_ID };
-            },
-            update: async () => ({}),
-          },
-          close: async () => {
-            elevated.push("close");
-          },
-        }),
-      }),
-    };
-    const plan = await executeUseCase(planPush, {}, opted);
-    expect(plan.output).toMatchObject({
-      ready: true,
-      changes: [{ table: "sys_security_acl", elevated: true }],
-    });
-    const { output } = await executeUseCase(
-      push,
-      { instance: "pdi", plan: String(plan.output["planId"]), confirm: true },
-      opted,
-    );
-    expect(elevated).toEqual(["insert sys_security_acl", "close"]);
-    expect(output).toMatchObject({ written: [{ table: "sys_security_acl", elevated: true }] });
-    expect(push.render(output as never, "text")).toContain("elevated: security_admin");
-  });
-
-  it("refuses without confirmation, and explains a capture problem", async () => {
-    const { context } = await workspace();
-    await expect(
-      executeUseCase(push, { instance: "pdi", plan: "x" }, context),
-    ).rejects.toMatchObject({
-      code: "push-confirmation-required",
-    });
-    const text = push.render(
-      {
-        instance: "pdi",
-        planId: "p",
-        batch: { name: "snagentic: main", sysId: "b1", created: false, link: "l" },
-        pullRequest: { status: "none" },
-        updateSets: [],
-        written: [
-          {
-            operation: "update",
-            table: "t",
-            sysId: "s",
-            path: "p.yaml",
-            captured: false,
-            elevated: false,
-          },
-        ],
-        fluent: [],
-        flowsInactiveMs: null,
-        notCaptured: 1,
-        next: [],
-      },
-      "text",
-    );
-    expect(text).toContain("push with --draft-pr to open one");
-    expect(text).toContain("NOT captured");
-    expect(text).toContain("1 write(s) were not captured");
-  });
-
-  it("shows each published flow, one the update set did not capture, and the inactive window", () => {
-    const text = push.render(
-      {
-        instance: "pdi",
-        planId: "p",
-        batch: { name: "snagentic: main", sysId: "b1", created: false, link: "l" },
-        pullRequest: { status: "none" },
-        updateSets: [],
-        written: [],
-        fluent: [
-          {
-            project: "source/global",
-            table: "sys_hub_flow",
-            sysId: "f1",
-            name: "Page",
-            kind: "flow",
-            captured: true,
-          },
-          {
-            project: "source/global",
-            table: "sys_hub_flow",
-            sysId: "f2",
-            name: "Notify",
-            kind: "subflow",
-            captured: false,
-          },
-        ],
-        flowsInactiveMs: 8990,
-        notCaptured: 1,
-        next: [],
-      },
-      "text",
-    );
-    expect(text).toContain("publish flow Page  source/global");
-    expect(text).toContain("publish subflow Notify  source/global  NOT captured in the update set");
-    expect(text).toContain("flows were inactive for 8990 ms while redelivered");
   });
 });

@@ -1,4 +1,4 @@
-import { Connector } from "@servicenow/sdk-api";
+import { Connector, LazyCredential } from "@servicenow/sdk-api";
 import { SdkRouteRefusedError, sdkRouteAllowed } from "@snagentic/core";
 
 // What the SDK's requests are sent through: snagentic's client, signed and scheduled (ADR-0032).
@@ -13,16 +13,15 @@ export type InstanceExchange = (request: {
 // calls (unloadDependentRecords and the rest) all end in fetch.
 export class SchedulerConnector extends Connector {
   constructor(
-    private readonly host: string,
+    host: string,
     private readonly exchange: InstanceExchange,
   ) {
-    // The SDK wraps this credential, and the connector never reaches it: fetch and getHost are
-    // replaced.
-    super({ getUrl: () => host } as unknown as ConstructorParameters<typeof Connector>[0]);
-  }
-
-  override getHost(): URL {
-    return new URL(this.host);
+    // The SDK holds the host and nothing to sign in with: asked for a credential, it is refused.
+    super(
+      new LazyCredential(new URL(host), () => {
+        throw new SdkRouteRefusedError("AUTH", "a credential for the SDK");
+      }),
+    );
   }
 
   override async fetch(

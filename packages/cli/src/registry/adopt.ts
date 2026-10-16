@@ -6,9 +6,7 @@ import {
 } from "@snagentic/core";
 import { z } from "zod";
 import { connect } from "./connect";
-import { instanceFor } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
-import { workspaceRoot } from "./workspace-root";
 
 const SYS_ID = /([0-9a-f]{32})(?!.*[0-9a-f]{32})/;
 
@@ -28,7 +26,7 @@ export const adopt = defineUseCase({
     "checks it would rebuild what the instance holds before writing anything. Writes " +
     "source/<scope>/ and its ledger; commit them. Name records by mirror path, table:sys_id or sys_id.",
   input: z.object({
-    instance: z.string().optional().describe("default: the workspace's only instance"),
+    instance: z.string().describe("the development instance the records are read from"),
     records: z.array(z.string()).min(1).describe("mirror paths, table:sys_id, or sys_ids"),
     refresh: z
       .boolean()
@@ -65,9 +63,8 @@ export const adopt = defineUseCase({
   arguments: ["records"],
   async handle(input, context, run) {
     const records = input.records.map(targetOf);
-    const instance = await instanceFor(await workspaceRoot(context), context, input.instance);
-    const connection = await connect(context, instance, run.signal);
-    if (connection.reader.sdkAccess === undefined) throw new SdkUnavailableError(instance);
+    const connection = await connect(context, input.instance, run.signal);
+    if (connection.reader.sdkAccess === undefined) throw new SdkUnavailableError(input.instance);
     const { workspace, toolchain } = context.authoring(connection.root);
     run.progress({ message: "converting the records with the ServiceNow SDK" });
     const result = await adoptRecords(

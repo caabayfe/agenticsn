@@ -132,10 +132,9 @@ async function adoptInto(
   if (!outcome.ok) throw new AdoptTransformFailedError(project.scope, outcome.message);
   const units = adoptedUnits(outcome.draft);
   const entries = await checkedEntries(dependencies, units);
-  const conflicts =
-    base === null
-      ? (await workspace.writeFiles(project, outcome.draft.files), [])
-      : await workspace.mergeFiles(project, base, outcome.draft.files);
+  let conflicts: readonly string[] = [];
+  if (base === null) await workspace.writeFiles(project, outcome.draft.files);
+  else conflicts = await workspace.mergeFiles(project, base, outcome.draft.files);
   const ledger = withEntries(await workspace.readLedger(project), input.instance, entries);
   await workspace.writeLedger(project, ledger);
   const inProject = (file: string) => `${project.path}/${file}`;

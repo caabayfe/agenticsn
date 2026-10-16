@@ -120,10 +120,10 @@ async function openGlobalBatch(
       save,
     );
     const opened = await openBatch(session, run.label, run.pr);
-    await settle(session, null, journal, save);
+    await settle(session, journal, save);
     return { ...opened, link: `${deps.url}/sys_update_set.do?sys_id=${opened.sysId}` };
   } catch (error) {
-    await settle(session, null, journal, save).catch(() => {});
+    await settle(session, journal, save).catch(() => {});
     throw error;
   }
 }
@@ -195,7 +195,6 @@ export async function pushUnits(
   const { plan, loads } = await preflight(deps, query, session);
   const pullRequest = await pullRequestFor(deps, {
     label: plan.label,
-    writes: [],
     ...(query.pr === undefined ? {} : { pr: query.pr }),
     ...(query.draftPr === undefined ? {} : { draftPr: query.draftPr }),
   });

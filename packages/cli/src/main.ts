@@ -16,7 +16,6 @@ import { fluentProbe } from "./adapters/fluent/fluent-probe";
 import { loadFluentRuntime } from "./adapters/fluent/fluent-runtime-loader";
 import { SdkToolchain } from "./adapters/fluent/fluent-toolchain";
 import { WorkspaceAuthoring } from "./adapters/fluent/workspace-authoring";
-import { WorkspaceFluentPackages } from "./adapters/fluent/workspace-fluent-packages";
 import { WorkspaceFluentProjects } from "./adapters/fluent/workspace-fluent-projects";
 import { createTextFile } from "./adapters/fs/create-text-file";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
@@ -32,7 +31,6 @@ import { GitMirrorFiles } from "./adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "./adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
-import { BrowserElevatedSessions } from "./adapters/servicenow/elevation/browser-elevated-sessions";
 import { fetchTransport } from "./adapters/servicenow/fetch-transport";
 import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
@@ -75,8 +73,6 @@ const context: UseCaseContext = {
     open: (profile, secret) =>
       new ServiceNowClient(profile, secret, new RequestScheduler(fetchTransport()), versionLine()),
   },
-  elevatedSessions: (profile, secret) =>
-    new BrowserElevatedSessions(profile, secret, versionLine()),
   syncState: (root, instance) =>
     new JsonSyncStateStore(join(root, instancePaths(instance).localState)),
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
@@ -114,12 +110,6 @@ const context: UseCaseContext = {
   packWorkspace: (root, instance) => new GitPackWorkspace(root, instance),
   dataTemplates: new CsvDataTemplates(),
   packs: new LazyPackSource(loadPackSource),
-  fluentPackages: (root) =>
-    new WorkspaceFluentPackages(
-      root,
-      new WorkspaceFluentProjects(root, loadFluentRuntime),
-      loadFluentRuntime,
-    ),
   pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),

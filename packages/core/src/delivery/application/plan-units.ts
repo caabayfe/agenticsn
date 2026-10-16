@@ -2,13 +2,19 @@ import { readUnits } from "../../authoring/application/read-units";
 import { unitDigest } from "../../authoring/domain/digest";
 import type { Ledger, LedgerEntry } from "../../authoring/domain/ledger";
 import { planUnit } from "../../authoring/domain/plan-unit";
-import { type BuiltUnit, isDeletion } from "../../authoring/domain/unit";
+import { type BuiltUnit, type InstanceCopy, isDeletion } from "../../authoring/domain/unit";
 import type { AuthoringWorkspace, FluentToolchain, SourceProject } from "../../authoring/ports";
 import type { InstanceReader } from "../../connection/ports";
 import type { Finding, ValidateDependencies } from "../../governance/index";
 import { InvalidInputError } from "../../kernel/errors";
+import { SESSION_USER } from "../../kernel/session-user";
+import { TableName } from "../../kernel/table-name";
 import type { NextCall } from "../../knowledge/index";
-import { heldInOpenUpdateSets, type UpdateSetDependencies } from "../../updatesets/index";
+import {
+  heldInOpenUpdateSets,
+  type RecordHolder,
+  type UpdateSetDependencies,
+} from "../../updatesets/index";
 import { batchUpdateSets, inBatch } from "../domain/batch";
 import type { GateResult } from "../domain/gate";
 import {
@@ -19,7 +25,6 @@ import {
 } from "../domain/unit-plan";
 import type { DeliveryWorkspace } from "../ports";
 import { gateFor } from "./plan-gate";
-import type { HeldRecord } from "./plan-push";
 
 // What a push would load, and whether it may (ADR-0031, ADR-0033): every project under source/
 // built, each unit whose build moved away from its ledger entry compared with the instance's
@@ -47,6 +52,13 @@ export interface UnitPlanDependencies {
   readonly updateSets: UpdateSetDependencies;
   readonly now: () => Date;
   readonly signal: AbortSignal;
+}
+
+// A unit someone holds in another open update set.
+export interface HeldRecord {
+  readonly path: string;
+  readonly record: string;
+  readonly heldBy: readonly RecordHolder[];
 }
 
 export interface UnitPushPlan {
@@ -107,10 +119,39 @@ function removedWithoutDeletion(
     );
 }
 
+// The platform refuses to publish a flow its publishing user's domain cannot see (spike S11),
+// leaving the loaded flow an inactive draft: such a flow is never loaded.
+const COMPILED = new Set(["sys_hub_flow", "sys_hub_action_type_definition"]);
+
+function outsideDomain(unit: PlannedUnit, copy: InstanceCopy | null, userDomain: string) {
+  const domain = copy?.head["sys_domain"] ?? "global";
+  return unit.operation === "load" && COMPILED.has(unit.table) && domain !== userDomain;
+}
+
+// The signed-in user's domain, read once per plan and only when a flow would be loaded.
+function sessionDomain(deps: UnitPlanDependencies): () => Promise<string> {
+  let domain: Promise<string> | undefined;
+  return () => {
+    domain ??= deps.reader
+      .query(
+        {
+          table: TableName.parse("sys_user"),
+          query: `sys_id=${SESSION_USER}`,
+          fields: ["sys_domain"],
+          limit: 1,
+        },
+        deps.signal,
+      )
+      .then((rows) => rows[0]?.["sys_domain"] || "global");
+    return domain;
+  };
+}
+
 async function planProject(
   deps: UnitPlanDependencies,
   project: SourceProject,
   instance: string,
+  userDomain: () => Promise<string>,
 ): Promise<{ load: ProjectLoad | null; problems: UnitProblem[] }> {
   const build = await deps.authoring.toolchain.build(project);
   if (!build.ok) return { load: null, problems: [problem(project.path, "build", build.message)] };
@@ -146,8 +187,11 @@ async function planProject(
       removes: deleted.get(unit.updateName) ?? null,
     });
     if (outcome === null) continue;
-    if ("operation" in outcome) units.push(outcome);
-    else problems.push(outcome);
+    if (!("operation" in outcome)) problems.push(outcome);
+    else if (outsideDomain(outcome, copy, await userDomain())) {
+      const reason = `it is in domain ${copy?.head["sys_domain"]}, which the signed-in user is not in: the instance would refuse to publish it`;
+      problems.push(problem(project.path, "unsafe", reason, unit.updateName));
+    } else units.push(outcome);
   }
   const built = new Map(
     candidates.map((unit) => [unit.updateName, { unit, xml: build.files.get(unit.file) ?? "" }]),
@@ -190,8 +234,9 @@ export async function computeUnitPlan(
   const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
   const loads: ProjectLoad[] = [];
   const problems: UnitProblem[] = await uncommittedSource(deps);
+  const userDomain = sessionDomain(deps);
   for (const project of await deps.authoring.workspace.projects()) {
-    const planned = await planProject(deps, project, query.instance);
+    const planned = await planProject(deps, project, query.instance, userDomain);
     if (planned.load !== null) loads.push(planned.load);
     problems.push(...planned.problems);
   }

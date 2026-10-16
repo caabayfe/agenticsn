@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
-  computePlan,
+  computeUnitPlan,
   type InventoryReader,
   type PackSource,
   type PackWorkspace,
   packFindings,
 } from "@snagentic/core";
-import { RULE, setup } from "../support/delivery-fixture";
+import { unitSetup } from "../delivery/unit-fixture";
 
 const SLA = "3d5fd9f1c0a8016400cbc76ea0b4c9a4";
 const MINIMAL = {
@@ -93,12 +93,12 @@ describe("the gate's accelerator check (SN-MNT-012, ADR-0026)", () => {
   });
 
   it("makes plan not ready: the finding blocks the gate like any other", async () => {
-    const { deps } = setup();
+    const { deps } = unitSetup({ source: "Edited in source." });
     const finding = {
       ruleId: "SN-MNT-012",
       severity: "block" as const,
       title: "t",
-      path: `${RULE}.yaml`,
+      path: "source/x_app",
       field: null,
       line: null,
       message: "capability extra of minimal is needs-plugins",
@@ -114,8 +114,8 @@ describe("the gate's accelerator check (SN-MNT-012, ADR-0026)", () => {
         return [finding];
       },
     };
-    const { plan } = await computePlan(gated, { instance: "dev", allowCollisions: false });
-    expect(seen).toEqual([[`${RULE}.yaml`]]);
+    const { plan } = await computeUnitPlan(gated, { instance: "dev", allowCollisions: false });
+    expect(seen).toEqual([["source/x_app"]]);
     expect(plan.ready).toBe(false);
     expect(plan.gate.blocking).toEqual([expect.objectContaining({ ruleId: "SN-MNT-012" })]);
   });

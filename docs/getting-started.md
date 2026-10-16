@@ -288,22 +288,10 @@ On test and production, load the same templates on the instance itself.
 
 ### ACLs
 
-Writing ACLs (`sys_security_acl`, `sys_security_acl_role`) needs the elevated
-`security_admin` role, which a REST session cannot use. Allow it once per instance:
-
-```sh
-snagentic auth login dev --allow-elevation
-```
-
-The instance must be development, use a password (not OAuth), and its user must hold
-`security_admin`. From then on `push` writes the plan's other records as usual and, last, its
-ACLs: it signs in to the instance in a headless Google Chrome or Microsoft Edge (install one of
-them), elevates to `security_admin` only, writes the ACLs into the same update set, and signs
-out (ADR-0024). The plan and the push result mark them `elevated: security_admin`. Single
-sign-on login pages are not supported yet. `validate` checks ACLs too: a write, create or
-delete ACL that nothing restricts, a deny ACL turned off or deleted, and admin overrides
-turned off. In CI, set `SNAGENTIC_<NAME>_ALLOW_ELEVATION=true` with the other variables, on
-an image that has Chrome.
+ACLs (`sys_security_acl`, with their roles) are authored in Fluent like any other record, and
+`push` loads them into the update set with no elevated session: the load route writes them as
+the platform does (ADR-0031, spike S16). `validate` checks ACLs: a write, create or delete ACL
+that nothing restricts, a deny ACL turned off or deleted, and admin overrides turned off.
 
 Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. Only committed waivers
 apply, agents cannot edit the file, and the path must name an instance and a scope:

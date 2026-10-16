@@ -6,10 +6,8 @@ import type {
   CredentialStore,
   DataTemplates,
   DeliveryWorkspace,
-  ElevatedSessions,
   EnvironmentProbe,
   FluentInstaller,
-  FluentPackages,
   FluentProjects,
   FluentToolchain,
   ImportSetWriter,
@@ -36,7 +34,6 @@ import type {
   SdkAccess,
   ServerCostReader,
   SyncStateStore,
-  TableDictionary,
   TableStatistics,
   WorkspaceFiles,
   WorkspaceStore,
@@ -71,12 +68,10 @@ export interface ConnectionFactory {
     ServerCostReader & {
       readonly plugins: PluginActivator;
       readonly writer: InstanceWriter;
-      // Flow delivery (ADR-0028); absent from connections that cannot push flows.
+      // fluent/load and flow publishing (ADR-0031); absent from connections that cannot push.
       readonly fluent?: FluentInstaller;
       // Accelerator data loads (ADR-0026); absent from connections that cannot load.
       readonly imports?: ImportSetWriter;
-      // Which classes the platform records (ADR-0030); absent where it cannot be read.
-      readonly dictionary?: TableDictionary;
       // The embedded SDK's reads through this connection (ADR-0032); absent where it has none.
       readonly sdkAccess?: (signal: AbortSignal) => SdkAccess;
     };
@@ -90,8 +85,6 @@ export interface UseCaseContext {
   readonly credentials: CredentialStore;
   readonly secrets: SecretReader;
   readonly connections: ConnectionFactory;
-  // Sessions elevated to security_admin, for push to write ACLs (ADR-0024).
-  readonly elevatedSessions: (profile: InstanceProfile, secret: string) => ElevatedSessions;
   // Per-instance local sync state (.snagentic/<name>/) and the git mirror of a workspace.
   readonly syncState: (root: string, instance: InstanceName) => SyncStateStore;
   readonly mirrors: {
@@ -129,8 +122,6 @@ export interface UseCaseContext {
     readonly workspace: AuthoringWorkspace;
     readonly toolchain: FluentToolchain;
   };
-  // Fluent projects under source/, built for delivery (ADR-0028 as amended).
-  readonly fluentPackages: (root: string) => FluentPackages;
   // Fluent projects under source/, built to check them and write their keys; staged: as the
   // index holds them, for the pre-commit hook.
   readonly fluentProjects: (

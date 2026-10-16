@@ -116,7 +116,7 @@ function installer(
 export function unitSetup(
   options: { instance?: string; source?: string; ledger?: Partial<LedgerEntry> | null } = {},
 ) {
-  const base = setup({ changed: [], mirror: {}, working: {} });
+  const base = setup();
   const source = scriptInclude(options.source ?? "Helpers.");
   base.tables["sys_script_include"] = [instanceRow(options.instance ?? "Helpers.")];
   base.tables["sys_user"] = [{ sys_id: "u1", user_name: "admin" }];

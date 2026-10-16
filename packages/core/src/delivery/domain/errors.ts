@@ -1,27 +1,5 @@
 import { SnagenticError } from "../../kernel/errors";
 
-export class NothingPulledYetError extends SnagenticError {
-  constructor(instance: string) {
-    super(
-      "nothing-pulled-yet",
-      "precondition",
-      `${instance} has never been pulled, so there is no base to plan against`,
-      `run snagentic pull ${instance}, then snagentic integrate ${instance}`,
-    );
-  }
-}
-
-export class MirrorNotIntegratedError extends SnagenticError {
-  constructor(instance: string) {
-    super(
-      "mirror-not-integrated",
-      "precondition",
-      `the latest pull of ${instance} is not integrated into this branch; pushing would revert the instance's newer changes`,
-      `run snagentic integrate ${instance}, resolve any conflicts, then plan again`,
-    );
-  }
-}
-
 export class PushConfirmationRequiredError extends SnagenticError {
   constructor() {
     super(
@@ -77,39 +55,6 @@ export class UpdateSetScopeError extends SnagenticError {
   }
 }
 
-export class UnfinishedPushError extends SnagenticError {
-  constructor(planId: string) {
-    super(
-      "unfinished-push",
-      "precondition",
-      `push ${planId} did not finish; the instance may hold some of its writes`,
-      "run pull and integrate so the mirror shows what was written, then plan and push again",
-    );
-  }
-}
-
-export class ElevationUnavailableError extends SnagenticError {
-  constructor() {
-    super(
-      "elevation-unavailable",
-      "precondition",
-      "the plan writes ACLs, but no elevated session can be opened for this instance",
-      "a person opts the instance in with snagentic auth login <instance> --allow-elevation (ADR-0024), then plan again",
-    );
-  }
-}
-
-export class ElevatedUserMismatchError extends SnagenticError {
-  constructor(expected: string, actual: string) {
-    super(
-      "elevated-user-mismatch",
-      "not-permitted",
-      `the elevated session signed in as ${actual}, but the profile names ${expected}; nothing was written`,
-      "check the instance's login (SSO may sign in someone else), then push again",
-    );
-  }
-}
-
 export class IntegrationUserNotFoundError extends SnagenticError {
   constructor(username: string) {
     super(
@@ -161,17 +106,6 @@ export class BranchNotPublishedError extends SnagenticError {
       "remote",
       `could not push ${branch} to ${remote}: ${reason}`,
       "check the remote (git remote -v) and your access to it, then push again with draftPr",
-    );
-  }
-}
-
-export class FluentLoadUnavailableError extends SnagenticError {
-  constructor(path: string) {
-    super(
-      "fluent-load-unavailable",
-      "precondition",
-      `${path}: this is delivered through the instance's Fluent load endpoint, which this connection cannot reach`,
-      "push from the snagentic CLI or MCP server, which load layouts and unrecorded records (ADR-0030)",
     );
   }
 }

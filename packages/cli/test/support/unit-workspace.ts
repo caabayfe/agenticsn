@@ -20,7 +20,6 @@ import { instanceWorkspace } from "./instance-workspace";
 const FIXTURE = join(import.meta.dir, "../../../../tests/fixtures/fluent/units");
 export const SI_FILE = "sys_script_include_123833b4d97d48be8e9ec5ea16f27764.xml";
 export const SI_UNIT = "sys_script_include_123833b4d97d48be8e9ec5ea16f27764";
-const SI_ID = "123833b4d97d48be8e9ec5ea16f27764";
 const SCOPE = { name: "x_2222332_s11", sysId: "489da54ae67c4a3e9f1e1e4347e9119b" };
 
 const builtXml = (description: string) =>

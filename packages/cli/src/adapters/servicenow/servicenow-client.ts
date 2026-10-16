@@ -13,7 +13,6 @@ import {
   type SdkAccess,
   type ServerCost,
   type ServerCostReader,
-  type TableDictionary,
   type TableFingerprint,
   TableName,
   type TableQuery,
@@ -24,7 +23,6 @@ import { CicdPluginActivator } from "./cicd-plugin-activator";
 import { type ApiBody, ApiFluentInstaller } from "./fluent-installer";
 import type { HttpResponse } from "./http-types";
 import { ImportSetApiWriter } from "./import-set-writer";
-import { InstanceTableDictionary } from "./instance-table-dictionary";
 import { costOf, costParams } from "./server-cost";
 import { TableApiWriter } from "./table-api-writer";
 
@@ -65,7 +63,6 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   readonly writer: InstanceWriter = new TableApiWriter(this);
   // Fluent builds loaded and published through the ServiceNow IDE's endpoints (ADR-0028).
   readonly fluent: FluentInstaller = new ApiFluentInstaller(this);
-  readonly dictionary: TableDictionary = new InstanceTableDictionary(this);
   // Accelerator data loads through the Import Set API (ADR-0026).
   readonly imports: ImportSetWriter = new ImportSetApiWriter(this);
 

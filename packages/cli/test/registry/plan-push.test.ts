@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { InstanceName, recordHash } from "@snagentic/core";
 import { GitDeliveryWorkspace } from "../../src/adapters/delivery/git-delivery-workspace";
@@ -93,34 +93,21 @@ describe("plan-push (ADR-0033)", () => {
 });
 
 describe("GitDeliveryWorkspace", () => {
-  it("reads records now and at the mirror commit, lists changes, the branch and waivers", async () => {
-    const { root, write } = await workspace();
+  it("names the mirror commit, the branch and the committed waivers", async () => {
+    const { root } = await workspace();
     const delivery = new GitDeliveryWorkspace(root, InstanceName.parse("pdi"));
-    const commit = (await delivery.mirrorCommit()) ?? "";
-    expect(await delivery.includes(commit)).toBe(true);
+    expect(await delivery.mirrorCommit()).toMatch(/^[0-9a-f]{40}$/);
     expect(await delivery.branch()).toBe("main");
-    await write("global/sys_script/new--ffffffffffffffffffffffffffffffff.yaml", "name: x\n");
-    expect(await delivery.changedFiles(commit)).toEqual([
-      "global/sys_script/new--ffffffffffffffffffffffffffffffff.yaml",
-    ]);
-    expect((await delivery.read(INCLUDE, commit))?.files).toEqual([
-      { field: "script", content: "var Util = Class.create();\n" },
-    ]);
-    expect(
-      await delivery.read("global/sys_script/new--ffffffffffffffffffffffffffffffff", commit),
-    ).toBeNull();
     expect(await delivery.waivers()).toEqual({ committed: null, uncommitted: false });
     await writeFile(join(root, "waivers.yaml"), "waivers: []\n");
     expect(await delivery.waivers()).toEqual({ committed: null, uncommitted: true });
     await git(root, "add", "waivers.yaml");
-    await git(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "waive");
+    await git(root, "commit", "-qm", "waive");
     expect(await delivery.waivers()).toEqual({ committed: { waivers: [] }, uncommitted: false });
     await writeFile(join(root, "waivers.yaml"), "waivers: [x]\n");
     expect(await delivery.waivers()).toEqual({ committed: { waivers: [] }, uncommitted: true });
     await git(root, "checkout", "-q", "--detach");
     expect(await delivery.branch()).toMatch(/^[0-9a-f]{7,}$/);
-    await rm(join(root, META, "global"), { recursive: true });
-    expect(await delivery.read(INCLUDE, null)).toBeNull();
   });
 
   it("lists source not committed, and commits exactly the files it is given", async () => {

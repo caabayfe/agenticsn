@@ -31,10 +31,9 @@ function memoryCredentials(): CredentialStore & {
         ? null
         : { secret, source: "keychain", trusted: trusted.get(profile.name) ?? null };
     },
-    write: async (profile, secret, options) => {
+    write: async (profile, secret) => {
       secrets.set(profile.name, secret);
-      const elevation = options?.elevation === true ? { elevation: true } : {};
-      trusted.set(profile.name, { url: profile.url, kind: profile.kind, ...elevation });
+      trusted.set(profile.name, { url: profile.url, kind: profile.kind });
     },
     remove: async (profile) => secrets.delete(profile.name),
   };
@@ -289,20 +288,6 @@ describe("auth commands", () => {
       detail: expect.stringContaining("url is https://evil.service-now.com"),
     });
     expect(report.checks.find((check) => check.name === "connection")?.status).toBe("unavailable");
-  });
-
-  it("opts the instance into elevated writes when the user holds security_admin (ADR-0024)", async () => {
-    const { run, credentials, roles } = await setup();
-    await run("instance", "add", "pdi", "--url", "dev312411", "--username", "admin");
-    const refused = await run("auth", "login", "pdi", "--allow-elevation");
-    expect(refused.exitCode).not.toBe(0);
-    expect(refused.err).toContain("security_admin");
-    expect(credentials.secrets.size).toBe(0);
-    roles.push("security_admin");
-    const login = await run("auth", "login", "pdi", "--allow-elevation");
-    expect(login.exitCode).toBe(0);
-    expect(login.out).toContain("elevated writes allowed");
-    expect(credentials.trusted.get("pdi")?.elevation).toBe(true);
   });
 
   it("is not offered to agents over MCP", () => {

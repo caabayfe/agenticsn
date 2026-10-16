@@ -154,9 +154,8 @@ async function outcomes(
   const pushed: PushedUnit[] = [];
   const into = { updateSet, username: run.username };
   for (const unit of units) {
-    const { project, updateName, table, sysId, name, operation } = unit;
-    const record = { table, sysId, owner: null, updateName };
-    const done = loaded(unit) ? await captured(run.session, record, into) : true;
+    const { project, updateName, table, name, operation } = unit;
+    const done = loaded(unit) ? await captured(run.session, updateName, into) : true;
     const applied = back.applied.get(updateName) ?? true;
     pushed.push({ project, updateName, table, name, operation, captured: done, applied });
     if (operation === "record") {
@@ -203,11 +202,11 @@ export async function pushProject(run: ProjectRun, load: ProjectLoad): Promise<P
     await loadAndPublish(run, load, set.sysId, filesFor(load, units, before, run.now()));
     const back = await readBack(run, load, units);
     const pushed = await outcomes(run, units, set.sysId, back);
-    await settle(session, null, journal, save);
+    await settle(session, journal, save);
     return { updateSet: set, units: pushed, ledger: back.ledger };
   } catch (error) {
     // The step that failed is what the user needs to see; a failed restore stays journaled.
-    await settle(session, null, journal, save).catch(() => {});
+    await settle(session, journal, save).catch(() => {});
     throw error;
   }
 }

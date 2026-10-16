@@ -3,6 +3,7 @@ import { acceleratorCheck } from "./accelerator-check";
 import { acceleratorList } from "./accelerator-list";
 import { acceleratorLoad } from "./accelerator-load";
 import { acceleratorValidateData } from "./accelerator-validate-data";
+import { adopt } from "./adopt";
 import { advise } from "./advise";
 import { agentInstall } from "./agent-install";
 import { authLogin } from "./auth-login";
@@ -50,6 +51,7 @@ export const USE_CASES: readonly UseCase[] = [
   validate,
   fluentKeys,
   check,
+  adopt,
   planPush,
   push,
   agentInstall,

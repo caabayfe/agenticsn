@@ -14,6 +14,8 @@ import { GhPullRequests } from "./adapters/delivery/gh-pull-requests";
 import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
 import { fluentProbe } from "./adapters/fluent/fluent-probe";
 import { loadFluentRuntime } from "./adapters/fluent/fluent-runtime-loader";
+import { SdkToolchain } from "./adapters/fluent/fluent-toolchain";
+import { WorkspaceAuthoring } from "./adapters/fluent/workspace-authoring";
 import { WorkspaceFluentPackages } from "./adapters/fluent/workspace-fluent-packages";
 import { WorkspaceFluentProjects } from "./adapters/fluent/workspace-fluent-projects";
 import { createTextFile } from "./adapters/fs/create-text-file";
@@ -97,6 +99,10 @@ const context: UseCaseContext = {
     ),
     checker: new EslintScriptChecker(),
     fluent: new WorkspaceFluentProjects(root, loadFluentRuntime, options),
+  }),
+  authoring: (root) => ({
+    workspace: new WorkspaceAuthoring(root, loadFluentRuntime),
+    toolchain: new SdkToolchain(root, loadFluentRuntime),
   }),
   fluentProjects: (root, options = {}) =>
     new WorkspaceFluentProjects(root, loadFluentRuntime, options),

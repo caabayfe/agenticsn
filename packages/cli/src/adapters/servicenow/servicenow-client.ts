@@ -10,6 +10,7 @@ import {
   type InstanceWriter,
   type PluginActivator,
   type Row,
+  type SdkAccess,
   type ServerCost,
   type ServerCostReader,
   type TableDictionary,
@@ -213,6 +214,11 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     const response = await this.scheduler.send({ ...send, ...body }, signal);
     const contentType = response.headers.get("content-type") ?? "application/json";
     return { status: response.status, contentType, text: await response.text() };
+  }
+
+  // The embedded SDK's way to the instance (ADR-0032), bound to a use case's signal.
+  sdkAccess(signal: AbortSignal): SdkAccess {
+    return { host: this.profile.url, exchange: (request) => this.exchange(request, signal) };
   }
 
   private async aggregate(

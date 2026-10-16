@@ -1,5 +1,6 @@
 import {
   type CredentialStore,
+  EMPTY_LEDGER,
   type EnvironmentProbe,
   type ProfileStore,
   SnagenticError,
@@ -68,6 +69,21 @@ export const FAKE_CONTEXT: UseCaseContext = {
     merge: async (pack) => ({ branch: `accelerator/${pack}`, conflicts: [] }),
   }),
   fluentPackages: () => ({ changedSince: async () => [] }),
+  authoring: () => ({
+    workspace: {
+      project: async () => null,
+      scaffold: async ({ name, sysId }) => ({
+        path: `source/${name}`,
+        scope: name,
+        scopeId: sysId,
+      }),
+      readLedger: async () => EMPTY_LEDGER,
+      writeLedger: async () => {},
+    },
+    toolchain: {
+      draftTransform: async () => ({ ok: false, message: "no SDK in the fake context" }),
+    },
+  }),
   fluentProjects: () => ({
     changedSince: async () => [],
     holding: async () => [],

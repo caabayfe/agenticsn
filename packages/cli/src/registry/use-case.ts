@@ -1,6 +1,7 @@
 // A use case is the single definition of one operation (ADR-0003). The CLI command, the MCP
 // tool and the JSON output are all generated from it; nothing is defined twice by hand.
 import type {
+  AuthoringWorkspace,
   ChangedRecords,
   CredentialStore,
   DataTemplates,
@@ -10,6 +11,7 @@ import type {
   FluentInstaller,
   FluentPackages,
   FluentProjects,
+  FluentToolchain,
   ImportSetWriter,
   IncrementalMirror,
   InstalledBinary,
@@ -31,6 +33,7 @@ import type {
   PushJournalStore,
   ReleaseSource,
   ScriptChecker,
+  SdkAccess,
   ServerCostReader,
   SyncStateStore,
   TableDictionary,
@@ -74,6 +77,8 @@ export interface ConnectionFactory {
       readonly imports?: ImportSetWriter;
       // Which classes the platform records (ADR-0030); absent where it cannot be read.
       readonly dictionary?: TableDictionary;
+      // The embedded SDK's reads through this connection (ADR-0032); absent where it has none.
+      readonly sdkAccess?: (signal: AbortSignal) => SdkAccess;
     };
 }
 
@@ -118,6 +123,12 @@ export interface UseCaseContext {
   readonly dataTemplates: DataTemplates;
   // The pack branches of one instance in a workspace (accelerator add).
   readonly packWorkspace: (root: string, instance: InstanceName) => PackWorkspace;
+  // The workspace's Fluent projects and the embedded SDK that converts and builds them
+  // (ADR-0031).
+  readonly authoring: (root: string) => {
+    readonly workspace: AuthoringWorkspace;
+    readonly toolchain: FluentToolchain;
+  };
   // Fluent projects under source/, built for delivery (ADR-0028 as amended).
   readonly fluentPackages: (root: string) => FluentPackages;
   // Fluent projects under source/, built to check them and write their keys; staged: as the

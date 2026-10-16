@@ -246,6 +246,22 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `adopt`
+
+```
+snagentic adopt <records...> [options]
+```
+
+Bring records from a development instance into the workspace's Fluent source, to edit them there (ADR-0031). The SDK converts each record; snagentic builds the result and checks it would rebuild what the instance holds before writing anything. Writes source/<scope>/ and its ledger; commit them. Name records by mirror path, table:sys_id or sys_id.
+
+Changes the instance: **yes, development instances only**. MCP tool: none.
+
+Options:
+
+- `--instance <value>`: default: the workspace's only instance
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `plan-push`
 
 ```

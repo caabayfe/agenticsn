@@ -50,7 +50,10 @@ function fieldDifferences(
   for (const field of Object.keys(record.fields).sort()) {
     if (IGNORED.has(field) || skip.has(field)) continue;
     const [built, instanceField] = comparedValue(record, field);
-    const actual = instance[instanceField] ?? "";
+    // A field the instance does not answer is a column it does not have: the load cannot set
+    // it (the SDK writes sys_choice.inactive_on_update, which pdi2 has no column for).
+    const actual = instance[instanceField];
+    if (actual === undefined) continue;
     if (!sameValue(built, actual)) {
       differences.push({ kind: "field", table: record.table, row, field, built, instance: actual });
     }

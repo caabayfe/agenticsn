@@ -1,7 +1,21 @@
 // Public API of the authoring context (ADR-0031, ADR-0033): built units, their comparison with
 // the instance, the ledger and the decision plan makes for each unit.
 
+export {
+  type AdoptDependencies,
+  type AdoptedUnit,
+  type AdoptResult,
+  adopt,
+} from "./application/adopt";
 export { readUnits } from "./application/read-units";
+export {
+  AdoptRecordsNotFoundError,
+  AdoptStoreApplicationError,
+  AdoptTransformFailedError,
+  AdoptUnexplainedDifferenceError,
+  InvalidRecordReferenceError,
+  SdkUnavailableError,
+} from "./domain/adopt-errors";
 export { compareUnit, type Difference } from "./domain/compare";
 export { unitDigest } from "./domain/digest";
 export { SdkRouteRefusedError, UnreadableBuildError } from "./domain/errors";
@@ -39,3 +53,12 @@ export {
 } from "./domain/unit-specs";
 export { VERSION_FIELDS, versionOf } from "./domain/unit-version";
 export { comparedValue, NAMED_REFERENCES, normalizeValue, sameValue } from "./domain/values";
+export type {
+  AuthoringWorkspace,
+  DraftOutcome,
+  FluentToolchain,
+  SdkAccess,
+  SourceDraft,
+  SourceProject,
+  TransformTarget,
+} from "./ports";

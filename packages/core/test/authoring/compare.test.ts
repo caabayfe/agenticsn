@@ -40,6 +40,14 @@ describe("compareUnit (ADR-0033 item 2)", () => {
     expect(compareUnit(built, instance)).toEqual([]);
   });
 
+  it("ignores a field the instance has no column for: the load cannot set it", () => {
+    const built = unit(
+      "sys_choice_x_t_status",
+      record("sys_choice_set", "f".repeat(32), { name: "x_t", element: "status", inactive_on_update: "false" }),
+    );
+    expect(compareUnit(built, copy({ name: "x_t", element: "status" }))).toEqual([]);
+  });
+
   it("treats line endings and trailing newlines as equal", () => {
     const built = scriptInclude("one\ntwo\n");
     expect(

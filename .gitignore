@@ -27,3 +27,6 @@ snagentic.yaml
 
 # Agent evaluation transcripts quote instance code: never commit them.
 .eval-results/
+
+# Claude Code per-session runtime state
+.claude/scheduled_tasks.lock

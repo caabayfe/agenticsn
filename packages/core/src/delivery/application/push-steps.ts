@@ -221,7 +221,10 @@ export async function writeRecord(
 // The update set entry a write lands in: named by the platform, after the record itself or,
 // for a child row, the record that owns it (a list is sys_ui_list_<table>_<view>). A form
 // section and its fields are recorded as the form that shows the section.
-async function updateNameOf(session: InstanceSession, write: PlannedWrite): Promise<string> {
+// What capture needs to know of a write: a list loaded whole (ADR-0029) passes its own.
+type Recorded = Pick<PlannedWrite, "table" | "sysId" | "owner" | "updateName">;
+
+async function updateNameOf(session: InstanceSession, write: Recorded): Promise<string> {
   if (write.updateName !== null) {
     return write.updateName;
   }
@@ -248,7 +251,7 @@ async function formOf(session: InstanceSession, section: string) {
 // moved into the target (spec 006, B5); an update someone else made is left where it is.
 export async function captured(
   session: InstanceSession,
-  write: PlannedWrite,
+  write: Recorded,
   target: { readonly updateSet: string; readonly username: string },
 ): Promise<boolean> {
   const name = await updateNameOf(session, write);

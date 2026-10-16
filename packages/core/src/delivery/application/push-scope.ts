@@ -1,6 +1,8 @@
 import type { Catalog } from "../../metadata/domain/catalog";
 import { GLOBAL } from "../domain/batch";
 import { needsElevation, type PlannedWrite } from "../domain/change";
+import { ListLoadUnavailableError } from "../domain/errors";
+import type { PlannedList } from "../domain/list-changes";
 import type {
   ElevatedSession,
   ElevatedSessions,
@@ -12,6 +14,7 @@ import type {
 } from "../ports";
 import { elevatedSessionFor } from "./elevated-writes";
 import { deliverFluent, type FluentDelivery } from "./fluent-steps";
+import { deliverList } from "./list-steps";
 import { settle, switchFor } from "./push-preferences";
 import { type InstanceSession, moveUpdate, openChild, writeRecord } from "./push-steps";
 
@@ -39,8 +42,26 @@ interface ScopeTarget {
   // The branch's batch: global's update set, and the parent of every other scope's.
   readonly batch: { readonly sysId: string; readonly name: string; readonly created: boolean };
   readonly writes: readonly PlannedWrite[];
+  // The scope's list layouts, each loaded whole after its records (ADR-0029).
+  readonly lists: readonly PlannedList[];
   // The scope's Fluent project build, loaded and published after its records.
   readonly fluent: FluentPackage | null;
+}
+
+// Loads the scope's lists after its records, as a list names the table and fields it shows.
+async function loadLists(run: ScopeRun, target: ScopeTarget, updateSet: string) {
+  const { deps, session, journal } = run;
+  const loaded: { readonly list: PlannedList; readonly captured: boolean }[] = [];
+  for (const list of target.lists) {
+    if (deps.fluentInstaller === null) {
+      throw new ListLoadUnavailableError(list.path);
+    }
+    const listRun = { session, installer: deps.fluentInstaller, journal, store: deps.journal };
+    const scope = { name: target.name, id: target.id };
+    const done = await deliverList(listRun, list, { scope, updateSet, username: deps.username });
+    loaded.push({ list, captured: done });
+  }
+  return loaded;
 }
 
 // One write, journaled before and after so an interrupted push knows what reached the instance.
@@ -102,6 +123,7 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
   let elevated: ElevatedSession | null = null;
   let set: { sysId: string; name: string; created: boolean };
   let fluent: FluentDelivery | null = null;
+  let lists: Awaited<ReturnType<typeof loadLists>> = [];
   try {
     await prefer("apps.current_app", target.id);
     set = await updateSetFor(run, target, application);
@@ -124,6 +146,7 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
           : session;
       await writeStep(run, write, target, through);
     }
+    lists = await loadLists(run, target, set.sysId);
     if (target.fluent !== null && deps.fluentInstaller !== null) {
       const delivery = {
         session,
@@ -140,5 +163,5 @@ export async function pushScope(run: ScopeRun, target: ScopeTarget) {
     throw error;
   }
   await settle(session, elevated, journal, save);
-  return { ...set, fluent };
+  return { ...set, fluent, lists };
 }

@@ -32,6 +32,7 @@ export {
   ElevatedUserMismatchError,
   ElevationUnavailableError,
   IntegrationUserNotFoundError,
+  ListLoadUnavailableError,
   MirrorNotIntegratedError,
   NothingPulledYetError,
   PlanChangedError,
@@ -53,6 +54,19 @@ export {
   toPublish,
 } from "./domain/fluent-records";
 export { type GateFinding, type GateResult, gateOf, planId } from "./domain/gate";
+export {
+  type ListFiles,
+  listChange,
+  listVersion,
+  type PlannedList,
+} from "./domain/list-changes";
+export {
+  DEFAULT_VIEW,
+  type ListColumn,
+  type ListLayout,
+  listLayoutXml,
+  listUpdateName,
+} from "./domain/list-layout";
 export {
   globMatches,
   readWaivers,

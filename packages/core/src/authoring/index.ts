@@ -14,6 +14,8 @@ export {
   AdoptTransformFailedError,
   AdoptUnexplainedDifferenceError,
   InvalidRecordReferenceError,
+  LedgerUncommittedError,
+  NothingAdoptedError,
   SdkUnavailableError,
 } from "./domain/adopt-errors";
 export { compareUnit, type Difference } from "./domain/compare";

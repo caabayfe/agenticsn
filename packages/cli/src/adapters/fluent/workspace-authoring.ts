@@ -1,13 +1,16 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   type AuthoringWorkspace,
   FLUENT_SOURCE_DIR,
   type Ledger,
+  LedgerUncommittedError,
   ledgerDocument,
   ledgerOf,
   type SourceProject,
 } from "@snagentic/core";
+import { runGit, runGitOrThrow } from "../git/run-git";
 import { fromYamlStrings, toYaml } from "../yaml/own-style";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
 
@@ -74,6 +77,59 @@ export class WorkspaceAuthoring implements AuthoringWorkspace {
     const path = `${project.path}/${LEDGER_FILE}`;
     const text = await readText(join(this.workspace, path));
     return ledgerOf(path, text === null ? null : fromYamlStrings(text));
+  }
+
+  async writeFiles(project: SourceProject, files: ReadonlyMap<string, string>): Promise<void> {
+    for (const [path, text] of files) {
+      const file = join(this.workspace, project.path, path);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, text);
+    }
+  }
+
+  async ledgerCommit(project: SourceProject): Promise<string | null> {
+    const path = `${project.path}/${LEDGER_FILE}`;
+    const status = await runGitOrThrow(["status", "--porcelain", "--", path], this.workspace);
+    if (status.trim() !== "") throw new LedgerUncommittedError(path);
+    // A repository with no commit yet has no ledger commit either.
+    const log = await runGit(["log", "-1", "--format=%H", "--", path], this.workspace);
+    const commit = log.exitCode === 0 ? log.stdout.trim() : "";
+    return commit === "" ? null : commit;
+  }
+
+  // git merge-file per file: ours is the working tree, base the file at `base`, theirs the
+  // refreshed conversion. A file new on both sides merges against an empty base.
+  async mergeFiles(
+    project: SourceProject,
+    base: string,
+    theirs: ReadonlyMap<string, string>,
+  ): Promise<readonly string[]> {
+    const conflicts: string[] = [];
+    const scratch = await mkdtemp(join(tmpdir(), "snagentic-merge-"));
+    try {
+      for (const [path, text] of theirs) {
+        const file = join(this.workspace, project.path, path);
+        const shown = await runGit(["show", `${base}:${project.path}/${path}`], this.workspace);
+        // A file deleted locally is the empty text: git then reports the instance's change.
+        const ours = join(scratch, "local");
+        const common = join(scratch, "base");
+        const instance = join(scratch, "instance");
+        await writeFile(ours, (await readText(file)) ?? "");
+        await writeFile(common, shown.exitCode === 0 ? shown.stdout : "");
+        await writeFile(instance, text);
+        const labels = ["-L", "local", "-L", "base", "-L", "instance"];
+        const merged = await runGit(
+          ["merge-file", "-p", ...labels, ours, common, instance],
+          scratch,
+        );
+        await mkdir(dirname(file), { recursive: true });
+        await writeFile(file, merged.stdout);
+        if (merged.exitCode !== 0) conflicts.push(path);
+      }
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    return conflicts.sort();
   }
 
   async writeLedger(project: SourceProject, ledger: Ledger): Promise<void> {

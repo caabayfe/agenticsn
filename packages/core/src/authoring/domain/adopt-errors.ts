@@ -70,3 +70,25 @@ export class SdkUnavailableError extends SnagenticError {
     );
   }
 }
+
+export class NothingAdoptedError extends SnagenticError {
+  constructor(project: string) {
+    super(
+      "nothing-adopted",
+      "precondition",
+      `${project} has no committed ledger: there is nothing to refresh`,
+      "adopt the records first (snagentic adopt), and commit the result",
+    );
+  }
+}
+
+export class LedgerUncommittedError extends SnagenticError {
+  constructor(path: string) {
+    super(
+      "ledger-uncommitted",
+      "precondition",
+      `${path} has changes not yet committed`,
+      "commit the last adopt or push first: a refresh merges from the last committed ledger",
+    );
+  }
+}

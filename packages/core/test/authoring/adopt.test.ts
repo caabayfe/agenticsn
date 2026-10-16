@@ -9,6 +9,7 @@ import {
   EMPTY_LEDGER,
   type FluentToolchain,
   type Ledger,
+  NothingAdoptedError,
   type SourceProject,
 } from "@snagentic/core";
 import { fakeInstance } from "../support/fake-instance";
@@ -42,9 +43,11 @@ const instance = (overrides: Record<string, string> = {}, scopeClass = "sys_app"
     sys_scope: [{ sys_id: SCOPE_ID, scope: "x_2222332_s11", sys_class_name: scopeClass }],
   });
 
-function memoryWorkspace() {
+function memoryWorkspace(base: string | null = null) {
   const projects = new Map<string, SourceProject>();
   const ledgers = new Map<string, Ledger>();
+  const written = new Map<string, string>();
+  const merged: unknown[] = [];
   const workspace: AuthoringWorkspace = {
     project: async (scope) => projects.get(scope) ?? null,
     scaffold: async ({ name, sysId }) => {
@@ -56,37 +59,35 @@ function memoryWorkspace() {
     writeLedger: async (project, ledger) => {
       ledgers.set(project.path, ledger);
     },
+    writeFiles: async (project, files) => {
+      for (const [path, text] of files) written.set(`${project.path}/${path}`, text);
+    },
+    ledgerCommit: async () => base,
+    mergeFiles: async (project, from, files) => {
+      merged.push({ project: project.path, from, files: [...files.keys()] });
+      return [];
+    },
   };
-  return { workspace, projects, ledgers };
+  return { workspace, projects, ledgers, written, merged };
 }
 
 // A toolchain whose transform turns the project's build from `before` into `after`.
 function toolchain(after: readonly BuiltUnit[], before: readonly BuiltUnit[] = []) {
-  const applied: string[] = [];
   const asked: unknown[] = [];
   const chain: FluentToolchain = {
-    draftTransform: async (project, records) => {
-      asked.push({ project: project.path, records });
-      return {
-        ok: true,
-        draft: {
-          before,
-          after,
-          changed: ["src/fluent/generated/si.now.ts"],
-          apply: async () => {
-            applied.push(project.path);
-          },
-        },
-      };
+    draftTransform: async (project, records, _access, commit) => {
+      asked.push({ project: project.path, records, ...(commit === undefined ? {} : { commit }) });
+      const files = new Map([["src/fluent/generated/si.now.ts", "ScriptInclude({})"]]);
+      return { ok: true, draft: { before, after, files } };
     },
   };
-  return { chain, applied, asked };
+  return { chain, asked };
 }
 
 describe("adopt (ADR-0031 item 3)", () => {
   it("scaffolds the scope's project, writes the source and records what the instance held", async () => {
     const fake = instance();
-    const { workspace, ledgers } = memoryWorkspace();
+    const { workspace, ledgers, written } = memoryWorkspace();
     const tools = toolchain([scriptInclude("Helpers for the E2E probe.")]);
     const result = await adopt(
       { reader: fake.reader, workspace, toolchain: tools.chain, access, signal },
@@ -103,7 +104,7 @@ describe("adopt (ADR-0031 item 3)", () => {
     ]);
     expect(result.files).toEqual(["source/x_2222332_s11/src/fluent/generated/si.now.ts"]);
     expect(result.unmanaged).toEqual([]);
-    expect(tools.applied).toEqual(["source/x_2222332_s11"]);
+    expect([...written.keys()]).toEqual(["source/x_2222332_s11/src/fluent/generated/si.now.ts"]);
     expect(tools.asked).toEqual([
       {
         project: "source/x_2222332_s11",
@@ -144,14 +145,14 @@ describe("adopt (ADR-0031 item 3)", () => {
   });
 
   it("writes nothing when the build would change what the instance holds", async () => {
-    const { workspace, ledgers } = memoryWorkspace();
+    const { workspace, ledgers, written } = memoryWorkspace();
     const tools = toolchain([scriptInclude("Something the instance does not hold.")]);
     const adopting = adopt(
       { reader: instance().reader, workspace, toolchain: tools.chain, access, signal },
       { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
     );
     await expect(adopting).rejects.toBeInstanceOf(AdoptUnexplainedDifferenceError);
-    expect(tools.applied).toEqual([]);
+    expect(written.size).toBe(0);
     expect(ledgers.size).toBe(0);
   });
 
@@ -196,5 +197,57 @@ describe("adopt (ADR-0031 item 3)", () => {
       { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
     );
     await expect(adopting).rejects.toBeInstanceOf(AdoptStoreApplicationError);
+  });
+
+  it("refreshes as of the last ledger commit and merges into the working tree", async () => {
+    const { workspace, projects, merged, written } = memoryWorkspace("c0ffee");
+    projects.set("x_2222332_s11", {
+      path: "source/x_2222332_s11",
+      scope: "x_2222332_s11",
+      scopeId: SCOPE_ID,
+    });
+    const tools = toolchain([scriptInclude("Helpers for the E2E probe.")]);
+    const result = await adopt(
+      { reader: instance().reader, workspace, toolchain: tools.chain, access, signal },
+      {
+        instance: "pdi2",
+        records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }],
+        refresh: true,
+      },
+    );
+    expect(tools.asked).toEqual([
+      {
+        project: "source/x_2222332_s11",
+        records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }],
+        commit: "c0ffee",
+      },
+    ]);
+    expect(merged).toEqual([
+      {
+        project: "source/x_2222332_s11",
+        from: "c0ffee",
+        files: ["src/fluent/generated/si.now.ts"],
+      },
+    ]);
+    expect(written.size).toBe(0);
+    expect(result.conflicts).toEqual([]);
+  });
+
+  it("refuses to refresh a project nothing was adopted into", async () => {
+    const refreshing = adopt(
+      {
+        reader: instance().reader,
+        workspace: memoryWorkspace().workspace,
+        toolchain: toolchain([]).chain,
+        access,
+        signal,
+      },
+      {
+        instance: "pdi2",
+        records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }],
+        refresh: true,
+      },
+    );
+    await expect(refreshing).rejects.toBeInstanceOf(NothingAdoptedError);
   });
 });

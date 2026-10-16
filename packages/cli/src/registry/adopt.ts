@@ -30,6 +30,12 @@ export const adopt = defineUseCase({
   input: z.object({
     instance: z.string().optional().describe("default: the workspace's only instance"),
     records: z.array(z.string()).min(1).describe("mirror paths, table:sys_id, or sys_ids"),
+    refresh: z
+      .boolean()
+      .default(false)
+      .describe(
+        "re-read adopted records changed on the instance, merged with local work as git merges",
+      ),
   }),
   output: z.object({
     instance: z.string(),
@@ -49,6 +55,10 @@ export const adopt = defineUseCase({
       .array(z.string())
       .readonly()
       .describe("records the SDK cannot express: they stay on the instance, outside source"),
+    conflicts: z
+      .array(z.string())
+      .readonly()
+      .describe("files a refresh left with conflict markers: resolve them as any git conflict"),
   }),
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: true },
   mcp: false,
@@ -68,7 +78,7 @@ export const adopt = defineUseCase({
         access: connection.reader.sdkAccess(run.signal),
         signal: run.signal,
       },
-      { instance: connection.name, records },
+      { instance: connection.name, records, refresh: input.refresh },
     );
     return { instance: connection.name, ...result };
   },
@@ -86,6 +96,9 @@ export const adopt = defineUseCase({
       ),
       ...output.unmanaged.map(
         (r) => `not adopted: ${r} (the SDK cannot express it; it stays as it is)`,
+      ),
+      ...output.conflicts.map(
+        (f) => `conflict: ${f} (local and instance edits overlap; resolve it)`,
       ),
       `${output.files.length} source file(s) written; review and commit them with the ledger`,
     ].join("\n");

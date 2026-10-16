@@ -79,6 +79,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
       }),
       readLedger: async () => EMPTY_LEDGER,
       writeLedger: async () => {},
+      writeFiles: async () => {},
+      ledgerCommit: async () => null,
+      mergeFiles: async () => [],
     },
     toolchain: {
       draftTransform: async () => ({ ok: false, message: "no SDK in the fake context" }),

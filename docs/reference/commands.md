@@ -259,6 +259,7 @@ Changes the instance: **yes, development instances only**. MCP tool: none.
 Options:
 
 - `--instance <value>`: default: the workspace's only instance
+- `--refresh`: re-read adopted records changed on the instance, merged with local work as git merges
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 

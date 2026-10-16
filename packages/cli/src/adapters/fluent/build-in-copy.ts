@@ -1,4 +1,4 @@
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runGitOrThrow } from "../git/run-git";
@@ -50,3 +50,25 @@ export async function buildInCopy<T>(
     await rm(join(copy, ".."), { recursive: true, force: true });
   }
 }
+
+// The project as `commit` held it (adopt --refresh converts as of the last ledger commit):
+// git archive piped into tar, so neither the index nor the working tree is touched.
+export const fromCommit =
+  (workspace: string, project: string, commit: string): ProjectSource =>
+  async (copy) => {
+    const scratch = join(copy, "..", "commit");
+    await mkdir(scratch, { recursive: true });
+    const archive = Bun.spawn(["git", "archive", "--format=tar", commit, "--", project], {
+      cwd: workspace,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const tar = Bun.spawn(["tar", "-x", "-C", scratch], { stdin: archive.stdout, stderr: "pipe" });
+    const [archived, extracted] = await Promise.all([archive.exited, tar.exited]);
+    if (archived !== 0 || extracted !== 0) {
+      throw new Error(
+        `could not read ${project} at ${commit}: ${await new Response(archive.stderr).text()}`,
+      );
+    }
+    await cp(join(scratch, project), copy, { recursive: true });
+  };

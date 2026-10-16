@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import type {
   BuiltUnit,
   DraftOutcome,
@@ -9,7 +9,7 @@ import type {
   SourceProject,
   TransformTarget,
 } from "@snagentic/core";
-import { fromWorkingTree } from "./build-in-copy";
+import { fromCommit, fromWorkingTree } from "./build-in-copy";
 import { builtUnitOf } from "./built-units";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
 
@@ -50,13 +50,18 @@ export class SdkToolchain implements FluentToolchain {
     project: SourceProject,
     records: readonly TransformTarget[],
     access: SdkAccess,
+    commit?: string,
   ): Promise<DraftOutcome> {
     const runtime = await this.load();
     const source = join(this.workspace, project.path);
     const scratch = await mkdtemp(join(tmpdir(), "snagentic-adopt-"));
     const copy = join(scratch, "project");
     try {
-      await fromWorkingTree(source)(copy);
+      const fill =
+        commit === undefined
+          ? fromWorkingTree(source)
+          : fromCommit(this.workspace, project.path, commit);
+      await fill(copy);
       const original = await sourceFiles(copy);
       const first = await runtime.build(copy);
       if (!first.success)
@@ -75,26 +80,10 @@ export class SdkToolchain implements FluentToolchain {
         };
       const after = await unitsIn(copy);
       const now = await sourceFiles(copy);
-      const changed = [...now]
-        .filter(([path, text]) => original.get(path) !== text)
-        .map(([path]) => path)
-        .sort();
-      const contents = new Map(changed.map((path) => [path, now.get(path) ?? ""]));
-      return {
-        ok: true,
-        draft: { before, after, changed, apply: () => applyFiles(source, contents) },
-      };
+      const files = new Map([...now].filter(([path, text]) => original.get(path) !== text).sort());
+      return { ok: true, draft: { before, after, files } };
     } finally {
-      // apply() holds its own copy of the contents, so the scratch folder can go now.
       await rm(scratch, { recursive: true, force: true });
     }
-  }
-}
-
-async function applyFiles(project: string, contents: ReadonlyMap<string, string>): Promise<void> {
-  for (const [path, text] of contents) {
-    const file = join(project, path);
-    await mkdir(dirname(file), { recursive: true });
-    await Bun.write(file, text);
   }
 }

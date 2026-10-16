@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<record_update>
+  <sys_choice_set action="INSERT_OR_UPDATE" field="status" table="x_2222332_s11_e2e" version="3" apply_defaults="true">
+    <sys_choice_set action="INSERT_OR_UPDATE" apply_defaults="true">
+      <sys_id>1e95c8ebedb1457e9573243ff9df5b78</sys_id>
+      <element>status</element>
+      <sys_update_name>sys_choice_x_2222332_s11_e2e_status</sys_update_name>
+      <name>x_2222332_s11_e2e</name>
+      <sys_class_name>sys_choice_set</sys_class_name>
+      <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+      <sys_package display_value="x_2222332_s11" source="489da54ae67c4a3e9f1e1e4347e9119b">489da54ae67c4a3e9f1e1e4347e9119b</sys_package>
+      <sys_name>status</sys_name>
+    </sys_choice_set>
+    <sys_choice action="INSERT_OR_UPDATE" apply_defaults="true">
+      <sys_id>43ce649db0134528b2c056b04c4124c2</sys_id>
+      <name>x_2222332_s11_e2e</name>
+      <element>status</element>
+      <label>Closed</label>
+      <value>closed</value>
+      <sequence>20</sequence>
+      <inactive>false</inactive>
+      <inactive_on_update>false</inactive_on_update>
+      <language>en</language>
+    </sys_choice>
+    <sys_choice action="INSERT_OR_UPDATE" apply_defaults="true">
+      <sys_id>b1306074aba144df9ca1fc0f88fd1c89</sys_id>
+      <name>x_2222332_s11_e2e</name>
+      <element>status</element>
+      <label>Open</label>
+      <value>open</value>
+      <sequence>10</sequence>
+      <inactive>false</inactive>
+      <inactive_on_update>false</inactive_on_update>
+      <language>en</language>
+    </sys_choice>
+    <sys_choice action="INSERT_OR_UPDATE" apply_defaults="true">
+      <sys_id>1c1d3d44e8054bdaa0ff06a9d2340e60</sys_id>
+      <name>x_2222332_s11_e2e</name>
+      <element>status</element>
+      <label>Pending</label>
+      <value>pending</value>
+      <sequence>15</sequence>
+      <inactive>false</inactive>
+      <inactive_on_update>false</inactive_on_update>
+      <language>en</language>
+    </sys_choice>
+  </sys_choice_set>
+</record_update>

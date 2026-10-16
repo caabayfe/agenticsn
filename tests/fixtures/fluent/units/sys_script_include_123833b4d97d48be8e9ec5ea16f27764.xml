@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<record_update table="sys_script_include">
+  <sys_script_include action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>123833b4d97d48be8e9ec5ea16f27764</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_script_include_123833b4d97d48be8e9ec5ea16f27764</sys_update_name>
+    <access>package_private</access>
+    <active>true</active>
+    <api_name>x_2222332_s11.E2EUtil</api_name>
+    <caller_access/>
+    <client_callable>false</client_callable>
+    <description/>
+    <mobile_callable>false</mobile_callable>
+    <name>E2EUtil</name>
+    <sandbox_callable>false</sandbox_callable>
+    <script><![CDATA[var E2EUtil = Class.create();
+E2EUtil.prototype = {
+  initialize: function () {},
+  ping: function () {
+    return 'local';
+  },
+  type: 'E2EUtil'
+};]]></script>
+    <sys_name>E2EUtil</sys_name>
+  </sys_script_include>
+</record_update>

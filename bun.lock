@@ -34,6 +34,7 @@
         "@snagentic/core": "workspace:*",
         "@snagentic/rules-basic": "workspace:*",
         "commander": "^15.0.0",
+        "fast-xml-parser": "5.7.2",
         "playwright-core": "^1.64.0",
         "yaml": "^2.9.1",
         "zod": "^4.6.5",

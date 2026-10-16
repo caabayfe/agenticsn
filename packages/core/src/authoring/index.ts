@@ -1,8 +1,10 @@
 // Public API of the authoring context (ADR-0031, ADR-0033): built units, their comparison with
 // the instance, the ledger and the decision plan makes for each unit.
 
+export { readUnits } from "./application/read-units";
 export { compareUnit, type Difference } from "./domain/compare";
 export { unitDigest } from "./domain/digest";
+export { UnreadableBuildError } from "./domain/errors";
 export {
   EMPTY_LEDGER,
   InvalidLedgerError,
@@ -34,4 +36,5 @@ export {
   type UnitSpec,
   unitSpec,
 } from "./domain/unit-specs";
+export { VERSION_FIELDS, versionOf } from "./domain/unit-version";
 export { comparedValue, NAMED_REFERENCES, normalizeValue, sameValue } from "./domain/values";

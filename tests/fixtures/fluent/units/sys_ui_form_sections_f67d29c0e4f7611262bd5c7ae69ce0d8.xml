@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<record_update>
+  <sys_ui_form_sections form_id="f67d29c0e4f7611262bd5c7ae69ce0d8" sys_domain="global" table="x_2222332_acc_rev_review_item">
+    <sys_ui_form_section action="INSERT_OR_UPDATE" apply_defaults="true">
+      <position>0</position>
+      <sys_id>5acfaa17d7bc4b10850b3922000c834f</sys_id>
+      <sys_ui_form display_value="x_2222332_acc_rev_review_item" name="x_2222332_acc_rev_review_item" sys_domain="global" view="Default view">f67d29c0e4f7611262bd5c7ae69ce0d8</sys_ui_form>
+      <sys_ui_section caption="" display_value="" name="x_2222332_acc_rev_review_item" sys_domain="global" view="Default view">8df3a8d94c1771d0a85325ebc19d8576</sys_ui_section>
+    </sys_ui_form_section>
+    <sys_ui_form action="INSERT_OR_UPDATE" apply_defaults="true">
+      <name>x_2222332_acc_rev_review_item</name>
+      <roles/>
+      <sys_id>f67d29c0e4f7611262bd5c7ae69ce0d8</sys_id>
+      <sys_scope display_value="x_2222332_acc_rev">24585a3c3484e481f8994b3c68c5d588</sys_scope>
+      <sys_user/>
+      <view name="NULL" display_value="Default view">Default view</view>
+      <view_name/>
+    </sys_ui_form>
+  </sys_ui_form_sections>
+</record_update>

@@ -8,6 +8,13 @@ export {
   type PushPlan,
 } from "./application/plan-push";
 export {
+  computeUnitPlan,
+  type ProjectLoad,
+  type UnitPlanDependencies,
+  type UnitPlanQuery,
+  type UnitPushPlan,
+} from "./application/plan-units";
+export {
   type PullRequestOutcome,
   pullRequestFor,
 } from "./application/pull-request";
@@ -17,6 +24,13 @@ export {
   type PushResult,
   push,
 } from "./application/push";
+export type { PushedUnit } from "./application/push-project";
+export {
+  pushUnits,
+  type UnitPushDependencies,
+  type UnitPushQuery,
+  type UnitPushResult,
+} from "./application/push-units";
 export {
   type ChangeOutcome,
   changeOf,
@@ -101,6 +115,17 @@ export {
   sectionLayoutXml,
   sectionUpdateName,
 } from "./domain/section-layout";
+export {
+  changesOf,
+  type PlannedUnit,
+  plannedOrProblem,
+  type UnitOperation,
+  type UnitProblem,
+  type UnitProblemKind,
+  unitName,
+  unitPlanId,
+} from "./domain/unit-plan";
+export { nextCount, stampedXml } from "./domain/unit-stamp";
 export {
   globMatches,
   readWaivers,

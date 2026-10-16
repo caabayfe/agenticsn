@@ -13,6 +13,9 @@ export interface LedgerEntry {
   readonly losses: readonly LossId[];
 }
 
+// The ledger's file in each project (source/<scope>/).
+export const LEDGER_FILE = "snagentic.ledger.yaml";
+
 // Instance name -> update name -> entry.
 export type Ledger = ReadonlyMap<string, ReadonlyMap<string, LedgerEntry>>;
 

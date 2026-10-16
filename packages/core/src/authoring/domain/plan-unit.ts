@@ -8,6 +8,9 @@ import { unitSpec } from "./unit-specs";
 export type UnitDecision =
   // The instance already holds what the build would load, or a deletion's record is gone.
   | { readonly kind: "none" }
+  // The instance holds what the build would load, but the ledger does not say so (a push that
+  // stopped part way, or the same change made on the instance): only the ledger is written.
+  | { readonly kind: "record" }
   | { readonly kind: "create" }
   | {
       readonly kind: "load";
@@ -53,7 +56,10 @@ export function planUnit(
   }
   const comparable = unitSpec(unit.head.table).comparable;
   const differences = comparable ? compareUnit(unit, copy) : [];
-  if (comparable && differences.length === 0) return { kind: "none" };
+  if (comparable && differences.length === 0) {
+    const current = entry?.instance === copy.version && entry.build === digest;
+    return current ? { kind: "none" } : { kind: "record" };
+  }
   if (entry === undefined) return { kind: "not-adopted", differences };
   if (entry.instance !== copy.version) return { kind: "drift", differences };
   if (entry.build === digest) return { kind: "none" };

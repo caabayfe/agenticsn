@@ -35,6 +35,10 @@ export interface DeliveryWorkspace {
   uncommittedFiles(): Promise<string[]>;
   // Pushes the branch to its remote (origin when it has none), setting it as upstream.
   publishBranch(branch: string): Promise<void>;
+  // Files under source/ that differ from HEAD (edited, staged or new), workspace-relative.
+  uncommittedSource(): Promise<string[]>;
+  // Commits exactly these workspace-relative files, whatever else is staged; returns the commit.
+  commitFiles(paths: readonly string[], message: string): Promise<string>;
 }
 
 // A branch's pull request as the git platform reports it (ADR-0022). `unavailable`: the

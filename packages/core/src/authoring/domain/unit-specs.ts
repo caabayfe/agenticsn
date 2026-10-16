@@ -82,6 +82,11 @@ export function unitSpec(table: string): UnitSpec {
 // is found by sys_id only. A field the build left out is empty (a list with no parent); a view
 // is found by its name.
 export function coalesceValues(unit: BuiltUnit): Fields | null {
+  // Now.del by keys names the record by those keys, under a sys_id of its own (S16 F3).
+  if (unit.head.action === "DELETE") {
+    const keys = Object.entries(unit.head.fields).filter(([field]) => !field.startsWith("sys_"));
+    return keys.length === 0 ? null : Object.fromEntries(keys);
+  }
   const fields = unitSpec(unit.head.table).coalesce;
   if (fields === undefined) return null;
   return Object.fromEntries(fields.map((field) => comparedValue(unit.head, field).reverse()));

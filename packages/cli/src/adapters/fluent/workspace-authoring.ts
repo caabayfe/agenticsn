@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import {
   type AuthoringWorkspace,
   FLUENT_SOURCE_DIR,
+  LEDGER_FILE,
   type Ledger,
   LedgerUncommittedError,
   ledgerDocument,
@@ -13,8 +14,6 @@ import {
 import { runGit, runGitOrThrow } from "../git/run-git";
 import { fromYamlStrings, toYaml } from "../yaml/own-style";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
-
-export const LEDGER_FILE = "snagentic.ledger.yaml";
 
 const LEDGER_HEADER =
   "# Written by snagentic: what each development instance held when it last agreed with this\n" +

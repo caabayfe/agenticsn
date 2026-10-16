@@ -24,6 +24,7 @@ export { SdkRouteRefusedError, UnreadableBuildError } from "./domain/errors";
 export {
   EMPTY_LEDGER,
   InvalidLedgerError,
+  LEDGER_FILE,
   type Ledger,
   type LedgerEntry,
   ledgerDocument,

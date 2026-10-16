@@ -21,7 +21,8 @@ const chunks = <T>(items: readonly T[]): T[][] =>
 // The fields to ask for: what the build wrote (named references by name too), the version
 // fields, the domain, and what identifies the row.
 function fieldsFor(records: readonly Fields[], extra: readonly string[]): string[] {
-  const fields = new Set<string>([...VERSION_FIELDS, "sys_domain", ...extra]);
+  // sys_update_name ties a Now.del found by its keys to the ledger entry it removes.
+  const fields = new Set<string>([...VERSION_FIELDS, "sys_domain", "sys_update_name", ...extra]);
   for (const record of records) {
     for (const field of Object.keys(record)) {
       fields.add(field);

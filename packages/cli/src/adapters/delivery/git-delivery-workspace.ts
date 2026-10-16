@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import {
   BranchNotPublishedError,
   type DeliveryWorkspace,
+  FLUENT_SOURCE_DIR,
   type InstanceName,
   instancePaths,
   type RecordFiles,
@@ -141,6 +142,24 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
 
   async uncommittedFiles(): Promise<string[]> {
     return this.changedFiles("HEAD");
+  }
+
+  async uncommittedSource(): Promise<string[]> {
+    const status = await runGitOrThrow(
+      ["status", "--porcelain", "--untracked-files=all", "--", FLUENT_SOURCE_DIR],
+      this.root,
+    );
+    return status
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => line.slice(3))
+      .sort();
+  }
+
+  async commitFiles(paths: readonly string[], message: string): Promise<string> {
+    await runGitOrThrow(["add", "--", ...paths], this.root);
+    await runGitOrThrow(["commit", "--quiet", "-m", message, "--", ...paths], this.root);
+    return (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
   }
 
   async publishBranch(branch: string): Promise<void> {

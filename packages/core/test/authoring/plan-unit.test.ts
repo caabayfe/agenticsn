@@ -40,14 +40,22 @@ describe("planUnit (ADR-0033 item 4)", () => {
     expect(planUnit(edited, unitDigest(edited), moved, entry())).toMatchObject({ kind: "drift" });
   });
 
-  it("loads nothing when the instance already holds the build, whatever the ledger says", () => {
+  it("loads nothing when the instance already holds the build, and records it when the ledger is behind", () => {
     const edited = scriptInclude("Edited in source.");
     const applied = copy(
       { ...INSTANCE, description: "Edited in source." },
       [],
       "9|2026-10-16 10:00:00",
     );
-    expect(planUnit(edited, unitDigest(edited), applied, entry())).toEqual({ kind: "none" });
+    expect(planUnit(edited, unitDigest(edited), applied, entry())).toEqual({ kind: "record" });
+    const current = entry({ build: unitDigest(edited), instance: "9|2026-10-16 10:00:00" });
+    expect(planUnit(edited, unitDigest(edited), applied, current)).toEqual({ kind: "none" });
+  });
+
+  it("loads nothing for an adopted unit both sides still agree on", () => {
+    expect(planUnit(adopted, unitDigest(adopted), copy(INSTANCE, [], VERSION), entry())).toEqual({
+      kind: "none",
+    });
   });
 
   it("refuses a unit the instance holds and this branch never adopted", () => {

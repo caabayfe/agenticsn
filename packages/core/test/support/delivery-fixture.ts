@@ -54,6 +54,10 @@ export interface State {
   published: string[];
   // A push that stopped part way.
   journal: PushJournal | null;
+  // Source files not committed, workspace-relative.
+  uncommittedSource?: string[];
+  // Commits push made (the ledger), in order.
+  commits?: { paths: string[]; message: string }[];
 }
 
 function fakeWorkspace(state: State): DeliveryWorkspace {
@@ -76,6 +80,11 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
     uncommittedFiles: async () => state.uncommitted,
     publishBranch: async (branch) => {
       state.published.push(branch);
+    },
+    uncommittedSource: async () => state.uncommittedSource ?? [],
+    commitFiles: async (paths, message) => {
+      state.commits = [...(state.commits ?? []), { paths: [...paths], message }];
+      return `commit-${state.commits.length}`;
     },
   };
 }

@@ -16,15 +16,16 @@ Each principle is enforced in code, not only described.
 1. **One authoring format, one write route.** Developers and agents edit only Fluent source. Every
    write is a `fluent/load` of what the SDK built, into the batch's update set. snagentic writes
    no ServiceNow record format of its own.
-2. **The mirror is the truth about the instance, and nothing else.** Only pull writes it. An edit
-   under `instances/*/metadata` is refused by `check`, the hooks and the gate.
+2. **The mirror is read-only.** Only pull writes it. An edit under `instances/*/metadata` is
+   refused by `check`, the hooks and the gate. It serves search, audit, advice and choosing what
+   to adopt. Plan, adopt and push read the instance's live copy of what they compare (ADR-0033).
 3. **The SDK never talks to an instance on its own** (ADR-0032). It runs inside snagentic's
    process with a connector snagentic provides:
    - every request goes through the instance's request scheduler (ADR-0016);
    - the credential stays in snagentic's process;
    - only an allow-list of read routes passes, so the SDK cannot write.
-4. **A plan is the effect on the instance** (ADR-0033). It is the built records compared with the
-   mirror, field by field, not a diff of source files. What the plan lists is exactly what the
+4. **A plan is the effect on the instance** (ADR-0033). It is each built unit (one update name)
+   compared with the instance's live copy, not a diff of source files. What the plan lists is exactly what the
    load changes, including side effects the developer didn't write.
 5. **Instance edits are never overwritten silently.** Each owned record has a base in a committed
    ledger. A record whose instance copy moved away from its base is drift. Plan refuses it until
@@ -67,28 +68,26 @@ record of that scope.
 
 **Domain (pure):**
 
-- `BuiltRecord`: table, sys_id, action (`INSERT_OR_UPDATE` or `DELETE`), update name, fields,
-  child rows, the built file that carries it, and its project.
-- `normalize`: makes a built record comparable with a mirrored one. It covers:
-  - ignored platform fields (provenance and `sys_*` bookkeeping);
-  - natural keys for children the platform matches by content: dictionary, choices, form
-    elements, labels;
-  - layouts compared as ordered element lists, so `Form()`'s columns equal the mirror's
-    `.begin_split` rows;
-  - named-view placeholder sys_ids resolved by view name;
-  - gzip payloads opened; SBOM serial numbers and timestamps removed.
+- `BuiltUnit`: one built file, one update name. It holds:
+  - its records: table, sys_id, action, and the fields the build wrote;
+  - its project.
+- `unit specs`: per table, how the instance's copy of a unit is read:
+  - by sys_id, or by the keys the platform coalesces on (dictionary entries, labels, choices);
+  - the child rows of composites: section elements, list columns, related-list entries.
+- `normalize` and `compare`: one comparison of a built unit with an instance copy.
+  - **Ignored:** platform fields.
+  - **Unmanaged:** fields the build omits (S17).
+  - **Matching:** child rows matched by the platform's keys.
+  - **Layouts:** compared as ordered element lists.
+  - **Values:** named-view placeholders resolved, line endings normalized.
 
-  It is seeded from S16's `compare.ts`, and every rule is proven by a golden fixture.
-- `equivalence`: compares a normalized pair. Each field difference is one of:
-  - `same`;
-  - `authored`;
-  - a **known SDK loss**, a named catalogue tied to the SDK version (S16: a choice's domain,
-    licensing configs, references written as display values, API defaults);
-  - `unexplained`.
-- `Ledger`: per instance, the records a project owns and their base: the mirror hash when the
-  record was adopted, refreshed or confirmed after a push.
-- `classify(base build, head build, mirror, ledger)`: sorts each field into authored, drift,
-  residue (a known loss already present at adoption), or deletion. Plan and the gate both use it.
+  Each difference is `authored` or a **known SDK loss**, from a catalogue tied to the SDK
+  version (S16). The comparison is seeded from S16's `compare.ts`, and every rule is proven by a
+  golden fixture.
+- `Ledger`: per instance and per unit, the build hash, the instance hash and the accepted losses,
+  recorded when source and instance last agreed.
+- `planUnit(unit, live copy, ledger entry)`: decides `none`, `load`, `create`, `drift`,
+  `not-adopted` or `delete` (ADR-0033 item 4). Plan, push and the gate all use it.
 
 **Ports:**
 
@@ -102,17 +101,20 @@ record of that scope.
 
 - `adopt(records | query)`. It needs a development instance, because the ledger base is per
   instance. Steps:
-  1. Resolve the records from the mirror.
-  2. Transform them through the connector.
-  3. Build.
-  4. Check equivalence with the mirror. Any `unexplained` difference refuses with the field
-     list; known losses are listed.
-  5. Write the source and the ledger entries.
+  1. Resolve the records (from the mirror, or as given) and check they exist on the instance:
+     one stale record fails a whole SDK batch (S17).
+  2. Add the related records the SDK's exporter leaves out, such as a table's choices.
+  3. Transform through the connector.
+  4. Build.
+  5. Compare each unit with its live copy. A difference outside the known losses refuses, with
+     the fields named. Known losses are listed, and records the SDK can't express are reported as
+     left unmanaged (licensing configs, domain-override choices).
+  6. Write the source and the ledger entries.
 
   The result is one reviewable change.
 - `refresh(records)` (`adopt --refresh`):
-  1. On a temporary branch from the commit where the record's base was set, re-transform the
-     drifted records and commit.
+  1. On a temporary branch from the commit that last wrote the record's ledger entry,
+     re-transform the drifted records, update their ledger entries, and commit.
   2. Merge that branch into the working branch.
 
   Git then resolves local and instance edits as in S16 F4. Conflicts are ordinary git
@@ -125,25 +127,24 @@ record of that scope.
 **Plan:**
 
 1. The checks kept from today:
-   - the mirror is fresh and integrated;
+   - no uncommitted changes;
    - no unfinished push;
    - collisions with other update sets;
    - the gate.
-2. Build the changed projects at the merge base and at head.
-3. For every record in the head build, plus every record that was in the base build, classify
-   against the mirror and the ledger:
-   - authored fields: the change;
+2. Build every project at head: about 3 s per 140 records (S17).
+3. **Candidates** are units whose build hash differs from their ledger entry, units not in the
+   ledger, and `Now.del` targets. Read their live copies, batched per table.
+4. Decide each candidate with `planUnit`:
+   - **load:** the field differences;
    - **drift: refuse**, naming `adopt --refresh`;
-   - residues: listed as "the load also sets", and waivable;
-   - deletions: from `Now.del`.
-4. The load set is the built files holding at least one record with an effective difference. A
-   record that already equals the instance isn't loaded.
-5. The plan id covers:
-   - the mirror commit;
-   - each record's identity and base hash;
-   - a digest of each changed field;
-   - the normalized digest of each loaded file;
-   - the gate.
+   - **not adopted: refuse**, naming `adopt`;
+   - **create;**
+   - **delete;**
+   - **already equal:** dropped from the plan.
+
+   Residues are listed as "the load also sets".
+5. The plan id covers each unit's update name, its ledger and live hashes, its built file's
+   normalized digest, and the gate.
 
 **Push:**
 
@@ -151,11 +152,11 @@ record of that scope.
 |---|---|---|
 | Preflight | Confirm, journal recovery, plan id recomputed, PR | — |
 | Update sets | Batch, child set per scope, preference switch and restore | — |
-| Base check | — | Per record, the instance's current hash against the ledger base. This replaces three mechanisms: the YAML hash, child-row versions and layout versions |
+| Base check | — | Per unit, its live hash just before the scope's load, against the plan. This replaces three mechanisms: the YAML hash, child-row versions and layout versions |
 | Load | — | One `fluent/load` per scope, with the load set, the stamp (`sys_mod_count + 1`, `sys_updated_on`: ADR-0030 item 5) and journal steps before and after |
 | Flows | Publish and its capture check | — |
-| Capture | `captured` in the target set | One check per update name |
-| After | — | The journal records what was loaded, so the next integrate can confirm it |
+| Capture | `captured` in the target set | One check per update name. **And a content check:** each unit read back must equal the build |
+| After | — | New ledger entries, in one commit of the ledger files |
 
 **Removed (about 2,300 lines plus their tests):**
 
@@ -183,7 +184,7 @@ The import-set writer stays, for accelerators' CSV data.
   - SN-MNT-011, the build deletes a record.
 - **New findings** (IDs assigned when written; never reused):
   - a definition removed without `Now.del` (block);
-  - an `unexplained` difference against the mirror (block);
+  - a difference outside the known losses, found by `adopt` (block);
   - a residue the developer didn't write (warn, waivable);
   - a create in a domain-separated instance without `$override.sys_domain` (block, carries
     ADR-0027);
@@ -195,12 +196,9 @@ The import-set writer stays, for accelerators' CSV data.
 
 ### Sync and integrate
 
-- **Integrate** becomes a merge that cannot conflict, because nobody edits the mirror. Then it:
-  - **confirms pushes:** for each record in the journal whose mirror copy now equals its build,
-    it advances the ledger base;
-  - **reports drift:** owned records whose mirror copy moved away from their base.
-
-  Both are written in one commit.
+- **Integrate** becomes a merge that cannot conflict, because nobody edits the mirror. It also
+  reports adopted records whose mirror copy changed since their ledger entry: early notice of
+  drift, before plan refuses it.
 - **Removed** (about 600 lines): `takeConfirmed`, `takeRelocated`, `takeReplaced` and the
   related-list pairing, `takeConfirmedRows`, `confirmed-record.ts`, and `replaced-records.ts`
   in integrate. Pull's own handling of replaced related lists stays, because the mirror must

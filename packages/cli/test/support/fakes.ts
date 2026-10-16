@@ -114,7 +114,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
       throw new Error("tests that pull provide their own mirror");
     },
   },
-  integrator: { integrate: async () => ({ commit: null, changedFiles: 0, confirmed: [] }) },
+  integrator: {
+    integrate: async () => ({ commit: null, changedFiles: 0, discarded: [], pulled: [] }),
+  },
   files: { create: async () => "created" },
   inventory: { read: async () => null },
   knowledge: () => {

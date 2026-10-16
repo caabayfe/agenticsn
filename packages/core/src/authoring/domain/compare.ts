@@ -1,3 +1,4 @@
+import { platformWritten } from "../../metadata/domain/field-rules";
 import type { BuiltUnit, Fields, InstanceCopy, UnitRecord } from "./unit";
 import { type ChildSpec, unitSpec } from "./unit-specs";
 import { comparedValue, sameValue } from "./values";
@@ -50,7 +51,8 @@ function fieldDifferences(
 ): Difference[] {
   const differences: Difference[] = [];
   for (const field of Object.keys(record.fields).sort()) {
-    if (IGNORED.has(field) || skip.has(field)) continue;
+    // A field the platform rewrites on save (an ACL's description) never equals what was sent.
+    if (IGNORED.has(field) || skip.has(field) || platformWritten(record.table, field)) continue;
     const [built, instanceField] = comparedValue(record, field);
     // A field the instance does not answer is a column it does not have: the load cannot set
     // it (the SDK writes sys_choice.inactive_on_update, which pdi2 has no column for).

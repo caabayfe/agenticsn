@@ -20,6 +20,7 @@ export {
 } from "./domain/adopt-errors";
 export { compareUnit, type Difference } from "./domain/compare";
 export { unitDigest } from "./domain/digest";
+export { driftedUnits, type PulledRecord } from "./domain/drift";
 export { SdkRouteRefusedError, UnreadableBuildError } from "./domain/errors";
 export {
   EMPTY_LEDGER,

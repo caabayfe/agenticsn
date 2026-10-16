@@ -85,7 +85,6 @@ export {
   type RenderedRecord,
   recordAddress,
   recordBase,
-  relocatedRecords,
   renderRecord,
 } from "./metadata/domain/record-layout";
 export {
@@ -122,12 +121,6 @@ export {
   pullIncremental,
 } from "./sync/application/pull-incremental";
 export { inventorySignatures, pullOperational } from "./sync/application/pull-operational";
-export {
-  instanceConfirms,
-  instanceConfirmsRows,
-  type RecordCopy,
-  replacementConfirms,
-} from "./sync/domain/confirmed-record";
 export { NothingPulledError, PaginationStalledError } from "./sync/domain/errors";
 export {
   changesSince,

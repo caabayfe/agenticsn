@@ -2,8 +2,16 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createProfile, InstanceName, instancePaths, type Row } from "@snagentic/core";
+import {
+  createProfile,
+  EMPTY_LEDGER,
+  InstanceName,
+  instancePaths,
+  type Row,
+  withEntries,
+} from "@snagentic/core";
 import { fakeInstance } from "../../../core/test/support/fake-instance";
+import { WorkspaceAuthoring } from "../../src/adapters/fluent/workspace-authoring";
 import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
@@ -121,6 +129,39 @@ describe("pull and integrate", () => {
     ).rejects.toMatchObject({ code: "verify-needs-pull" });
   });
 
+  it("names adopted units the instance changed since they agreed with source (ADR-0033)", async () => {
+    const { root, context, instance } = await setup();
+    const runtime = async () => ({
+      sdkVersion: "4.13.6",
+      build: async () => ({ success: true as const, records: [] }),
+      transform: async () => ({ success: false as const, message: "unused" }),
+    });
+    const authoring = new WorkspaceAuthoring(root, runtime);
+    const withSource = {
+      ...context,
+      authoring: () => ({ ...context.authoring(root), workspace: authoring }),
+    };
+    const project = await authoring.scaffold({ name: "global", sysId: "global" });
+    const name = "sys_script_00000000000000000000000000000001";
+    const entry = { build: "b", instance: "1|2026-10-05 12:00:00", losses: [] };
+    await authoring.writeLedger(
+      project,
+      withEntries(EMPTY_LEDGER, "pdi", new Map([[name, entry]])),
+    );
+    await executeUseCase(pull, { instance: "pdi" }, withSource);
+    await executeUseCase(integrate, { instance: "pdi" }, withSource);
+    const rule = instance.tables["sys_script"]?.[0];
+    Object.assign(rule ?? {}, {
+      script: "changed();",
+      sys_update_name: name,
+      sys_mod_count: "2",
+      sys_updated_on: "2026-10-05 12:30:00",
+    });
+    await executeUseCase(pull, { instance: "pdi" }, withSource);
+    const { output } = await executeUseCase(integrate, { instance: "pdi" }, withSource);
+    expect(output).toMatchObject({ drift: [name], discarded: [] });
+  });
+
   it("tells where each instance stands, from local state only, through pull and integrate", async () => {
     const { context, instance } = await setup();
     const phase = async () => {
@@ -191,15 +232,28 @@ describe("pull and integrate", () => {
     expect(text).toContain("not readable by this user: sys_x");
     expect(text).toContain("next: snagentic integrate pdi");
     expect(
-      integrate.render({ instance: "pdi", commit: null, changedFiles: 0, confirmed: [] }, "text"),
+      integrate.render(
+        { instance: "pdi", commit: null, changedFiles: 0, discarded: [], drift: [] },
+        "text",
+      ),
     ).toBe("pdi: already up to date");
     expect(
       integrate.render(
-        { instance: "pdi", commit: "abcdef0123456", changedFiles: 2, confirmed: ["a/b.yaml"] },
+        {
+          instance: "pdi",
+          commit: "abcdef0123456",
+          changedFiles: 2,
+          discarded: ["instances/pdi/metadata/a/b.yaml"],
+          drift: ["sys_script_1"],
+        },
         "text",
       ),
     ).toBe(
-      "took the instance's copy of pushed record a/b.yaml\npdi: integrated 2 changed file(s) -> abcdef0123",
+      [
+        "discarded a local edit to the mirror: instances/pdi/metadata/a/b.yaml",
+        "changed on the instance: sys_script_1; run snagentic adopt --refresh --instance pdi on it",
+        "pdi: integrated 2 changed file(s) -> abcdef0123",
+      ].join("\n"),
     );
   });
 

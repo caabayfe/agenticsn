@@ -1,6 +1,6 @@
 # 008. Fluent as the only way to author changes: analysis
 
-- Status: Draft, for the product owner's decision with ADR-0031
+- Status: Draft, for the product owner's decision with ADR-0031; spikes F1–F4 done (S16)
 - Date: 2026-10-16
 - Asked by: the product owner (2026-10-16): "move all the logic to the Fluent SDK … if this
   changes the current sync, or the repo structure I am fine … a consistent way to interact with
@@ -49,9 +49,13 @@ merging, so it cannot be the way changes come back either.
   - the `configuration` project type;
   - customizing records the project doesn't own.
 
-**Before committing, prove three things on a live instance: about two days of spikes** (section
-7). If one fails, the fallback still keeps one route: the SDK builds every record from Fluent, but
-records outside the project stay YAML.
+**Spike S16 tested this on pdi2, and all four tests passed** (section 7). Two parts of the design
+changed:
+
+- Records are adopted from the instance through the SDK, not from the mirror.
+- The SDK loses a few things, which `adopt`'s field check must name.
+
+Loads recorded every change, including a baseline record and a new ACL without elevation.
 
 ## 2. What the SDK covers (embedded 4.13.6)
 
@@ -123,13 +127,13 @@ source/<scope>/                  one Fluent project per scope, global included: 
 
 | Step | Today | Proposed |
 |---|---|---|
-| Start work on a record | edit its YAML | `adopt` (new use case): the record's update XML, rendered from the mirror, goes through the SDK's offline `transform` into the scope's project. A reviewable commit; no instance call |
+| Start work on a record | edit its YAML | `adopt` (new use case): the SDK reads the record from the instance (`transform --table --id`, one read) into the scope's project. A reviewable commit. Not from the mirror: S16 F1 showed the mirror's raw values lose the reference keys `transform` needs |
 | Plan | diff YAML against the mirror; route each class | build the changed projects; diff each built record against its mirror copy, field by field. The plan lists records as today |
 | Base check (ASR-02) | YAML `_meta` hash against the instance | each built record's mirror copy, at the commit it was adopted or last pushed from, against the instance. Unchanged rule |
 | Gate | YAML records and their scripts | the built records (same record checks) and the source scripts (the same ESLint rules, with context from the built record). This also closes a gap: today no script rule runs on Fluent source |
 | Push | Table API, `fluent/load`, publish | `fluent/load` per scope into the batch, flows published, capture verified. The elevated session stays for ACLs if the load needs it (spike) |
 | Pull | unchanged | unchanged. Then integrate tells source from instance |
-| Instance edits made in the UI | integrate merges them into YAML | integrate reports adopted records whose mirror copy changed (drift). `adopt --refresh` transforms the new instance version over the source in a clean tree, so git shows the change and merges it with local work. The SDK's own transform overwrites; doing it from the mirror in git keeps the merge |
+| Instance edits made in the UI | integrate merges them into YAML | integrate reports adopted records whose mirror copy changed (drift). `adopt --refresh` re-reads them with the SDK on a branch from the base commit, and git merges that with local work (S16 F4: a clean merge of both sides). The SDK alone would overwrite local work |
 
 **What goes away:**
 
@@ -167,7 +171,7 @@ Use cases: `adopt` is added, and replaces editing. The MCP budget is unchanged (
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| The load doesn't record, or mis-records, a record the project doesn't own (out-of-box customizations, other scopes) | Medium: the guide calls it out of scope | Spike F1. Fallback: those records stay YAML through the Table API |
+| The load doesn't record, or mis-records, a record the project doesn't own (out-of-box customizations, other scopes) | Low after S16: a baseline business rule loaded from a global project was recorded and stayed in its package | Test more kinds of baseline record in M5. Fallback: those records stay YAML through the Table API |
 | `configuration` projects change or disappear in an SDK release | Low to medium | Pinned SDK; a live contract test on every upgrade (ADR-0028) |
 | Transform loses fields (fixed through 4.13) | Medium | `adopt` builds the transformed source and compares it field by field with the mirror before committing; it refuses on any difference |
 | Domains | Medium | Spike F3; `$override.sys_domain`, checked by the same field comparison |
@@ -175,7 +179,24 @@ Use cases: `adopt` is added, and replaces editing. The MCP budget is unchanged (
 | `fluent/load` is not a public API | Known (ADR-0028) | The live contract test already exists |
 | Bigger builds slow plan and validate | Low | Build only the changed projects; budget ASR-04 for `check` stays on single files |
 
-## 7. Spikes before the decision (pdi2, about two days)
+## 7. Spike results (S16, pdi2, 2026-10-16)
+
+Evidence: `tools/spikes/s16-fluent-authoring/README.md`.
+
+| Test | Result | Consequence for the design |
+|---|---|---|
+| F1 Converting existing records | **Passes from the platform's XML, fails from the mirror's.** The mirror's raw values lack the reference keys `transform` needs (wrong parent table; forms given new keys). From the platform's XML, every authored field survives except a short list of SDK losses: Default-domain choices, table licensing configs, one reference written as its display value, and a few API defaults | `adopt` reads through the SDK from the instance. Its field check compares the build with the mirror and names each loss, so known losses are refused or listed in the plan |
+| F2 Load and capture | **Passes.** 12 changes of 10 kinds were recorded under the platform's update names, in the scoped and the global set. They include a new ACL **with no elevated session**, and a baseline business rule (kept in its plugin package) | One route really does record everything. The elevated session for ACLs (ADR-0024) can retire. Two old problems stay:<br>• loads don't stamp `sys_mod_count` and `sys_updated_on`, so push still stamps the built XML (ADR-0030 item 5);<br>• named-view placeholders change on every build, so the plan digest normalizes them |
+| F3 Domains and deletions | **Passes.** Domain lists and sections were updated in place. `Now.del` deletes. A `configuration` project never deletes implicitly | A deletion is always an explicit `Now.del`. The gate refuses a definition removed without one |
+| F4 Edits made on the instance | **Passes.** The SDK refreshes only the changed properties, and git merged local and instance edits cleanly; the merged build loaded correctly | As designed |
+
+**Still open:**
+
+- moving a batch to a second instance (F5);
+- refreshing after a form designer edit (does a `Form()` file get a small diff?);
+- a conversion larger than one application.
+
+## 7a. The spikes as planned (pdi2, about two days)
 
 **F1. Brownfield round trip.** Adopt from the mirror, with no edits, then build and diff against
 the mirror. Run it on:

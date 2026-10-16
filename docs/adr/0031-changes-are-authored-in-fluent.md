@@ -1,12 +1,13 @@
 # 0031. Changes are authored in Fluent; the mirror is read-only
 
-- Status: Proposed (decision held until spikes F1–F4 of spec 008 pass)
+- Status: Proposed. Spikes F1–F4 passed on pdi2 (S16, 2026-10-16); awaiting the product owner
 - Date: 2026-10-16
 - Requirements: G1, ASR-01, ASR-02, ASR-03, ASR-05, ASR-13
 - Supersedes, when accepted: the editing half of 0025 and 0017 (YAML records as the authoring
   format). Generalizes 0028 (flows in Fluent). Replaces the writers of 0029 and 0030, and keeps
   their platform findings
-- Evidence: `specs/008-fluent-authoring/analysis.md`
+- Evidence: `specs/008-fluent-authoring/analysis.md`, spike S16
+  (`tools/spikes/s16-fluent-authoring/README.md`)
 
 ## Context
 
@@ -36,26 +37,42 @@ were already recorded. The owner weighs consistency higher, and the SDK has grow
    projects.
 2. **The mirror stays, read-only.** Pull keeps writing it unchanged, for audit, search, advise and
    the base check. Editing it is refused (`check`, hooks, gate).
-3. **`adopt` brings records into source.** It renders the record's update XML from the mirror,
-   runs the SDK's offline `transform`, and then builds the result. It refuses when the build
-   differs from the mirror in any field.
-4. **One write route:** the SDK builds every record, and push loads each scope's build with
-   `fluent/load` into the batch's update set. It then publishes flows and verifies capture.
-   The Table API write path and snagentic's own record writers are removed.
+3. **`adopt` brings records into source.** The SDK reads the record from the instance
+   (`transform --table --id`), which is one read. The mirror's raw values can't be used: they
+   lack the reference keys `transform` needs (S16 F1). `adopt` then builds the result and
+   compares it with the mirror field by field. Each difference is either one the platform
+   ignores, such as new sys_ids for dictionary entries, choices and form elements, or a known SDK
+   loss, which is named:
+   - a choice's domain;
+   - table licensing configs;
+   - a reference written as its display value;
+   - API defaults.
+
+   Any other difference refuses.
+4. **One write route:** the SDK builds every record, and push loads each scope's changed records
+   with `fluent/load` into the batch's update set. It then publishes flows and verifies capture.
+   - Push still stamps each loaded record's `sys_mod_count` and `sys_updated_on`, because loads
+     don't (ADR-0030 item 5).
+   - The plan digest normalizes the build's random placeholder ids for named views.
+   - ACLs need no elevated session on this route (S16 F2), so ADR-0024's session can retire.
+   - The Table API write path and snagentic's own record writers are removed.
 5. **Instance edits are drift.** Integrate reports adopted records that changed on the instance.
    `adopt --refresh` re-transforms them in git, so the change merges with local work like any
    other.
 6. **The gate checks the build and the source:**
    - record checks run on the built records;
    - script rules run on the source scripts, with context from the built record.
-7. **Held until spec 008's spikes pass on pdi2:**
-   - F1, brownfield round trip;
-   - F2, load and capture of records the project doesn't own, ACLs included;
-   - F3, domains and deletions;
-   - F4, drift.
+7. **Deletion is explicit.** A `configuration` project never deletes a record removed from
+   source. A deletion is a `Now.del`, and the gate refuses a definition removed without one.
+8. **Evidence:** spec 008's spikes passed on pdi2 (S16).
+   - **F1, converting existing records:** passed, from the platform's XML.
+   - **F2, load and capture:** passed. Records the project doesn't own and a new ACL were
+     included.
+   - **F3, domains and deletions:** passed.
+   - **F4, edits made on the instance:** passed.
 
-   If F1 or F2 fails for records the project doesn't own, those records stay YAML through the
-   Table API, and everything else moves.
+   Still open, for the migration's milestones: moving a batch to a second instance, and
+   refreshing after a form designer edit.
 
 ## Consequences
 

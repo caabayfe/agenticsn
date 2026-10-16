@@ -62,8 +62,19 @@ describe("pullIncremental: records", () => {
     expect(summary).toMatchObject({ changedSources: ["sys_metadata"], records: 1 });
     expect(files.get(`${RULE}.script.js`)).toBe("changed();\n");
     const download = queries.find((query) => query.table === "sys_script");
-    expect(download?.query).toStartWith(`sys_class_name=sys_script^sys_idIN${sid(1)}`);
+    // By sys_id alone: other conditions hide other domains' form sections (pdi2).
+    expect(download?.query).toStartWith(`sys_idIN${sid(1)}`);
     expect(download?.fields).toBe("all");
+  });
+
+  it("skips a downloaded row of another class than the one the change feed named", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    touch(tables["sys_script"]?.[0], {
+      script: "changed();",
+      sys_class_name: "sys_script_include",
+    });
+    await incremental();
+    expect(files.get(`${RULE}.script.js`)).toBe("one();\n");
   });
 
   it("adds a new record", async () => {

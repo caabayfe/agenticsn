@@ -142,10 +142,12 @@ describe("plan-push rendering", () => {
             path: "p.yaml",
             fields: ["a"],
             elevated: false,
+            loaded: true,
           },
         ],
-        lists: [
+        layouts: [
           {
+            kind: "list",
             operation: "update",
             scope: "global",
             table: "incident",
@@ -153,9 +155,10 @@ describe("plan-push rendering", () => {
             domain: "global",
             sysId: "l",
             path: "global/sys_ui_list/incident--l.yaml",
-            columns: ["number", "state"],
+            rows: ["number", "state"],
           },
           {
+            kind: "section",
             operation: "create",
             scope: "global",
             table: "incident",
@@ -163,7 +166,7 @@ describe("plan-push rendering", () => {
             domain: "d".repeat(32),
             sysId: "m",
             path: "domains/d/global/sys_ui_list/incident--m.yaml",
-            columns: ["number"],
+            rows: ["number"],
           },
         ],
         fluent: [],
@@ -201,9 +204,10 @@ describe("plan-push rendering", () => {
     expect(text).toContain("waivers.yaml entry 2: expired on 2026-01-01");
     expect(text).toContain(`held:    p.yaml in "Pat's work" (pat)`);
     expect(text).toContain("update sets: none");
+    expect(text).toContain("update t  p.yaml  (a)  loaded");
     expect(text).toContain(
-      "update list incident (Default view)  global/sys_ui_list/incident--l.yaml  columns: number, state",
+      "update list incident (Default view)  global/sys_ui_list/incident--l.yaml  number, state",
     );
-    expect(text).toContain(`create list incident (Default view, domain ${"d".repeat(32)})`);
+    expect(text).toContain(`create form section incident (Default view, domain ${"d".repeat(32)})`);
   });
 });

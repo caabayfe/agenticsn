@@ -1,5 +1,5 @@
+import { formatRawTimestamp, parseRawTimestamp } from "../../kernel/raw-timestamp";
 import { CHILD_TABLES } from "./pull-scope";
-import { formatRawTimestamp, parseRawTimestamp } from "./raw-timestamp";
 
 // Count and latest sys_updated_on of a table: inserts and updates raise the latest update,
 // deletions lower the count (ADR-0016, M4 appendix).

@@ -14,6 +14,13 @@ const GateFinding = z.object({
   message: z.string(),
 });
 
+const LAYOUT_NAMES = {
+  list: "list",
+  section: "form section",
+  form: "form",
+  related: "related lists",
+} as const;
+
 export const PlanOutput = z.object({
   instance: z.string(),
   planId: z.string(),
@@ -30,12 +37,18 @@ export const PlanOutput = z.object({
         path: z.string(),
         fields: z.array(z.string()).readonly(),
         elevated: z.boolean(),
+        loaded: z
+          .boolean()
+          .describe(
+            "loaded as its update through fluent/load: the platform does not record the Table API's writes of this class",
+          ),
       }),
     )
     .readonly(),
-  lists: z
+  layouts: z
     .array(
       z.object({
+        kind: z.enum(["list", "section", "form", "related"]),
         operation: z.enum(["update", "create"]),
         scope: z.string(),
         table: z.string(),
@@ -43,11 +56,16 @@ export const PlanOutput = z.object({
         domain: z.string().describe('"global" or the sys_id of the domain the layout applies to'),
         sysId: z.string(),
         path: z.string(),
-        columns: z.array(z.string()).readonly(),
+        rows: z
+          .array(z.string())
+          .readonly()
+          .describe("columns, fields, sections or related lists, in order"),
       }),
     )
     .readonly()
-    .describe("list layouts, each loaded whole with its columns in this order (ADR-0029)"),
+    .describe(
+      "lists, forms, form sections and related lists, each loaded whole with its rows in this order (ADR-0029, ADR-0030)",
+    ),
   fluent: z
     .array(
       z.object({
@@ -126,6 +144,7 @@ export const planPush = defineUseCase({
             { instance: { root, name: name }, paths, snagentic: VERSION },
           ),
         fluent: context.fluentPackages(root),
+        ...(reader.dictionary === undefined ? {} : { dictionary: reader.dictionary }),
         updateSets: { pager, statistics: reader, now: context.clock },
         elevation: elevatedSessions !== null,
         now: context.clock,
@@ -143,11 +162,11 @@ export const planPush = defineUseCase({
     const lines = [
       ...output.changes.map(
         (c) =>
-          `${c.operation.padEnd(6)} ${c.table}  ${c.path}  (${c.fields.join(", ")})${c.elevated ? "  elevated: security_admin" : ""}`,
+          `${c.operation.padEnd(6)} ${c.table}  ${c.path}  (${c.fields.join(", ")})${c.elevated ? "  elevated: security_admin" : ""}${c.loaded ? "  loaded" : ""}`,
       ),
-      ...output.lists.map(
+      ...output.layouts.map(
         (l) =>
-          `${l.operation.padEnd(6)} list ${l.table} (${l.view}${l.domain === "global" ? "" : `, domain ${l.domain}`})  ${l.path}  columns: ${l.columns.join(", ")}`,
+          `${l.operation.padEnd(6)} ${LAYOUT_NAMES[l.kind]} ${l.table} (${l.view}${l.domain === "global" ? "" : `, domain ${l.domain}`})  ${l.path}  ${l.rows.join(", ")}`,
       ),
       ...output.fluent.map((f) => `${f.kind.padEnd(7)} ${f.name}  ${f.project}  (publish)`),
       ...output.problems.map((p) => `problem: ${p.path}: ${p.reason}`),
@@ -167,11 +186,12 @@ export const planPush = defineUseCase({
       `update sets: ${output.updateSets.join(", ") || "none"}`,
       output.ready
         ? `ready: snagentic push --instance ${output.instance} --plan ${output.planId} --confirm`
-        : output.changes.length + output.lists.length + output.fluent.length === 0
+        : output.changes.length + output.layouts.length + output.fluent.length === 0
           ? "nothing to push"
           : "not ready: fix the items above, then plan again",
     ];
     return lines.join("\n");
   },
-  exitCode: (output) => (output.ready || output.changes.length + output.lists.length === 0 ? 0 : 1),
+  exitCode: (output) =>
+    output.ready || output.changes.length + output.layouts.length === 0 ? 0 : 1,
 });

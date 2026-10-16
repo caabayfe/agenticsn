@@ -141,6 +141,7 @@ export const push = defineUseCase({
         elevation: elevatedSessions !== null,
         elevatedSessions,
         fluent: context.fluentPackages(root),
+        ...(reader.dictionary === undefined ? {} : { dictionary: reader.dictionary }),
         fluentInstaller: reader.fluent ?? null,
       },
       {

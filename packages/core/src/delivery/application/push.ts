@@ -9,7 +9,8 @@ import {
   PushConfirmationRequiredError,
   UnfinishedPushError,
 } from "../domain/errors";
-import type { PlannedList } from "../domain/list-changes";
+import type { PlannedLayout } from "../domain/layout-changes";
+import { KIND_TABLE } from "../domain/layout-kinds";
 import type {
   ElevatedSessions,
   FluentInstaller,
@@ -172,7 +173,7 @@ async function writeAll(
     readonly label: string;
     readonly batch: OpenedUpdateSet;
     readonly writes: readonly PlannedWrite[];
-    readonly lists: readonly PlannedList[];
+    readonly layouts: readonly PlannedLayout[];
     readonly fluent: readonly FluentPackage[];
     readonly user: string;
     readonly liveFlows: ReadonlySet<string>;
@@ -186,7 +187,7 @@ async function writeAll(
   let inactive: number | null = null;
   const scopes = [
     ...run.writes.map((w) => w.scope),
-    ...run.lists.map((l) => l.scope),
+    ...run.layouts.map((l) => l.scope),
     ...run.fluent.map((p) => p.scope),
   ];
   for (const scope of [...new Set(scopes)].sort()) {
@@ -194,14 +195,14 @@ async function writeAll(
     const project = run.fluent.find((p) => p.scope === scope) ?? null;
     const id = project?.scopeId ?? scopeId(catalog, scope, run.writes);
     const target = { name: scope, id, user: run.user, fluent: project };
-    const lists = run.lists.filter((l) => l.scope === scope);
+    const layouts = run.layouts.filter((l) => l.scope === scope);
     const {
       fluent: delivered,
-      lists: loaded,
+      layouts: loaded,
       ...set
     } = await pushScope(
       { deps, session, journal, catalog, liveFlows: run.liveFlows },
-      { ...target, writes: scoped, lists, label: run.label, batch: run.batch },
+      { ...target, writes: scoped, layouts, label: run.label, batch: run.batch },
     );
     updateSets.push({ scope, ...set, link: link(set) });
     if (delivered !== null) {
@@ -217,16 +218,10 @@ async function writeAll(
       const elevated = needsElevation(table);
       written.push({ operation, table, sysId: record, path, captured: done, elevated });
     }
-    for (const { list, captured: done } of loaded) {
-      const { operation, path, layout } = list;
-      written.push({
-        operation,
-        table: "sys_ui_list",
-        sysId: layout.sysId,
-        path,
-        captured: done,
-        elevated: false,
-      });
+    for (const { layout, captured: done } of loaded) {
+      const { operation, path, sysId } = layout;
+      const table = KIND_TABLE[layout.kind];
+      written.push({ operation, table, sysId, path, captured: done, elevated: false });
     }
   }
   return { written, updateSets, fluent, inactive };
@@ -239,7 +234,7 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
     writer: deps.writer,
     signal: deps.signal,
   };
-  const { plan, writes, lists, fluent: packages } = await preflight(deps, query, session);
+  const { plan, writes, layouts, fluent: packages } = await preflight(deps, query, session);
   const liveFlows =
     packages.length > 0
       ? await checkFlowDomains(session, deps.username, packages)
@@ -263,7 +258,7 @@ export async function push(deps: PushDependencies, query: PushQuery): Promise<Pu
     deps,
     session,
     journal,
-    { label: plan.label, batch, writes, lists, fluent: packages, user, liveFlows },
+    { label: plan.label, batch, writes, layouts, fluent: packages, user, liveFlows },
     catalog,
   );
   await deps.journal.clear();

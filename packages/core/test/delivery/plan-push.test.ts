@@ -161,7 +161,7 @@ describe("computePlan", () => {
     ]);
   });
 
-  it("plans a new form section and its fields, the fields after the section (ADR-0025)", async () => {
+  it("plans a new form section and its fields as one layout change, not as rows (ADR-0030)", async () => {
     const id = "fedcba9876543210fedcba9876543210";
     const section = `global/sys_ui_section/u-review--${id}`;
     const fields = `${section}.children.sys_ui_element.yaml`;
@@ -173,19 +173,25 @@ describe("computePlan", () => {
     });
     const { plan, writes } = await computePlan(
       setup({
-        working: { [section]: record("sys_ui_section", id, { name: "u_review", view: "Default" }) },
+        working: {
+          [section]: record("sys_ui_section", id, { name: "u_review", view: "Default view" }),
+        },
         changed: [`${section}.yaml`, fields],
-        documents: { mirror: {}, working: { [fields]: [row(1, "number"), row(2, "decision")] } },
+        documents: { mirror: {}, working: { [fields]: [row(2, "decision"), row(1, "number")] } },
       }).deps,
       QUERY,
     );
     expect(plan.problems).toEqual([]);
-    expect(plan.changes.map((c) => [c.operation, c.table, c.path])).toEqual([
-      ["create", "sys_ui_section", `${section}.yaml`],
-      ["create", "sys_ui_element", fields],
-      ["create", "sys_ui_element", fields],
+    expect(plan.changes).toEqual([]);
+    expect(writes).toEqual([]);
+    expect(plan.layouts).toEqual([
+      expect.objectContaining({
+        kind: "section",
+        operation: "create",
+        path: `${section}.yaml`,
+        rows: ["number", "decision"],
+      }),
     ]);
-    expect(writes[1]?.owner).toEqual({ table: "sys_ui_section", sysId: id });
   });
 
   it("reports deletes, child rows and conflict markers as problems", async () => {

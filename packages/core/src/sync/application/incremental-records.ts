@@ -8,6 +8,7 @@ import { classesToPull } from "../domain/pull-scope";
 import { chunks, isChildRowFile, type RecordChanges } from "../domain/record-changes";
 import { forEachConcurrently } from "./concurrently";
 import type { IncrementalDependencies } from "./incremental-dependencies";
+import { removeReplaced } from "./replaced-records";
 
 // sys_ids per download request: keeps the URL short and the page within the size target.
 const DOWNLOAD_BATCH = 100;
@@ -144,6 +145,39 @@ async function replaceRecord(
   return { kind, base: rendered.base, created: previous === undefined };
 }
 
+type DownloadOutcome = {
+  written: number;
+  renamed: number;
+  skipped: number;
+  received: string[];
+  stored: string[];
+  created: { base: string; className: string }[];
+};
+
+// Writes one downloaded row; a row whose sys_id cannot be a path is skipped.
+async function storeRow(
+  deps: IncrementalDependencies,
+  catalog: Catalog,
+  table: string,
+  row: Row,
+  outcome: DownloadOutcome,
+) {
+  outcome.received.push(row["sys_id"] ?? "");
+  try {
+    const replaced = await replaceRecord(deps, catalog, row);
+    outcome[replaced.kind] += 1;
+    outcome.stored.push(row["sys_id"] ?? "");
+    if (replaced.created) {
+      outcome.created.push({ base: replaced.base, className: table });
+    }
+  } catch (error) {
+    if (!(error instanceof InvalidIdentifierError)) {
+      throw error;
+    }
+    outcome.skipped += 1;
+  }
+}
+
 async function downloadClass(
   deps: IncrementalDependencies,
   catalog: Catalog,
@@ -151,35 +185,27 @@ async function downloadClass(
   ids: readonly string[],
   signal: AbortSignal,
 ) {
-  const outcome = {
+  const outcome: DownloadOutcome = {
     written: 0,
     renamed: 0,
     skipped: 0,
-    received: [] as string[],
-    stored: [] as string[],
-    created: [] as { base: string; className: string }[],
+    received: [],
+    stored: [],
+    created: [],
   };
   for (const batch of chunks(ids, DOWNLOAD_BATCH)) {
     const listing = {
       table: TableName.parse(table),
       fields: "all" as const,
       kind: "snapshot" as const,
-      base: `sys_class_name=${table}^sys_idIN${batch.join(",")}`,
+      // By sys_id alone: any other condition makes the instance hide records of other domains
+      // on tables with domain overrides, such as form sections (pdi2, ADR-0030). One batch is
+      // one page, so the pager's cursor never applies; the class is checked here instead.
+      base: `sys_idIN${batch.join(",")}`,
     };
     for await (const row of deps.pager.rows(listing, signal)) {
-      outcome.received.push(row["sys_id"] ?? "");
-      try {
-        const replaced = await replaceRecord(deps, catalog, row);
-        outcome[replaced.kind] += 1;
-        outcome.stored.push(row["sys_id"] ?? "");
-        if (replaced.created) {
-          outcome.created.push({ base: replaced.base, className: table });
-        }
-      } catch (error) {
-        if (!(error instanceof InvalidIdentifierError)) {
-          throw error;
-        }
-        outcome.skipped += 1;
+      if ((row["sys_class_name"] ?? table) === table) {
+        await storeRow(deps, catalog, table, row, outcome);
       }
     }
   }
@@ -235,6 +261,7 @@ export async function applyRecordChanges(
       totals.deleted += 1;
     }
   }
+  totals.deleted += await removeReplaced(deps, created, signal);
   const requested = [...changes.changed.values()].flat();
   const unwritten = requested.filter((sysId) => !stored.has(sysId)).sort();
   return { ...totals, unreadable: unreadable.sort(), unwritten, created };

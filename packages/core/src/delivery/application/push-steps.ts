@@ -187,6 +187,25 @@ async function writeRow(session: InstanceSession, write: PlannedWrite, written: 
   }
 }
 
+// Refuses a record write when the instance's copy moved on since the pull: a create's record
+// exists, or an update's record hashes differently.
+export async function ensureUnchanged(
+  session: InstanceSession,
+  catalog: Catalog,
+  write: PlannedWrite,
+  written: number,
+): Promise<void> {
+  const current: Row | null = await first(session, write.table, `sys_id=${write.sysId}`, "all");
+  const moved =
+    write.operation === "create"
+      ? current !== null
+      : (current === null ? null : artifactFromRow(current, catalog, DEFAULT_REDACTION).hash) !==
+        write.baseHash;
+  if (moved) {
+    throw new RecordChangedOnInstanceError(write.path, written);
+  }
+}
+
 // One record: refuse if the instance's copy moved on since the pull, then write.
 export async function writeRecord(
   session: InstanceSession,
@@ -198,11 +217,8 @@ export async function writeRecord(
   if (write.owner !== null) {
     return writeRow(session, write, written);
   }
-  const current: Row | null = await first(session, write.table, `sys_id=${write.sysId}`, "all");
+  await ensureUnchanged(session, catalog, write, written);
   if (write.operation === "create") {
-    if (current !== null) {
-      throw new RecordChangedOnInstanceError(write.path, written);
-    }
     await session.writer.insert(
       write.table,
       { ...write.values, sys_id: write.sysId, sys_scope: scopeId },
@@ -210,57 +226,66 @@ export async function writeRecord(
     );
     return;
   }
-  const remoteHash =
-    current === null ? null : artifactFromRow(current, catalog, DEFAULT_REDACTION).hash;
-  if (remoteHash !== write.baseHash) {
-    throw new RecordChangedOnInstanceError(write.path, written);
-  }
   await session.writer.update(write.table, write.sysId, write.values, session.signal);
 }
 
-// The update set entry a write lands in: named by the platform, after the record itself or,
-// for a child row, the record that owns it (a list is sys_ui_list_<table>_<view>). A form
-// section and its fields are recorded as the form that shows the section.
-// What capture needs to know of a write: a list loaded whole (ADR-0029) passes its own.
+// What capture needs to know of a write: a layout or a loaded record passes its own name.
 type Recorded = Pick<PlannedWrite, "table" | "sysId" | "owner" | "updateName">;
 
+// The update set entry a write lands in: named by the platform, after the record itself or, for
+// a child row, the record that owns it (a table's choices are sys_choice_<table>_<element>).
+// Layouts are loaded whole and checked under their own update name (ADR-0030); a form section is
+// never recorded as its form, which is what the check assumed before.
 async function updateNameOf(session: InstanceSession, write: Recorded): Promise<string> {
   if (write.updateName !== null) {
     return write.updateName;
   }
   const { table, sysId } = write.owner ?? write;
-  const recorded = table === "sys_ui_section" ? await formOf(session, sysId) : { table, sysId };
-  const row = await first(session, recorded.table, `sys_id=${recorded.sysId}`, ["sys_update_name"]);
+  const row = await first(session, table, `sys_id=${sysId}`, ["sys_update_name"]);
   const name = row?.["sys_update_name"] ?? "";
-  return name === "" ? `${recorded.table}_${recorded.sysId}` : name;
-}
-
-// The form that shows a section, which the update set records the section's changes under.
-async function formOf(session: InstanceSession, section: string) {
-  const link = await first(session, "sys_ui_form_section", `sys_ui_section=${section}`, [
-    "sys_ui_form",
-  ]);
-  const form = link?.["sys_ui_form"] ?? "";
-  return form === ""
-    ? { table: "sys_ui_section", sysId: section }
-    : { table: "sys_ui_form", sysId: form };
+  return name === "" ? `${table}_${sysId}` : name;
 }
 
 // The platform recorded the write in the target update set. When it recorded it in the
 // application's Default update set instead, as pdi2 did, and the update is this user's, it is
 // moved into the target (spec 006, B5); an update someone else made is left where it is.
+// The update entries recorded under a name, each with its version: what was there before a load,
+// so capture can tell the load's own update from an older one.
+export async function updateVersions(session: InstanceSession, name: string) {
+  const rows = await session.reader.query(
+    {
+      table: TableName.parse("sys_update_xml"),
+      query: `name=${name}`,
+      fields: ["sys_id", "sys_mod_count", "sys_updated_on"],
+      limit: 100,
+    },
+    session.signal,
+  );
+  return new Set(rows.map(versionOfUpdate));
+}
+
+const versionOfUpdate = (row: Row) =>
+  `${row["sys_id"] ?? ""}|${row["sys_mod_count"] ?? ""}|${row["sys_updated_on"] ?? ""}`;
+
+// `before`, when given, holds the update entries that existed before a load: an entry still at
+// one of those versions was not written by the load (pdi2 applies a form section whose fields
+// did not change without recording it).
 export async function captured(
   session: InstanceSession,
   write: Recorded,
   target: { readonly updateSet: string; readonly username: string },
+  before?: ReadonlySet<string>,
 ): Promise<boolean> {
   const name = await updateNameOf(session, write);
+  const fresh = (row: Row | null) => row !== null && !(before?.has(versionOfUpdate(row)) ?? false);
+  const fields = ["sys_id", "sys_mod_count", "sys_updated_on", "update_set"];
   const query = `name=${name}^update_set=${target.updateSet}`;
-  if ((await first(session, "sys_update_xml", query, ["sys_id"])) !== null) {
+  if (fresh(await first(session, "sys_update_xml", query, fields))) {
     return true;
   }
   const mine = `name=${name}^sys_updated_by=${target.username}`;
-  const update = await first(session, "sys_update_xml", mine, ["sys_id", "update_set"]);
+  const found = await first(session, "sys_update_xml", mine, fields);
+  const update = fresh(found) ? found : null;
   const set = await first(session, "sys_update_set", `sys_id=${update?.["update_set"] ?? ""}`, [
     "name",
   ]);

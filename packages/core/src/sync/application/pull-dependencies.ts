@@ -1,6 +1,6 @@
 import type { TableStatistics } from "../../connection/ports";
+import { formatRawTimestamp } from "../../kernel/raw-timestamp";
 import type { RedactionPolicy } from "../../metadata/domain/redaction";
-import { formatRawTimestamp } from "../domain/raw-timestamp";
 import type { MirrorWriter, SyncStateStore } from "../ports";
 import type { KeysetPager } from "./keyset-pager";
 

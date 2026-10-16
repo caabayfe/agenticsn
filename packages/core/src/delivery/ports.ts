@@ -1,3 +1,5 @@
+import type { TableAttributes } from "./domain/recording";
+
 // A record as stored: its parsed YAML document and its field files.
 export interface RecordFiles {
   readonly document: unknown;
@@ -160,4 +162,10 @@ export interface FluentInstaller {
     records: { readonly flows: readonly string[]; readonly actions: readonly string[] },
     signal: AbortSignal,
   ): Promise<readonly FluentPublishResult[]>;
+}
+
+// The instance's data dictionary, as delivery needs it (ADR-0030): each table's parent and its
+// collection entry's attributes, which say whether the platform records its records.
+export interface TableDictionary {
+  tables(names: readonly string[], signal: AbortSignal): Promise<readonly TableAttributes[]>;
 }

@@ -79,6 +79,7 @@ export {
 } from "./metadata/domain/field-rules";
 export {
   InvalidRecordError,
+  identityFolder,
   parseRecord,
   type RenderedRecord,
   recordAddress,
@@ -124,6 +125,7 @@ export {
   instanceConfirms,
   instanceConfirmsRows,
   type RecordCopy,
+  replacementConfirms,
 } from "./sync/domain/confirmed-record";
 export { NothingPulledError, PaginationStalledError } from "./sync/domain/errors";
 export {

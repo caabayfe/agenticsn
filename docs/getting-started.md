@@ -167,29 +167,41 @@ Without `gh`, push works the same and says that no pull request is linked.
 ### Choices, forms and lists
 
 A table's choices are mirrored beside its table record, in
-`<scope>/sys_db_object/<table>--<sys_id>.children.sys_choice.yaml`. Form and list layouts are
-the child rows of their section, list or form (`sys_ui_element`, `sys_ui_list_element`,
-`sys_ui_form_section`, `sys_ui_related_list_entry`). These five files can be edited and pushed
-(ADR-0025):
+`<scope>/sys_db_object/<table>--<sys_id>.children.sys_choice.yaml`. Add a row with a new
+32-character sys_id and `name` set to the table, or change a row's fields. Push writes each
+choice after its table, and stops if it changed on the instance since the pull. It never removes
+one: set `inactive: 'true'` instead.
 
-- add a row with a new 32-character sys_id and the field that names its owner (`name` for a
-  choice; `sys_ui_section`, `list_id` or `sys_ui_form` for layouts), or change a row's fields;
-- push never removes a row, except a list's columns: set `inactive: 'true'` on a choice, and
-  remove a form field on the instance.
+Lists, forms, form sections and related lists are **layouts**: a record and its rows, pushed
+whole (ADR-0029, ADR-0030). The platform records a layout only as one composite update, so push
+loads each changed layout, with all its rows, into the update set, in position order:
 
-Push writes each row after its owner, and stops if the row changed on the instance since the
-pull.
+| Layout | Record | Rows |
+|---|---|---|
+| list | `<scope>/sys_ui_list/…` | `.children.sys_ui_list_element.yaml` (columns) |
+| form section | `<scope>/sys_ui_section/…` | `.children.sys_ui_element.yaml` (fields, splits) |
+| form | `<scope>/sys_ui_form/…` | `.children.sys_ui_form_section.yaml` (sections, in order) |
+| related lists | `<scope>/sys_ui_related_list/…` | `.children.sys_ui_related_list_entry.yaml` |
 
-A list layout (`<scope>/sys_ui_list/<table>--<sys_id>.yaml` and its
-`.children.sys_ui_list_element.yaml`) is pushed whole (ADR-0029). The platform records a list
-only as one "List Layout" update, so push loads the list with all its columns into the
-update set, in position order. Removing a column removes it from the list. A new list is a new
-list file with its columns file: the view is `Default view`, or the sys_id of a view in
-`global/sys_ui_view`. A list in a domain other than global is that domain's own layout of the
-table: put it under `domains/<domain>/` with `_meta.sys_domain` set, and the plan names the
-domain. Related list layouts and personal lists are not pushed; change them on the instance. A
-list's table, view and domain identify it and cannot be changed. Flow, workflow and variable-value child rows stay read-only. Choices arrive on the first
-pull after upgrading to this version.
+- Removing a row removes it: a column, a field, a section from a form, a related list.
+- A new layout is a new record file with its rows file. Its view is `Default view`, or the
+  sys_id of a view in `global/sys_ui_view`.
+- A layout in a domain other than global is that domain's own layout of the table. Put it
+  under `domains/<domain>/` with `_meta.sys_domain` set; the plan names the domain.
+- Sections load before forms. A new section also needs a row in its form's file to show on the
+  form.
+- A layout's table, view and domain (and a section's caption) identify it and cannot be
+  changed.
+- An existing section's header, title and roles cannot be changed from git: the platform records
+  a section's fields, not these. Set them when you create the section, or on the instance.
+- Related lists come back from the instance under new sys_ids after every push: the platform
+  recreates them on each save. Pull and integrate follow that by themselves.
+- Not pushed: related list layouts of a list (`parent` or `relationship` set) and personal
+  layouts (`sys_user` set).
+
+Records of a class the platform does not record in update sets, such as scheduled jobs, are
+loaded the same way; the plan marks them `loaded`. Flow, workflow and variable-value child rows
+stay read-only. Choices arrive on the first pull after upgrading to this version.
 
 ### A new application
 

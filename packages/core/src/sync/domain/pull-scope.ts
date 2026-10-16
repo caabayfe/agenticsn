@@ -6,7 +6,6 @@ import { isDeniedClass } from "../../metadata/domain/field-rules";
 export {
   CHILD_TABLES,
   type ChildTable,
-  EDITABLE_CHILD_TABLES,
 } from "../../metadata/domain/child-tables";
 
 // Derived copies and translations: large and reproducible from other records (ADR-0017).

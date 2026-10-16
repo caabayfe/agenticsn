@@ -91,7 +91,8 @@ export const FAKE_CONTEXT: UseCaseContext = {
   fluentProjects: () => ({
     changedSince: async () => [],
     holding: async () => [],
-    build: async () => ({ built: true, keys: null, deletes: [] }),
+    build: async () => ({ built: true, keys: null, deletes: [], units: [], scripts: new Map() }),
+    buildAt: async () => null,
     sdkVersion: async () => "4.13.6",
     writeKeys: async () => {},
   }),

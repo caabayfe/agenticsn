@@ -17,8 +17,9 @@ export interface WaiverProblem {
 }
 
 const MAX_DAYS = 366;
-// A waiver covers named files, never a whole instance: wildcards may not reach the scope.
-const SCOPED_PATH = /^instances\/[^/*?]+\/metadata\/[^/*?]+\/.+$/;
+// A waiver covers files of a scope's Fluent project (ADR-0031), never a whole workspace:
+// wildcards may not reach the scope.
+const SCOPED_PATH = /^source\/[^/*?]+\/.+$/;
 
 // Index -1: about the file, not one entry.
 export const UNCOMMITTED_WAIVERS: WaiverProblem = {
@@ -49,7 +50,7 @@ function problemOf(entry: unknown, today: Date): string | Waiver {
     return `missing ${missing.map(([key]) => key).join(", ")}`;
   }
   if (!SCOPED_PATH.test(waiver.path) || waiver.path.split("/").includes("..")) {
-    return "path must start instances/<name>/metadata/<scope>/, without wildcards before the scope";
+    return "path must start source/<scope>/, without wildcards before the scope";
   }
   if (!DATE.test(waiver.expires)) {
     return "expires must be a date (YYYY-MM-DD)";

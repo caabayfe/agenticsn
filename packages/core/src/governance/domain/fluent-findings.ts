@@ -1,3 +1,5 @@
+import type { BuiltUnit } from "../../authoring/domain/unit";
+
 // A Fluent project in the workspace (ADR-0028 as amended): a folder under source/ with a
 // now.config.json.
 export interface FluentProject {
@@ -25,6 +27,10 @@ export type FluentBuild =
       readonly keys: { readonly committed: string | null; readonly built: string } | null;
       // Update names of the records the build would delete.
       readonly deletes: readonly string[];
+      // Its units (ADR-0033), and its script files by project-relative path, which validate
+      // checks and points findings to.
+      readonly units: readonly BuiltUnit[];
+      readonly scripts: ReadonlyMap<string, string>;
     }
   | { readonly built: false; readonly errors: readonly FluentBuildError[] };
 
@@ -91,10 +97,7 @@ export function fluentFindings(
       ),
     );
   }
-  for (const name of build.deletes) {
-    findings.push(
-      finding("SN-MNT-011", `${project.path}/${KEYS_FILE}`, null, `the build deletes ${name}`),
-    );
-  }
+  // A configuration project deletes only what a Now.del names (S16 F3): a reviewed deletion,
+  // which plan lists. SN-MNT-011 is for package projects, which snagentic does not make.
   return findings;
 }

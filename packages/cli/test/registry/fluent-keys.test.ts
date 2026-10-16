@@ -21,7 +21,10 @@ describe("fluent-keys (P5, spec 005)", () => {
           built: "explicit: {\n  page_on_call: {\n    table: 'sys_hub_flow'",
         },
         deletes: [],
+        units: [],
+        scripts: new Map(),
       }),
+      buildAt: async () => null,
       sdkVersion: async () => "4.13.6",
       writeKeys: async (p) => {
         written.push(p.path);

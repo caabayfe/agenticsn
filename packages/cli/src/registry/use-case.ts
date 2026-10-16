@@ -2,7 +2,6 @@
 // tool and the JSON output are all generated from it; nothing is defined twice by hand.
 import type {
   AuthoringWorkspace,
-  ChangedRecords,
   CredentialStore,
   DataTemplates,
   DeliveryWorkspace,
@@ -30,11 +29,11 @@ import type {
   PullRequests,
   PushJournalStore,
   ReleaseSource,
-  ScriptChecker,
   SdkAccess,
   ServerCostReader,
   SyncStateStore,
   TableStatistics,
+  ValidateDependencies,
   WorkspaceFiles,
   WorkspaceStore,
 } from "@snagentic/core";
@@ -101,13 +100,14 @@ export interface UseCaseContext {
     readonly store: KnowledgeStore;
     readonly files: MirrorFiles;
   };
-  // What validate checks: an instance's changed records, and the rule pack that checks them.
-  // Staged: the records as the index holds them, for the pre-commit hook.
+  // What validate checks: the Fluent projects and their build, the instance's mirror (edits
+  // to it are refused), and the rule pack. Staged: as the index holds them, for the pre-commit
+  // hook.
   readonly governance: (
     root: string,
     instance: InstanceName,
     options?: { readonly staged?: boolean },
-  ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
+  ) => ValidateDependencies;
   // An instance's mirror branch and working tree, for plan and push.
   readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;
   // The accelerator packs snagentic ships (ADR-0026).

@@ -53,13 +53,3 @@ export const CHILD_TABLES: readonly ChildTable[] = [
   { table: "wf_transition", parentField: "from", parentTable: "wf_activity" },
   { table: "sys_variable_value", parentField: "document_key", ownedThroughChildRows: true },
 ];
-
-// Child rows an agent may edit and push, one row at a time (ADR-0025). Flow and workflow rows
-// stay read-only: the platform compiles those records.
-export const EDITABLE_CHILD_TABLES: ReadonlySet<string> = new Set([
-  "sys_choice",
-  "sys_ui_element",
-  "sys_ui_list_element",
-  "sys_ui_form_section",
-  "sys_ui_related_list_entry",
-]);

@@ -197,7 +197,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic validate [paths...] [options]
 ```
 
-Check changed ServiceNow records against the platform rules (security, performance, upgradability, manageability, user experience) and report only what the change introduced, with rule id, file, line, why and remediation. By default checks every record edited since HEAD; give paths to check those, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
+Build the Fluent source the change touched and check what it adds or edits against the platform rules (security, performance, upgradability, manageability, user experience), reporting only what the change introduced, with rule id, file, line, why and remediation; edits to the read-only mirror are refused. By default checks every project changed since HEAD; give paths to check those projects, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
 
 Changes the instance: no. MCP tool: `validate`.
 
@@ -231,14 +231,9 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic check <paths...> [options]
 ```
 
-Check files around an edit: whether they may be edited at all (local state, child rows and workspace configuration may not), and what the edit introduced (validate on those records). Fast; host hooks run it after every edit.
+Check whether files may be edited at all: the mirror of the instance, the ledgers, local state and workspace configuration may not. Fast; host hooks run it around every edit. What an edit to Fluent source introduces is validate's job.
 
 Changes the instance: no. MCP tool: none.
-
-Options:
-
-- `--no-edited`: false before an edit: only whether it is allowed
-- `--instance <value>`: validate only this instance's records (default: each record's own instance)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -547,8 +542,8 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `phase` (design | build | review, optional): design before editing, build while editing, review before delivering
   - `classes` (array, optional): build and review: classes being changed, such as sys_script
   - `instance` (string, optional): default: the workspace's only instance
-- `validate`: Check changed ServiceNow records against the platform rules (security, performance, upgradability, manageability, user experience) and report only what the change introduced, with rule id, file, line, why and remediation. By default checks every record edited since HEAD; give paths to check those, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
-  - `paths` (array, optional): record files to check (default: every record changed since base)
+- `validate`: Build the Fluent source the change touched and check what it adds or edits against the platform rules (security, performance, upgradability, manageability, user experience), reporting only what the change introduced, with rule id, file, line, why and remediation; edits to the read-only mirror are refused. By default checks every project changed since HEAD; give paths to check those projects, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
+  - `paths` (array, optional): source files whose projects to check (default: every project changed since base)
   - `base` (string, optional): commit, branch or tag to compare with; findings already there are not reported
   - `instance` (string, optional): default: the workspace's only instance
   - `staged` (boolean, optional): check only what is staged for commit, as the index holds it (the pre-commit hook)

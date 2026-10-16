@@ -25,7 +25,7 @@ import { gitInventoryReader } from "./adapters/git/git-inventory-reader";
 import { GitMirror } from "./adapters/git/git-mirror";
 import { gitProbe } from "./adapters/git-probe";
 import { EslintScriptChecker } from "./adapters/governance/eslint-script-checker";
-import { GitChangedRecords } from "./adapters/governance/git-changed-records";
+import { GitMirrorState } from "./adapters/governance/git-mirror-state";
 import { keychainProbe } from "./adapters/keychain-probe";
 import { GitMirrorFiles } from "./adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "./adapters/knowledge/sqlite-knowledge-store";
@@ -87,7 +87,7 @@ const context: UseCaseContext = {
     };
   },
   governance: (root, instance, options = {}) => ({
-    records: new GitChangedRecords(
+    mirror: new GitMirrorState(
       root,
       instancePaths(instance).metadata,
       instancePaths(instance).remoteBranch,

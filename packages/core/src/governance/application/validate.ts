@@ -1,46 +1,33 @@
-import {
-  type Rule,
-  ruleById,
-  rulesForScript,
-  type ScriptKind,
-  scriptFieldsOf,
-} from "../../advice/index";
-import { BEHAVIOR_CLASSES, baseOfFile } from "../../knowledge/index";
-import { type AclState, aclHits, opensWithoutRoles } from "../domain/acl-checks";
 import { UnknownBaseError } from "../domain/errors";
+import { type Finding, type FindingSeverity, introduced, ordered } from "../domain/findings";
+import { type FluentBuild, type FluentProject, fluentFindings } from "../domain/fluent-findings";
+import type { FluentProjects, MirrorState, ScriptChecker } from "../ports";
 import {
-  evidenceOf,
-  type Finding,
-  type FindingSeverity,
-  introduced,
-  ordered,
-} from "../domain/findings";
-import type { ChangedRecords, FluentProjects, RecordVersion, ScriptChecker } from "../ports";
-import { checkFluent } from "./fluent-validation";
+  aclFindings,
+  checkVersion,
+  MAX_SCRIPT_BYTES,
+  type Skipped,
+  undescribed,
+  withRule,
+} from "./record-checks";
+import { changedUnits } from "./unit-versions";
 
-// Scripts above this size are reported as not checked rather than parsed (v1's limit).
-export const MAX_SCRIPT_BYTES = 512_000;
+export { MAX_SCRIPT_BYTES, type Skipped };
 
 export interface ValidateQuery {
   // What the change is compared against: a commit, branch or tag. Only findings the change
   // introduced since then are reported.
   readonly base: string;
-  // Files to check; every record changed since `base` when absent.
+  // Source files to check, relative to the workspace: only the projects holding them are built.
+  // Every project changed since `base` when absent.
   readonly paths?: readonly string[];
-  // Fluent project files to check, relative to the workspace; with `paths`, only these
-  // projects are built.
-  readonly fluentPaths?: readonly string[];
-}
-
-export interface Skipped {
-  readonly path: string;
-  readonly reason: string;
 }
 
 export interface Validation {
   readonly base: string;
-  readonly records: number;
-  // Fluent projects built (ADR-0028).
+  // Units the change added or edited, checked (ADR-0031 item 6).
+  readonly units: number;
+  // Fluent projects built.
   readonly fluentProjects: number;
   readonly passed: boolean;
   readonly counts: Readonly<Record<FindingSeverity, number>>;
@@ -50,9 +37,9 @@ export interface Validation {
 }
 
 export interface ValidateDependencies {
-  readonly records: ChangedRecords;
+  readonly mirror: MirrorState;
   readonly checker: ScriptChecker;
-  readonly fluent?: FluentProjects;
+  readonly fluent: FluentProjects;
 }
 
 // Rules no check covers yet, said rather than silently passed.
@@ -60,239 +47,125 @@ const RULES_NOT_CHECKED = [
   { ruleId: "SN-UPG-002", reason: "needs the inventory of customized out-of-box records" },
 ];
 
-const finding = (rule: Rule, at: Omit<Finding, keyof Rule | "ruleId" | "severity">): Finding => ({
-  ruleId: rule.id,
-  severity: rule.severity,
-  title: rule.title,
-  why: rule.why,
-  remediation: rule.remediation,
-  ...at,
-});
-
-// When a business rule runs, as the platform reads its stored value; empty for other classes.
-function whenOf(version: RecordVersion): string {
-  const behavior = version.className === "sys_script" ? BEHAVIOR_CLASSES["sys_script"] : undefined;
-  return behavior === undefined ? "" : behavior.phase(version.fields);
-}
-
-interface Checked {
-  readonly findings: Finding[];
-  readonly skipped: Skipped[];
-}
-
-function checkScript(
-  checker: ScriptChecker,
-  version: RecordVersion,
-  privileges: readonly string[],
-  [field, kind]: readonly [string, ScriptKind],
-): Checked {
-  const path = version.files[field] ?? field;
-  const source = version.fields[field] ?? "";
-  if (source.length > MAX_SCRIPT_BYTES) {
-    return { findings: [], skipped: [{ path, reason: `over ${MAX_SCRIPT_BYTES} bytes` }] };
-  }
-  const rules = rulesForScript(version.className, kind);
-  const result = checker.check(
-    source,
-    rules.map((rule) => rule.id),
-    {
-      className: version.className,
-      kind,
-      scoped: version.scope !== "global",
-      when: whenOf(version),
-      type: version.fields["type"] ?? "",
-      name: version.fields["name"] ?? "",
-      scope: version.scope,
-      privileges,
-    },
-  );
-  const evidence = evidenceOf(source, result.parsed ? result.hits : []);
-  const unparsed = ruleById("SN-MNT-007");
-  if (!result.parsed) {
-    const at = { path, field, line: result.line, message: result.message };
-    return {
-      findings:
-        unparsed === undefined
-          ? []
-          : [finding(unparsed, { ...at, evidence: evidence(result.line) })],
-      skipped: [],
-    };
-  }
-  const findings = result.hits.flatMap((hit) => {
-    const rule = rules.find((candidate) => candidate.id === hit.ruleId);
-    const at = { path, field, line: hit.line, message: hit.message, evidence: evidence(hit.line) };
-    return rule === undefined ? [] : [finding(rule, at)];
-  });
-  return { findings, skipped: [] };
-}
-
-function checkVersion(
-  checker: ScriptChecker,
-  version: RecordVersion,
-  privileges: readonly string[],
-): Checked {
-  const scripts = Object.entries(scriptFieldsOf(version.className, version.fields)).filter(
-    ([field]) => (version.fields[field] ?? "").trim() !== "",
-  );
-  const checked = scripts.map((script) => checkScript(checker, version, privileges, script));
-  return {
-    findings: checked.flatMap((c) => c.findings),
-    skipped: checked.flatMap((c) => c.skipped),
-  };
-}
-
-// A new script record should say what it is for (SN-MNT-006).
-function undescribed(base: string, version: RecordVersion): Finding[] {
-  const rule = ruleById("SN-MNT-006");
-  const applies = rule?.classes?.includes(version.className) === true;
-  if (rule === undefined || !applies || (version.fields["description"] ?? "").trim() !== "") {
-    return [];
-  }
-  return [
-    finding(rule, {
-      path: `${base}.yaml`,
-      field: "description",
-      line: null,
-      message: "new script records should describe their purpose",
-      evidence: "",
-    }),
-  ];
-}
-
-const ACL_CLASS = "sys_security_acl";
-
-// An ACL's roles are counted only when nothing else restricts it: a lookup over every role.
-async function aclState(
-  records: ChangedRecords,
-  version: RecordVersion | null,
-  base: string,
-  commit: string | null,
-): Promise<AclState | null> {
-  if (version?.className !== ACL_CLASS) {
-    return null;
-  }
-  const sysId = base.slice(base.lastIndexOf("--") + 2);
-  const roles = opensWithoutRoles(version.fields)
-    ? await records.countReferences("sys_security_acl_role", ACL_CLASS, sysId, commit)
-    : null;
-  return { fields: version.fields, roles };
-}
-
-async function aclFindings(
-  deps: ValidateDependencies,
-  commit: string,
-  base: string,
-  versions: { readonly before: RecordVersion | null; readonly now: RecordVersion | null },
-): Promise<Finding[]> {
-  if (versions.before?.className !== ACL_CLASS && versions.now?.className !== ACL_CLASS) {
-    return [];
-  }
-  const hits = aclHits(
-    await aclState(deps.records, versions.before, base, commit),
-    await aclState(deps.records, versions.now, base, null),
-  );
-  return hits.flatMap((hit) => {
-    const rule = ruleById(hit.ruleId);
-    const at = { path: `${base}.yaml`, field: hit.field, line: null, message: hit.message };
-    return rule === undefined ? [] : [finding(rule, { ...at, evidence: "" })];
-  });
-}
-
 // Each application's declared privileges, read once per validation.
 type Privileges = (scope: string) => Promise<readonly string[]>;
 
-function privilegesOnce(records: ChangedRecords): Privileges {
+function privilegesOnce(mirror: MirrorState): Privileges {
   const read = new Map<string, Promise<readonly string[]>>();
   return (scope) => {
-    if (scope === "global") {
-      return Promise.resolve([]);
-    }
-    const known = read.get(scope) ?? records.privileges(scope);
+    if (scope === "global") return Promise.resolve([]);
+    const known = read.get(scope) ?? mirror.privileges(scope);
     read.set(scope, known);
     return known;
   };
 }
 
-async function checkRecord(
+interface ProjectCheck {
+  readonly units: number;
+  readonly findings: Finding[];
+  readonly skipped: Skipped[];
+}
+
+async function checkUnits(
   deps: ValidateDependencies,
   privilegesOf: Privileges,
+  project: { readonly path: string; readonly scope: string },
+  builds: {
+    readonly now: Extract<FluentBuild, { built: true }>;
+    readonly base: FluentBuild | null;
+  },
+): Promise<ProjectCheck> {
+  const base = builds.base?.built === true ? builds.base : null;
+  const changed = changedUnits(project, builds.now, base);
+  const privileges = await privilegesOf(project.scope);
+  const findings: Finding[] = [];
+  const skipped: Skipped[] = [];
+  const units = { now: builds.now.units, base: base?.units ?? [] };
+  for (const item of changed) {
+    const path = `${project.path}/${item.unit.updateName}`;
+    findings.push(...aclFindings(item, path, units));
+    if (item.unit.head.action === "DELETE") continue;
+    const current = checkVersion(deps.checker, item.now, privileges);
+    const previous =
+      item.before === null ? [] : checkVersion(deps.checker, item.before, privileges).findings;
+    findings.push(...introduced(current.findings, previous));
+    if (item.before === null) findings.push(...undescribed(path, item.now));
+    skipped.push(...current.skipped);
+  }
+  // Paths name source files and units, relative to the workspace.
+  const inWorkspace = findings.map((f): Finding => ({ ...f, root: "workspace" }));
+  return { units: changed.length, findings: inWorkspace, skipped };
+}
+
+// The project folder is named after its scope (source/<scope>).
+const scopeOf = (project: FluentProject) => project.path.slice(project.path.lastIndexOf("/") + 1);
+
+async function checkProject(
+  deps: ValidateDependencies,
+  privilegesOf: Privileges,
+  project: FluentProject,
   commit: string,
-  base: string,
-) {
-  const now = await deps.records.current(base);
-  const before = await deps.records.at(commit, base);
-  const acl = await aclFindings(deps, commit, base, { before, now });
-  if (now === null) {
-    return acl.length === 0 ? null : { findings: acl, skipped: [] };
-  }
-  const privileges = await privilegesOf(now.scope);
-  const current = checkVersion(deps.checker, now, privileges);
-  const previous = before === null ? [] : checkVersion(deps.checker, before, privileges).findings;
-  return {
-    findings: [
-      ...introduced(current.findings, previous),
-      ...(before === null ? undescribed(base, now) : []),
-      ...acl,
-    ],
-    skipped: current.skipped,
-  };
+): Promise<ProjectCheck> {
+  const build = await deps.fluent.build(project);
+  const findings: Finding[] = fluentFindings(
+    project,
+    build,
+    await deps.fluent.sdkVersion(),
+  ).flatMap((hit) => withRule(hit.ruleId, { ...hit, root: "workspace", field: null }));
+  if (!build.built) return { units: 0, findings, skipped: [] };
+  const base = await deps.fluent.buildAt(project, commit);
+  const scope = { path: project.path, scope: scopeOf(project) };
+  const units = await checkUnits(deps, privilegesOf, scope, { now: build, base });
+  return { ...units, findings: [...findings, ...units.findings] };
 }
 
-// What to check, and against which commit. While integrate merges the instance (the
-// pre-commit hook runs on its merge commit), what the instance already holds is not this
-// change's doing: only records that also differ from the instance's version are checked,
-// against that version. A named base or explicit paths are taken as asked.
-async function scope(
-  records: ChangedRecords,
-  query: ValidateQuery,
-  resolved: string,
-): Promise<{ commit: string; bases: readonly string[] }> {
-  if (query.paths !== undefined) {
-    return { commit: resolved, bases: [...new Set(query.paths.map(baseOfFile))].sort() };
-  }
-  const mirror = query.base === "HEAD" ? await records.mirrorMerge() : null;
-  if (mirror === null) {
-    return { commit: resolved, bases: await records.changedSince(resolved) };
-  }
-  const local = new Set(await records.changedSince(mirror));
-  const bases = (await records.changedSince(resolved)).filter((base) => local.has(base));
-  return { commit: mirror, bases };
+// Edits to the mirror: never delivered, lost at the next integrate (ADR-0031 item 2).
+async function mirrorEdits(mirror: MirrorState): Promise<Finding[]> {
+  return (await mirror.edited()).flatMap((path) =>
+    withRule("SN-MNT-013", {
+      path,
+      root: "workspace",
+      field: null,
+      line: null,
+      message: "the mirror is read-only: adopt the record and edit its Fluent source",
+      evidence: "",
+    }),
+  );
 }
 
-// Checks the changed records against the rules, reporting only what the change introduced.
+// Checks what the change did to the workspace's Fluent source against the rules, reporting only
+// what it introduced since `base`, and refuses edits to the mirror.
 export async function validate(
   deps: ValidateDependencies,
   query: ValidateQuery,
 ): Promise<Validation> {
-  const resolved = await deps.records.resolve(query.base);
+  const resolved = await deps.mirror.resolve(query.base);
   if (resolved === null) {
     throw new UnknownBaseError(query.base);
   }
-  const { commit, bases } = await scope(deps.records, query, resolved);
-  const results = [];
-  const privilegesOf = privilegesOnce(deps.records);
-  for (const base of bases) {
-    results.push(await checkRecord(deps, privilegesOf, commit, base));
+  const projects =
+    query.paths === undefined
+      ? await deps.fluent.changedSince(resolved)
+      : await deps.fluent.holding(query.paths);
+  const privilegesOf = privilegesOnce(deps.mirror);
+  const checked: ProjectCheck[] = [];
+  for (const project of projects) {
+    checked.push(await checkProject(deps, privilegesOf, project, resolved));
   }
-  const checked = results.filter((result) => result !== null);
-  const fluent = await checkFluent(
-    deps.fluent,
-    commit,
-    query.paths === undefined ? undefined : (query.fluentPaths ?? []),
-  );
-  const findings = ordered([...checked.flatMap((result) => result.findings), ...fluent.findings]);
+  const edits = query.paths === undefined ? await mirrorEdits(deps.mirror) : [];
+  const findings = ordered([...edits, ...checked.flatMap((c) => c.findings)]);
   const counts = { block: 0, warn: 0, info: 0 };
   for (const item of findings) {
     counts[item.severity] += 1;
   }
   return {
     base: query.base,
-    records: checked.length,
-    fluentProjects: fluent.projects,
+    units: checked.reduce((sum, c) => sum + c.units, 0),
+    fluentProjects: projects.length,
     passed: counts.block === 0,
     counts,
     findings,
-    notChecked: checked.flatMap((result) => result.skipped),
+    notChecked: checked.flatMap((c) => c.skipped),
     rulesNotChecked: RULES_NOT_CHECKED,
   };
 }

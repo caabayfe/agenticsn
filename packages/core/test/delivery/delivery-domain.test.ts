@@ -5,7 +5,7 @@ describe("waivers", () => {
   const today = new Date("2026-10-06T12:00:00Z");
   const valid = {
     rule: "SN-SEC-001",
-    path: "instances/dev/metadata/global/**",
+    path: "source/global/**",
     reason: "r",
     approver: "a",
     expires: "2027-01-01",
@@ -36,14 +36,14 @@ describe("waivers", () => {
     expect(readWaivers(null, today)).toEqual({ waivers: [], problems: [] });
   });
 
-  it("refuses a waiver whose path does not name an instance and a scope", () => {
+  it("refuses a waiver whose path does not name a scope's source, or names the mirror", () => {
     const paths = [
       "**",
-      "instances/**",
-      "instances/dev/metadata/**",
-      "instances/*/metadata/global/**",
-      "instances/dev/metadata/g*/**",
-      "instances/dev/metadata/global/../../../**",
+      "source/**",
+      "source/*/x.js",
+      "source/g*/**",
+      "source/global/../../**",
+      "instances/dev/metadata/global/**",
     ];
     const { waivers, problems } = readWaivers(
       { waivers: paths.map((path) => ({ ...valid, path })) },
@@ -51,7 +51,7 @@ describe("waivers", () => {
     );
     expect(waivers).toEqual([]);
     expect(problems).toHaveLength(paths.length);
-    expect(problems[0]?.reason).toContain("instances/<name>/metadata/<scope>/");
+    expect(problems[0]?.reason).toContain("source/<scope>/");
   });
 
   it("matches paths by glob: * and ? within a folder, ** across folders", () => {
@@ -68,7 +68,8 @@ describe("the gate", () => {
     ruleId,
     severity,
     title: "",
-    path: "global/sys_script/rule--x.script.js",
+    path: "source/global/src/fluent/rule.server.js",
+    root: "workspace",
     field: "script",
     line: 3,
     message: "m",
@@ -78,7 +79,7 @@ describe("the gate", () => {
   });
   const waiver = {
     rule: "SN-SEC-001",
-    path: "instances/dev/metadata/global/**",
+    path: "source/global/**",
     reason: "approved",
     approver: "lead",
     expires: "2027-01-01",

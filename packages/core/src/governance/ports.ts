@@ -1,40 +1,26 @@
 import type { ScriptKind } from "../advice/index";
 import type { FluentBuild, FluentProject } from "./domain/fluent-findings";
 
-// A record as it is in the workspace or at a commit: its fields (scripts included) and the
-// files they are in.
+// A record as validate checks it: a built unit's head (ADR-0031), its fields (scripts
+// included) and the source file each script is in.
 export interface RecordVersion {
   readonly className: string;
   readonly scope: string;
   readonly fields: Readonly<Record<string, string>>;
-  // Each script field's file, relative to instances/<name>/metadata.
+  // Each script field's file, relative to the workspace.
   readonly files: Readonly<Record<string, string>>;
 }
 
-// The records of one instance's mirror, as changed in the workspace.
-export interface ChangedRecords {
+// The instance's mirror as validate sees it: read-only, written only by pull (ADR-0031 item 2).
+export interface MirrorState {
   // The commit `ref` names, or null when it names none.
   resolve(ref: string): Promise<string | null>;
-  // Records with a file that differs from `commit`: committed since, edited or added.
-  changedSince(commit: string): Promise<string[]>;
-  // The record now, or null when it was deleted.
-  current(base: string): Promise<RecordVersion | null>;
-  // The record at a commit, or null when it did not exist then.
-  at(commit: string, base: string): Promise<RecordVersion | null>;
-  // How many records of `className` have `field` set to `sysId`: in the workspace, or at
-  // `commit` when one is given.
-  countReferences(
-    className: string,
-    field: string,
-    sysId: string,
-    commit: string | null,
-  ): Promise<number>;
-  // The cross-scope privileges an application declares in the workspace, as
+  // Mirror files the workspace changed (edited, added or deleted), compared with the instance's
+  // copy the branch last integrated, or the one an integrate is merging. Workspace-relative.
+  edited(): Promise<readonly string[]>;
+  // The cross-scope privileges an application declares on the instance, as
   // "<target type>:<target name>" (for example "sys_db_object:sys_user").
   privileges(scope: string): Promise<readonly string[]>;
-  // The instance's commit while integrate merges it (a merge of the instance's
-  // servicenow-remote branch is in progress), or null.
-  mirrorMerge(): Promise<string | null>;
 }
 
 // What a rule pack needs to know about the record a script belongs to.
@@ -73,6 +59,8 @@ export interface FluentProjects {
   holding(paths: readonly string[]): Promise<readonly FluentProject[]>;
   // Builds a copy of the project; the workspace is never written.
   build(project: FluentProject): Promise<FluentBuild>;
+  // The project as `commit` held it, built; null when it did not exist then.
+  buildAt(project: FluentProject, commit: string): Promise<FluentBuild | null>;
   // Writes a build's keys.ts into the project (and stages it, when the projects are the
   // index's); the only write to Fluent source snagentic makes.
   writeKeys(project: FluentProject, keys: string): Promise<void>;

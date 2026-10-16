@@ -1,10 +1,5 @@
-import {
-  type ChangedRecords,
-  type DeliveryWorkspace,
-  KeysetPager,
-  type Row,
-  type ScriptChecker,
-} from "@snagentic/core";
+import { type DeliveryWorkspace, KeysetPager, type Row } from "@snagentic/core";
+import { governanceOf } from "./fake-governance";
 import { fakeInstance } from "./fake-instance";
 
 // A branch (feature/p1) and an instance with two open update sets: someone's (s1) and this
@@ -38,21 +33,6 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
   };
 }
 
-// validate's view of a branch with no changed mirror records.
-function governance() {
-  const records: ChangedRecords = {
-    resolve: async () => "c0ffee",
-    mirrorMerge: async () => null,
-    changedSince: async () => [],
-    current: async () => null,
-    at: async () => null,
-    countReferences: async () => 0,
-    privileges: async () => [],
-  };
-  const checker: ScriptChecker = { check: () => ({ parsed: true, hits: [] }) };
-  return { records, checker };
-}
-
 export function setup(overrides: Partial<State> = {}, held: Record<string, unknown>[] = []) {
   const state: State = { waivers: null, waiversUncommitted: false, published: [], ...overrides };
   const tables: Record<string, Row[]> = {
@@ -65,7 +45,7 @@ export function setup(overrides: Partial<State> = {}, held: Record<string, unkno
   const fake = fakeInstance(tables);
   const deps = {
     workspace: fakeWorkspace(state),
-    governance: governance(),
+    governance: governanceOf({}),
     updateSets: {
       pager: new KeysetPager(fake.reader),
       statistics: fake.reader,

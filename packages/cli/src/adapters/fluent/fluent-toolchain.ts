@@ -29,7 +29,7 @@ async function sourceFiles(root: string): Promise<Map<string, string>> {
 }
 
 // The files a build wrote under dist/app, by name relative to it.
-async function builtFiles(project: string): Promise<Map<string, string>> {
+export async function builtFiles(project: string): Promise<Map<string, string>> {
   const output = join(project, "dist", "app");
   const names = await readdir(output, { recursive: true }).catch(() => []);
   const files = new Map<string, string>();
@@ -39,7 +39,7 @@ async function builtFiles(project: string): Promise<Map<string, string>> {
   return files;
 }
 
-const unitsOf = (files: ReadonlyMap<string, string>): BuiltUnit[] =>
+export const unitsOf = (files: ReadonlyMap<string, string>): BuiltUnit[] =>
   [...files].map(([name, xml]) => builtUnitOf(name, xml));
 
 export async function unitsIn(project: string): Promise<BuiltUnit[]> {

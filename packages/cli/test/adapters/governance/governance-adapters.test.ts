@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runGitOrThrow } from "../../../src/adapters/git/run-git";
 import { EslintScriptChecker } from "../../../src/adapters/governance/eslint-script-checker";
-import { GitChangedRecords } from "../../../src/adapters/governance/git-changed-records";
+import { GitMirrorState } from "../../../src/adapters/governance/git-mirror-state";
 import { toYaml } from "../../../src/adapters/yaml/own-style";
 
 const temporary: string[] = [];
@@ -37,121 +37,62 @@ async function workspace() {
   await write(`${INCLUDE}.children.sys_x.yaml`, "rows: []\n");
   await git(repo, "add", ".");
   await git(repo, "commit", "-qm", "pull");
-  return { repo, write, records: new GitChangedRecords(repo, ROOT, "servicenow-remote/pdi") };
+  return { repo, write, records: new GitMirrorState(repo, ROOT, "servicenow-remote/pdi") };
 }
 
-describe("GitChangedRecords", () => {
+describe("GitMirrorState (ADR-0031 item 2)", () => {
+  // The instance's mirror branch at the commit the branch integrated.
+  async function integrated() {
+    const ws = await workspace();
+    await git(ws.repo, "branch", "servicenow-remote/pdi");
+    return ws;
+  }
+
   it("resolves refs to commits, and nothing for an unknown ref", async () => {
-    const { records } = await workspace();
+    const { repo, records } = await workspace();
     expect(await records.resolve("HEAD")).toMatch(/^[0-9a-f]{40}$/);
-    expect(await records.resolve("no-such-branch")).toBeNull();
+    expect(await records.resolve("nope")).toBeNull();
+    expect(await new GitMirrorState(repo, ROOT, "servicenow-remote/pdi").edited()).toEqual([]);
   });
 
-  it("names the instance's commit while integrate merges it, and nothing otherwise", async () => {
-    const { repo, records, write } = await workspace();
-    expect(await records.mirrorMerge()).toBeNull();
-    await git(repo, "branch", "servicenow-remote/pdi");
-    await git(repo, "branch", "feature");
+  it("names mirror files the workspace changed since the integrated copy, added ones too", async () => {
+    const { repo, write, records } = await integrated();
+    expect(await records.edited()).toEqual([]);
+    await write(`${INCLUDE}.script.js`, "var Util = 1;\n");
+    await write("global/sys_script/new--s2.yaml", "name: x\n");
+    await mkdir(join(repo, "source/x"), { recursive: true });
+    await writeFile(join(repo, "source/x/a.now.ts"), "x\n");
+    expect(await records.edited()).toEqual([
+      `${ROOT}/global/sys_script/new--s2.yaml`,
+      `${ROOT}/${INCLUDE}.script.js`,
+    ]);
+  });
+
+  it("does not count a pull the branch has not integrated as an edit", async () => {
+    const { repo, records } = await integrated();
     await git(repo, "switch", "-q", "servicenow-remote/pdi");
-    await write("global/sys_script/pulled--b3.yaml", "name: Pulled\n");
-    await git(repo, "add", ".");
-    await git(repo, "commit", "-qm", "pull");
-    const pulled = await records.resolve("HEAD");
-    await git(repo, "switch", "-q", "feature");
-    await write("global/sys_script/mine--b4.yaml", "name: Mine\n");
-    await git(repo, "add", ".");
-    await git(repo, "commit", "-qm", "mine");
+    await writeFile(join(repo, ROOT, `${INCLUDE}.script.js`), "var Util = 2;\n");
+    await git(repo, "commit", "-qam", "pull");
     await git(repo, "switch", "-q", "main");
-    await git(repo, "merge", "--no-ff", "--no-commit", "feature");
-    expect(await records.mirrorMerge()).toBeNull();
-    await git(repo, "merge", "--abort");
+    expect(await records.edited()).toEqual([]);
+  });
+
+  it("while integrate merges the instance, compares with the copy it is merging", async () => {
+    const { repo } = await integrated();
+    await git(repo, "switch", "-q", "servicenow-remote/pdi");
+    await writeFile(join(repo, ROOT, `${INCLUDE}.script.js`), "var Util = 2;\n");
+    await git(repo, "commit", "-qam", "pull");
+    await git(repo, "switch", "-q", "main");
     await git(repo, "merge", "--no-ff", "--no-commit", "servicenow-remote/pdi");
-    expect(await records.mirrorMerge()).toBe(pulled);
-  });
-
-  it("lists records edited or added since a commit", async () => {
-    const { records, write } = await workspace();
-    const head = (await records.resolve("HEAD")) ?? "";
-    expect(await records.changedSince(head)).toEqual([]);
-    await write(`${INCLUDE}.script.js`, "var Util = Class.create();\neval(x);\n");
-    await write("global/sys_script/new--b2.yaml", "name: New\n");
-    expect(await records.changedSince(head)).toEqual(["global/sys_script/new--b2", INCLUDE]);
-  });
-
-  it("reads a record now and at a commit, with its scripts but not its child rows", async () => {
-    const { records, write } = await workspace();
-    const head = (await records.resolve("HEAD")) ?? "";
-    await write(`${INCLUDE}.script.js`, "eval(x);\n");
-    expect(await records.current(INCLUDE)).toEqual({
-      className: "sys_script_include",
-      scope: "x_acme",
-      fields: { name: "Util", description: "Helpers", script: "eval(x);\n" },
-      files: { script: `${INCLUDE}.script.js` },
-    });
-    expect((await records.at(head, INCLUDE))?.fields["script"]).toBe(
-      "var Util = Class.create();\n",
-    );
-    expect(await records.at(head, "global/sys_script/none--x")).toBeNull();
-    expect(await records.current("global/sys_script/none--x")).toBeNull();
-  });
-});
-
-describe("GitChangedRecords: staged (the pre-commit hook)", () => {
-  it("checks what is being committed: the index, not untracked files or unstaged edits", async () => {
-    const { repo, write } = await workspace();
-    const staged = new GitChangedRecords(repo, ROOT, "servicenow-remote/pdi", { staged: true });
-    await write(`${INCLUDE}.script.js`, "var Util = Class.create(); // staged\n");
+    const staged = new GitMirrorState(repo, ROOT, "servicenow-remote/pdi", { staged: true });
+    expect(await staged.edited()).toEqual([]);
+    await writeFile(join(repo, ROOT, `${INCLUDE}.script.js`), "var Util = 3;\n");
     await git(repo, "add", ".");
-    await write(`${INCLUDE}.script.js`, "var Util = Class.create(); // not staged\n");
-    await write("global/sys_script/untracked--u1.yaml", "name: Untracked\n");
-    expect(await staged.changedSince("HEAD")).toEqual([INCLUDE]);
-    expect((await staged.current(INCLUDE))?.fields["script"]).toContain("// staged");
+    expect(await staged.edited()).toEqual([`${ROOT}/${INCLUDE}.script.js`]);
   });
 });
 
-describe("GitChangedRecords: references", () => {
-  const ROLE = "global/sys_security_acl_role/incident-itil--r1";
-  const role = (acl: string) =>
-    toYaml({
-      _meta: { sys_id: "r1", sys_class_name: "sys_security_acl_role", scope: "global" },
-      sys_security_acl: acl,
-      sys_user_role: "itil1",
-    });
-
-  it("counts the records pointing at a sys_id, now and at a commit", async () => {
-    const { records, write } = await workspace();
-    await write(`${ROLE}.yaml`, role("a1c"));
-    const head = (await records.resolve("HEAD")) ?? "";
-    // Not committed yet: the workspace has the role, the commit does not.
-    expect(
-      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", null),
-    ).toBe(1);
-    expect(
-      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", head),
-    ).toBe(0);
-    expect(
-      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1", null),
-    ).toBe(0);
-  });
-
-  it("counts a reference however the YAML quotes it", async () => {
-    const { records, write } = await workspace();
-    await write(`${ROLE}.yaml`, "sys_security_acl: 'a1c'\n");
-    await write("global/sys_security_acl_role/other--r2.yaml", 'sys_security_acl: "a1c"\n');
-    expect(
-      await records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", null),
-    ).toBe(2);
-  });
-
-  it("reports a git failure instead of counting nothing", async () => {
-    const { records } = await workspace();
-    await expect(
-      records.countReferences("sys_security_acl_role", "sys_security_acl", "a1c", "f".repeat(40)),
-    ).rejects.toThrow();
-  });
-});
-
-describe("GitChangedRecords: cross-scope privileges", () => {
+describe("GitMirrorState: cross-scope privileges", () => {
   const FOLDER = "x_acme/sys_scope_privilege";
   const privilege = (fields: Record<string, string>) =>
     toYaml({
@@ -176,14 +117,14 @@ describe("GitChangedRecords: cross-scope privileges", () => {
       `${FOLDER}/role--p3.yaml`,
       privilege({ target_type: "sys_db_object", target_name: "sys_user_role", status: "denied" }),
     );
-    const records = new GitChangedRecords(repo, ROOT, "servicenow-remote/pdi");
+    const records = new GitMirrorState(repo, ROOT, "servicenow-remote/pdi");
     expect([...(await records.privileges("x_acme"))].sort()).toEqual([
       "sys_db_object:sys_user",
       "sys_script_include:Remover",
     ]);
     expect(await records.privileges("x_other")).toEqual([]);
     await git(repo, "add", `${ROOT}/${FOLDER}/sys-user--p1.yaml`);
-    const staged = new GitChangedRecords(repo, ROOT, "servicenow-remote/pdi", { staged: true });
+    const staged = new GitMirrorState(repo, ROOT, "servicenow-remote/pdi", { staged: true });
     expect(await staged.privileges("x_acme")).toEqual(["sys_db_object:sys_user"]);
   });
 });

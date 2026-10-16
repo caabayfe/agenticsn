@@ -38,7 +38,9 @@ function fake(builds: Record<string, FluentBuild>) {
       Object.keys(builds)
         .filter((p) => paths.some((x) => x.startsWith(`${p}/`)))
         .map(project),
-    build: async (p) => builds[p.path] ?? { built: true, keys: null, deletes: [] },
+    build: async (p) =>
+      builds[p.path] ?? { built: true, keys: null, deletes: [], units: [], scripts: new Map() },
+    buildAt: async () => null,
     sdkVersion: async () => "4.13.6",
     writeKeys: async (p, keys) => {
       written.push([p.path, keys]);
@@ -54,8 +56,10 @@ describe("writing a Fluent project's generated keys (P5, spec 005)", () => {
         built: true,
         keys: { committed: WITHOUT_FLOW_B, built: KEYS },
         deletes: [],
+        units: [],
+        scripts: new Map(),
       },
-      "source/x_same": { built: true, keys: null, deletes: [] },
+      "source/x_same": { built: true, keys: null, deletes: [], units: [], scripts: new Map() },
       "source/x_broken": { built: false, errors: [] },
     });
     expect(await writeFluentKeys(fluent, undefined)).toEqual({
@@ -69,8 +73,20 @@ describe("writing a Fluent project's generated keys (P5, spec 005)", () => {
 
   it("narrows to the projects holding the given paths", async () => {
     const { fluent, written } = fake({
-      "source/a": { built: true, keys: { committed: null, built: KEYS }, deletes: [] },
-      "source/b": { built: true, keys: { committed: null, built: KEYS }, deletes: [] },
+      "source/a": {
+        built: true,
+        keys: { committed: null, built: KEYS },
+        deletes: [],
+        units: [],
+        scripts: new Map(),
+      },
+      "source/b": {
+        built: true,
+        keys: { committed: null, built: KEYS },
+        deletes: [],
+        units: [],
+        scripts: new Map(),
+      },
     });
     const result = await writeFluentKeys(fluent, ["source/b/src/fluent/x.now.ts"]);
     expect(result.projects).toBe(1);

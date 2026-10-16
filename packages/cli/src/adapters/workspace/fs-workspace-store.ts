@@ -69,7 +69,8 @@ export class FsWorkspaceStore implements WorkspaceStore {
     if (process.platform === "darwin" || process.platform === "win32") {
       await runGitOrThrow(["config", "core.fsmonitor", "true"], directory);
     }
-    await runGitOrThrow(["add", MANIFEST_FILE, ".gitignore"], directory);
+    // The directory was empty: everything in it is the workspace's own (ADR-0014).
+    await runGitOrThrow(["add", "-A"], directory);
     const configured = (await runGit(["config", "user.email"], directory)).stdout.trim() !== "";
     const identity = configured
       ? []

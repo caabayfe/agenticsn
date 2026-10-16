@@ -59,7 +59,7 @@ export const adopt = defineUseCase({
       .describe("files a refresh left with conflict markers: resolve them as any git conflict"),
   }),
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: true },
-  mcp: false,
+  mcp: true,
   arguments: ["records"],
   async handle(input, context, run) {
     const records = input.records.map(targetOf);

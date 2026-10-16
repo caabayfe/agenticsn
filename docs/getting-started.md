@@ -113,7 +113,9 @@ snagentic pull dev --verify
 Records live in a flat layout:
 `instances/dev/metadata/<scope>/<class>/<name>--<sys_id>.yaml`, with scripts and other long
 fields in files next to them (`….script.js`) and child rows (flow steps, form layouts) in
-`….children.<table>.yaml`.
+`….children.<table>.yaml`. This mirror is **read-only**: it is the instance as last pulled, for
+searching, describing and reviewing. Changes are written as Fluent source (section 7); the hooks,
+`validate` and integrate keep the mirror as pull wrote it.
 
 ## 5. Update sets
 
@@ -139,18 +141,43 @@ retried automatically: if its outcome is unclear, snagentic tells you what to ch
 
 ## 7. Deliver changes to a development instance
 
-Edit records as files, check them, then plan and push:
+Changes are written in **Fluent**, the ServiceNow SDK's TypeScript, one project per application
+scope under `source/<scope>/` (ADR-0031). snagentic ships the SDK (4.13.6) inside the binary: no
+Node, no `node_modules`, no telemetry. `init` creates `source/global`; a scope's project appears
+when you first adopt one of its records.
 
 ```sh
-snagentic validate                      # findings the change introduced; fix every block
-snagentic plan-push                     # what would change, the gate, and collisions
+snagentic adopt --instance dev instances/dev/metadata/x_acme/sys_script_include/util--<sys_id>.yaml
+# edit source/x_acme/src/fluent/... and commit
+snagentic validate                      # builds the projects, checks what the change introduced
+snagentic plan-push                     # each unit the push would load, the gate, collisions
 snagentic push --instance dev --plan <planId> --confirm
-snagentic pull --instance dev && snagentic integrate dev
 ```
 
-`plan-push` compares the workspace with the instance as last pulled, and writes nothing. `push`
-writes only that plan, and stops if any record changed on the instance since the pull. Only
-development instances can be written.
+- **adopt** brings records the instance holds into source. The SDK converts them (it reads the
+  instance through snagentic's own connection, never with a credential of its own, ADR-0032),
+  snagentic builds the result and checks it would rebuild what the instance holds, then writes
+  the source and the project's `snagentic.ledger.yaml`. Name records by mirror path,
+  `table:sys_id` or sys_id. A difference beyond the SDK's known losses refuses the adoption;
+  records the SDK cannot express (such as table licensing configs) are reported and stay as they
+  are.
+- **New records** are written in Fluent directly: `Table`, `BusinessRule`, `ScriptInclude`,
+  `ClientScript`, `UiAction`, `UiPolicy`, `Acl`, `Role`, `List`, `Form` and the other typed APIs,
+  or `Record({ table, data })` for any table. Give every `$id` a stable `Now.ID['<name>']`, and
+  keep scripts in `Now.include('./<name>.server.js')` files.
+- **Deleting** is explicit: `Now.del('<table>', { <keys> })`. Removing a definition from source
+  deletes nothing, and the plan refuses it until you add the `Now.del` or restore it.
+- **plan-push** builds every project and compares each unit (one update: a record, or a list or
+  section with its rows) with the instance's live copy. It lists what each load changes and what
+  the SDK also sets (`losses`), and refuses a unit someone changed on the instance since it last
+  agreed with source (**drift**), a record you never adopted, and source not committed.
+- **push** loads each project's units into the branch's update sets with `fluent/load`, stamps
+  them as a save would, publishes flows, checks each was recorded and reads it back, then commits
+  the projects' ledgers. Only development instances can be written.
+- **Drift**: when someone changes an adopted record on the instance, pull it, then
+  `snagentic adopt --instance dev --refresh <record>`. It converts the instance's copy as of your
+  last ledger commit and merges it into your source as git merges: both sides kept, overlaps
+  marked as conflicts.
 
 Each branch, and so each pull request, gets its own **update set batch**: the update set
 `snagentic: <branch>` holds the global changes, with a child `snagentic: <branch> [<scope>]`
@@ -164,90 +191,59 @@ description. `--draft-pr` opens a draft pull request when the branch has none: c
 changes first, since it pushes the branch and the pull request must show what was pushed.
 Without `gh`, push works the same and says that no pull request is linked.
 
-### Choices, forms and lists
+### Generated keys
 
-A table's choices are mirrored beside its table record, in
-`<scope>/sys_db_object/<table>--<sys_id>.children.sys_choice.yaml`. Add a row with a new
-32-character sys_id and `name` set to the table, or change a row's fields. Push writes each
-choice after its table, and stops if it changed on the instance since the pull. It never removes
-one: set `inactive: 'true'` instead.
-
-Lists, forms, form sections and related lists are **layouts**: a record and its rows, pushed
-whole (ADR-0029, ADR-0030). The platform records a layout only as one composite update, so push
-loads each changed layout, with all its rows, into the update set, in position order:
-
-| Layout | Record | Rows |
-|---|---|---|
-| list | `<scope>/sys_ui_list/…` | `.children.sys_ui_list_element.yaml` (columns) |
-| form section | `<scope>/sys_ui_section/…` | `.children.sys_ui_element.yaml` (fields, splits) |
-| form | `<scope>/sys_ui_form/…` | `.children.sys_ui_form_section.yaml` (sections, in order) |
-| related lists | `<scope>/sys_ui_related_list/…` | `.children.sys_ui_related_list_entry.yaml` |
-
-- Removing a row removes it: a column, a field, a section from a form, a related list.
-- A new layout is a new record file with its rows file. Its view is `Default view`, or the
-  sys_id of a view in `global/sys_ui_view`.
-- A layout in a domain other than global is that domain's own layout of the table. Put it
-  under `domains/<domain>/` with `_meta.sys_domain` set; the plan names the domain.
-- Sections load before forms. A new section also needs a row in its form's file to show on the
-  form.
-- A layout's table, view and domain (and a section's caption) identify it and cannot be
-  changed.
-- An existing section's header, title and roles cannot be changed from git: the platform records
-  a section's fields, not these. Set them when you create the section, or on the instance.
-- Related lists come back from the instance under new sys_ids after every push: the platform
-  recreates them on each save. Pull and integrate follow that by themselves.
-- Not pushed: related list layouts of a list (`parent` or `relationship` set) and personal
-  layouts (`sys_user` set).
-
-Records of a class the platform does not record in update sets, such as scheduled jobs, are
-loaded the same way; the plan marks them `loaded`. Flow, workflow and variable-value child rows
-stay read-only. Choices arrive on the first pull after upgrading to this version.
+The SDK gives each new `Now.ID` a sys_id the first time it builds, in
+`src/fluent/generated/keys.ts`. You never write it by hand: the pre-commit hook (`snagentic agent
+install`) builds what is staged, writes the new IDs and adds the file to the commit. Without the
+hook, run `snagentic fluent-keys source/<scope>` and commit `keys.ts` with the source; `validate`,
+`plan-push` and CI block a project whose keys are missing.
 
 ### A new application
 
-A new feature belongs in its own scoped application. Create it from a file: add
-`<scope>/sys_app/<name>--<sys_id>.yaml` with `name`, `scope` and `version`, and put the
-application's records in the `<scope>` folder. The scope starts with `x_`, the instance's
-company code and `_`; the code is the value of `glide.appcreator.company.code`, which pull
-mirrors (`pull --full` once on a workspace pulled before this version). Push creates the
-application before anything else in its scope, in the scope's update set of the batch, and
-the next pull mirrors it (ADR-0025).
+A new feature belongs in its own scoped application. Add it to `source/global` as a
+`Record({ table: 'sys_app', data: { name, scope, version: '1.0.0' } })` and push it. The scope
+starts with `x_`, the instance's company code and `_`; the code is the value of
+`glide.appcreator.company.code`, which pull mirrors. Then create `source/<scope>/now.config.json`
+with the scope, the application's sys_id (from `source/global/src/fluent/generated/keys.ts`) and
+`"type": "configuration"`, and write the application's records there.
 
 ### Domains
 
 On a domain-separated instance (managed service providers run one domain per customer),
 `snagentic status` lists the instance's domains, and records outside global are mirrored under
-`domains/<domain sys_id>/<scope>/<class>/`. A record's domain is `_meta.sys_domain`; push writes
-it on every create (global when the file names none, never the session's domain), and changing
-it moves the record, which the plan shows (ADR-0027). Build an application's logic in global;
-use a customer's domain only for that customer's own changes.
+`domains/<domain sys_id>/<scope>/<class>/`. Build an application's logic in global; a customer's
+own change sets `$override: { sys_domain: '<domain sys_id>' }` on its definition (ADR-0027).
+`adopt` refuses a layout whose rows live in a domain the SDK would not keep.
 
 ### Flows
 
-Flows, subflows and custom actions are written in Fluent, the ServiceNow SDK's TypeScript
-language, and pushed like any other change (ADR-0028). snagentic ships the SDK's build (4.13.6)
-inside the binary: no Node and no `node_modules`, and no telemetry. Put each application's flows
-in a project under `source/<scope>/`:
+Flows, subflows and custom actions use `Flow`, `Subflow` and `Action` from
+`@servicenow/sdk/automation`. `push` loads them into the batch, publishes them, and checks the
+update set holds the published versions. A flow that already existed is inactive for a few
+seconds while it is redelivered: records created meanwhile do not trigger it. A flow in a domain
+the signed-in user is not in is refused by the plan, as the instance would not publish it.
 
-```text
-source/global/
-  now.config.json                 { "scope": "global", "scopeId": "global", "type": "configuration" }
-  package.json
-  src/fluent/page-on-call.now.ts  Flow, Subflow and Action from @servicenow/sdk/automation
-  src/fluent/generated/keys.ts    the sys_id of each Now.ID: commit it with the source
+### ACLs
+
+ACLs (`sys_security_acl`, with their roles) are authored in Fluent like any other record, and
+`push` loads them with no elevated session: the load route writes them as the platform does
+(ADR-0031, spike S16). `validate` checks ACLs: a write, create or delete ACL that nothing
+restricts, a deny ACL turned off or deleted, and admin overrides turned off.
+
+### Waivers
+
+Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. Only committed waivers
+apply, agents cannot edit the file, and the path must name a scope's source:
+
+```yaml
+waivers:
+  - rule: SN-MNT-001
+    path: source/x_acme/src/fluent/legacy-util.server.js
+    reason: Known group, replaced in STRY0012345
+    approver: lead@example.com
+    expires: 2027-03-31
 ```
-
-`validate` builds every project the change touches and reports build errors, IDs not yet in
-`keys.ts`, records the build would delete, and an SDK version other than snagentic's. You never
-write `keys.ts` by hand: when a commit adds a flow, the pre-commit hook (`snagentic agent
-install`) builds what is staged, writes the new IDs to `keys.ts` and adds it to the commit.
-Without the hook, run `snagentic fluent-keys source/<scope>` and commit `keys.ts` with the
-source; `validate`, `plan-push` and CI block a project whose keys are missing.
-`plan-push` lists each flow, subflow and action; `push` loads them into the batch, publishes them, and checks
-the update set holds the published versions. A flow that already existed is inactive for a few
-seconds while it is redelivered: records created meanwhile do not trigger it, which push reports.
-Mirrored flow records stay read-only; to keep a change made in Flow Designer, bring it back into
-the Fluent source.
 
 ### Accelerators
 
@@ -286,30 +282,12 @@ tables, in dependency order, never retrying, and stops after the first entity wi
 instance did not take. Loading again updates or leaves rows unchanged; it never duplicates them.
 On test and production, load the same templates on the instance itself.
 
-### ACLs
-
-ACLs (`sys_security_acl`, with their roles) are authored in Fluent like any other record, and
-`push` loads them into the update set with no elevated session: the load route writes them as
-the platform does (ADR-0031, spike S16). `validate` checks ACLs: a write, create or delete ACL
-that nothing restricts, a deny ACL turned off or deleted, and admin overrides turned off.
-
-Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. Only committed waivers
-apply, agents cannot edit the file, and the path must name an instance and a scope:
-
-```yaml
-waivers:
-  - rule: SN-MNT-001
-    path: instances/dev/metadata/global/sys_script_include/legacy-util--*.script.js
-    reason: Known group, replaced in STRY0012345
-    approver: lead@example.com
-    expires: 2027-03-31
-```
-
 ## 8. Use it from your coding agent
 
 snagentic serves its tools over MCP: `find`, `describe`, `advise` and `validate` for
-understanding and checking changes; `doctor`, `pull`, `status`, `update_sets`, `plugins`; and
-(when the workspace has a development instance) `plugin_activate`.
+understanding and checking changes; `pull`, `status`, `update_sets`, `plugins`, `accelerator`,
+`plan_push`; and, when the workspace has a development instance, `adopt`, `push` and
+`plugin_activate`. `doctor` checks a person's setup from the command line.
 
 Install the agent pack, once per workspace, and commit it so the whole team gets it:
 
@@ -325,8 +303,8 @@ looks), and registers the MCP server for **Claude Code** (`.mcp.json`) and **Git
 VS Code** (`.vscode/mcp.json`), next to any servers you already have there. Claude Code asks
 each user once to approve the project's server; VS Code shows it in the MCP server list.
 
-The skills are `servicenow-design` (agree a design before editing), `servicenow-build` (edit,
-then `validate` until clean), `servicenow-review`, `servicenow-explain` and
+The skills are `servicenow-design` (agree a design before editing), `servicenow-build` (adopt,
+edit the Fluent source, then `validate` until clean), `servicenow-review`, `servicenow-explain` and
 `servicenow-deliver` (plan, approval, push). Run `agent install` again after upgrading
 snagentic; `doctor` warns when the pack is from another version. In Claude Code the workflows
 are also slash commands: `/mcp__snagentic__design`, `/mcp__snagentic__review`,

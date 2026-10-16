@@ -10,7 +10,7 @@ Generated from the use-case registry; do not edit. Regenerate with `bun run docs
 snagentic init [path] [options]
 ```
 
-Create a snagentic workspace: a dedicated git repository with the standard layout for synced instance data. Run once per ServiceNow estate.
+Create a snagentic workspace: a dedicated git repository with the standard layout for synced instance data, and the Fluent project for global changes (source/global). Run once per ServiceNow estate.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
@@ -245,7 +245,7 @@ snagentic adopt <records...> [options]
 
 Bring records from a development instance into the workspace's Fluent source, to edit them there (ADR-0031). The SDK converts each record; snagentic builds the result and checks it would rebuild what the instance holds before writing anything. Writes source/<scope>/ and its ledger; commit them. Name records by mirror path, table:sys_id or sys_id.
 
-Changes the instance: **yes, development instances only**. MCP tool: none.
+Changes the instance: **yes, development instances only**. MCP tool: `adopt`.
 
 Options:
 
@@ -488,7 +488,7 @@ snagentic doctor [options]
 
 Check that snagentic can work: git, OS keychain and search index on this machine, and, with --instance, credentials, connection, roles and timestamp handling of an instance.
 
-Changes the instance: no. MCP tool: `doctor`.
+Changes the instance: no. MCP tool: none.
 
 Options:
 
@@ -547,6 +547,10 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `base` (string, optional): commit, branch or tag to compare with; findings already there are not reported
   - `instance` (string, optional): default: the workspace's only instance
   - `staged` (boolean, optional): check only what is staged for commit, as the index holds it (the pre-commit hook)
+- `adopt`: Bring records from a development instance into the workspace's Fluent source, to edit them there (ADR-0031). The SDK converts each record; snagentic builds the result and checks it would rebuild what the instance holds before writing anything. Writes source/<scope>/ and its ledger; commit them. Name records by mirror path, table:sys_id or sys_id.
+  - `instance` (string, required): the development instance the records are read from
+  - `records` (array, required): mirror paths, table:sys_id, or sys_ids
+  - `refresh` (boolean, optional): re-read adopted records changed on the instance, merged with local work as git merges
 - `plan_push`: Plan delivering the workspace's Fluent source to the instance: each unit (one update) that would be created, loaded or deleted, compared with the instance's live copy, the update sets it goes into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
   - `instance` (string, optional): default: the workspace's only instance
   - `label` (string, optional): names the update sets (default: the git branch)
@@ -578,5 +582,3 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `instance` (string, optional): check against this instance's mirrored plugins
   - `waves` (array, optional): install these waves (default: all)
   - `capabilities` (array, optional): install these capabilities
-- `doctor`: Check that snagentic can work: git, OS keychain and search index on this machine, and, with --instance, credentials, connection, roles and timestamp handling of an instance.
-  - `instance` (string, optional): also check this instance of the workspace

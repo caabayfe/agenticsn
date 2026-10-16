@@ -19,27 +19,27 @@ describe("workspace manifest", () => {
   });
 
   it("accepts a manifest with the current layout", () => {
-    expect(checkLayout({ layout: 1, createdWith: "snagentic 1.0.0" }).layout).toBe(1);
+    expect(checkLayout({ layout: 2, createdWith: "snagentic 2.0.0" }).layout).toBe(2);
   });
 
   it("asks to upgrade snagentic for a newer layout", () => {
-    expect(() => checkLayout({ layout: 2, createdWith: "x" })).toThrow(WorkspaceLayoutError);
+    expect(() => checkLayout({ layout: 3, createdWith: "x" })).toThrow(WorkspaceLayoutError);
     try {
-      checkLayout({ layout: 2, createdWith: "x" });
+      checkLayout({ layout: 3, createdWith: "x" });
     } catch (error) {
       expect((error as WorkspaceLayoutError).hint).toContain("upgrade snagentic");
     }
   });
 
-  it.each([{ layout: 0 }, {}, null, "layout: 1", { layout: "1" }])(
-    "asks to run migrate for an older or unreadable manifest %p",
+  it.each([{ layout: 1 }, { layout: 0 }, {}, null, "layout: 2", { layout: "2" }])(
+    "asks for a new workspace for an older or unreadable manifest %p",
     (manifest) => {
       try {
         checkLayout(manifest);
         throw new Error("expected a layout error");
       } catch (error) {
         expect(error).toBeInstanceOf(WorkspaceLayoutError);
-        expect((error as WorkspaceLayoutError).hint).toContain("snagentic migrate");
+        expect((error as WorkspaceLayoutError).hint).toContain("snagentic init");
       }
     },
   );

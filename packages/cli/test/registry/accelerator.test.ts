@@ -138,7 +138,7 @@ describe("accelerator use cases", () => {
     };
     const workspaces = {
       ...context.workspaces,
-      readManifest: async () => ({ layout: 1, createdWith: "test" }),
+      readManifest: async () => ({ layout: 2, createdWith: "test" }),
     };
     const adding = {
       ...context,

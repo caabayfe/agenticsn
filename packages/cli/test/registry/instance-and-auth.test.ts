@@ -44,7 +44,7 @@ async function setup() {
   temporary.push(base);
   const root = join(base, "workspace");
   const workspaces = new FsWorkspaceStore();
-  await workspaces.create(root, { layout: 1, createdWith: "test" });
+  await workspaces.create(root, { layout: 2, createdWith: "test" });
   const credentials = memoryCredentials();
   const roles = ["admin"];
   const prompts: string[] = [];

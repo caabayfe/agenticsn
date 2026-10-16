@@ -30,7 +30,7 @@ export async function instanceWorkspace(
 ) {
   const base = await mkdtemp(join(tmpdir(), "snagentic-workspace-"));
   const root = join(base, "w");
-  await new FsWorkspaceStore().create(root, { layout: 1, createdWith: "test" });
+  await new FsWorkspaceStore().create(root, { layout: 2, createdWith: "test" });
   const profiles = new YamlProfileStore();
   await profiles.write(
     root,

@@ -34,7 +34,7 @@ describe("fluent-keys (P5, spec 005)", () => {
       ...FAKE_CONTEXT,
       workspaces: {
         ...FAKE_CONTEXT.workspaces,
-        readManifest: async () => ({ layout: 1, createdWith: "test" }),
+        readManifest: async () => ({ layout: 2, createdWith: "test" }),
       },
       fluentProjects: (_root: string, options?: { readonly staged?: boolean }) => {
         opened.push(options);

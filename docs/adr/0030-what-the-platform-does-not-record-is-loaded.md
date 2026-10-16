@@ -1,6 +1,6 @@
 # 0030. What the platform does not record is loaded as the update it records
 
-- Status: Proposed
+- Status: Superseded by 0031 (2026-10-16): everything is loaded; its findings stay (push stamps loads, item 5; domain queries, item 9)
 - Date: 2026-10-16
 - Requirements: ASR-01, ASR-02, ASR-13, ASR-16
 - Amends: 0025 (items 3 and 4: form layouts and related lists), 0029 (generalizes it)

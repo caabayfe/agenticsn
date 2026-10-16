@@ -1,6 +1,6 @@
 # 0024. ACLs are written through an elevated browser session
 
-- Status: Accepted
+- Status: Superseded by 0031 (2026-10-16): ACLs are loaded like any other record, with no elevated session (spike S16 F2)
 - Date: 2026-10-12
 - Requirements: ASR-01, ASR-02, ASR-03, ASR-05, ASR-08, ASR-16
 - Amends: 0010 (v1 scope)

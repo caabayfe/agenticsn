@@ -1,6 +1,6 @@
 # 008. Fluent as the only way to author changes: architecture and migration plan
 
-- Status: Proposed, for the product owner's review
+- Status: In progress. M0 done (S17); M1 and M2 implemented and tested live on pdi2 (2026-10-16)
 - Date: 2026-10-16
 - Decisions: ADR-0031, ADR-0032 and ADR-0033, all accepted 2026-10-16. Spike S17 done (M0)
 - Evidence: `analysis.md` (this folder), spike S16 (`tools/spikes/s16-fluent-authoring/README.md`)

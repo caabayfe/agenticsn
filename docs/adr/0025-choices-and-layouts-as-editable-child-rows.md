@@ -1,6 +1,6 @@
 # 0025. Choice lists, form and list layouts, and applications are delivered from files
 
-- Status: Accepted (amended by 0028)
+- Status: Superseded by 0031 (2026-10-16) for authoring: choices, layouts and applications are Fluent source; the mirror's child rows are read-only
 - Date: 2026-10-13
 - Requirements: ASR-01, ASR-02, ASR-05, ASR-16
 - Amends: 0017 (flat record layout and full sync), spec 004 (plan and push)

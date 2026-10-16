@@ -4,28 +4,52 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
-### Fixed
+## [2.0.0] - 2026-10-17
 
-- Everything push writes now travels with the update set (ADR-0029, ADR-0030). The platform
-  never records list layouts, form sections, related lists or scheduled jobs written through
-  the Table API, so these reached the development instance but not the batch, and form sections
-  were even reported as captured. Push now loads each of them as the update the platform
-  records, through the Fluent load route, in the form the ServiceNow SDK builds (related lists
-  in the platform's own form). It reads from the instance which classes need it.
-- A load is stamped like a write (modification count and time), so the next pull sees it, and
-  counts as captured only when it recorded a new update.
-- Pull keeps related lists in step: the platform gives them new sys_ids on every save, and pull
-  no longer keeps the old file. Integrate pairs a pushed related list with the instance's copy.
-- Pull no longer misses form sections in a customer domain changed on the instance.
+Changes are authored in **Fluent**, the ServiceNow SDK's TypeScript, and every write is loaded
+the way the platform records it (ADR-0031, ADR-0032, ADR-0033, spec 008). The workspace layout
+changes: create a new workspace (`snagentic init`), add the instances and pull.
+
+### Added
+
+- `adopt` (MCP tool `adopt`): brings records the instance holds into Fluent source under
+  `source/<scope>/`. The embedded SDK converts them; snagentic builds the result and checks it
+  would rebuild what the instance holds, beyond the SDK's known losses, before writing the
+  source and the project's `snagentic.ledger.yaml`. Records the SDK cannot express are named and
+  left as they are.
+- `adopt --refresh`: brings an instance edit into source, converting as of the last ledger
+  commit and merging with local work as git merges.
+- The SDK runs inside snagentic, behind snagentic's own connection: every request goes through
+  the request scheduler, only reads are allowed, and the SDK never holds a credential.
+- `tests/live/fluent-round-trip.test.ts`: adopt, create, update, drift, refresh and delete on a
+  development instance.
 
 ### Changed
 
-- Lists, forms, form sections and related lists are pushed whole, each as one change in the
-  plan with its rows in order. Removing a row removes it, including a section from a form.
-- The plan refuses what would not travel: an existing section's header, title or roles, related
-  list layouts of a list, personal layouts, and changes to a layout's table, view or domain.
-- Records the platform does not record in update sets, such as scheduled jobs, are marked
-  `loaded` in the plan.
+- **The mirror is read-only.** Pull writes it; `check`, the hooks and `validate` (SN-MNT-013)
+  refuse edits; integrate takes the instance's copy and names any local edit it discards.
+- `plan-push` builds every project and compares each unit (one update) with the instance's
+  live copy: it lists what each load changes and what the SDK also sets, and refuses drift,
+  records never adopted, definitions removed without `Now.del`, uncommitted source, and flows in
+  another domain than the signed-in user's.
+- `push` loads each project's units with `fluent/load` into the branch's update sets, stamps
+  them as a save would, publishes flows, checks capture, reads every unit back, and commits the
+  ledgers.
+- `validate` builds the touched projects and runs the record rules, the script rules and the
+  ACL checks on what the change added or edited, pointing script findings at the `Now.include`
+  file and line. Waivers name `source/<scope>/` paths.
+- `integrate` reports adopted units changed on the instance (drift).
+- Accelerator packs ship Fluent source and lists of records to adopt (ADR-0026 amended).
+- `init` creates `source/global`. `check` only guards which files may be edited. `doctor` is a
+  CLI command only; `adopt` takes its MCP place (13 tools).
+- ACLs are loaded like any other record.
+
+### Removed
+
+- Editing mirrored YAML and pushing it through the Table API, with the record and child-row
+  routing, the hand-built layout writers and the record-aware merge fix-ups of integrate.
+- The elevated browser session for ACLs (ADR-0024): `auth login --allow-elevation`,
+  `SNAGENTIC_<NAME>_ALLOW_ELEVATION`, and the `playwright-core` dependency.
 
 ## [1.8.0] - 2026-10-15
 

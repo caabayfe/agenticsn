@@ -1,6 +1,6 @@
 # 008. Fluent as the only way to author changes: analysis
 
-- Status: Draft, for the product owner's decision with ADR-0031; spikes F1–F4 done (S16)
+- Status: Done. ADR-0031 accepted 2026-10-16; the migration is planned in `plan.md`
 - Date: 2026-10-16
 - Asked by: the product owner (2026-10-16): "move all the logic to the Fluent SDK … if this
   changes the current sync, or the repo structure I am fine … a consistent way to interact with

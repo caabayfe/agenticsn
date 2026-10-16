@@ -1,6 +1,7 @@
 # 0031. Changes are authored in Fluent; the mirror is read-only
 
-- Status: Proposed. Spikes F1–F4 passed on pdi2 (S16, 2026-10-16); awaiting the product owner
+- Status: Accepted (product owner, 2026-10-16), after spikes F1–F4 passed on pdi2 (S16). Plan:
+  `specs/008-fluent-authoring/plan.md`; the SDK's instance access in 0032, plans and bases in 0033
 - Date: 2026-10-16
 - Requirements: G1, ASR-01, ASR-02, ASR-03, ASR-05, ASR-13
 - Supersedes, when accepted: the editing half of 0025 and 0017 (YAML records as the authoring

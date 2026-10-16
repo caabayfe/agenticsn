@@ -9,7 +9,11 @@ import type { FluentBuildOutcome, FluentRuntime } from "../../../src/adapters/fl
 function fakeRuntime(
   build: (projectDir: string) => FluentBuildOutcome,
 ): () => Promise<FluentRuntime> {
-  return async () => ({ sdkVersion: "9.9.9", build: async (dir) => build(dir) });
+  return async () => ({
+    sdkVersion: "9.9.9",
+    build: async (dir) => build(dir),
+    transform: async () => ({ success: false, message: "not used" }),
+  });
 }
 
 const built: FluentBuildOutcome = { success: true, records: [PROBE_RECORD] };

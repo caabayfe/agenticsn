@@ -200,6 +200,21 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     return this.result(response, what, method === "POST" ? "write" : "read", post.answers);
   }
 
+  // A request made on behalf of the embedded SDK (ADR-0032): signed and scheduled like every
+  // other, answered as it came, for the SDK to read. The connector checks the route first.
+  async exchange(
+    request: { readonly method: "GET" | "POST"; readonly url: string; readonly body?: string },
+    signal: AbortSignal,
+  ): Promise<{ readonly status: number; readonly contentType: string; readonly text: string }> {
+    const url = new URL(request.url, this.profile.url);
+    const type = request.method === "POST" ? { "Content-Type": "application/json" } : {};
+    const body = request.body === undefined ? {} : { body: request.body };
+    const send = { method: request.method, url: url.href, headers: { ...this.headers, ...type } };
+    const response = await this.scheduler.send({ ...send, ...body }, signal);
+    const contentType = response.headers.get("content-type") ?? "application/json";
+    return { status: response.status, contentType, text: await response.text() };
+  }
+
   private async aggregate(
     table: TableName,
     params: Record<string, string>,

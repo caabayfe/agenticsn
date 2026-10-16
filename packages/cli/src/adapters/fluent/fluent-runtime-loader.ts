@@ -20,7 +20,9 @@ function isRuntime(value: unknown): value is FluentRuntime {
     "sdkVersion" in value &&
     typeof value.sdkVersion === "string" &&
     "build" in value &&
-    typeof value.build === "function"
+    typeof value.build === "function" &&
+    "transform" in value &&
+    typeof value.transform === "function"
   );
 }
 

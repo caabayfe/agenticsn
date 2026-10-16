@@ -4,7 +4,7 @@
 export { readUnits } from "./application/read-units";
 export { compareUnit, type Difference } from "./domain/compare";
 export { unitDigest } from "./domain/digest";
-export { UnreadableBuildError } from "./domain/errors";
+export { SdkRouteRefusedError, UnreadableBuildError } from "./domain/errors";
 export {
   EMPTY_LEDGER,
   InvalidLedgerError,
@@ -21,6 +21,7 @@ export {
   type LossId,
 } from "./domain/losses";
 export { planUnit, type UnitDecision } from "./domain/plan-unit";
+export { sdkRouteAllowed } from "./domain/sdk-routes";
 export {
   type BuiltUnit,
   type Fields,

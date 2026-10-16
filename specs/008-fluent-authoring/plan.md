@@ -2,7 +2,7 @@
 
 - Status: Proposed, for the product owner's review
 - Date: 2026-10-16
-- Decisions: ADR-0031 (accepted 2026-10-16), ADR-0032 and ADR-0033 (proposed with this plan)
+- Decisions: ADR-0031, ADR-0032 and ADR-0033, all accepted 2026-10-16. Spike S17 done (M0)
 - Evidence: `analysis.md` (this folder), spike S16 (`tools/spikes/s16-fluent-authoring/README.md`)
 - Requirements: G1, G3, ASR-01, ASR-02, ASR-03, ASR-04, ASR-09, ASR-13, ASR-16
 - Release: 2.0.0. The workspace format changes. Nobody uses snagentic yet (product owner,
@@ -161,6 +161,8 @@ record of that scope.
 
 - the Table API writer, `change.ts`, `child-rows.ts` and `write-order.ts` ranking;
 - `plan-routes.ts`, `recording.ts` and the dictionary reads;
+- every Table API write of metadata. The Table API stays for session bookkeeping only: update
+  sets, preferences, and moving an update between sets (S17 G2);
 - the layout writers, about 1,000 lines;
 - `record-update.ts`;
 - the elevated session and the browser sign-in (ADR-0024), plus the ACL elevation checks.
@@ -244,7 +246,19 @@ pack today is a test fixture, so nothing needs converting.
 | 0026 | Amended: accelerator content is Fluent |
 | 0002, 0010 | Amended: `adopt` in scope and in the MCP budget, plugin tools merged |
 
-## 4. Spike S17 (pdi2, about 1.5 days, before M1)
+## 4. Spike S17 (pdi2, before M1): done
+
+Results are in `tools/spikes/s17-sdk-connector/README.md`:
+
+- **G1 passed:** 137 records, 5 requests, one read route.
+- **G2 passed:** a new application is a `Record('sys_app')` in the global project.
+- **G3:** source is stable on refresh; `keys.ts` toggles `deleted` flags.
+- **G4:** store applications are refused in 2.0.
+- **G5:** a build takes 3 s.
+- **Found:** one stale mirror record fails a whole transform batch, so `adopt` checks that its
+  records exist first.
+
+The questions as planned:
 
 | # | Question | Decides |
 |---|---|---|

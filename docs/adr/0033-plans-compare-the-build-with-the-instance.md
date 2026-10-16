@@ -1,6 +1,6 @@
 # 0033. Plans compare the build with the instance; owned records have a base
 
-- Status: Proposed
+- Status: Accepted (product owner, 2026-10-16)
 - Date: 2026-10-16
 - Requirements: ASR-02 (write safety), ASR-10 (reviewability), ASR-13 (determinism)
 - Relates to: 0031 (Fluent authoring), 0030 (stamping), 0027 (domains), spec 004 (plan and push)
@@ -22,8 +22,9 @@ instance edits.
 
 1. **A plan is the effect on the instance.** Plan builds the changed projects and compares each
    built record with its mirror copy, after a normalization the platform agrees with: natural
-   keys for child rows, layouts as ordered element lists, placeholder ids by view name. Only built
-   files with a real difference are loaded.
+   keys for child rows, layouts as ordered element lists, placeholder ids by view name. A field the
+   build omits is unmanaged: a load leaves it untouched (S17). Only built files with a real
+   difference are loaded.
 2. **Each owned record has a base,** per development instance, in
    `source/<scope>/snagentic.ledger.yaml`. The base is the mirror hash when the record was
    adopted, refreshed, or confirmed after a push.

@@ -227,8 +227,9 @@ A pack becomes:
 - adopt lists of out-of-box records it customizes, with the change as Fluent edits;
 - CSV data, unchanged.
 
-`accelerator add` copies the source into the workspace and adopts the listed records. The only
-pack today is a test fixture, so nothing needs converting.
+`accelerator add` copies the source into the workspace and lists the records to adopt, each with
+the change to make, as next steps (adopting reads the instance; `add` only writes the
+workspace). The only pack today is a test fixture, converted.
 
 ## 3. ADRs
 

@@ -1,6 +1,7 @@
 # 0026. Accelerators are versioned content packs, installed through the existing flow
 
-- Status: Accepted (product owner, 2026-10-13); amended 2026-10-14 (pack location, below)
+- Status: Accepted (product owner, 2026-10-13); amended 2026-10-14 (pack location, below);
+  amended by ADR-0031 (content is Fluent; customizations are adopted, below)
 - Date: 2026-10-13
 - Requirements: ASR-01, ASR-02, ASR-03, ASR-08, ASR-09, ASR-11, ASR-15, ASR-16; goal G1
 - Amends: 0002 (MCP budget 12 → 13), 0010 (adds accelerators to scope)
@@ -183,3 +184,27 @@ Pack location. Generic first-party packs live in `packages/accelerators/<id>/` a
 can move to a private repository as a whole: nothing outside it references its contents except
 the build's list of pack directories, and nothing inside it references paths outside it; a test
 enforces both. Moving it out later needs packs from a path, which this ADR deferred.
+
+## Amendment (ADR-0031)
+
+All authoring moved to ServiceNow Fluent, and the mirror became read-only (ADR-0031). A pack's
+content follows: it no longer ships records in the mirror's layout or patches to mirrored
+records.
+
+```
+accelerator.yaml                  manifest: capabilities, waves, plugins, data (unchanged)
+source/<capability>/<scope>/...   Fluent project files, copied to the workspace's source/<scope>/
+adopt/<capability>.yaml           out-of-box records the capability customizes: a list of
+                                  { table, sys_id, note }, the note saying what to change
+data/<entity>.csv                 data templates (unchanged)
+```
+
+- `accelerator add` copies the selected capabilities' source into the workspace's projects, on
+  the pack branch as before, and lists the records to adopt as next steps: the user runs
+  `adopt` on each, then makes the change its note describes, in Fluent. Customizations are
+  edits to adopted source, reviewed and gated like any other; snagentic never writes a field
+  of an out-of-box record on its own.
+- The gate's check (SN-MNT-012) works per project: a project with planned units that a
+  capability ships files into, while that capability is not ready, is blocked.
+- A pack still holding `metadata/` or `patches/` (format 1) is refused with the new layout as
+  the remedy. Nothing was converted: the only pack was a test fixture.

@@ -247,25 +247,28 @@ waivers:
 
 ### Accelerators
 
-An accelerator pack is a ready-made set of records and data templates for one product area, in
-capabilities you install wave by wave (ADR-0026). snagentic never activates plugins or loads data
-on its own, and a pack's records go through `validate`, `plan-push` and `push` like your own:
+An accelerator pack is ready-made Fluent source and data templates for one product area, in
+capabilities you install wave by wave (ADR-0026, ADR-0031). snagentic never activates plugins or
+loads data on its own, and a pack's source goes through `validate`, `plan-push` and `push` like
+your own:
 
 ```sh
 snagentic accelerator list
 snagentic accelerator check <pack> dev     # each capability: ready, needs-plugins, not-entitled or blocked
-snagentic accelerator add <pack> dev       # writes the files, on the branch accelerator/<pack>/dev, merged here
+snagentic accelerator add <pack> dev       # writes source/<scope>/..., on the branch accelerator/<pack>/dev, merged here
+snagentic adopt --instance dev <table>:<sys_id>   # for each record add lists, then edit it as its note says
 snagentic validate && snagentic plan-push  # then push as usual
 ```
 
 `check` reads the mirrored plugin list, so pull after activating a plugin; for a capability that
 is not ready it prints the commands that make it ready. `add` refuses until every selected
 capability is ready and the latest pull is integrated (`--waves` or `--capabilities` select
-fewer). It copies the pack's new records and applies its patches to the mirrored out-of-box
-records; it never writes a field pull does not mirror, such as a property that may hold a
-secret. Adding the same version again changes nothing. A later version merges with your edits:
-conflicts are left for you, and a record the new version no longer ships is kept and reported,
-never deleted. The gate blocks a planned write of a capability that is no longer ready
+fewer). It copies the pack's Fluent source into the projects under `source/`, and lists the
+out-of-box records the pack customizes: adopt each one, then make the change its note
+describes in the adopted source. snagentic never changes an out-of-box record for you. Adding
+the same version again changes nothing. A later version merges with your edits: conflicts are
+left for you, and a file the new version no longer ships is kept and reported, never deleted.
+The gate blocks a planned project that a capability no longer ready ships source into
 (SN-MNT-012).
 
 The pack's data (groups, locations, offerings) comes as CSV templates, one per entity. Fill

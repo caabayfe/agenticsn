@@ -111,3 +111,20 @@ describe("fromCommit", () => {
     ).rejects.toThrow();
   });
 });
+
+// Names and paths come from the instance and the SDK: none may point outside the project.
+describe("WorkspaceAuthoring: paths", () => {
+  it("never scaffolds a project outside source/", async () => {
+    const { authoring } = await repository();
+    await expect(authoring.scaffold({ name: "../outside", sysId: "b".repeat(32) })).rejects.toThrow(
+      /outside/,
+    );
+  });
+
+  it("never writes a file outside its project", async () => {
+    const { root, authoring, project } = await repository();
+    const writing = authoring.writeFiles(project, new Map([["../../escaped.txt", "x"]]));
+    await expect(writing).rejects.toThrow(/outside/);
+    expect(() => readFileSync(join(root, "escaped.txt"), "utf8")).toThrow();
+  });
+});

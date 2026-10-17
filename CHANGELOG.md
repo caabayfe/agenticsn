@@ -6,6 +6,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- `adopt` brings in UI policies whose actions have an empty message type: three in four on a
+  PDI failed to build, because the SDK converts the empty type to a value its own types reject.
+  The converted source now says `none`, which the load writes for the empty value (spec 009 X4).
+- `adopt` refuses a script include whose access is empty, with what to set on the instance, rather
+  than failing to build: the SDK would have to choose who may call it.
 - A change to a script include's `protectionPolicy` or `useEsLatest` alone is now delivered.
   Plans ignored `sys_policy` and never compared the ES-latest row the SDK writes inside the
   script include's update, so they recorded the ledger and loaded nothing (spec 009 B1). The

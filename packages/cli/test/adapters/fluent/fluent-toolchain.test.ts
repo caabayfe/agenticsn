@@ -11,19 +11,20 @@ import { SDK_BUILD_TIMEOUT } from "../../support/sdk-contract";
 
 const SCOPE = { name: "x_2222332_s11", sysId: "489da54ae67c4a3e9f1e1e4347e9119b" };
 const project = { path: `source/${SCOPE.name}`, scope: SCOPE.name, scopeId: SCOPE.sysId };
-const RECORDING = join(
-  import.meta.dir,
-  "../../../../../tests/fixtures/sdk/transform/script-include-pdi2.json",
-);
+const FIXTURES = join(import.meta.dir, "../../../../../tests/fixtures/sdk/transform");
+const RECORDING = join(FIXTURES, "script-include-pdi2.json");
 
-function workspace(source?: string) {
+// The recorded global records convert into a global project.
+const GLOBAL = { path: "source/global", scope: "global", scopeId: "global" };
+
+function workspace(source?: string, into = project) {
   const root = mkdtempSync(join(tmpdir(), "snagentic-toolchain-"));
-  const dir = join(root, project.path);
+  const dir = join(root, into.path);
   mkdirSync(join(dir, "src/fluent"), { recursive: true });
   const config = {
-    scope: SCOPE.name,
-    scopeId: SCOPE.sysId,
-    name: SCOPE.name,
+    scope: into.scope,
+    scopeId: into.scopeId,
+    name: into.scope,
     type: "configuration",
   };
   writeFileSync(join(dir, "now.config.json"), JSON.stringify(config));
@@ -108,6 +109,50 @@ describe("SdkToolchain", () => {
         },
       );
       expect(refused.ok).toBe(false);
+    },
+    SDK_BUILD_TIMEOUT,
+  );
+
+  // Spec 009 X4: recorded from pdi2, where 4,776 of 5,350 policy actions have an empty type.
+  it(
+    "builds a converted UI policy whose actions have an empty message type",
+    async () => {
+      const { root } = workspace(undefined, GLOBAL);
+      const recording = JSON.parse(
+        readFileSync(join(FIXTURES, "ui-policy-empty-message-type-pdi2.json"), "utf8"),
+      );
+      const access = {
+        host: "https://instance.example.com/",
+        exchange: async () => recording.exchanges[0].answer,
+      };
+      const outcome = await new SdkToolchain(root, loadFluentRuntime).draftTransform(
+        GLOBAL,
+        recording.records,
+        access,
+      );
+      if (!outcome.ok) throw new Error(outcome.message);
+      expect(outcome.draft.after.some((u) => u.head.table === "sys_ui_policy_action")).toBe(true);
+    },
+    SDK_BUILD_TIMEOUT,
+  );
+
+  it(
+    "refuses a converted script include whose access is empty, before building",
+    async () => {
+      const { root } = workspace(undefined, GLOBAL);
+      const recording = JSON.parse(
+        readFileSync(join(FIXTURES, "script-include-empty-access-pdi2.json"), "utf8"),
+      );
+      const access = {
+        host: "https://instance.example.com/",
+        exchange: async () => recording.exchanges[0].answer,
+      };
+      const outcome = await new SdkToolchain(root, loadFluentRuntime).draftTransform(
+        GLOBAL,
+        recording.records,
+        access,
+      );
+      expect(outcome).toEqual({ ok: false, message: expect.stringContaining("Accessible from") });
     },
     SDK_BUILD_TIMEOUT,
   );

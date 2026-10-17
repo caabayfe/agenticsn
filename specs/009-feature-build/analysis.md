@@ -89,10 +89,10 @@ unmodelled columns are dropped and left unmanaged: `includes_roles`, `sys_policy
 
 | Class | Defect | pdi2 records |
 |---|---|---|
-| UI policy | action `field_message_type: ''` → type error | 2,285 of 3,035 policies |
+| UI policy | action `field_message_type: ''` → type error; *fixed: source says `none`, a named loss (11 of 11 checked live adopt)* | 2,285 of 3,035 policies |
 | Role (global) | `suffix` recomputed as the whole name | 632 of 646 global roles |
 | UI policy | `ui_type` dropped when `run_scripts=false` | 176 |
-| Script include | `access: ''` → type error | 47 |
+| Script include | `access: ''` → type error; *now refused with what to set (all 47 are global)* | 47 |
 | ACL | `advanced=true` with no script → `false` | 56 |
 | UI action | workspace flag combination → build error | 6 |
 | Inbound action | `action: ''` → `record_action` | 1 |

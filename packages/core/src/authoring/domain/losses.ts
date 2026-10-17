@@ -26,6 +26,12 @@ const API_DEFAULTS: ReadonlySet<string> = new Set([
   "sys_dictionary.calculation",
 ]);
 
+// Fields the conversion fixes write as the API's default where the instance holds nothing
+// (conversion-fixes.ts): only that empty value is the loss, never a value the source changed.
+const EMPTY_DEFAULTS: Readonly<Record<string, string>> = {
+  "sys_ui_policy_action.field_message_type": "none",
+};
+
 const SPLIT_MARKERS = /^(\.begin_split|\.split|\.end_split)\|/;
 const SYS_ID = /^[0-9a-f]{32}$/;
 const withoutSpace = (value: string) => value.replace(/\s+/g, "");
@@ -40,7 +46,9 @@ function rowsLoss(difference: Extract<Difference, { kind: "rows" }>): LossId | n
 }
 
 function fieldLoss(difference: Extract<Difference, { kind: "field" }>): LossId | null {
-  if (API_DEFAULTS.has(`${difference.table}.${difference.field}`)) return "api-default";
+  const key = `${difference.table}.${difference.field}`;
+  if (API_DEFAULTS.has(key)) return "api-default";
+  if (difference.instance === "" && EMPTY_DEFAULTS[key] === difference.built) return "api-default";
   if (
     SYS_ID.test(difference.instance) &&
     difference.built !== "" &&

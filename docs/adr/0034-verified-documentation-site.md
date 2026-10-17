@@ -9,6 +9,8 @@
   0016 (instance load), 0017 (mirror paths)
 - Plan: `specs/010-verified-documentation/plan.md`
 - Assessment: `specs/prodvision/documentation.md` (branch `docs/product-vision`)
+- Proposed amendment: `specs/010-verified-documentation/audiences.md` (decision 2: four
+  sections for end users, operators and the platform team; awaiting the product owner)
 
 ## Context
 

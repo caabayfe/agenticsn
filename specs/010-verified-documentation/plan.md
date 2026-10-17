@@ -1,6 +1,6 @@
 # 010. Verified documentation site: plan
 
-- Status: P1, P2 and P3 done (2026-10-17); P4 next
+- Status: P1, P2 and P3 done (2026-10-17); three audiences proposed (`audiences.md`), then P4
 - Date: 2026-10-17
 - Decision: ADR-0034
 - Requirements: G2, G3, ASR-01, ASR-08, ASR-09, ASR-10, ASR-13, ASR-15
@@ -113,6 +113,7 @@ Rules kept from the original:
 | **P1 Site** | Formats; `docs check`, `docs pin`, `docs build`, `docs serve`; silent player; skill | A sample workspace builds; a changed mirror record fails `docs check`; the site opens from a dummy server |
 | **P2 Audio** | ffmpeg adapter; the mix in pure TypeScript (timeline, RMS levels, ducking, fades, limiter) with the original parameters; synthesised default effects and bed, or configured assets; voice port with Piper and OS voice adapters; `--audio`, `--voice` | Without voice: music and effects follow the estimated timeline. With voice: timing comes from the clips. Golden test on the timeline and the sample arithmetic |
 | **P3 Video** | `docs video <animation>`: the player rendered in a headless browser (system Chrome over CDP), frames to ffmpeg, muxed with the P2 track, MP4 H.264 | Spike S20 first: deterministic frame stepping versus screencast |
+| **A1–A4 Audiences** | Understand, Use, Operate and Configure sections (`audiences.md`, proposed) | See `audiences.md` §6 |
 | **P4 Gate** | Doc findings in `validate` (CI, pre-commit, push gate); coverage of customisations without pages; Steward drafts page updates | A pull request that changes an anchored record shows the stale page |
 
 ## 4a. Audio (P2, done)

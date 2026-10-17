@@ -5,6 +5,7 @@ import type {
   CredentialStore,
   DataTemplates,
   DeliveryWorkspace,
+  DocumentationSources,
   EnvironmentProbe,
   FluentInstaller,
   FluentProjects,
@@ -18,10 +19,13 @@ import type {
   InstanceWriter,
   InventoryReader,
   KnowledgeStore,
+  MarkdownRenderer,
+  MediaTools,
   MirrorFiles,
   MirrorInspector,
   MirrorIntegrator,
   MirrorMode,
+  MirrorRecords,
   PackSource,
   PackWorkspace,
   PluginActivator,
@@ -31,6 +35,7 @@ import type {
   ReleaseSource,
   SdkAccess,
   ServerCostReader,
+  SiteOutput,
   SyncStateStore,
   TableStatistics,
   ValidateDependencies,
@@ -139,6 +144,17 @@ export interface UseCaseContext {
   readonly clock: () => Date;
   readonly sleep: (milliseconds: number, signal: AbortSignal) => Promise<void>;
   readonly host: HostEnvironment;
+  // The workspace's documentation, the mirrors it is checked against and its built site
+  // (ADR-0034).
+  readonly documentation: (root: string) => {
+    readonly sources: DocumentationSources;
+    readonly mirror: (instance: string) => MirrorRecords;
+    readonly markdown: MarkdownRenderer;
+    readonly output: SiteOutput;
+    readonly media: MediaTools;
+    // Serves the built site on 127.0.0.1 until the signal is cancelled.
+    serve(port: number, signal: AbortSignal, ready: (url: string) => void): Promise<void>;
+  };
   // The running binary and the project's releases, for `upgrade` (ADR-0023).
   readonly upgrade: {
     readonly releases: ReleaseSource;

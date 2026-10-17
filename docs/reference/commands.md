@@ -197,7 +197,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic validate [paths...] [options]
 ```
 
-Build the Fluent source the change touched and check what it adds or edits against the platform rules (security, performance, upgradability, manageability, user experience), reporting only what the change introduced, with rule id, file, line, why and remediation; edits to the read-only mirror are refused. By default checks every project changed since HEAD; give paths to check those projects, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
+Build the Fluent source the change touched and check what it adds or edits against the platform rules (security, performance, upgradability, manageability, user experience), reporting only what the change introduced, with rule id, file, line, why and remediation; edits to the read-only mirror are refused, and documentation pages citing a changed record, or out of date with the mirror, are named. By default checks every project changed since HEAD; give paths to check those projects, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
 
 Changes the instance: no. MCP tool: `validate`.
 
@@ -480,6 +480,82 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `docs check`
+
+```
+snagentic docs check [options]
+```
+
+Check the workspace's documentation (documentation/) against the instance's mirror: evidence whose record changed or is gone, citations of unknown evidence, missing animations, and the sections: shared pages, end user and operator guides, configure pages. Exits 1 when a page is no longer true or a source has an error. Reads only the mirror.
+
+Changes the instance: no. MCP tool: none.
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `docs pin`
+
+```
+snagentic docs pin [page] [options]
+```
+
+Record the mirror's current hash in the evidence of the documentation pages (all, or a page by path, a process, or <process>/<topic>). Run it only after re-verifying the claims the evidence supports. Lists evidence whose record is gone: those claims must be rewritten.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `docs build`
+
+```
+snagentic docs build [options]
+```
+
+Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate). --audio adds music and sound effects to the animations, --voice piper|system also narrates them.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--audio`: give each animation an audio track: music and sound effects (needs ffmpeg)
+- `--voice <value>`: narrate the steps with a voice: piper, system or none (implies --audio)
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `docs serve`
+
+```
+snagentic docs serve [options]
+```
+
+Build the documentation site and serve it on http://127.0.0.1:<port>/ for preview, until stopped with Ctrl-C. Local only; publishing is copying .snagentic/site/ to a web server.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--audio`: give each animation an audio track: music and sound effects (needs ffmpeg)
+- `--voice <value>`: narrate the steps with a voice: piper, system or none (implies --audio)
+- `--port <number>`: the port (default 4173)
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `docs video`
+
+```
+snagentic docs video <animation> [options]
+```
+
+Record one documentation animation as an MP4 video (H.264, with music and sound effects, and narration with --voice piper|system), in .snagentic/videos/<animation>.mp4. Plays the animation in a headless Chrome in real time, so it takes as long as the animation.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--voice <value>`: narrate with piper, system, or none
+- `--fps <number>`: frames per second
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `doctor`
 
 ```
@@ -542,7 +618,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `phase` (design | build | review, optional): design before editing, build while editing, review before delivering
   - `classes` (array, optional): build and review: classes being changed, such as sys_script
   - `instance` (string, optional): default: the workspace's only instance
-- `validate`: Build the Fluent source the change touched and check what it adds or edits against the platform rules (security, performance, upgradability, manageability, user experience), reporting only what the change introduced, with rule id, file, line, why and remediation; edits to the read-only mirror are refused. By default checks every project changed since HEAD; give paths to check those projects, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
+- `validate`: Build the Fluent source the change touched and check what it adds or edits against the platform rules (security, performance, upgradability, manageability, user experience), reporting only what the change introduced, with rule id, file, line, why and remediation; edits to the read-only mirror are refused, and documentation pages citing a changed record, or out of date with the mirror, are named. By default checks every project changed since HEAD; give paths to check those projects, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
   - `paths` (array, optional): source files whose projects to check (default: every project changed since base)
   - `base` (string, optional): commit, branch or tag to compare with; findings already there are not reported
   - `instance` (string, optional): default: the workspace's only instance

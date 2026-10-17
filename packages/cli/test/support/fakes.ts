@@ -157,6 +157,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
   governance: () => {
     throw new Error("no governance in this test");
   },
+  documentation: () => {
+    throw new Error("no documentation in this test");
+  },
   sleep: async () => {},
   inspector: {
     inspect: async () => ({ remoteCommit: null, unintegratedPulls: 0, localChanges: [] }),

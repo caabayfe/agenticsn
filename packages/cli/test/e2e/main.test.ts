@@ -70,6 +70,7 @@ describe("snagentic entry point (real adapters)", () => {
           "review",
           "explain",
           "deliver",
+          "document",
         ]);
         const result = await client.callTool({ name: "accelerator", arguments: {} });
         expect(result.structuredContent).toHaveProperty("packs");

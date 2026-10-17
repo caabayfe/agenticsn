@@ -74,6 +74,8 @@ export const adopt = defineUseCase({
         toolchain,
         access: connection.reader.sdkAccess(run.signal),
         signal: run.signal,
+        // Which fields hold secrets, as the last pull knew them (S2).
+        catalog: await context.syncState(connection.root, connection.name).readCatalog(),
       },
       { instance: connection.name, records, refresh: input.refresh },
     );

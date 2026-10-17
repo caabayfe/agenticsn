@@ -11,6 +11,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   snagentic, with the instance's credentials in reach, so a source change could run code during
   `check` or a plan. A project with build scripts is now refused with an error naming the file
   (S1).
+- `adopt` refuses records whose source would hold a value a pull keeps out of the mirror: a
+  password or secret-named field, a redacted property value, or a credential class. It wrote
+  them into source unredacted. The error names the records and fields, never the values, and
+  nothing is written (S2).
 
 ### Added
 

@@ -10,6 +10,7 @@ export {
 export { readUnits } from "./application/read-units";
 export {
   AdoptRecordsNotFoundError,
+  AdoptSecretError,
   AdoptStoreApplicationError,
   AdoptTransformFailedError,
   AdoptUnexplainedDifferenceError,

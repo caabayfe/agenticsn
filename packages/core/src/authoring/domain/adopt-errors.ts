@@ -92,3 +92,20 @@ export class LedgerUncommittedError extends SnagenticError {
     );
   }
 }
+
+// Security finding S2: the adopted source would hold a value a pull keeps out of the mirror (a
+// password, a secret-named field, a redacted property value) or a class the mirror never holds.
+// Names the units and fields, never the values.
+export class AdoptSecretError extends SnagenticError {
+  readonly findings: readonly string[];
+
+  constructor(findings: readonly string[]) {
+    super(
+      "adopt-secret",
+      "not-permitted",
+      `adopting would put secrets in source: ${findings.join("; ")}`,
+      "leave these records on the instance and adopt the rest; snagentic keeps secrets out of source as it keeps them out of the mirror",
+    );
+    this.findings = findings;
+  }
+}

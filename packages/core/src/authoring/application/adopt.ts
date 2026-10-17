@@ -1,5 +1,8 @@
 import type { InstanceReader } from "../../connection/ports";
+import type { CatalogData } from "../../metadata/domain/catalog";
+import { DEFAULT_REDACTION } from "../../metadata/domain/redaction";
 import {
+  AdoptSecretError,
   AdoptTransformFailedError,
   AdoptUnexplainedDifferenceError,
   NothingAdoptedError,
@@ -9,6 +12,7 @@ import { unitDigest } from "../domain/digest";
 import { type LedgerEntry, withEntries } from "../domain/ledger";
 import { knownLoss, type LossId } from "../domain/losses";
 import type { BuiltUnit, InstanceCopy } from "../domain/unit";
+import { unitSecrets } from "../domain/unit-secrets";
 import { unitSpec } from "../domain/unit-specs";
 import type {
   AuthoringWorkspace,
@@ -20,6 +24,7 @@ import type {
 } from "../ports";
 import { locate } from "./locate-records";
 import { readUnits } from "./read-units";
+import { unitCatalog } from "./unit-catalog";
 
 // Brings records from a development instance into the workspace's Fluent source (ADR-0031
 // item 3): the SDK converts them, the build is compared with the instance, and only when the
@@ -31,6 +36,9 @@ export interface AdoptDependencies {
   readonly toolchain: FluentToolchain;
   readonly access: SdkAccess;
   readonly signal: AbortSignal;
+  // The instance's catalog as last pulled, to know which fields hold secrets; read from the
+  // dictionary for the adopted tables when the workspace has none.
+  readonly catalog?: CatalogData | null;
 }
 
 export interface AdoptedUnit {
@@ -131,6 +139,9 @@ async function adoptInto(
   const outcome = await toolchain.draftTransform(project, targets, access, base ?? undefined);
   if (!outcome.ok) throw new AdoptTransformFailedError(project.scope, outcome.message);
   const units = adoptedUnits(outcome.draft);
+  const catalog = await unitCatalog(dependencies, units);
+  const secrets = unitSecrets(units, catalog, DEFAULT_REDACTION);
+  if (secrets.length > 0) throw new AdoptSecretError(secrets);
   const entries = await checkedEntries(dependencies, units);
   let conflicts: readonly string[] = [];
   if (base === null) await workspace.writeFiles(project, outcome.draft.files);

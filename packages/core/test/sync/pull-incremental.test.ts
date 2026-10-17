@@ -6,7 +6,8 @@ describe("pullIncremental: nothing changed", () => {
   it("asks one aggregate per change source and nothing else, then moves the watermark", async () => {
     const { incremental } = await pulledInstance();
     const { summary, queries, fingerprints, counted } = await incremental();
-    // The 20 change sources, plus the inventory's two signals: store apps and active plugins.
+    // One per change source (sys_metadata and each child table), plus the inventory's two
+    // signals: store apps and active plugins.
     expect(fingerprints.sort()).toEqual([...FINGERPRINT_SOURCES, "sys_scope"].sort());
     expect(counted).toEqual(["v_plugin by active"]);
     expect(queries).toEqual([]);

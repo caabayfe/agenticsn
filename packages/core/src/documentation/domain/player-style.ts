@@ -38,6 +38,7 @@ svg text{font-family:"Segoe UI",-apple-system,Roboto,Helvetica,Arial,sans-serif;
 .bar .kn{position:absolute;top:5px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--navy);box-shadow:0 0 0 3px rgba(12,102,228,.18)}
 .tm{font-size:12px;color:var(--mute);min-width:74px;text-align:right;font-variant-numeric:tabular-nums}
 .foot{margin-top:6px;font-size:11.5px;color:var(--mute)}
+.record .ctl{display:none}
 @media (prefers-reduced-motion: reduce){#cam,.r,.hl{transition:none!important}*{animation:none!important}}
 `;
 

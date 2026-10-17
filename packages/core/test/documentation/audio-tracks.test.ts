@@ -45,6 +45,8 @@ function tools(overrides: Partial<{ ffmpeg: boolean; voice: boolean; bed: boolea
       bed: async () => (overrides.bed ? new Float32Array(10).fill(0.1) : null),
       sound: async (name) => (name === "scan_0" ? new Float32Array(100).fill(0.5) : null),
     },
+    video: { available: async () => false, render: async () => new Uint8Array(0) },
+    videos: { write: async (name) => `/videos/${name}.mp4` },
   };
   return { media, spoken, encoded };
 }

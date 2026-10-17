@@ -136,4 +136,10 @@ describe("voices", () => {
     const tools = mediaTools(dir, {}, dir);
     expect(tools.voices.map((voice) => voice.name)).toEqual(["piper", "system"]);
   });
+
+  it("write videos into the workspace's .snagentic/videos", async () => {
+    const path = await mediaTools(dir, {}, dir).videos.write("asg", new Uint8Array([1, 2]));
+    expect(path).toBe(join(dir, ".snagentic", "videos", "asg.mp4"));
+    expect(existsSync(path)).toBe(true);
+  });
 });

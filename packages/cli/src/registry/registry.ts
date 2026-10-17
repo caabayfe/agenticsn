@@ -14,6 +14,7 @@ import { docsBuild } from "./docs-build";
 import { docsCheck } from "./docs-check";
 import { docsPin } from "./docs-pin";
 import { docsServe } from "./docs-serve";
+import { docsVideo } from "./docs-video";
 import { doctor } from "./doctor";
 import { find } from "./find";
 import { fluentKeys } from "./fluent-keys";
@@ -75,6 +76,7 @@ export const USE_CASES: readonly UseCase[] = [
   docsPin,
   docsBuild,
   docsServe,
+  docsVideo,
   doctor,
   upgrade,
 ];

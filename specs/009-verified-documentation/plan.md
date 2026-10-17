@@ -1,6 +1,6 @@
 # 009. Verified documentation site: plan
 
-- Status: P1 and P2 done (2026-10-17); P3 in progress
+- Status: P1, P2 and P3 done (2026-10-17); P4 next
 - Date: 2026-10-17
 - Decision: ADR-0034
 - Requirements: G2, G3, ASR-01, ASR-08, ASR-09, ASR-10, ASR-13, ASR-15
@@ -136,6 +136,24 @@ piper|system` also narrates each step (`say`). The track is embedded in the anim
   data fails to load from long ones), and the system voice (macOS `say`, `espeak-ng` elsewhere).
   Each spoken line is cached in `.snagentic/docs-cache/voices/` by voice and text.
 
+## 4b. Video (P3, done)
+
+`snagentic docs video <animation> [--voice piper|system] [--fps 30]` writes
+`.snagentic/videos/<animation>.mp4` (H.264, AAC): music and effects always, narration and
+subtitles with a voice.
+
+- Spike S20 (2026-10-17): DevTools virtual time advances JavaScript time and timers, but not
+  CSS transitions (camera moves and reveals stayed at their start). So the recorder plays the
+  animation in **real time** in headless Chrome (`--headless=new`), captures the screencast
+  (frames pushed on change, each with its wall-clock time), and ffmpeg resamples it to a
+  constant frame rate (concat list from `domain/video.ts`) and muxes the P2 track. A recording
+  takes as long as the animation (a 26 s animation: 31 s in all).
+- The player has a recording mode (`#record`, `#subs`): no controls, no autoplay or loop, started
+  by the recorder, which reads the start time from the page.
+- The browser is `SNAGENTIC_CHROME`, or Chrome or Chromium at their usual paths. The DevTools
+  client is a small WebSocket client in the adapter (no npm dependency).
+- CI installs ffmpeg; the runner image has Chrome, so the recording test runs there.
+
 ## 5. Safety
 
 - Reads only the mirror and the workspace; no instance request (ADR-0016 unaffected).
@@ -144,3 +162,6 @@ piper|system` also narrates each step (`say`). The track is embedded in the anim
 - Scene SVG and `on` scripts are author content. They run only inside the sandboxed animation
   iframe, never in the page.
 - `docs serve` binds to `127.0.0.1` only.
+- External programs (ffmpeg, Piper, say, Chrome) are run with argument lists, never a shell;
+  narration text goes through a file. Chrome runs headless with a throw-away profile, on a local
+  file, and is killed after recording.

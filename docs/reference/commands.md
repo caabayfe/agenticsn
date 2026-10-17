@@ -539,6 +539,23 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `docs video`
+
+```
+snagentic docs video <animation> [options]
+```
+
+Record one documentation animation as an MP4 video (H.264, with music and sound effects, and narration with --voice piper|system), in .snagentic/videos/<animation>.mp4. Plays the animation in a headless Chrome in real time, so it takes as long as the animation.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--voice <value>`: narrate with piper, system, or none
+- `--fps <number>`: frames per second
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `doctor`
 
 ```

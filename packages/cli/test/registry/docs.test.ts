@@ -11,6 +11,7 @@ import { docsBuild } from "../../src/registry/docs-build";
 import { docsCheck } from "../../src/registry/docs-check";
 import { docsPin } from "../../src/registry/docs-pin";
 import { docsServe } from "../../src/registry/docs-serve";
+import { docsVideo } from "../../src/registry/docs-video";
 import type { UseCaseContext } from "../../src/registry/use-case";
 import { FAKE_CONTEXT } from "../support/fakes";
 
@@ -53,6 +54,8 @@ function context(): UseCaseContext {
           },
         ],
         assets: { bed: async () => null, sound: async () => null },
+        video: { available: async () => true, render: async () => new Uint8Array(0) },
+        videos: { write: async (name) => `/videos/${name}.mp4` },
       },
       serve: async (port, _signal, ready) => {
         served = { port };
@@ -167,5 +170,20 @@ describe("snagentic docs", () => {
     expect(readFileSync(join(root, ".snagentic/site/animations/asg.html"), "utf8")).toContain(
       'src="data:audio/mpeg;base64,AQID"',
     );
+  });
+
+  it("video records an animation into .snagentic/videos", async () => {
+    write("documentation/animations/asg/animation.json", '{"name":"asg"}');
+    write("documentation/animations/asg/scene.svg", '<svg><g id="cam"></g></svg>');
+    write("documentation/animations/asg/steps.json", '[{"t":"A","c":"B","say":"Hello there."}]');
+    const result = await docsVideo.handle(
+      { animation: "asg", voice: "none", fps: 30 },
+      context(),
+      run,
+    );
+    expect(result.path).toBe("/videos/asg.mp4");
+    expect(progress[0]).toContain("recording asg in real time");
+    expect(docsVideo.render(result, "text")).toContain("wrote /videos/asg.mp4");
+    expect(docsVideo.exitCode(result)).toBe(0);
   });
 });

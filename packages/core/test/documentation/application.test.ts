@@ -4,6 +4,7 @@ import {
   buildSite,
   checkDocs,
   type DocumentationSources,
+  type MediaTools,
   type MirrorRecord,
   type MirrorRecords,
   NoDocumentationError,
@@ -106,7 +107,7 @@ const scene: SceneSource = {
   steps: [{ t: "Saved", c: "The incident is saved.", say: "The incident is saved." }],
 };
 
-const NO_MEDIA = {
+const NO_MEDIA: MediaTools = {
   codec: {
     available: async () => false,
     decode: async () => new Float32Array(0),
@@ -114,6 +115,8 @@ const NO_MEDIA = {
   },
   voices: [],
   assets: { bed: async () => null, sound: async () => null },
+  video: { available: async () => false, render: async () => new Uint8Array(0) },
+  videos: { write: async (name) => `/videos/${name}.mp4` },
 };
 
 const record: MirrorRecord = { hash: "aaa", fields: { script: SCRIPT, name: "Set group" } };

@@ -17,6 +17,12 @@ export {
 } from "./application/check-docs";
 export { type Documentation, loadDocumentation } from "./application/load-documentation";
 export { type PinDocsQuery, type PinDocsResult, pinDocs } from "./application/pin-docs";
+export {
+  type RenderVideoDependencies,
+  type RenderVideoQuery,
+  type RenderVideoResult,
+  renderVideo,
+} from "./application/render-video";
 export { base64 } from "./domain/base64";
 export { DocumentationSourceError, NoDocumentationError } from "./domain/errors";
 export {
@@ -82,6 +88,7 @@ export { type SiteFile, type SiteInput, siteFiles } from "./domain/site";
 export { parseSiteConfig, type SiteConfig } from "./domain/site-config";
 export { pageFile } from "./domain/site-layout";
 export { SAMPLE_RATE, SYNTH_SOUND_NAMES, synthBed, synthSound } from "./domain/synth";
+export { type CapturedFrame, concatList, type FrameEntry, frameSchedule } from "./domain/video";
 export type {
   AudioAssets,
   AudioCodec,
@@ -92,5 +99,8 @@ export type {
   PageSource,
   SceneSource,
   SiteOutput,
+  VideoOptions,
+  VideoOutput,
+  VideoRenderer,
   VoiceSynthesizer,
 } from "./ports";

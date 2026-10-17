@@ -73,4 +73,30 @@ export interface MediaTools {
   readonly codec: AudioCodec;
   readonly voices: readonly VoiceSynthesizer[];
   readonly assets: AudioAssets;
+  readonly video: VideoRenderer;
+  readonly videos: VideoOutput;
+}
+
+export interface VideoOptions {
+  readonly seconds: number;
+  readonly fps: number;
+  // Show the subtitles (narrated tracks).
+  readonly subtitles: boolean;
+}
+
+// Plays an animation page in a headless browser and encodes it, with its audio track, as an
+// H.264 MP4 (phase 3).
+export interface VideoRenderer {
+  available(): Promise<boolean>;
+  render(
+    page: string,
+    audio: Uint8Array | null,
+    options: VideoOptions,
+    signal: AbortSignal,
+  ): Promise<Uint8Array>;
+}
+
+// Where videos go: .snagentic/videos/<name>.mp4; returns the path written.
+export interface VideoOutput {
+  write(name: string, video: Uint8Array): Promise<string>;
 }

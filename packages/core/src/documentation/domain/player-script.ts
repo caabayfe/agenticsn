@@ -6,12 +6,17 @@
 // - Narrated mode (M): restarts with the audio as master clock and subtitles (C).
 // - Keys: Space, arrows, M, C. Reduced motion shows the last step, without motion.
 // - Height: posts {snagenticAnimH} to the embedding page.
+// - Recording (#record, video export): no controls, no autoplay or loop; the recorder calls
+//   snagenticPlayer.start(), which returns the wall-clock start; #subs shows subtitles.
 export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
   const $ = (id) => document.getElementById(id);
   const root = $("stage"), cam = $("cam"), cap = $("cap"), bar = $("bar"), fi = $("fi"), kn = $("kn");
   const tm = $("tm"), sub = $("sub"), bPlay = $("play"), bListen = $("listen"), bCC = $("cc"), au = $("au");
   const steps = o.steps, N = steps.length, VB = o.vb || [960, 440];
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const record = /(^|[#&])record(&|$)/.test(location.hash);
+  const subs = record && /(^|[#&])subs(&|$)/.test(location.hash);
+  if (record) document.body.classList.add("record");
   const est = (s) => Math.max(4.2, s.say.split(/\s+/).filter(Boolean).length / 2.55 + 1.5);
   const T = window.TIMING && window.TIMING.starts ? window.TIMING : (() => {
     const a = []; let t = 0.6;
@@ -76,7 +81,7 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
     cap.innerHTML = "<b>" + (k + 1) + ". " + steps[k].t + "</b><span>" + steps[k].c + "</span>";
     camTo(reduce ? null : fit(k, steps[k].cam));
     sub.textContent = steps[k].sub || "";
-    sub.classList.toggle("on", mode === "audio" && cc && !!steps[k].sub);
+    sub.classList.toggle("on", (mode === "audio" || subs) && cc && !!steps[k].sub);
     if (steps[k].on && !reduce) steps[k].on();
   }
   const idx = (x) => { let k = 0; for (let j = 0; j < N; j++) if (x >= T.starts[j]) k = j; return k; };
@@ -91,6 +96,7 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (!playing) return;
     if (mode === "audio") { t = au.currentTime; if (au.ended || t >= T.total - 0.02) stopAudio(true); }
+    else if (record) { t += dt; if (t >= T.total) { t = T.total; playing = false; window.snagenticPlayer.done = true; } }
     else { if (now < holdUntil) return; t += dt; if (t >= T.total) { holdUntil = now + 2600; t = 0; apply(0); } }
     const k = idx(t); if (k !== cur) apply(k); draw();
   }
@@ -128,7 +134,8 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
     };
     raf.push(requestAnimationFrame(f));
   };
-  if (reduce) { apply(N - 1); t = T.total; draw(); }
+  if (record) { apply(0); draw(); }
+  else if (reduce) { apply(N - 1); t = T.total; draw(); }
   else {
     apply(0); draw();
     new IntersectionObserver((es) => es.forEach((en) => {
@@ -141,7 +148,9 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
   const wrap = document.querySelector(".wrap");
   const postH = () => { try { parent.postMessage({ snagenticAnimH: Math.ceil(wrap.getBoundingClientRect().height) + 6 }, "*"); } catch (_) {} };
   addEventListener("load", postH); addEventListener("resize", postH); new ResizeObserver(postH).observe(wrap);
-  // For recording (video export): jump to a time without the clock running.
-  window.snagenticPlayer = { total: T.total, starts: T.starts, seek: (x) => { setPlay(false); userPaused = true; seek(x); } };
+  window.snagenticPlayer = {
+    total: T.total, starts: T.starts, done: false,
+    start: () => { t = 0; apply(0); draw(); setPlay(true); return Date.now() / 1000; },
+  };
 };
 `;

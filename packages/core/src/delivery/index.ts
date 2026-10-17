@@ -42,6 +42,7 @@ export {
 export { type GateFinding, type GateResult, gateOf } from "./domain/gate";
 export {
   changesOf,
+  deletionFor,
   type PlannedUnit,
   plannedOrProblem,
   type UnitOperation,

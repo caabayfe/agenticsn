@@ -10,6 +10,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   Plans ignored `sys_policy` and never compared the ES-latest row the SDK writes inside the
   script include's update, so they recorded the ledger and loaded nothing (spec 009 B1). The
   ES-latest row is compared only when the source sets a mode; otherwise the instance's stays.
+- Removing a role, view or action from a typed array still deletes nothing by itself (the SDK
+  emits no deletion for the child row), and plan still refuses it; the refusal now names the
+  line to add, such as `Now.del('sys_ui_action_role', '<sys_id>')` (spec 009 B2).
 
 ## [2.1.0] - 2026-10-17
 

@@ -6,6 +6,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Plans and adopt read the built XML's character references as text: the build writes a
+  carriage return as `&#13;`, which was compared literally, so any text with Windows line
+  endings (a role's description, a script) showed as a difference that wasn't there.
 - `adopt` brings in UI policies whose actions have an empty message type: three in four on a
   PDI failed to build, because the SDK converts the empty type to a value its own types reject.
   The converted source now says `none`, which the load writes for the empty value (spec 009 X4).

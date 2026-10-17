@@ -22,6 +22,14 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
     expect(built.children).toEqual([]);
   });
 
+  it("decodes character references, as the instance stores the text", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><record_update table="x_t"><x_t action="INSERT_OR_UPDATE"><sys_id>0123456789abcdef0123456789abcdef</sys_id><description>a&#13;\nb &amp;#13; c &#x41; &lt;d&gt;</description><script><![CDATA[keep &#13; raw]]></script></x_t></record_update>`;
+    expect(builtUnitOf("x_t_1.xml", xml).head.fields).toMatchObject({
+      description: "a\r\nb &#13; c A <d>",
+      script: "keep &#13; raw",
+    });
+  });
+
   it("reads a column as a dictionary unit, coalesced by table and column", () => {
     const built = unit("sys_dictionary_x_2222332_acc_rev_campaign_review_type.xml");
     expect(built.head.table).toBe("sys_dictionary");

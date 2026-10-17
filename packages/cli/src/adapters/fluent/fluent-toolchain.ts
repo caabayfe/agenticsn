@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
@@ -10,6 +10,7 @@ import type {
   SourceProject,
   TransformTarget,
 } from "@snagentic/core";
+import { fixConverted } from "@snagentic/core";
 import { fromCommit, fromWorkingTree } from "./build-in-copy";
 import { builtUnitOf } from "./built-units";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
@@ -26,6 +27,19 @@ async function sourceFiles(root: string): Promise<Map<string, string>> {
     files.set(path, await readFile(join(root, path), "utf8"));
   }
   return files;
+}
+
+// Fixes what the conversion wrote that the SDK's own types reject, in the files it changed
+// (spec 009 X4). Returns why the conversion can't be adopted, if it can't.
+async function fixConversion(root: string, original: ReadonlyMap<string, string>) {
+  const refused: string[] = [];
+  for (const [path, text] of await sourceFiles(root)) {
+    if (!path.endsWith(".ts") || original.get(path) === text) continue;
+    const outcome = fixConverted(path, text);
+    refused.push(...outcome.refused);
+    if (outcome.text !== text) await writeFile(join(root, path), outcome.text);
+  }
+  return refused;
 }
 
 // The files a build wrote under dist/app, by name relative to it.
@@ -104,6 +118,8 @@ export class SdkToolchain implements FluentToolchain {
       const before = await unitsIn(copy);
       const transformed = await runtime.transform(copy, records, access.host, access.exchange);
       if (!transformed.success) return { ok: false, message: transformed.message };
+      const refused = await fixConversion(copy, original);
+      if (refused.length > 0) return { ok: false, message: refused.join("; ") };
       const second = await runtime.build(copy);
       if (!second.success)
         return {

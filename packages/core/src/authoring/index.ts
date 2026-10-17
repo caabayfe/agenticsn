@@ -22,6 +22,11 @@ export {
   SdkUnavailableError,
 } from "./domain/adopt-errors";
 export { compareUnit, type Difference } from "./domain/compare";
+export {
+  CONVERSION_FIXES_SDK_VERSION,
+  type ConversionOutcome,
+  fixConverted,
+} from "./domain/conversion-fixes";
 export { unitDigest } from "./domain/digest";
 export { driftedUnits, type PulledRecord } from "./domain/drift";
 export { SdkRouteRefusedError, UnreadableBuildError } from "./domain/errors";

@@ -18,12 +18,13 @@ import {
   DEFAULT_REDACTION,
   type InstanceCopy,
   knownLoss,
+  knownRefusal,
   readUnits,
 } from "../../../packages/core/src/index";
 import { liveClient } from "./live-connection";
 import { MirrorReader } from "./mirror-reader";
 
-const BATCH = 20;
+const BATCH = 25;
 const signal = new AbortController().signal;
 
 type Verdict =
@@ -38,7 +39,7 @@ interface Scope {
 // The records of a table in the mirror, by scope (folder) and scope sys_id (_meta.sys_scope).
 async function population(mirror: MirrorReader, instance: string, table: string, limit: number) {
   const pattern = new RegExp(
-    `/metadata/(?:domains/[^/]+/)?([^/]+)/${table}/[^/]+--([0-9a-f]{32})\\.yaml$`,
+    `/metadata/(?:domains/[^/]+/)?([^/]+)/${table}/[^/]+--([A-Za-z0-9_]+)\\.yaml$`,
   );
   const byScope = new Map<string, { scope: Scope; ids: string[] }>();
   for (const path of await mirror.paths(`instances/${instance}/metadata`)) {
@@ -105,6 +106,8 @@ function unitVerdict(
       losses.add(loss);
       continue;
     }
+    const refusal = knownRefusal(difference);
+    if (refusal !== null) return { kind: "refused", reason: refusal };
     const what =
       difference.kind === "field"
         ? `${difference.table}.${difference.field}`
@@ -114,21 +117,59 @@ function unitVerdict(
   return null;
 }
 
-// The verdict on a converted batch: secrets, then each unit against its live copy.
-async function judge(client: Client, units: readonly BuiltUnit[]): Promise<Verdict> {
-  const catalog = await unitCatalog({ reader: client, signal }, units);
-  const secrets = unitSecrets(units, catalog, DEFAULT_REDACTION);
-  if (secrets.length > 0) return { kind: "refused", reason: `secret in source: ${secrets[0]}` };
-  const copies = await readUnits(client, units, signal);
-  const losses = new Set<string>();
-  for (const unit of units) {
-    const verdict = unitVerdict(unit, copies.get(unit.updateName), losses);
-    if (verdict !== null) return verdict;
-  }
-  return { kind: "adoptable", losses: [...losses].sort() };
+// The record a built unit belongs to: its own sys_id, or a record it names in a field (a
+// policy's actions, a role's containments). Null when it names none of the batch's records.
+function ownerOf(unit: BuiltUnit, ids: ReadonlySet<string>): string | null {
+  if (ids.has(unit.head.sysId)) return unit.head.sysId;
+  for (const value of Object.values(unit.head.fields)) if (ids.has(value)) return value;
+  return null;
 }
 
-// Converts a batch; a failed batch is split until each failure is one record.
+const worse = (a: Verdict | undefined, b: Verdict): Verdict => {
+  if (a === undefined || a.kind === "adoptable") {
+    if (b.kind !== "adoptable" || a === undefined) return b;
+    return { kind: "adoptable", losses: [...new Set([...a.losses, ...b.losses])].sort() };
+  }
+  return a;
+};
+
+function verdictOf(
+  unit: BuiltUnit,
+  catalog: Awaited<ReturnType<typeof unitCatalog>>,
+  copy: InstanceCopy | null | undefined,
+): Verdict {
+  const secrets = unitSecrets([unit], catalog, DEFAULT_REDACTION);
+  if (secrets.length > 0) return { kind: "refused", reason: `secret in source: ${secrets[0]}` };
+  const losses = new Set<string>();
+  return unitVerdict(unit, copy, losses) ?? { kind: "adoptable", losses: [...losses].sort() };
+}
+
+// Verdicts per record of a converted batch: each unit judged on its own and charged to the
+// record it belongs to. Null when a failing unit can't be charged to one record.
+async function judge(
+  client: Client,
+  units: readonly BuiltUnit[],
+  ids: readonly string[],
+): Promise<Map<string, Verdict> | null> {
+  const catalog = await unitCatalog({ reader: client, signal }, units);
+  const copies = await readUnits(client, units, signal);
+  const own = new Set(ids);
+  const verdicts = new Map<string, Verdict>();
+  for (const unit of units) {
+    const verdict = verdictOf(unit, catalog, copies.get(unit.updateName));
+    const owner = ownerOf(unit, own) ?? (ids.length === 1 ? (ids[0] ?? "") : null);
+    if (owner === null) {
+      if (verdict.kind !== "adoptable") return null;
+      continue;
+    }
+    verdicts.set(owner, worse(verdicts.get(owner), verdict));
+  }
+  for (const id of ids) if (!verdicts.has(id)) verdicts.set(id, { kind: "adoptable", losses: [] });
+  return verdicts;
+}
+
+// Converts a batch; a batch that doesn't build, or whose failure can't be charged to one
+// record, is split until each failure is one record.
 async function census(
   tools: SdkToolchain,
   client: Client,
@@ -137,13 +178,12 @@ async function census(
   ids: readonly string[],
   out: Map<string, Verdict>,
 ): Promise<void> {
-  const access = client.sdkAccess(signal);
   const records = ids.map((sysId) => ({ table, sysId }));
-  const draft = await tools.draftTransform(target, records, access);
+  const draft = await tools.draftTransform(target, records, client.sdkAccess(signal));
   if (draft.ok) {
-    const verdict = await judge(client, draft.draft.after);
-    if (verdict.kind === "adoptable" || ids.length === 1) {
-      for (const id of ids) out.set(id, verdict);
+    const verdicts = await judge(client, draft.draft.after, ids);
+    if (verdicts !== null) {
+      for (const [id, verdict] of verdicts) out.set(id, verdict);
       return;
     }
   } else if (ids.length === 1) {

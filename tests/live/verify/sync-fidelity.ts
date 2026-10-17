@@ -123,7 +123,7 @@ async function liveRows(pager: KeysetPager, table: string, base: string, fields:
 
 // Mirrored records of a table by sys_id (base path without .yaml), and their field files.
 function mirroredRecords(paths: readonly string[], table: string) {
-  const pattern = new RegExp(`/${table}/[^/]+--([0-9a-f]{32})\\.yaml$`);
+  const pattern = new RegExp(`/${table}/[^/]+--([A-Za-z0-9_]+)\\.yaml$`);
   const bases = new Map<string, string>();
   for (const path of paths) {
     const id = pattern.exec(path)?.[1];

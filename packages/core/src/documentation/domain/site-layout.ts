@@ -19,6 +19,10 @@ export function pageFile(
     : `${folder}/${page.section}/${page.topic}.html`;
 }
 
+// The two guides' homes, when the site has an employee guide (ADR-0037).
+export const EMPLOYEES_HOME = "employees/index.html";
+export const IT_HOME = "it/index.html";
+
 export function sectionHome(process: string, section: Section): string {
   return `processes/${process}/${section}/index.html`;
 }

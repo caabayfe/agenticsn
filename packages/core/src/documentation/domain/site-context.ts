@@ -8,7 +8,15 @@ import { expandProse } from "./prose";
 import { resolveReference } from "./references";
 import type { Scene } from "./scene";
 import type { SiteConfig } from "./site-config";
-import { evidenceTable, pageFile, prefixOf, staleIds } from "./site-layout";
+import {
+  type Crumb,
+  EMPLOYEES_HOME,
+  evidenceTable,
+  IT_HOME,
+  pageFile,
+  prefixOf,
+  staleIds,
+} from "./site-layout";
 import { capabilityAudience } from "./structure";
 import { type View, viewOf } from "./views";
 
@@ -173,4 +181,20 @@ export function staleOf(b: Built, ...pages: readonly (DocPage | undefined)[]): r
 export function link(prefix: string, href: string, text: string, className = ""): string {
   const attribute = className === "" ? "" : ` class="${className}"`;
   return `<a${attribute} href="${prefix}${href}">${escapeHtml(text)}</a>`;
+}
+
+// The guide a reader's page belongs to, as the first breadcrumb; none without an employee guide.
+export function guideCrumbs(b: Built, view: View | "platform"): readonly Crumb[] {
+  const guide = b.input.config.employees;
+  if (guide === undefined) {
+    return [];
+  }
+  return view === "user"
+    ? [{ href: EMPLOYEES_HOME, text: guide.title }]
+    : [{ href: IT_HOME, text: "IT guide" }];
+}
+
+// With an employee guide, employee pages don't lead to the operator's side or to configuration.
+export function separated(b: Built, view: View): boolean {
+  return view === "user" && b.input.config.employees !== undefined;
 }

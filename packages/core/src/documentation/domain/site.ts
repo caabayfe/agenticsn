@@ -2,9 +2,10 @@ import type { DocPage } from "./page";
 import { playerHtml } from "./player";
 import type { Process } from "./process";
 import { built, type SiteInput } from "./site-context";
+import { employeesHomeHtml, frontDoorHtml } from "./site-employees";
 import { configureHomeHtml, indexHtml, processHtml, viewHomeHtml } from "./site-homes";
 import { recordsFile, recordsHtml } from "./site-index";
-import { pageFile, sectionHome } from "./site-layout";
+import { EMPLOYEES_HOME, IT_HOME, pageFile, sectionHome } from "./site-layout";
 import { configureHtml, guideHtml, understandHtml } from "./site-pages";
 import { SITE_STYLE } from "./site-style";
 import { SECTION_VIEW } from "./structure";
@@ -54,7 +55,8 @@ function processFiles(b: Build, process: Process): readonly SiteFile[] {
   ];
 }
 
-// Every file of the static site: the index; per process its page, the three section homes, the
+// Every file of the static site: the index (or, with an employee guide, the front door and the
+// two guides' homes, ADR-0037); per process its page, the three section homes, the
 // shared pages in both views, the guides and the configure pages; the animations and the
 // stylesheet (spec 010a).
 export function siteFiles(input: SiteInput): readonly SiteFile[] {
@@ -62,8 +64,17 @@ export function siteFiles(input: SiteInput): readonly SiteFile[] {
   const processes = [...input.processes].sort(
     (left, right) => left.order - right.order || left.title.localeCompare(right.title),
   );
+  const guide = input.config.employees;
+  const homes: readonly SiteFile[] =
+    guide === undefined
+      ? [{ path: "index.html", content: indexHtml(b, processes) }]
+      : [
+          { path: "index.html", content: frontDoorHtml(b, guide) },
+          { path: EMPLOYEES_HOME, content: employeesHomeHtml(b, guide, processes) },
+          { path: IT_HOME, content: indexHtml(b, processes, IT_HOME) },
+        ];
   const files: SiteFile[] = [
-    { path: "index.html", content: indexHtml(b, processes) },
+    ...homes,
     { path: "assets/site.css", content: SITE_STYLE },
     ...processes.flatMap((process) => processFiles(b, process)),
   ];

@@ -1,4 +1,5 @@
 import { checkedOnSurface, platformWords } from "./audience-checks";
+import { unknownGuidePages } from "./employee-guide";
 import { type DocPage, type PageProblem, pageProblems, type Section } from "./page";
 import type { Process, ProcessCapability } from "./process";
 import { animationsOf } from "./prose";
@@ -29,6 +30,7 @@ const ERRORS = [
   "missing-configure",
   "unknown-reference",
   "missing-animation",
+  "unknown-guide-page",
 ] as const;
 const WARNINGS = [
   "uncited-evidence",
@@ -202,5 +204,8 @@ export function structureProblems(docs: DocSet): readonly DocsProblem[] {
       ...audienceProblems(docs, page),
     ]),
     ...docs.processes.flatMap((process) => processProblems(docs, process)),
+    ...unknownGuidePages(docs.config.employees, docs.pages).map((target) =>
+      docsProblem("unknown-guide-page", "site.yaml", target),
+    ),
   ];
 }

@@ -7,9 +7,11 @@ import {
   capabilitiesFor,
   checked,
   configureOf,
+  guideCrumbs,
   link,
   roleNames,
   SECTION_TITLES,
+  separated,
   staleOf,
   surfaceNames,
   understandPages,
@@ -22,8 +24,12 @@ import type { View } from "./views";
 
 const KINDS: Readonly<Record<View, string>> = { user: "User guide", operator: "Operator guide" };
 
-function crumbs(process: Process, view: View): readonly Crumb[] {
+function crumbs(b: Built, process: Process, view: View): readonly Crumb[] {
+  if (separated(b, view)) {
+    return [...guideCrumbs(b, view), { href: sectionHome(process.id, "use"), text: process.title }];
+  }
   return [
+    ...guideCrumbs(b, view),
     { href: `processes/${process.id}/index.html`, text: process.title },
     { href: sectionHome(process.id, VIEW_SECTION[view]), text: SECTION_TITLES[VIEW_SECTION[view]] },
   ];
@@ -82,7 +88,7 @@ export function guideHtml(b: Built, process: Process, page: DocPage, view: View)
         };
   };
   const config =
-    configure === undefined
+    configure === undefined || separated(b, view)
       ? ""
       : link(prefix, pageFile(configure), "How it is configured", "config");
   const main = `<h1>${index < 0 ? "" : `<span class="num">${index + 1}.</span> `}${escapeHtml(page.title)}</h1>
@@ -94,10 +100,10 @@ ${banner(b, KINDS[view], [
 ])}
 ${staleNotice(staleOf(b, page, configure), "guide")}
 ${bodyHtml(b, page, file)}
-${capability === undefined ? "" : counterpartHtml(b, process, capability, prefix)}
+${capability === undefined || separated(b, view) ? "" : counterpartHtml(b, process, capability, prefix)}
 ${verification(b, page, true)}
 ${pager(prefix, near(-1), config, near(1))}`;
-  return layout(b.input.config, page.title, file, crumbs(process, view), main);
+  return layout(b.input.config, page.title, file, crumbs(b, process, view), main);
 }
 
 // A shared page, as one reader sees it.
@@ -116,7 +122,7 @@ ${staleNotice(staleOf(b, page), "guide")}
 ${bodyHtml(b, page, file, view)}
 ${verification(b, page, true)}
 ${pager(prefix, near(-1), "", near(1))}`;
-  return layout(b.input.config, page.title, file, crumbs(process, view), main);
+  return layout(b.input.config, page.title, file, crumbs(b, process, view), main);
 }
 
 // A Configure page, with the guides it explains.
@@ -147,6 +153,7 @@ ${staleNotice(staleOf(b, page), "technical")}
 ${bodyHtml(b, page, file)}
 ${verification(b, page, false)}`;
   const trail: readonly Crumb[] = [
+    ...guideCrumbs(b, "platform"),
     { href: `processes/${process.id}/index.html`, text: process.title },
     { href: sectionHome(process.id, "configure"), text: SECTION_TITLES.configure },
   ];

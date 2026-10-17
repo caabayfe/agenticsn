@@ -10,6 +10,22 @@ export interface Surface {
   readonly record?: string;
 }
 
+// A group of employee pages for one thing employees want to do (ADR-0037).
+export interface EmployeeTask {
+  readonly title: string;
+  readonly summary: string;
+  // <process>/<topic> of Use or Understand pages.
+  readonly pages: readonly string[];
+}
+
+// The employee guide's home: where employees start, then their tasks (ADR-0037).
+export interface EmployeeGuide {
+  readonly title: string;
+  readonly intro: string;
+  readonly start: readonly string[];
+  readonly tasks: readonly EmployeeTask[];
+}
+
 export interface SiteConfig {
   readonly title: string;
   // The instance whose mirror the pages are verified against.
@@ -18,6 +34,7 @@ export interface SiteConfig {
   readonly surfaces: Readonly<Record<View, readonly Surface[]>>;
   // Platform words end users shouldn't meet, in addition to the built-in checks.
   readonly vocabulary: readonly string[];
+  readonly employees?: EmployeeGuide;
 }
 
 function surface(raw: unknown): Surface {
@@ -43,6 +60,33 @@ function surfacesOf(raw: unknown): Readonly<Record<View, readonly Surface[]>> {
   return { user: of(VIEWS[0]), operator: of(VIEWS[1]) };
 }
 
+const textsOf = (raw: unknown): readonly string[] =>
+  Array.isArray(raw) ? raw.map((item) => textOf(item) ?? "").filter((item) => item !== "") : [];
+
+function task(raw: unknown): EmployeeTask {
+  const fields = fieldsOf(raw);
+  const title = textOf(fields["title"]);
+  if (title === undefined) {
+    throw new DocumentationSourceError("site.yaml", "each employees task needs title");
+  }
+  return { title, summary: textOf(fields["summary"]) ?? "", pages: textsOf(fields["pages"]) };
+}
+
+function employeeGuide(raw: unknown): EmployeeGuide {
+  const fields = fieldsOf(raw);
+  const title = textOf(fields["title"]);
+  if (title === undefined) {
+    throw new DocumentationSourceError("site.yaml", "employees needs title");
+  }
+  const tasks = fields["tasks"];
+  return {
+    title,
+    intro: textOf(fields["intro"]) ?? "",
+    start: textsOf(fields["start"]),
+    tasks: Array.isArray(tasks) ? tasks.map(task) : [],
+  };
+}
+
 export function parseSiteConfig(raw: unknown): SiteConfig {
   const fields = fieldsOf(raw);
   const title = textOf(fields["title"]);
@@ -57,5 +101,6 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     footer: textOf(fields["footer"]) ?? "",
     surfaces: surfacesOf(fields["surfaces"]),
     vocabulary: Array.isArray(vocabulary) ? vocabulary.map(String) : [],
+    ...(fields["employees"] === undefined ? {} : { employees: employeeGuide(fields["employees"]) }),
   };
 }

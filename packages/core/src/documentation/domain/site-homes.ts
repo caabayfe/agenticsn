@@ -5,6 +5,7 @@ import {
   capabilitiesFor,
   checked,
   configurePages,
+  guideCrumbs,
   link,
   SECTION_TITLES,
   surfaceNames,
@@ -20,7 +21,7 @@ const DOOR_TEXT: Readonly<Record<View, string>> = {
   operator: "Log, route, work and resolve",
 };
 
-function door(href: string, title: string, lines: readonly string[]): string {
+export function door(href: string, title: string, lines: readonly string[]): string {
   const spans = lines
     .filter((line) => line !== "")
     .map((line) => `<span>${escapeHtml(line)}</span>`);
@@ -49,7 +50,7 @@ export function processHtml(b: Built, process: Process): string {
 <div class="banner"><span>${checked(b)}</span></div>
 <div class="doors">${viewDoor(b, process, "user")}${viewDoor(b, process, "operator")}${door("configure/index.html", SECTION_TITLES.configure, ["The business rules, ACLs, scripts and other records behind each step"])}</div>
 ${states.length === 0 ? "" : `<h2>Lifecycle</h2><ol class="lifecycle">${states.join("")}</ol>`}`;
-  return layout(b.input.config, process.title, file, [], main);
+  return layout(b.input.config, process.title, file, guideCrumbs(b, "platform"), main);
 }
 
 // A reader's home: who they are, the shared topics in their view, and their capabilities.
@@ -85,7 +86,12 @@ ${topics.length === 0 ? "" : `<h2>How it works</h2><ul class="pages">${topics.jo
     b.input.config,
     `${process.title}: ${SECTION_TITLES[section]}`,
     file,
-    [{ href: `processes/${process.id}/index.html`, text: process.title }],
+    view === "user" && b.input.config.employees !== undefined
+      ? guideCrumbs(b, view)
+      : [
+          ...guideCrumbs(b, view),
+          { href: `processes/${process.id}/index.html`, text: process.title },
+        ],
     main,
   );
 }
@@ -106,18 +112,23 @@ ${b.input.indexes?.has(process.id) === true ? `<p>${link(prefix, recordsFile(pro
     b.input.config,
     `${process.title}: ${SECTION_TITLES.configure}`,
     file,
-    [{ href: `processes/${process.id}/index.html`, text: process.title }],
+    [
+      ...guideCrumbs(b, "platform"),
+      { href: `processes/${process.id}/index.html`, text: process.title },
+    ],
     main,
   );
 }
 
-export function indexHtml(b: Built, processes: readonly Process[]): string {
+// The list of processes: the site's index, or the IT guide's home beside an employee guide.
+export function indexHtml(b: Built, processes: readonly Process[], file = "index.html"): string {
+  const prefix = prefixOf(file);
   const items = processes.map(
     (process) =>
-      `<li><a href="processes/${process.id}/index.html">${escapeHtml(process.title)}</a><br><span class="mute">${escapeHtml(process.summary)}</span></li>`,
+      `<li><a href="${prefix}processes/${process.id}/index.html">${escapeHtml(process.title)}</a><br><span class="mute">${escapeHtml(process.summary)}</span></li>`,
   );
   const main = `<h1>${escapeHtml(b.input.config.title)}</h1>
 <div class="banner"><span>${checked(b)}</span></div>
 <h2>Processes</h2><ul class="pages">${items.join("")}</ul>`;
-  return layout(b.input.config, b.input.config.title, "index.html", [], main);
+  return layout(b.input.config, b.input.config.title, file, [], main);
 }

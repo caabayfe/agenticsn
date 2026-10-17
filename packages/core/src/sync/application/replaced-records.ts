@@ -42,6 +42,7 @@ export async function removeReplaced(
       table: TableName.parse(className),
       fields: ["sys_id"],
       kind: "snapshot" as const,
+      allDomains: true,
       base: `sys_idIN${ofClass.map((c) => c.sysId).join(",")}`,
     };
     const present = new Set<string>();

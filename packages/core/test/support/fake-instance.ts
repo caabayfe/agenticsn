@@ -188,8 +188,13 @@ export function fakeInstance(
       if (denied.includes(query.table)) {
         throw new AccessDeniedError(`table ${query.table}`, "Insufficient rights");
       }
-      // ACLs hide rows from listings, not from aggregates.
-      const visible = rowsOf(query.table).filter((row) => row["__hidden"] !== "true");
+      // ACLs hide rows from listings, not from aggregates; domain separation hides rows of other
+      // domains unless the query asks for every domain (sysparm_query_no_domain).
+      const visible = rowsOf(query.table).filter(
+        (row) =>
+          row["__hidden"] !== "true" &&
+          (row["__other_domain"] !== "true" || query.allDomains === true),
+      );
       return evaluate(visible, query.query, query.limit);
     },
     fingerprint: async (table: TableName): Promise<TableFingerprint> => {

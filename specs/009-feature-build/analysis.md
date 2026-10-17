@@ -225,7 +225,7 @@ mirrored records were compared with the table's dictionary columns, ancestors in
 | Connection aliases (`sys_alias`) | denied class; the flow's alias mappings are mirrored | which connection a flow uses |
 | Protected scripts | the platform encrypts them | 273 script includes, protected flows |
 | About 6,200 of 21,710 choices | their owner name is not a mirrored table, so they are dropped as orphans; 530 of the 537 unmatched names are `var__m_*` (multi-row variable sets) | catalog features |
-| Records in other domains | full pull lists by class and misses them (ADR-0030 #9); pdi2 has only 14 | domain-separated instances |
+| Records in other domains | full pull lists by class and misses them (ADR-0030 #9); pdi2 has only 14 | domain-separated instances; fixed by M4 |
 
 **Follow-up:** the gaps are addressed by ADR-0034 and `mirror-plan.md` (owner's choice,
 2026-10-17): ES-latest rows, typed property values, multi-row variable set choices and other

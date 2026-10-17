@@ -82,6 +82,7 @@ export async function groupTable(
     table: TableName.parse(child.table),
     fields: "all" as const,
     kind: "snapshot" as const,
+    allDomains: true,
     base: "",
   };
   try {

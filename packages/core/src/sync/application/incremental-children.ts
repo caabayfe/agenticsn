@@ -56,6 +56,7 @@ async function changedOwners(
     table: TableName.parse(child.table),
     fields: ["sys_id", "sys_updated_on", child.parentField],
     kind: "change-feed" as const,
+    allDomains: true,
     base: "",
     since,
   };
@@ -110,6 +111,7 @@ async function refreshOwners(
         table: TableName.parse(child.table),
         fields: "all" as const,
         kind: "snapshot" as const,
+        allDomains: true,
         base: `${child.parentField}IN${keys.join(",")}`,
       };
       for await (const row of deps.pager.rows(listing, signal)) {

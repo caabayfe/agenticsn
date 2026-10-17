@@ -78,6 +78,7 @@ async function readInstalled(
     table: SYS_METADATA,
     fields: ["sys_id", "sys_class_name", "sys_scope", "sys_package.sys_created_on"],
     kind: "snapshot" as const,
+    allDomains: true,
     base: `sys_package.sys_updated_on>=${window.since}`,
   };
   for await (const row of deps.pager.rows(installed, signal)) {
@@ -101,6 +102,7 @@ export async function readRecordChanges(
     table: SYS_METADATA,
     fields: ["sys_id", "sys_updated_on", "sys_created_on", "sys_class_name", "sys_scope"],
     kind: "change-feed" as const,
+    allDomains: true,
     base: "",
     since: window.since,
   };
@@ -198,6 +200,7 @@ async function downloadClass(
       table: TableName.parse(table),
       fields: "all" as const,
       kind: "snapshot" as const,
+      allDomains: true,
       // By sys_id alone: any other condition makes the instance hide records of other domains
       // on tables with domain overrides, such as form sections (pdi2, ADR-0030). One batch is
       // one page, so the pager's cursor never applies; the class is checked here instead.

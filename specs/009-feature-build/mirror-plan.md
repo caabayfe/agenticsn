@@ -113,26 +113,38 @@ variable sets, which have no mirrored `sys_db_object`.
 **Done when:** orphan choices on pdi2 drop from about 6,200 to the unexplained remainder, which
 the report names.
 
-### M4. Other domains in a full pull
+### M4. Other domains in pulls (done 2026-10-17)
 
 **Facts.** A full pull lists each class with `sys_class_name=<class>`, and the instance hides
-records of other domains (ADR-0030 #9; pdi2 has 14 such records). The client already sends
-`sysparm_query_no_domain=true` when a query sets `allDomains` (`servicenow-client.ts`, used by
-authoring reads).
+records of other domains from any listing with a condition (ADR-0030 #9). The client already sent
+`sysparm_query_no_domain=true` when a query set `allDomains`, for authoring reads.
 
-**Change.**
-- Full pull listings set `allDomains` (`packages/core/src/sync/application/pull-records.ts`), and
-  so do child-table listings.
-- If the credential may not query across domains, the platform ignores the flag. The pull then
-  reports that records in other domains may be missing, rather than nothing.
+**Change, as built.** Every listing of metadata sets `allDomains`, not only the full pull's,
+because each one has a condition and the same blind spot:
+- full pull: records and child rows;
+- incremental pull: the change, install and delete feeds, the download by sys_id, and the child
+  feeds and listings;
+- the check that a replaced record is gone (otherwise a record in another domain could be removed
+  from the mirror);
+- `pull --verify` listings.
 
-**Tests (failing first).**
-- `it("lists every domain in a full pull")` (the fake records the query flag).
-- `it("warns when records of other domains cannot be listed")`.
+The operational inventory (plugins, store apps) keeps the session's domain: it isn't metadata.
 
-**Live check.** A full pull of the one scope on pdi2 that holds the 14 records finds all of them.
+**Dropped from the plan:** the warning when the credential may not query across domains. Nothing
+cheap tells the two cases apart, and the live check showed an admin credential is honoured.
 
-**Done when:** the live check passes and `analysis.md` section 7 is updated.
+**Tests.** `packages/core/test/sync/pull-domains.test.ts`: the shared fake instance now hides rows
+of other domains unless a query asks for every domain.
+- `it("lists records and child rows of every domain in a full pull")`;
+- `it("picks up a change to a record in another domain")`;
+- `it("refreshes the child rows of an owner when a row in another domain changed")`;
+- `it("recovers a record in another domain when verifying")`;
+- `it("keeps the session's domain for the operational inventory")`.
+
+**Live check (pdi2, read-only, passed).** `tests/live/domains.test.ts`, on the form section `acme`
+of `x_2222332_s11` (domain `09ff3d10…`): with the session's domain the listing returned 0 rows,
+with every domain 1. The aggregate count used by fingerprints and `--verify` already counts it, so
+change detection needs no change.
 
 ### M5. `describe` names what the mirror leaves out (ADR-0034 #3)
 
@@ -170,7 +182,7 @@ before writing (pushes switch the user's application and update set). Never touc
 | Pull with no changes still meets ASR-16 | M1 | no |
 | Property values kept and redacted, counts match section M2 | M2 | no |
 | Choice orphans after M3 | M3 | no |
-| The 14 records in other domains are listed | M4 | no |
+| A record in another domain is listed (passed 2026-10-17) | M4 | no |
 
 ## 5. Risks
 

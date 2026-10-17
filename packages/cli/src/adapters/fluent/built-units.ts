@@ -23,6 +23,9 @@ const parser = new XMLParser({
   trimValues: false,
   parseTagValue: false,
   parseAttributeValue: false,
+  // Character references (the build writes a carriage return as &#13;) are text, as the
+  // instance stores it. CDATA stays as written.
+  htmlEntities: true,
 });
 
 const ATTRIBUTES = ":@";

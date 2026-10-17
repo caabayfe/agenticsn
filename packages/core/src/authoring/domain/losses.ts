@@ -30,7 +30,16 @@ const API_DEFAULTS: ReadonlySet<string> = new Set([
 // (conversion-fixes.ts): only that empty value is the loss, never a value the source changed.
 const EMPTY_DEFAULTS: Readonly<Record<string, string>> = {
   "sys_ui_policy_action.field_message_type": "none",
+  // An empty UI type is desktop's; the build writes desktop's id (spec 009 X4, 144 on pdi2).
+  "sys_ui_policy.ui_type": "0",
+  // The SDK's inbound action plugin reads an empty action as a record action (1 on pdi2).
+  "sysevent_in_email_action.action": "record_action",
 };
+
+// Fields the SDK computes from other fields, which only the instance's empty value may differ
+// from: a global role's suffix becomes its name (632 of 646 global roles on pdi2 have none; 7
+// already hold their name, so the platform accepts it).
+const EMPTY_RECOMPUTED: ReadonlySet<string> = new Set(["sys_user_role.suffix"]);
 
 const SPLIT_MARKERS = /^(\.begin_split|\.split|\.end_split)\|/;
 const SYS_ID = /^[0-9a-f]{32}$/;
@@ -49,6 +58,7 @@ function fieldLoss(difference: Extract<Difference, { kind: "field" }>): LossId |
   const key = `${difference.table}.${difference.field}`;
   if (API_DEFAULTS.has(key)) return "api-default";
   if (difference.instance === "" && EMPTY_DEFAULTS[key] === difference.built) return "api-default";
+  if (difference.instance === "" && EMPTY_RECOMPUTED.has(key)) return "api-default";
   if (
     SYS_ID.test(difference.instance) &&
     difference.built !== "" &&

@@ -6,9 +6,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Plans and adopt read the built XML's character references as text: the build writes a
+  carriage return as `&#13;`, which was compared literally, so any text with Windows line
+  endings (a role's description, a script) showed as a difference that wasn't there.
 - `adopt` brings in UI policies whose actions have an empty message type: three in four on a
   PDI failed to build, because the SDK converts the empty type to a value its own types reject.
   The converted source now says `none`, which the load writes for the empty value (spec 009 X4).
+- `adopt` brings in global roles, UI policies with an empty UI type, and inbound actions with
+  an empty type. The SDK writes a global role's suffix as its name, desktop for an empty UI type
+  and a record action for an empty type; each is accepted only against the instance's empty
+  value, so a real change still shows (spec 009 X4). Checked read-only on a PDI: 10 of 10
+  roles and 8 of 8 policies.
 - `adopt` refuses a script include whose access is empty, with what to set on the instance, rather
   than failing to build: the SDK would have to choose who may call it.
 - A change to a script include's `protectionPolicy` or `useEsLatest` alone is now delivered.

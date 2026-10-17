@@ -164,6 +164,24 @@ describe("docs check: sections and readers", () => {
     ]);
   });
 
+  it("fails a link to a page that doesn't exist, and passes one that does", async () => {
+    const check = await problemsOf([
+      ...without(pages.assign.path),
+      withPage(pages.assign, {
+        body: `${pages.assign.body}\nSee [resolving](see:resolve), [problems](see:problem/raise).\n`,
+      }),
+    ]);
+    expect(check.ok).toBe(false);
+    expect(check.problems).toEqual([
+      {
+        kind: "unknown-reference",
+        severity: "error",
+        page: pages.assign.path,
+        detail: "see:problem/raise",
+      },
+    ]);
+  });
+
   it("reports missing pages and roles with nothing to do, without failing", async () => {
     const check = await problemsOf(without(pages.lifecycle.path, pages.report.path), {
       process: { ...PROCESS, roles: [...PROCESS.roles, { id: "lead", audience: "operator" }] },

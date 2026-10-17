@@ -11,7 +11,9 @@ export const DOCUMENT: Skill = {
     "End users (use/<capability>.md): start at the portal named in site.yaml surfaces. Find the menus (sp_rectangle_menu_item), topics, the record producer and its questions (sc_cat_item_producer, item_option_new), the ticket page, Virtual Agent topics, email actions and the emails they get. Use the portal's words: no field, table or state names.",
     "Operators (operate/<capability>.md): start at the workspace list (sys_ux_list), then the form layout (sys_ui_section and its sys_ui_element children), actions (sys_declarative_action_assignment, sys_ui_action), policies, choices and notifications. Describe the workspace; note where the classic form differs.",
     "Platform team (configure/<topic>.md): the records behind each operator capability, in execution order, with scripts read for what they do. Every operator capability needs one.",
+    "The mirror: choice labels are children of the table's sys_db_object record; on-screen labels (sys_documentation) aren't mirrored; property values are, unless private. Link other pages as [text](see:<process>/<topic>); the check fails on a dead link.",
     "Every page carries evidence E01, E02, … (record <table>/<sys_id>, optional field or children, how, result) and cites claims as [E01]. A label the mirror can't prove: seen (by, on, where), checked on screen by a person. Label changes {label=NEW}, CORRECTED, RESTORED, CHANGED, DOCUMENTED-ONLY or OPEN-QUESTION; add {{animation:<name>}} for what moves.",
+    "Before publishing, list what only a screen can prove (portal content the mirror lacks, labels, actions that are configured but may not show) and have a person check it, ideally as an end user, recorded as seen evidence.",
     "Run `snagentic docs pin`, then `snagentic docs check` until it has no errors and you have read every warning, then `snagentic docs build`; `snagentic docs serve` to preview.",
   ],
   decide: [

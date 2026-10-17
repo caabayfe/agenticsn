@@ -213,3 +213,20 @@ evidence:
 |---|---|
 | `seen` | checked within the last 90 days |
 | `recheck` | older than 90 days: a warning naming the page, never a blocking error |
+
+## 8. Links between pages (010b, 2026-10-17)
+
+Processes refer to each other: incident escalates to major incident and problem, request to
+change. A page links another with `[text](see:<target>)`:
+
+| Target | Leads to |
+|---|---|
+| `see:<topic>` | the topic in the same process |
+| `see:<process>/<topic>` | the topic in another process |
+| `see:<process>/<section>/<topic>` | that section's page |
+| `see:<process>` | the process's page |
+
+Without a section, the reader's own section wins: an end user's link goes to the end user's page
+when the topic has one, then the shared page (in the reader's view), then the others. `docs
+check` reports a link that leads nowhere as `unknown-reference`, an error.
+

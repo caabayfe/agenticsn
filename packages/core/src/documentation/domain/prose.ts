@@ -11,6 +11,9 @@ export const LABELS = [
 ] as const;
 export type Label = (typeof LABELS)[number];
 
+// A link to another page, [text](see:<target>), resolved by references.ts (spec 010b).
+export const SEE_LINK = /\]\(see:([a-z0-9/-]*)\)/g;
+
 // Code (fenced blocks and inline spans) is left as written; only prose is transformed.
 const CODE = /(^(```|~~~)[\s\S]*?^\2[^\n]*$|`[^`\n]*`)/gm;
 
@@ -66,6 +69,8 @@ export interface ProseContext {
   readonly scenes: ReadonlyMap<string, Scene>;
   // Path from the page to the site root ("../" for pages/).
   readonly prefix: string;
+  // The address of a see: link's target, or null when it leads nowhere (spec 010b).
+  readonly link?: (target: string) => string | null;
 }
 
 function cite(id: string, context: ProseContext): string {
@@ -87,6 +92,7 @@ export function expandProse(markdown: string, context: ProseContext): string {
         (_, heading: string, label: string) => `${heading} ${labelHtml(label)}`,
       )
       .replace(/\[(E\d+)\]/g, (_, id: string) => cite(id, context))
+      .replace(SEE_LINK, (_, target: string) => `](${context.link?.(target) ?? "#unknown-link"})`)
       .replace(
         /^\{\{animation:([a-z0-9]+)\}\}\s*$/gm,
         (_, name: string) => `\n${animationHtml(context.scenes.get(name), name, context.prefix)}\n`,

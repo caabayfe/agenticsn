@@ -152,6 +152,25 @@ describe("docs build: guides and configure pages", () => {
     );
   });
 
+  it("turns see: links into the page's address, in the reader's view", async () => {
+    const { file } = await build([
+      ...ALL.filter((page) => page.path !== pages.assign.path && page.path !== pages.report.path),
+      withPage(pages.assign, {
+        body: "Read [the overview](see:overview) and [the process](see:incident). [E01]",
+      }),
+      withPage(pages.report, { body: "Read [the overview](see:overview). [E01]" }),
+    ]);
+    expect(file("processes/incident/operate/assign.html")).toContain(
+      "[the overview](../../../processes/incident/operate/understand/overview.html)",
+    );
+    expect(file("processes/incident/operate/assign.html")).toContain(
+      "[the process](../../../processes/incident/index.html)",
+    );
+    expect(file("processes/incident/use/report.html")).toContain(
+      "[the overview](../../../processes/incident/use/understand/overview.html)",
+    );
+  });
+
   it("links a capability to its counterpart on the other side", async () => {
     const { file } = await build();
     expect(file("processes/incident/operate/resolve.html")).toContain(

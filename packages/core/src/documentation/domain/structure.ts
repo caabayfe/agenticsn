@@ -2,6 +2,7 @@ import { checkedOnSurface, platformWords } from "./audience-checks";
 import { type DocPage, type PageProblem, pageProblems, type Section } from "./page";
 import type { Process, ProcessCapability } from "./process";
 import { animationsOf } from "./prose";
+import { referencesOf, resolveReference } from "./references";
 import type { Scene } from "./scene";
 import type { SiteConfig } from "./site-config";
 import { type View, viewOf } from "./views";
@@ -26,6 +27,7 @@ const ERRORS = [
   "mixed-audience",
   "bad-counterpart",
   "missing-configure",
+  "unknown-reference",
 ] as const;
 const WARNINGS = [
   "uncited-evidence",
@@ -180,6 +182,7 @@ function audienceProblems(docs: DocSet, page: DocPage): readonly DocsProblem[] {
 // What `docs check` finds in the sources alone, before the mirror is read.
 export function structureProblems(docs: DocSet): readonly DocsProblem[] {
   const names = new Set(docs.scenes.map((scene) => scene.name));
+  const processIds = docs.processes.map((process) => process.id);
   return [
     ...docs.pages.flatMap((page) => [
       ...pageProblems(page).map(fromPage),
@@ -187,6 +190,9 @@ export function structureProblems(docs: DocSet): readonly DocsProblem[] {
       ...animationsOf(page.body)
         .filter((name) => !names.has(name))
         .map((name) => docsProblem("unknown-animation", page.path, name)),
+      ...referencesOf(page.body)
+        .filter((target) => resolveReference(target, page, docs.pages, processIds) === null)
+        .map((target) => docsProblem("unknown-reference", page.path, `see:${target}`)),
       ...audienceProblems(docs, page),
     ]),
     ...docs.processes.flatMap((process) => processProblems(docs, process)),

@@ -1,6 +1,6 @@
 # 010a. Three audiences: users, operators, platform team
 
-- Status: Accepted (product owner, 2026-10-17); A1 in progress
+- Status: Accepted (product owner, 2026-10-17); A1–A4 done (2026-10-17)
 - Amends: ADR-0034 decision 2 (page layout), spec 010 §2 (sources) and §3 (site)
 - Requirements: G2, ASR-01, ASR-13
 - Origin: product owner review of the pdi2 incident documentation (2026-10-17). End users,

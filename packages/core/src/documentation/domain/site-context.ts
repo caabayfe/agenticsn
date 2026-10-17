@@ -5,9 +5,10 @@ import type { DocPage, Section } from "./page";
 import type { PlayerMedia } from "./player";
 import { OVERVIEW, type Process, type ProcessCapability } from "./process";
 import { expandProse } from "./prose";
+import { resolveReference } from "./references";
 import type { Scene } from "./scene";
 import type { SiteConfig } from "./site-config";
-import { evidenceTable, prefixOf, staleIds } from "./site-layout";
+import { evidenceTable, pageFile, prefixOf, staleIds } from "./site-layout";
 import { capabilityAudience } from "./structure";
 import { type View, viewOf } from "./views";
 
@@ -26,6 +27,8 @@ export interface SiteInput {
   readonly media?: ReadonlyMap<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>;
   // The configuration index of each process, by process id (spec 010a, A3).
   readonly indexes?: ReadonlyMap<string, ConfigIndex>;
+  // Each animation rendered as MP4, by animation name (spec 010c).
+  readonly videos?: ReadonlyMap<string, Uint8Array>;
 }
 
 export interface Built {
@@ -123,14 +126,30 @@ export function surfaceNames(b: Built, view: View): string {
 }
 
 // The page's Markdown as HTML, in one reader's view for an Understand page.
+// Where a see: link from this page leads, in the reader's view (spec 010b).
+function linkFor(b: Built, page: DocPage, prefix: string, view?: View) {
+  const processes = b.input.processes.map((process) => process.id);
+  const reader: View = view ?? (page.section === "use" ? "user" : "operator");
+  return (target: string): string | null => {
+    const found = resolveReference(target, page, b.input.pages, processes);
+    if (found === null) return null;
+    return found.kind === "process"
+      ? `${prefix}processes/${found.process}/index.html`
+      : `${prefix}${pageFile(found.page, reader)}`;
+  };
+}
+
 export function bodyHtml(b: Built, page: DocPage, file: string, view?: View): string {
   const markdown = view === undefined ? page.body : viewOf(page.body, view);
+  const prefix = prefixOf(file);
   return b.input.markdown(
     expandProse(markdown, {
       evidence: new Set(page.evidence.map((item) => item.id)),
       citeTarget: null,
       scenes: b.scenes,
-      prefix: prefixOf(file),
+      prefix,
+      link: linkFor(b, page, prefix, view),
+      videos: new Set(b.input.videos?.keys() ?? []),
     }),
   );
 }

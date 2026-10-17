@@ -95,8 +95,10 @@ export {
   LABELS,
   type Label,
   mapProse,
+  SEE_LINK,
   transcriptHtml,
 } from "./domain/prose";
+export { type Resolved, referencesOf, resolveReference } from "./domain/references";
 export {
   type Camera,
   type Cue,

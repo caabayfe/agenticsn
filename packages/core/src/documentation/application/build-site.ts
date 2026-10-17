@@ -1,6 +1,7 @@
 import type { ConfigIndex } from "../domain/config-index";
 import type { EvidenceStatus } from "../domain/evidence";
-import type { PlayerMedia } from "../domain/player";
+import { type PlayerMedia, playerHtml } from "../domain/player";
+import type { Scene } from "../domain/scene";
 import { siteFiles } from "../domain/site";
 import type { MarkdownRenderer, MediaTools, SiteOutput } from "../ports";
 import { type AudioOptions, audioTrack } from "./audio-tracks";
@@ -22,6 +23,8 @@ export interface BuildSiteDependencies extends CheckDocsDependencies {
 export interface BuildSiteOptions {
   // Give each animation an audio track (music and effects, and the voice when asked).
   readonly audio?: AudioOptions;
+  // Also render each animation as an MP4 with its track (spec 010c); implies audio.
+  readonly video?: { readonly fps: number };
 }
 
 export interface BuildSiteResult {
@@ -31,6 +34,9 @@ export interface BuildSiteResult {
   // Animations given an audio track, and cue sounds that were missing from them.
   readonly narrated: readonly string[];
   readonly missingSounds: readonly string[];
+  // Animations rendered as video, and why the others couldn't be.
+  readonly videos: readonly string[];
+  readonly videosNotMade: readonly { readonly animation: string; readonly reason: string }[];
 }
 
 function statusesByPage(check: DocsCheck): Map<string, Map<string, EvidenceStatus>> {
@@ -41,6 +47,43 @@ function statusesByPage(check: DocsCheck): Map<string, Map<string, EvidenceStatu
     byPage.set(item.page, page);
   }
   return byPage;
+}
+
+// Each animation as an MP4 with its track; a missing browser is reported per animation, never
+// silently skipped.
+async function renderVideos(
+  deps: BuildSiteDependencies,
+  scenes: readonly Scene[],
+  media: ReadonlyMap<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>,
+  audio: AudioOptions | undefined,
+  video: BuildSiteOptions["video"],
+) {
+  const videos = new Map<string, Uint8Array>();
+  const notMade: { animation: string; reason: string }[] = [];
+  if (video === undefined) return { videos, notMade };
+  const browser = await deps.media.video.available();
+  for (const scene of scenes) {
+    const track = media.get(scene.name);
+    if (!browser || track === undefined) {
+      notMade.push({ animation: scene.name, reason: "no Chrome or Chromium browser" });
+      continue;
+    }
+    const options = {
+      seconds: track.player.timeline.total,
+      fps: video.fps,
+      subtitles: (audio?.voice ?? "none") !== "none",
+    };
+    videos.set(
+      scene.name,
+      await deps.media.video.render(
+        playerHtml(scene, track.player),
+        track.mp3,
+        options,
+        deps.signal,
+      ),
+    );
+  }
+  return { videos, notMade };
 }
 
 // `docs build`: the static site, with each page's evidence status as of now. A stale page is
@@ -54,15 +97,17 @@ export async function buildSite(
   const check = await assessDocumentation(docs, mirror, todayOf(deps.clock), deps.signal);
   const media = new Map<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>();
   const missing = new Set<string>();
-  if (options.audio !== undefined) {
+  const audio = options.audio ?? (options.video === undefined ? undefined : { voice: "none" });
+  if (audio !== undefined) {
     for (const scene of docs.scenes) {
-      const track = await audioTrack(deps.media, scene, options.audio, deps.signal);
+      const track = await audioTrack(deps.media, scene, audio, deps.signal);
       media.set(scene.name, { player: track.media, mp3: track.mp3 });
       for (const name of track.missingSounds) {
         missing.add(name);
       }
     }
   }
+  const { videos, notMade } = await renderVideos(deps, docs.scenes, media, audio, options.video);
   const indexes = new Map<string, ConfigIndex>();
   for (const process of docs.processes) {
     indexes.set(process.id, await configIndex(docs, process, mirror, check, deps.signal));
@@ -78,6 +123,7 @@ export async function buildSite(
     mirrorCommit: await mirror.head(),
     media,
     indexes,
+    videos,
   });
   await deps.output.replace(files);
   return {
@@ -86,5 +132,7 @@ export async function buildSite(
     check,
     narrated: [...media.keys()],
     missingSounds: [...missing],
+    videos: [...videos.keys()],
+    videosNotMade: notMade,
   };
 }

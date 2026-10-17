@@ -22,6 +22,7 @@ function documentation(stale = false): DocumentedRecords & { asked: unknown[][] 
           evidence: ["E01", "E04"],
         }));
     },
+    unanimated: async () => [],
     stale: async () =>
       stale
         ? [
@@ -81,12 +82,31 @@ describe("validate and the documentation", () => {
   it("says when cited evidence is gone from the mirror", async () => {
     const docs: DocumentedRecords = {
       citing: async () => [],
+      unanimated: async () => [],
       stale: async () => [
         { page: "documentation/p.md", evidence: "E01", anchor: "sys_script/x", status: "missing" },
       ],
     };
     const result = await validate({ ...governanceOf({}), documentation: docs }, { base: "HEAD" });
     expect(result.findings[0]?.message).toBe("E01 sys_script/x is gone from the mirror");
+  });
+
+  it("warns about a guide without an animation, without blocking", async () => {
+    const docs: DocumentedRecords = {
+      citing: async () => [],
+      stale: async () => [],
+      unanimated: async () => ["documentation/processes/incident/use/follow.md"],
+    };
+    const result = await validate({ ...governanceOf({}), documentation: docs }, { base: "HEAD" });
+    expect(result.passed).toBe(true);
+    expect(result.findings.map((f) => [f.ruleId, f.severity, f.path, f.message])).toEqual([
+      [
+        "SN-MNT-016",
+        "warn",
+        "documentation/processes/incident/use/follow.md",
+        "this guide has no animation",
+      ],
+    ]);
   });
 
   it("checks no documentation when the workspace has none", async () => {

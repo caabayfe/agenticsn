@@ -1,4 +1,5 @@
 import { NoDocumentationError } from "../domain/errors";
+import { structureProblems } from "../domain/structure";
 import { assessDocumentation, type CheckDocsDependencies, todayOf } from "./check-docs";
 import { type Documentation, loadDocumentation } from "./load-documentation";
 
@@ -16,6 +17,7 @@ export interface DocumentationLookup {
   ): Promise<
     readonly { page: string; evidence: string; anchor: string; status: "changed" | "missing" }[]
   >;
+  unanimated(signal: AbortSignal): Promise<readonly string[]>;
 }
 
 const FOLDER = "documentation";
@@ -70,6 +72,13 @@ export function documentationLookup(
             ]
           : [],
       );
+    },
+    async unanimated() {
+      const docs = await load();
+      if (docs === null) return [];
+      return structureProblems(docs)
+        .filter((problem) => problem.kind === "missing-animation")
+        .map((problem) => `${FOLDER}/${problem.page}`);
     },
   };
 }

@@ -7,8 +7,9 @@ export interface TouchedRecord extends RecordRef {
   readonly source: string;
 }
 
-// Pages that cite a record the change edits (SN-MNT-014), and pages whose evidence no longer
-// matches the mirror (SN-MNT-015). Findings name the page: that is the file to update.
+// Pages that cite a record the change edits (SN-MNT-014), pages whose evidence no longer
+// matches the mirror (SN-MNT-015), and guides without an animation (SN-MNT-016). Findings name
+// the page: that is the file to update.
 export async function documentationFindings(
   docs: DocumentedRecords,
   touched: readonly TouchedRecord[],
@@ -38,5 +39,15 @@ export async function documentationFindings(
       evidence: "",
     }),
   );
-  return [...edited, ...stale];
+  const unanimated = (await docs.unanimated(signal)).flatMap((page) =>
+    withRule("SN-MNT-016", {
+      path: page,
+      root: "workspace",
+      field: null,
+      line: null,
+      message: "this guide has no animation",
+      evidence: "",
+    }),
+  );
+  return [...edited, ...stale, ...unanimated];
 }

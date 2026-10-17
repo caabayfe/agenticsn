@@ -28,7 +28,8 @@ export interface PageProblem {
     | "uncited-evidence"
     | "no-evidence"
     | "misplaced-view"
-    | "unknown-view";
+    | "unknown-view"
+    | "misplaced-label";
   readonly page: string;
   readonly detail: string;
 }
@@ -127,6 +128,13 @@ export function pageProblems(page: DocPage): readonly PageProblem[] {
   }
   if (page.section === "configure" && page.evidence.length === 0) {
     problems.push({ kind: "no-evidence", page: page.path, detail: page.topic });
+  }
+  // A label shows only on a heading; anywhere else it is printed as written.
+  for (const line of proseOf(page.body).split("\n")) {
+    const label = /\{label=([A-Za-z-]+)\}/.exec(line)?.[1];
+    if (label !== undefined && !/^#{1,6} /.test(line)) {
+      problems.push({ kind: "misplaced-label", page: page.path, detail: label });
+    }
   }
   for (const mark of viewMarks(proseOf(page.body))) {
     if (!isView(mark)) {

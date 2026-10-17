@@ -25,4 +25,14 @@ export const DOCUMENTATION_RULES: readonly Rule[] = [
       "Re-read the record, correct the page, then run snagentic docs pin <page>; snagentic docs check lists every such page.",
     scripts: [],
   },
+  {
+    id: "SN-MNT-016",
+    category: "manageability",
+    severity: "warn",
+    title: "A documented capability has no animation",
+    why: "Every user and operator guide shows its capability as a narrated animation (spec 010c): people follow a process far better when they see it move than when they read it.",
+    remediation:
+      "Add an animation under documentation/animations/<name>/ and embed it on the page with {{animation:<name>}}; snagentic docs check lists every page without one.",
+    scripts: [],
+  },
 ];

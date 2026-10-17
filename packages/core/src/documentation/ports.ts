@@ -20,6 +20,8 @@ export interface SceneSource {
 export interface DocumentationSources {
   // site.yaml parsed, or null when the workspace has no documentation.
   site(): Promise<unknown>;
+  // processes/<id>/process.yaml, parsed.
+  processes(): Promise<readonly { readonly path: string; readonly process: unknown }[]>;
   pages(): Promise<readonly PageSource[]>;
   scenes(): Promise<readonly SceneSource[]>;
   // Sets evidence.<id>.hash in a page's front matter, keeping the rest of the file as written.

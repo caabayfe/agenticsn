@@ -6,12 +6,13 @@ export const AUDIENCES = ["guide", "technical"] as const;
 export type Audience = (typeof AUDIENCES)[number];
 
 export interface DocPage {
-  // Relative to documentation/.
+  // Relative to documentation/: processes/<process>/<capability>.<audience>.md.
   readonly path: string;
-  readonly code: string;
-  readonly title: string;
+  readonly process: string;
+  // A capability of the process, or "overview" for the process's own page.
+  readonly capability: string;
   readonly audience: Audience;
-  readonly pair?: string;
+  readonly title: string;
   readonly reviewed?: string;
   readonly evidence: readonly Evidence[];
   readonly body: string;
@@ -60,26 +61,34 @@ function isAudience(value: string): value is Audience {
   return (AUDIENCES as readonly string[]).includes(value);
 }
 
+const PAGE_PATH = /^processes\/([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*)\.(guide|technical)\.md$/;
+
 export function parseDocPage(
   path: string,
   source: { readonly frontMatter: unknown; readonly body: string },
 ): DocPage {
-  const fields = fieldsOf(source.frontMatter);
-  const audience = required(path, fields, "audience");
-  if (!isAudience(audience)) {
+  const match = PAGE_PATH.exec(path);
+  const audience = match?.[3];
+  if (
+    match === null ||
+    match[1] === undefined ||
+    match[2] === undefined ||
+    audience === undefined ||
+    !isAudience(audience)
+  ) {
     throw new DocumentationSourceError(
       path,
-      `audience must be guide or technical, not ${audience}`,
+      "pages are processes/<process>/<capability>.guide.md or .technical.md",
     );
   }
-  const pair = optional(fields, "pair");
+  const fields = fieldsOf(source.frontMatter);
   const reviewed = optional(fields, "reviewed");
   return {
     path,
-    code: required(path, fields, "code"),
-    title: required(path, fields, "title"),
+    process: match[1],
+    capability: match[2],
     audience,
-    ...(pair === undefined ? {} : { pair }),
+    title: required(path, fields, "title"),
     ...(reviewed === undefined ? {} : { reviewed }),
     evidence: parseEvidence(path, fields["evidence"]),
     body: source.body,
@@ -108,7 +117,7 @@ export function pageProblems(page: DocPage): readonly PageProblem[] {
     }
   }
   if (page.audience === "technical" && page.evidence.length === 0) {
-    problems.push({ kind: "no-evidence", page: page.path, detail: page.code });
+    problems.push({ kind: "no-evidence", page: page.path, detail: page.capability });
   }
   return problems;
 }

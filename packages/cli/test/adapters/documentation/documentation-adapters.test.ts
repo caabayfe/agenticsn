@@ -24,10 +24,8 @@ afterEach(() => {
 });
 
 const PAGE = `---
-# The technical page of the assignment subject.
-code: B2
+# The technical page of the assignment capability.
 title: Assignment configuration
-audience: technical
 reviewed: 2026-10-17
 evidence:
   E01:
@@ -41,16 +39,20 @@ The rule sets the group. [E01]
 `;
 
 describe("documentation sources on disk", () => {
-  it("reads site.yaml, the pages and the animations", async () => {
+  it("reads site.yaml, the processes, their pages and the animations", async () => {
     write("documentation/site.yaml", "title: Docs\ninstance: pdi2\n");
-    write("documentation/pages/B2-assignment.md", PAGE);
+    write("documentation/processes/incident/process.yaml", "title: Incident management\n");
+    write("documentation/processes/incident/assign.technical.md", PAGE);
     write("documentation/animations/asg/animation.json", '{"name":"asg"}');
     write("documentation/animations/asg/scene.svg", '<svg><g id="cam"></g></svg>');
     write("documentation/animations/asg/steps.json", '[{"t":"A","c":"B","say":"C"}]');
     const sources = new FsDocumentationSources(root);
     expect(await sources.site()).toEqual({ title: "Docs", instance: "pdi2" });
+    expect(await sources.processes()).toEqual([
+      { path: "processes/incident/process.yaml", process: { title: "Incident management" } },
+    ]);
     const [page] = await sources.pages();
-    expect(page?.path).toBe("pages/B2-assignment.md");
+    expect(page?.path).toBe("processes/incident/assign.technical.md");
     expect(page?.body).toBe("## Rules\n\nThe rule sets the group. [E01]\n");
     const [scene] = await sources.scenes();
     expect(scene).toMatchObject({ path: "animations/asg", css: null, steps: [{ t: "A" }] });
@@ -61,15 +63,18 @@ describe("documentation sources on disk", () => {
   });
 
   it("pins hashes in the front matter and keeps comments, order and the body as written", async () => {
-    write("documentation/pages/B2-assignment.md", PAGE);
+    write("documentation/processes/incident/assign.technical.md", PAGE);
     await new FsDocumentationSources(root).pinHashes(
-      "pages/B2-assignment.md",
+      "processes/incident/assign.technical.md",
       new Map([
         ["E01", "abc123"],
         ["E09", "not listed"],
       ]),
     );
-    const after = readFileSync(join(root, "documentation/pages/B2-assignment.md"), "utf8");
+    const after = readFileSync(
+      join(root, "documentation/processes/incident/assign.technical.md"),
+      "utf8",
+    );
     expect(after).toBe(
       PAGE.replace(
         "    result: sets the group\n",

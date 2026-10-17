@@ -16,7 +16,9 @@ export const DocsProblemSchema = z.object({
     "uncited-evidence",
     "no-evidence",
     "unknown-animation",
-    "unknown-pair",
+    "unknown-process",
+    "unknown-capability",
+    "missing-guide",
   ]),
   page: z.string(),
   detail: z.string(),
@@ -46,6 +48,7 @@ export const docsCheck = defineUseCase({
   input: z.object({}),
   output: z.object({
     instance: z.string(),
+    processes: z.number(),
     pages: z.number(),
     animations: z.number(),
     ok: z.boolean(),
@@ -73,7 +76,7 @@ export const docsCheck = defineUseCase({
     const fresh = output.evidence.filter((item) => item.status === "fresh").length;
     const head =
       `${output.ok ? "documentation is up to date" : "documentation is out of date"}: ` +
-      `${output.pages} pages, ${output.animations} animations, ${fresh}/${output.evidence.length} ` +
+      `${output.processes} processes, ${output.pages} pages, ${output.animations} animations, ${fresh}/${output.evidence.length} ` +
       `evidence fresh against ${output.instance}`;
     const lines = checkLines(output);
     const next = output.ok

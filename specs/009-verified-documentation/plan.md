@@ -22,58 +22,57 @@ Phase 2 adds `docs build --audio` (and `--voice`), phase 3 `docs video <animatio
 
 ## 2. Workspace sources
 
+Documentation is organised **by process, then by capability**, and written for the process's
+consumers (revised 2026-10-17: the process can't be guessed from code; the user guide is for the
+people who use the platform, the technical page for its owner).
+
 ```
 documentation/
-  site.yaml                         title, instance, footer
-  pages/
-    A4-triage-cases.md              user guide (audience: guide)
-    B4-triage-configuration.md      technical reference (audience: technical)
-  animations/
-    tri/
-      animation.json                name, title, heading, tags, viewBox, footer, mix cues
-      scene.svg                     the <svg> element with <g id="cam">
-      scene.css                     optional scene CSS
-      steps.json                    [{t, c, say, sub?, cam?, on?}]
+  site.yaml                               title, instance, footer
+  processes/
+    incident/
+      process.yaml                        summary, roles, lifecycle, capabilities (ordered, with roles)
+      overview.guide.md                   what the process is for, when to use it, the words people need
+      overview.technical.md               optional: how the whole process is configured
+      report.guide.md                     user guide of one capability, for its roles
+      report.technical.md                 the records behind it, with evidence
+      …
+  animations/<name>/                      animation.json, scene.svg, scene.css, steps.json
 ```
 
-### site.yaml
+### process.yaml
 
 ```yaml
-title: Incident platform documentation
-instance: pdi2
-footer: Prepared with snagentic. Figures are a snapshot of the review date.
+title: Incident management
+summary: Get people working again as fast as possible when something breaks.
+order: 1
+roles:
+  - { id: caller, name: Caller, description: anyone who reports that something is not working }
+  - { id: agent, name: Service desk agent, description: logs, sorts and routes incidents }
+lifecycle:
+  - { state: New, meaning: logged, nobody is working on it yet }
+capabilities:
+  - { id: report, title: Report an incident, roles: [caller], summary: Tell IT what is wrong }
 ```
 
-### A page
+### Pages
 
-```markdown
----
-code: B4
-title: Triage case configuration
-audience: technical         # guide | technical
-pair: A4                    # the page with the same subject for the other audience
-reviewed: 2026-10-17
-evidence:
-  E01:
-    record: sys_script_include/9f1c0000000000000000000000000001
-    field: script           # optional: anchor one field, not the whole record
-    hash: 4be1…             # written by `docs pin`
-    how: read the function createDefaultInteraction
-    result: one user → contact, company and Default Support Team
----
+Front matter: `title`, optional `reviewed`, and `evidence` (E01, E02, … each with `record:
+<table>/<sys_id>`, optional `field`, `how`, `result`, and `hash`, written by `docs pin`). Claims
+cite evidence as `[E01]`. Guides may carry evidence too; the site folds it under "How this guide
+was checked". Labels on headings: `{label=NEW}`, `CORRECTED`, `RESTORED`, `CHANGED`,
+`DOCUMENTED-ONLY`, `OPEN-QUESTION`. `{{animation:<name>}}` alone on a line embeds the player and
+its transcript.
 
-## Email channel {label=CORRECTED}
+### The site
 
-When one active user has the sender address, the case gets that user and their company. [E01]
-
-{{animation:tri}}
-```
-
-- Labels: `NEW`, `CORRECTED`, `RESTORED`, `CHANGED`, `DOCUMENTED-ONLY`, `OPEN-QUESTION`, on a
-  heading as `{label=…}`.
-- `{{animation:<name>}}` alone on a line embeds the player, followed by its transcript.
-- The technical page renders its evidence table from the front matter: ID, how, record, result,
-  status at build time.
+- `index.html`: the processes.
+- `processes/<p>/index.html`: summary, who it is for (each role and where it starts), lifecycle,
+  overview, numbered capabilities with links to their guide and configuration.
+- `processes/<p>/<capability>.html`: the guide, with its number, roles, previous and next
+  capability, and a link to how it is configured. A stale technical page shows a plain-language
+  notice on the guide.
+- `processes/<p>/<capability>.technical.html`: the technical page with its evidence table.
 
 ### Anchors and hashes
 

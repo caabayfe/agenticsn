@@ -26,7 +26,8 @@ async function list(root: string, pattern: string): Promise<string[]> {
   return found.sort();
 }
 
-// documentation/ in the workspace: site.yaml, pages/*.md, animations/<name>/ (ADR-0034).
+// documentation/ in the workspace: site.yaml, processes/<id>/process.yaml and its pages
+// (<capability>.guide.md, <capability>.technical.md), animations/<name>/ (ADR-0034).
 export class FsDocumentationSources implements DocumentationSources {
   private readonly root: string;
 
@@ -39,9 +40,17 @@ export class FsDocumentationSources implements DocumentationSources {
     return text === null ? null : (parse(text) ?? {});
   }
 
+  async processes() {
+    const processes: { path: string; process: unknown }[] = [];
+    for (const path of await list(this.root, "processes/*/process.yaml")) {
+      processes.push({ path, process: parse(await readFile(join(this.root, path), "utf8")) ?? {} });
+    }
+    return processes;
+  }
+
   async pages(): Promise<readonly PageSource[]> {
     const pages: PageSource[] = [];
-    for (const path of await list(this.root, "pages/*.md")) {
+    for (const path of await list(this.root, "processes/*/*.md")) {
       const split = splitFrontMatter(await readFile(join(this.root, path), "utf8"));
       pages.push({
         path,

@@ -39,6 +39,14 @@ export {
 } from "./domain/page";
 export { type PlayerAudio, type PlayerMedia, playerHtml, revealCss } from "./domain/player";
 export {
+  type LifecycleState,
+  OVERVIEW,
+  type Process,
+  type ProcessCapability,
+  type ProcessRole,
+  parseProcess,
+} from "./domain/process";
+export {
   animationsOf,
   expandProse,
   LABELS,
@@ -56,8 +64,9 @@ export {
   type TagKind,
   type Timeline,
 } from "./domain/scene";
-export { pageFile, type SiteFile, type SiteInput, siteFiles } from "./domain/site";
+export { type SiteFile, type SiteInput, siteFiles } from "./domain/site";
 export { parseSiteConfig, type SiteConfig } from "./domain/site-config";
+export { pageFile } from "./domain/site-layout";
 export type {
   DocumentationSources,
   MarkdownRenderer,

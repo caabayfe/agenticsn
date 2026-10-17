@@ -16,7 +16,7 @@ import { FAKE_CONTEXT } from "../support/fakes";
 
 const RULE = "0c1345dd0783f01028ef0a701ad300fa";
 const RECORD = `instances/pdi2/metadata/global/sys_script/set-group--${RULE}.yaml`;
-const PAGE = "documentation/pages/B2-assignment.md";
+const PAGE = "documentation/processes/incident/assign.technical.md";
 
 let base: string;
 let root: string;
@@ -59,10 +59,14 @@ beforeEach(async () => {
   served = null;
   progress.length = 0;
   write("documentation/site.yaml", "title: Incident docs\ninstance: pdi2\n");
+  write(
+    "documentation/processes/incident/process.yaml",
+    "title: Incident management\ncapabilities:\n  - id: assign\n    title: Assign an incident\n",
+  );
   write(RECORD, "_meta:\n  hash: h1\nname: Set group\n");
   write(
     PAGE,
-    `---\ncode: B2\ntitle: Assignment configuration\naudience: technical\nevidence:\n  E01:\n    record: sys_script/${RULE}\n    how: read it\n    result: sets the group\n---\nThe rule sets the group. [E01]\n`,
+    `---\ntitle: Assignment configuration\nevidence:\n  E01:\n    record: sys_script/${RULE}\n    how: read it\n    result: sets the group\n---\nThe rule sets the group. [E01]\n`,
   );
 });
 
@@ -75,13 +79,15 @@ describe("snagentic docs", () => {
     const first = await docsCheck.handle({}, context(), run);
     expect(first.ok).toBe(true);
     expect(docsCheck.exitCode(first)).toBe(0);
-    expect(docsCheck.render(first, "text")).toContain("unpinned  pages/B2-assignment.md E01");
+    expect(docsCheck.render(first, "text")).toContain(
+      "unpinned  processes/incident/assign.technical.md E01",
+    );
 
     const pinned = await docsPin.handle({}, context(), run);
     expect(pinned.pinned.map((item) => item.id)).toEqual(["E01"]);
     expect(docsPin.exitCode(pinned)).toBe(0);
     expect(docsPin.render(pinned, "text")).toContain(
-      "pinned 1 evidence\n  pages/B2-assignment.md E01",
+      "pinned 1 evidence\n  processes/incident/assign.technical.md E01",
     );
     expect(readFileSync(join(root, PAGE), "utf8")).toContain("hash: h1");
 
@@ -94,7 +100,7 @@ describe("snagentic docs", () => {
 
   it("pin lists evidence whose record is gone and exits 1", async () => {
     rmSync(join(root, RECORD));
-    const result = await docsPin.handle({ page: "B2" }, context(), run);
+    const result = await docsPin.handle({ page: "incident/assign" }, context(), run);
     expect(result.missing.map((item) => item.id)).toEqual(["E01"]);
     expect(docsPin.exitCode(result)).toBe(1);
     expect(docsPin.render(result, "text")).toContain("gone from the mirror");
@@ -106,20 +112,20 @@ describe("snagentic docs", () => {
       readFileSync(join(root, PAGE), "utf8").replace("    how:", "    hash: old\n    how:"),
     );
     const built = await docsBuild.handle({}, context(), run);
-    expect(built.files).toBe(3);
+    expect(built.files).toBe(4);
     expect(built.ok).toBe(false);
     expect(docsBuild.render(built, "text")).toContain("some pages are out of date");
     expect(docsBuild.exitCode(built)).toBe(0);
-    expect(readFileSync(join(root, ".snagentic/site/pages/B2-assignment.html"), "utf8")).toContain(
-      "status-changed",
-    );
+    expect(
+      readFileSync(join(root, ".snagentic/site/processes/incident/assign.technical.html"), "utf8"),
+    ).toContain("status-changed");
   });
 
   it("serve builds the site, then serves it on the requested port", async () => {
     const result = await docsServe.handle({ port: 4999 }, context(), run);
     expect(served).toEqual({ port: 4999 });
     expect(result.url).toBe("http://127.0.0.1:4999/");
-    expect(progress[0]).toContain("serving 3 files at http://127.0.0.1:4999/");
+    expect(progress[0]).toContain("serving 4 files at http://127.0.0.1:4999/");
     expect(docsServe.render(result, "text")).toBe("stopped serving http://127.0.0.1:4999/");
     expect(docsServe.exitCode(result)).toBe(0);
   });

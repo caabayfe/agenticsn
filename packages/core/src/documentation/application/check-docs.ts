@@ -1,5 +1,6 @@
 import { anchorHash, anchorOf, type EvidenceStatus, evidenceStatus } from "../domain/evidence";
 import { type DocPage, type PageProblem, pageProblems } from "../domain/page";
+import { OVERVIEW } from "../domain/process";
 import { animationsOf } from "../domain/prose";
 import type { DocumentationSources, MirrorRecords } from "../ports";
 import { type Documentation, loadDocumentation } from "./load-documentation";
@@ -22,13 +23,19 @@ export interface EvidenceResult {
 }
 
 export interface DocsProblem {
-  readonly kind: PageProblem["kind"] | "unknown-animation" | "unknown-pair";
+  readonly kind:
+    | PageProblem["kind"]
+    | "unknown-animation"
+    | "unknown-process"
+    | "unknown-capability"
+    | "missing-guide";
   readonly page: string;
   readonly detail: string;
 }
 
 export interface DocsCheck {
   readonly instance: string;
+  readonly processes: number;
   readonly pages: number;
   readonly animations: number;
   readonly evidence: readonly EvidenceResult[];
@@ -40,7 +47,8 @@ export interface DocsCheck {
 const BLOCKING: readonly DocsProblem["kind"][] = [
   "unknown-citation",
   "unknown-animation",
-  "unknown-pair",
+  "unknown-process",
+  "unknown-capability",
 ];
 
 async function verify(page: DocPage, mirror: MirrorRecords, signal: AbortSignal) {
@@ -59,17 +67,42 @@ async function verify(page: DocPage, mirror: MirrorRecords, signal: AbortSignal)
   return results;
 }
 
+function placement(docs: Documentation, page: DocPage): readonly DocsProblem[] {
+  const process = docs.processes.find((candidate) => candidate.id === page.process);
+  if (process === undefined) {
+    return [{ kind: "unknown-process", page: page.path, detail: page.process }];
+  }
+  const known =
+    page.capability === OVERVIEW ||
+    process.capabilities.some((item) => item.id === page.capability);
+  return known ? [] : [{ kind: "unknown-capability", page: page.path, detail: page.capability }];
+}
+
 function references(docs: Documentation): readonly DocsProblem[] {
   const names = new Set(docs.scenes.map((scene) => scene.name));
-  const codes = new Set(docs.pages.map((page) => page.code));
-  return docs.pages.flatMap((page) => [
-    ...animationsOf(page.body)
-      .filter((name) => !names.has(name))
-      .map((name) => ({ kind: "unknown-animation" as const, page: page.path, detail: name })),
-    ...(page.pair !== undefined && !codes.has(page.pair)
-      ? [{ kind: "unknown-pair" as const, page: page.path, detail: page.pair }]
-      : []),
-  ]);
+  const guides = new Set(
+    docs.pages
+      .filter((page) => page.audience === "guide")
+      .map((page) => `${page.process}/${page.capability}`),
+  );
+  const missing = docs.processes.flatMap((process) =>
+    process.capabilities
+      .filter((capability) => !guides.has(`${process.id}/${capability.id}`))
+      .map((capability) => ({
+        kind: "missing-guide" as const,
+        page: `processes/${process.id}/process.yaml`,
+        detail: capability.id,
+      })),
+  );
+  return [
+    ...docs.pages.flatMap((page) => [
+      ...placement(docs, page),
+      ...animationsOf(page.body)
+        .filter((name) => !names.has(name))
+        .map((name) => ({ kind: "unknown-animation" as const, page: page.path, detail: name })),
+    ]),
+    ...missing,
+  ];
 }
 
 // Are the pages still true? Every piece of evidence against the mirror, every citation,
@@ -87,6 +120,7 @@ export async function assessDocumentation(
   const stale = evidence.some((item) => item.status === "changed" || item.status === "missing");
   return {
     instance: docs.config.instance,
+    processes: docs.processes.length,
     pages: docs.pages.length,
     animations: docs.scenes.length,
     evidence,

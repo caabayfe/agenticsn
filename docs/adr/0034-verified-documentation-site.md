@@ -30,12 +30,20 @@ content hash per record, the knowledge index, and the read-only production profi
 
 1. **A documentation context in core** (`packages/core/src/documentation`). Pure domain, ports,
    application services, as every context (ADR-0001).
-2. **Sources live in the workspace, in git**, under `documentation/`:
+2. **Sources live in the workspace, in git**, under `documentation/`, organised **by process,
+   then by capability**, for the process's consumers (revised 2026-10-17, product owner: the
+   process cannot be guessed from code, and the guide is for the people who use it):
    - `site.yaml`: title, the instance documented, footer;
-   - `pages/*.md`: Markdown with YAML front matter;
+   - `processes/<process>/process.yaml`: the process as its consumers see it — summary, roles,
+     lifecycle, and capabilities in the order people meet them, each with its roles;
+   - `processes/<process>/overview.guide.md` and, per capability, `<capability>.guide.md` (the
+     user guide, for the capability's roles) and `<capability>.technical.md` (for the platform
+     owner);
    - `animations/<name>/`: `animation.json`, `scene.svg`, optional `scene.css`, `steps.json`.
 
-   The agent writes them, guided by a skill. snagentic never generates the prose.
+   The agent writes them, guided by a skill that starts from the consumer (roles, lifecycle,
+   menus, forms, buttons, notifications, SLAs) and uses the code as evidence, not as the story.
+   snagentic never generates the prose.
 3. **Claims are anchored.** A page's front matter lists its evidence. Each item names a mirror
    record (`<table>/<sys_id>`), optionally one field, and the hash the claim was verified
    against. The body cites evidence as `[E01]`.

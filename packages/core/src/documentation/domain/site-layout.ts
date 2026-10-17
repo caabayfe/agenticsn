@@ -1,0 +1,83 @@
+import { anchorOf, type Evidence, type EvidenceStatus } from "./evidence";
+import { escapeHtml } from "./html";
+import type { DocPage } from "./page";
+import { OVERVIEW } from "./process";
+import type { SiteConfig } from "./site-config";
+
+// Where each page lands in the site, relative to its root.
+export function pageFile(page: Pick<DocPage, "process" | "capability" | "audience">): string {
+  const folder = `processes/${page.process}`;
+  if (page.audience === "technical") {
+    return `${folder}/${page.capability}.technical.html`;
+  }
+  return page.capability === OVERVIEW
+    ? `${folder}/index.html`
+    : `${folder}/${page.capability}.html`;
+}
+
+// Shown to the embedding page by the player's height messages; nothing else is accepted.
+const RESIZE_SCRIPT =
+  "<script>addEventListener('message',function(e){document.querySelectorAll('iframe.player').forEach(function(f){" +
+  "if(e.source===f.contentWindow&&e.data&&e.data.snagenticAnimH){f.style.height=e.data.snagenticAnimH+'px';}});});</script>";
+
+export function layout(
+  config: SiteConfig,
+  title: string,
+  prefix: string,
+  crumbs: readonly { readonly href: string; readonly text: string }[],
+  main: string,
+): string {
+  const trail = crumbs
+    .map((crumb) => `<a href="${crumb.href}">${escapeHtml(crumb.text)}</a>`)
+    .join(" › ");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(title)}</title><link rel="stylesheet" href="${prefix}assets/site.css"></head><body>
+<header class="site"><a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs">${trail}</nav>`}</header>
+<main>
+${main}
+</main>
+<footer class="site">${escapeHtml(config.footer)}</footer>
+${RESIZE_SCRIPT}
+</body></html>
+`;
+}
+
+function statusBadge(status: EvidenceStatus | undefined): string {
+  const value = status ?? "unpinned";
+  return `<span class="status status-${value}">${value}</span>`;
+}
+
+export function evidenceTable(
+  evidence: readonly Evidence[],
+  statuses: ReadonlyMap<string, EvidenceStatus>,
+): string {
+  const rows = evidence.map(
+    (item) =>
+      `<tr id="${item.id}"><td>${item.id}</td><td>${escapeHtml(item.how)}</td>` +
+      `<td><code>${escapeHtml(anchorOf(item))}</code></td><td>${escapeHtml(item.result)}</td>` +
+      `<td>${statusBadge(statuses.get(item.id))}</td></tr>`,
+  );
+  return (
+    "<table><thead><tr><th>ID</th><th>How</th><th>Record</th><th>Result</th><th>Status</th></tr></thead>" +
+    `<tbody>${rows.join("")}</tbody></table>`
+  );
+}
+
+export function staleIds(
+  statuses: ReadonlyMap<string, EvidenceStatus> | undefined,
+): readonly string[] {
+  return [...(statuses ?? [])]
+    .filter(([, status]) => status === "changed" || status === "missing")
+    .map(([id]) => id);
+}
+
+export function staleNotice(ids: readonly string[], audience: DocPage["audience"]): string {
+  if (ids.length === 0) {
+    return "";
+  }
+  if (audience === "guide") {
+    return '<div class="stale">The platform changed since this guide was checked. Some steps may be out of date; the platform team has been told.</div>';
+  }
+  const links = ids.map((id) => `<a href="#${id}">${id}</a>`).join(", ");
+  return `<div class="stale">The instance changed since this page was reviewed: ${links}. Parts of this page may be out of date.</div>`;
+}

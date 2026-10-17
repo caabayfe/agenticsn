@@ -34,6 +34,7 @@ export async function buildSite(deps: BuildSiteDependencies): Promise<BuildSiteR
   const check = await assessDocumentation(docs, mirror, deps.signal);
   const files = siteFiles({
     config: docs.config,
+    processes: docs.processes,
     pages: docs.pages,
     scenes: docs.scenes,
     statuses: statusesByPage(check),

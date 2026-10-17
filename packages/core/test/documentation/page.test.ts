@@ -11,12 +11,9 @@ import {
 const SYS_ID = "9f1c0000000000000000000000000001";
 
 function technical(evidence: unknown, body = "Text. [E01]") {
-  return parseDocPage("pages/B4-triage.md", {
+  return parseDocPage("processes/triage/route.technical.md", {
     frontMatter: {
-      code: "B4",
       title: "Triage case configuration",
-      audience: "technical",
-      pair: "A4",
       reviewed: "2026-10-17",
       evidence,
     },
@@ -44,9 +41,9 @@ describe("page sources", () => {
         result: "one user gives the contact",
       },
     });
-    expect(page.code).toBe("B4");
+    expect(page.process).toBe("triage");
+    expect(page.capability).toBe("route");
     expect(page.audience).toBe("technical");
-    expect(page.pair).toBe("A4");
     expect(page.evidence).toEqual([
       {
         id: "E01",
@@ -60,19 +57,23 @@ describe("page sources", () => {
     ]);
   });
 
-  it("refuses a page whose audience is neither guide nor technical, naming the file", () => {
-    expect(() =>
-      parseDocPage("pages/x.md", {
-        frontMatter: { code: "X", title: "X", audience: "manager" },
-        body: "",
-      }),
-    ).toThrow(DocumentationSourceError);
-    expect(() =>
-      parseDocPage("pages/x.md", {
-        frontMatter: { code: "X", title: "X", audience: "manager" },
-        body: "",
-      }),
-    ).toThrow(/pages\/x\.md/);
+  it("refuses a page outside processes/<process>/<capability>.<guide|technical>.md, naming the file", () => {
+    for (const path of ["pages/x.md", "processes/x/y.manager.md", "processes/X/y.guide.md"]) {
+      expect(() => parseDocPage(path, { frontMatter: { title: "X" }, body: "" })).toThrow(
+        DocumentationSourceError,
+      );
+    }
+    expect(() => parseDocPage("pages/x.md", { frontMatter: { title: "X" }, body: "" })).toThrow(
+      /pages\/x\.md/,
+    );
+  });
+
+  it("reads the audience from the file name: a guide for consumers", () => {
+    const page = parseDocPage("processes/incident/assign.guide.md", {
+      frontMatter: { title: "Assign an incident" },
+      body: "",
+    });
+    expect(page).toMatchObject({ process: "incident", capability: "assign", audience: "guide" });
   });
 
   it("refuses evidence whose record is not <table>/<sys_id>", () => {
@@ -103,25 +104,25 @@ describe("page problems", () => {
 
   it("reports a citation of evidence the page does not list", () => {
     expect(pageProblems(technical(evidence, "[E01] [E07]"))).toEqual([
-      { kind: "unknown-citation", page: "pages/B4-triage.md", detail: "E07" },
+      { kind: "unknown-citation", page: "processes/triage/route.technical.md", detail: "E07" },
     ]);
   });
 
   it("reports evidence that no sentence cites", () => {
     expect(pageProblems(technical(evidence, "No citation."))).toEqual([
-      { kind: "uncited-evidence", page: "pages/B4-triage.md", detail: "E01" },
+      { kind: "uncited-evidence", page: "processes/triage/route.technical.md", detail: "E01" },
     ]);
   });
 
   it("reports a technical page without evidence", () => {
     expect(pageProblems(technical(undefined, "Text."))).toEqual([
-      { kind: "no-evidence", page: "pages/B4-triage.md", detail: "B4" },
+      { kind: "no-evidence", page: "processes/triage/route.technical.md", detail: "route" },
     ]);
   });
 
   it("accepts a user guide without evidence", () => {
-    const guide = parseDocPage("pages/A4.md", {
-      frontMatter: { code: "A4", title: "Triage cases", audience: "guide" },
+    const guide = parseDocPage("processes/triage/route.guide.md", {
+      frontMatter: { title: "Triage cases" },
       body: "Steps.",
     });
     expect(pageProblems(guide)).toEqual([]);

@@ -3,7 +3,8 @@ import { assessDocumentation, type CheckDocsDependencies } from "./check-docs";
 import { loadDocumentation } from "./load-documentation";
 
 export interface PinDocsQuery {
-  // Only this page (its path under documentation/ or its code); all pages when absent.
+  // Only this page (its path under documentation/), or the pages of a process or of one
+  // capability (<process> or <process>/<capability>); all pages when absent.
   readonly page?: string;
 }
 
@@ -34,7 +35,12 @@ export async function pinDocs(
   const selected =
     query.page === undefined
       ? docs.pages
-      : docs.pages.filter((page) => page.path === query.page || page.code === query.page);
+      : docs.pages.filter(
+          (page) =>
+            page.path === query.page ||
+            page.process === query.page ||
+            `${page.process}/${page.capability}` === query.page,
+        );
   const check = await assessDocumentation(
     { ...docs, pages: selected },
     deps.mirror(docs.config.instance),

@@ -32,6 +32,7 @@ export const SURFACE_TABLES: Readonly<Record<View, readonly string[]>> = {
     "asmt_condition",
   ],
   operator: [
+    "sys_app_module",
     "sys_ux_list",
     "sys_ux_list_category",
     "sys_declarative_action_assignment",

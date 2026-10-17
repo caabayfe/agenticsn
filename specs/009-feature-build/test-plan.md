@@ -231,8 +231,11 @@ agent that has only snagentic's skills and instructions, three repetitions each.
 - `tests/live/feature/` holds one file per level, driven through the CLI from source as
   `tests/live/fluent-round-trip.test.ts` is, opt-in with `SNAGENTIC_LIVE_INSTANCE`.
 - One shared helper writes the evidence bundle; one cleans up by run id and proves it.
-- L0 and L1 reuse the scripts written for this analysis (`verify-ui.ts`, `adopt-check.ts`),
-  moved into `tools/verify/` and generalised per class.
+- L0 and L1 run `tests/live/verify/sync-fidelity.ts` and `tests/live/verify/adopt-census.ts`
+  (read-only on the instance; type-checked and linted with the code). Both were calibrated
+  against known results before use: L0-1 reproduced the ad-hoc check (8,780 records, no
+  difference); a mirror pulled before 2.1 reported all 4,970 ES-latest rows missing; the census
+  without PR #79 reported every global role failing on `suffix`.
 - Each level's run produces `report.md`; the plan's status table (section 2) is updated from it
   in the pull request that records the run.
 

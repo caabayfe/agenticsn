@@ -10,6 +10,7 @@ export {
 export { readUnits } from "./application/read-units";
 export {
   AdoptRecordsNotFoundError,
+  AdoptRefusedError,
   AdoptSecretError,
   AdoptStoreApplicationError,
   AdoptTransformFailedError,
@@ -47,6 +48,7 @@ export {
   type LossId,
 } from "./domain/losses";
 export { planUnit, type UnitDecision } from "./domain/plan-unit";
+export { knownRefusal } from "./domain/refusals";
 export { sdkRouteAllowed } from "./domain/sdk-routes";
 export {
   type BuiltUnit,

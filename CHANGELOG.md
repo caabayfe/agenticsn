@@ -6,6 +6,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- `adopt` names why it refuses a protected ServiceNow role whose containment rows have no
+  protection: the SDK would mark them read-only, changing who may edit the role's grants. It
+  reported an unexplained difference and asked for a bug report. Refusals by design now have
+  their own error, which says to leave those records on the instance.
 - Plans and adopt read the built XML's character references as text: the build writes a
   carriage return as `&#13;`, which was compared literally, so any text with Windows line
   endings (a role's description, a script) showed as a difference that wasn't there.

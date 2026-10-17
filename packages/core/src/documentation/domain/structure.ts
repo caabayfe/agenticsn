@@ -32,6 +32,7 @@ const ERRORS = [
 const WARNINGS = [
   "uncited-evidence",
   "no-evidence",
+  "misplaced-label",
   "missing-page",
   "unused-role",
   "platform-words",

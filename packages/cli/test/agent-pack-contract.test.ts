@@ -42,6 +42,10 @@ function namesIn(schema: z.core.$ZodType, names: Set<string>): void {
 
 const tools = USE_CASES.filter((useCase) => useCase.mcp);
 const known = new Set<string>(["snagentic", ...SKILLS.map((skill) => skill.name)]);
+// CLI commands a skill may tell the agent to run.
+for (const useCase of USE_CASES) {
+  known.add(["snagentic", useCase.group, useCase.name].filter(Boolean).join(" "));
+}
 for (const useCase of tools) {
   known.add(mcpToolName(useCase));
   namesIn(useCase.input, known);

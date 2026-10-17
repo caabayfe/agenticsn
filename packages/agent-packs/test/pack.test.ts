@@ -62,6 +62,7 @@ describe("the agent pack", () => {
       "review",
       "explain",
       "deliver",
+      "document",
     ]);
     const message = PROMPTS[2]?.message("why does priority change?") ?? "";
     expect(message).toStartWith(

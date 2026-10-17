@@ -4,10 +4,11 @@ import { renderBody, renderSkill, type Skill } from "./skill";
 import { BUILD } from "./skills/build";
 import { DELIVER } from "./skills/deliver";
 import { DESIGN } from "./skills/design";
+import { DOCUMENT } from "./skills/document";
 import { EXPLAIN } from "./skills/explain";
 import { REVIEW } from "./skills/review";
 
-export const SKILLS: readonly Skill[] = [DESIGN, BUILD, REVIEW, EXPLAIN, DELIVER];
+export const SKILLS: readonly Skill[] = [DESIGN, BUILD, REVIEW, EXPLAIN, DELIVER, DOCUMENT];
 
 export const INSTRUCTIONS = instructions(SKILLS.map((skill) => skill.name));
 

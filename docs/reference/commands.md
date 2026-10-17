@@ -480,6 +480,58 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `docs check`
+
+```
+snagentic docs check [options]
+```
+
+Check the workspace's documentation (documentation/) against the instance's mirror: evidence whose record changed or is gone, citations of unknown evidence, missing animations or pair pages. Exits 1 when a page is no longer true. Reads only the mirror.
+
+Changes the instance: no. MCP tool: none.
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `docs pin`
+
+```
+snagentic docs pin [page] [options]
+```
+
+Record the mirror's current hash in the evidence of the documentation pages (all, or one page by path or code). Run it only after re-verifying the claims the evidence supports. Lists evidence whose record is gone: those claims must be rewritten.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `docs build`
+
+```
+snagentic docs build [options]
+```
+
+Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate).
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `docs serve`
+
+```
+snagentic docs serve [options]
+```
+
+Build the documentation site and serve it on http://127.0.0.1:<port>/ for preview, until stopped with Ctrl-C. Local only; publishing is copying .snagentic/site/ to a web server.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--port <number>`: the port (default 4173)
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `doctor`
 
 ```

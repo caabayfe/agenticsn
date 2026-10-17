@@ -34,6 +34,7 @@ export type {
   TableStatistics,
 } from "./connection/ports";
 export * from "./delivery/index";
+export * from "./documentation/index";
 export { checkAgentPack } from "./environment/application/check-agent-pack";
 export { runDoctor } from "./environment/application/run-doctor";
 export { runInstanceChecks } from "./environment/application/run-instance-checks";

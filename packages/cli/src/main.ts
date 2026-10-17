@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { INSTRUCTIONS, PROMPTS } from "@snagentic/agent-packs";
-import { instancePaths, noticeAllowed, updateNotice, VERSION } from "@snagentic/core";
+import { InstanceName, instancePaths, noticeAllowed, updateNotice, VERSION } from "@snagentic/core";
 import { CsvDataTemplates } from "./adapters/accelerators/csv-data-templates";
 import { GitPackWorkspace } from "./adapters/accelerators/git-pack-workspace";
 import { LazyPackSource, loadPackSource } from "./adapters/accelerators/pack-source-loader";
@@ -12,6 +12,11 @@ import { KeychainCredentialStore } from "./adapters/credentials/keychain-credent
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
 import { GhPullRequests } from "./adapters/delivery/gh-pull-requests";
 import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
+import { bunMarkdown } from "./adapters/documentation/bun-markdown";
+import { FsDocumentationSources } from "./adapters/documentation/fs-documentation-sources";
+import { FsMirrorRecords } from "./adapters/documentation/fs-mirror-records";
+import { FsSiteOutput } from "./adapters/documentation/fs-site-output";
+import { serveSite } from "./adapters/documentation/static-site-server";
 import { fluentProbe } from "./adapters/fluent/fluent-probe";
 import { loadFluentRuntime } from "./adapters/fluent/fluent-runtime-loader";
 import { SdkToolchain } from "./adapters/fluent/fluent-toolchain";
@@ -84,6 +89,21 @@ const context: UseCaseContext = {
     return {
       store: new SqliteKnowledgeStore(join(root, paths.localState, "knowledge.sqlite")),
       files: new GitMirrorFiles(root, paths.metadata),
+    };
+  },
+  documentation: (root) => {
+    const site = join(root, ".snagentic", "site");
+    return {
+      sources: new FsDocumentationSources(root),
+      mirror: (instance) => {
+        const metadata = instancePaths(InstanceName.parse(instance)).metadata;
+        return new FsMirrorRecords(join(root, metadata), () =>
+          new GitMirrorFiles(root, metadata).head(),
+        );
+      },
+      markdown: bunMarkdown,
+      output: new FsSiteOutput(site),
+      serve: (port, signal, ready) => serveSite(site, port, signal, ready),
     };
   },
   governance: (root, instance, options = {}) => ({

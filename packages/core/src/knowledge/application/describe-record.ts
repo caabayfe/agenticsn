@@ -1,5 +1,11 @@
 import { SnagenticError } from "../../kernel/errors";
 import type { IndexedRecord } from "../domain/indexed-record";
+import {
+  ALIAS_MODEL_CLASSES,
+  EMAIL_RECEIVING_SWITCH,
+  recordOmissions,
+  takesConnectionAlias,
+} from "../domain/omissions";
 import { baseOfFile, recordBaseOfPath } from "../domain/paths";
 import { freshness } from "./freshness";
 import type { Freshness, KnowledgeDependencies, NextCall } from "./knowledge-dependencies";
@@ -40,6 +46,8 @@ export interface RecordDescription extends Freshness {
   readonly files: readonly string[];
   readonly usedBy: readonly UsedBy[];
   readonly usedByMore: boolean;
+  // What the mirror leaves out on purpose that bears on this record (ADR-0034 #3).
+  readonly notMirrored: readonly string[];
   readonly next: readonly NextCall[];
 }
 
@@ -102,6 +110,45 @@ async function usedBy(deps: KnowledgeDependencies, record: IndexedRecord) {
   };
 }
 
+// Records that may name a flow or action, read to find an input taking a connection alias.
+const ALIAS_INPUT_LIMIT = 200;
+
+// A flow or action maps a connection alias through one of its inputs, which names it.
+async function mapsConnectionAlias(
+  deps: KnowledgeDependencies,
+  record: IndexedRecord,
+): Promise<boolean> {
+  if (!ALIAS_MODEL_CLASSES.has(record.className)) {
+    return false;
+  }
+  const bases = await deps.store.containing([record.sysId], ALIAS_INPUT_LIMIT);
+  const inputs = await deps.store.byBases(bases.filter((base) => base !== record.base));
+  return inputs.some((input) => takesConnectionAlias(input.className, input.fields));
+}
+
+// The email receiving switch's value as mirrored; null when the mirror doesn't hold it.
+async function emailReceiving(deps: KnowledgeDependencies): Promise<string | null> {
+  const query = { text: EMAIL_RECEIVING_SWITCH, className: "sys_properties", limit: 10 };
+  const found = (await deps.store.search(query)).records.find(
+    (candidate) => candidate.name === EMAIL_RECEIVING_SWITCH,
+  );
+  if (found === undefined) {
+    return null;
+  }
+  const value = (await deps.files.readDocument(found.base)).record?.fields["value"];
+  return value === undefined || value === "" ? null : value;
+}
+
+async function omissionsOf(deps: KnowledgeDependencies, record: IndexedRecord) {
+  return recordOmissions({
+    className: record.className,
+    fields: record.fields,
+    mapsConnectionAlias: await mapsConnectionAlias(deps, record),
+    emailReceiving:
+      record.className === "sysevent_in_email_action" ? await emailReceiving(deps) : null,
+  });
+}
+
 // One record, by its path or sys_id: what it is, its files, and what refers to it.
 export async function describeRecord(
   deps: KnowledgeDependencies,
@@ -128,6 +175,7 @@ export async function describeRecord(
     files,
     usedBy: references.usedBy,
     usedByMore: references.more,
+    notMirrored: await omissionsOf(deps, record),
     next,
   };
 }

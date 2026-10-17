@@ -65,6 +65,9 @@ group("find and describe", () => {
     ).toBe("Set priority");
     expect(instance.queries).toEqual([]);
     expect(describe.render(output as never, "text")).toContain("50  business rule: Set priority");
+    expect(describe.render(output as never, "text")).toContain(
+      "not covered: flows and workflows triggered by this table",
+    );
   });
 
   it("describe tells who uses a script include", async () => {
@@ -79,6 +82,8 @@ group("find and describe", () => {
       "used by sys_script: Set priority  global/sys_script/set-priority--b1.yaml:1",
     );
     expect(text).toContain("file: global/sys_script_include/prioritizer--s1.script.js");
+    expect(output).toMatchObject({ record: { notMirrored: [] } });
+    expect(text).not.toContain("not in the mirror");
   });
 
   it("find searches names and code, and sees local edits", async () => {

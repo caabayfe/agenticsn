@@ -58,6 +58,7 @@ const RecordOutput = Freshness.extend({
     )
     .readonly(),
   usedByMore: z.boolean(),
+  notMirrored: z.array(z.string()).readonly(),
   next: NextCalls,
 });
 
@@ -97,7 +98,7 @@ function renderTable(t: z.infer<typeof TableOutput>): string[] {
       );
     }
   }
-  return lines;
+  return [...lines, ...t.notCovered.map((note) => `  not covered: ${note}`)];
 }
 
 function renderRecord(r: z.infer<typeof RecordOutput>): string[] {
@@ -107,6 +108,7 @@ function renderRecord(r: z.infer<typeof RecordOutput>): string[] {
     ...r.files.map((file) => `  file: ${file}`),
     ...r.usedBy.map((u) => `  used by ${u.className}: ${u.name}  ${u.path}:${u.line}`),
     ...(r.usedByMore ? ["  … used in more places; search with: find --code"] : []),
+    ...r.notMirrored.map((note) => `  not in the mirror: ${note}`),
   ];
 }
 

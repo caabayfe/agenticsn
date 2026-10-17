@@ -170,29 +170,31 @@ of `x_2222332_s11` (domain `09ff3d10…`): with the session's domain the listing
 with every domain 1. The aggregate count used by fingerprints and `--verify` already counts it, so
 change detection needs no change.
 
-### M5. `describe` names what the mirror leaves out (ADR-0034 #3)
+### M5. `describe` names what the mirror leaves out (ADR-0034 #3) (done 2026-10-17)
 
-**Change.**
-- One domain table in `packages/core/src/knowledge/domain/`: each omission with the classes it
-  concerns, a one-line reason and, where relevant, the mirrored records that stand in for it
-  (for inbound email, the properties that switch it on or off).
-- `describeRecord` gains `notMirrored: string[]`:
+**Change, as built.**
+- `packages/core/src/knowledge/domain/omissions.ts`: the omissions, the classes they concern and
+  their wording; a new omission is one entry and a test.
+- `describeRecord` returns `notMirrored`:
   - a record whose `sys_policy` is `protected`: its code is protected and not readable;
-  - an inbound email action: mail accounts aren't mirrored; the inbound email properties, with
-    their values when M2 keeps them;
-  - a flow or action with alias mappings: connection aliases aren't mirrored.
-- `describeTable` adds the omissions that apply to the table to its existing `notCovered`.
-- Regenerate `docs/reference/commands.md` (`bun run docs`) if the output schema text changes.
+  - an inbound email action (`sysevent_in_email_action`): mail accounts aren't mirrored, and
+    the value of `glide.email.read.active` (kept since M2), or that the mirror doesn't hold it;
+  - a flow or action with an input of `reference: sys_alias` (`sys_hub_flow_input`,
+    `sys_hub_action_input`, found among the records that name it), and such an input itself:
+    connection aliases and connections aren't mirrored.
+- `describeTable` adds to `notCovered` how many active behaviour items have protected code.
+- The CLI prints both (`not in the mirror: …`, `not covered: …`); MCP returns them as data.
+- `sys_policy` joins the index's key fields; the index schema version goes to 5, so existing
+  indexes are rebuilt from the files once.
 
-**Tests (failing first).**
-- `it("says a protected script include's code is not readable")`.
-- `it("says mail accounts are not mirrored when describing an inbound email action")`.
-- `it("says connection aliases are not mirrored when describing a flow that maps one")`.
-- `it("lists no omission for a record they don't concern")`.
-- Golden output for one record of each kind.
+**Tests.** `packages/core/test/knowledge/describe-omissions.test.ts` (protected record, inbound
+action with and without the switch, flow mapping an alias, an unconcerned record, a table with
+protected behaviour) and the CLI's describe tests.
 
-**Done when:** the three cases read correctly against the pdi2 mirror; no new MCP tool, command or
-skill (ASR-09).
+**Not run live, on purpose.** Describing pdi2's workspace with the new index version would
+rebuild the index other sessions share with the released binary, which would rebuild it back.
+The classes concerned on pdi2 (`analysis.md`): 273 protected script includes, 16 inbound email
+actions, 70 flow and 132 action inputs taking an alias.
 
 ## 4. Live checks (pdi2)
 

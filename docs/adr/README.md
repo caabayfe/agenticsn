@@ -36,7 +36,9 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0028](0028-flows-authored-in-fluent-delivered-by-push.md) | Flows are authored in Fluent and delivered by push, published into the batch | Accepted (amended 2026-10-14) |
 | [0029](0029-list-layouts-delivered-whole-through-fluent-load.md) | List layouts are delivered whole, through the Fluent load route | Proposed (generalized by 0030) |
 | [0030](0030-what-the-platform-does-not-record-is-loaded.md) | What the platform does not record is loaded as the update it records | Proposed |
-| [0031](0031-changes-are-authored-in-fluent.md) | Changes are authored in Fluent; the mirror is read-only | Proposed (held for spec 008's spikes) |
+| [0031](0031-changes-are-authored-in-fluent.md) | Changes are authored in Fluent; the mirror is read-only | Accepted |
+| [0032](0032-the-sdk-runs-behind-snagentics-connector.md) | The SDK runs in-process, behind snagentic's connector | Proposed (spike S17) |
+| [0033](0033-plans-compare-the-build-with-the-instance.md) | Plans compare the build with the instance; owned records have a base | Proposed |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

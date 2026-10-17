@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { InstanceName, recordHash } from "@snagentic/core";
 import { GitDeliveryWorkspace } from "../../src/adapters/delivery/git-delivery-workspace";
@@ -8,6 +8,7 @@ import { toYaml } from "../../src/adapters/yaml/own-style";
 import { executeUseCase } from "../../src/registry/execute";
 import { planPush } from "../../src/registry/plan-push";
 import { instanceWorkspace } from "../support/instance-workspace";
+import { SI_UNIT, unitWorkspace } from "../support/unit-workspace";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -49,70 +50,83 @@ async function workspace() {
   return { ...ws, write };
 }
 
-describe("plan-push", () => {
-  it("plans the edited fields against the mirror, ready to push, without writing", async () => {
-    const { context, write, instance } = await workspace();
-    await write(`${INCLUDE}.script.js`, "var Util = Class.create();\nUtil.prototype = {};\n");
-    const { output, exitCode } = await executeUseCase(planPush, {}, context);
+describe("plan-push (ADR-0033)", () => {
+  it("plans an edited unit against the instance's live copy, ready to push, without writing", async () => {
+    const ws = await unitWorkspace({ source: "Edited in source.", instance: "" });
+    cleanups.push(ws.cleanup);
+    const { output, exitCode } = await executeUseCase(planPush, {}, ws.context);
     expect(output).toMatchObject({
       instance: "pdi",
-      changes: [{ operation: "update", table: "sys_script_include", fields: ["script"] }],
-      fluent: [],
+      units: [
+        { updateName: SI_UNIT, operation: "load", changes: ["sys_script_include.description"] },
+      ],
       problems: [],
       gate: { passed: true },
       ready: true,
     });
     expect(exitCode).toBe(0);
-    expect(instance.queries.some((q) => q.table === "sys_update_xml")).toBe(true);
+    expect(ws.instance.writes).toEqual([]);
     expect(planPush.render(output as never, "text")).toContain(
       "ready: snagentic push --instance pdi --plan",
     );
   });
 
   it("says when there is nothing to push, and exits 1 when the plan is not ready", async () => {
-    const { context, write } = await workspace();
-    const quiet = await executeUseCase(planPush, {}, context);
+    const same = await unitWorkspace({ source: "", instance: "" });
+    cleanups.push(same.cleanup);
+    const quiet = await executeUseCase(planPush, {}, same.context);
     expect(planPush.render(quiet.output as never, "text")).toContain("nothing to push");
-    await write(`${INCLUDE}.script.js`, "eval(x);\n");
-    await write(`${INCLUDE}.children.sys_x.yaml`, "rows: [1]\n");
-    const { output, exitCode } = await executeUseCase(planPush, {}, context);
+    const drifted = await unitWorkspace({ source: "Edited in source.", instance: "Edited there." });
+    cleanups.push(drifted.cleanup);
+    drifted.tables["sys_script_include"] = (drifted.tables["sys_script_include"] ?? []).map(
+      (row) => ({
+        ...row,
+        sys_mod_count: "2",
+      }),
+    );
+    const { output, exitCode } = await executeUseCase(planPush, {}, drifted.context);
     expect(exitCode).toBe(1);
     const text = planPush.render(output as never, "text");
-    expect(text).toContain("problem: ");
-    expect(text).toContain("blocked: SN-SEC-001");
+    expect(text).toContain(`problem: ${SI_UNIT}: changed on the instance`);
     expect(text).toContain("not ready");
   });
 });
 
 describe("GitDeliveryWorkspace", () => {
-  it("reads records now and at the mirror commit, lists changes, the branch and waivers", async () => {
-    const { root, write } = await workspace();
+  it("names the mirror commit, the branch and the committed waivers", async () => {
+    const { root } = await workspace();
     const delivery = new GitDeliveryWorkspace(root, InstanceName.parse("pdi"));
-    const commit = (await delivery.mirrorCommit()) ?? "";
-    expect(await delivery.includes(commit)).toBe(true);
+    expect(await delivery.mirrorCommit()).toMatch(/^[0-9a-f]{40}$/);
     expect(await delivery.branch()).toBe("main");
-    await write("global/sys_script/new--ffffffffffffffffffffffffffffffff.yaml", "name: x\n");
-    expect(await delivery.changedFiles(commit)).toEqual([
-      "global/sys_script/new--ffffffffffffffffffffffffffffffff.yaml",
-    ]);
-    expect((await delivery.read(INCLUDE, commit))?.files).toEqual([
-      { field: "script", content: "var Util = Class.create();\n" },
-    ]);
-    expect(
-      await delivery.read("global/sys_script/new--ffffffffffffffffffffffffffffffff", commit),
-    ).toBeNull();
     expect(await delivery.waivers()).toEqual({ committed: null, uncommitted: false });
     await writeFile(join(root, "waivers.yaml"), "waivers: []\n");
     expect(await delivery.waivers()).toEqual({ committed: null, uncommitted: true });
     await git(root, "add", "waivers.yaml");
-    await git(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "waive");
+    await git(root, "commit", "-qm", "waive");
     expect(await delivery.waivers()).toEqual({ committed: { waivers: [] }, uncommitted: false });
     await writeFile(join(root, "waivers.yaml"), "waivers: [x]\n");
     expect(await delivery.waivers()).toEqual({ committed: { waivers: [] }, uncommitted: true });
     await git(root, "checkout", "-q", "--detach");
     expect(await delivery.branch()).toMatch(/^[0-9a-f]{7,}$/);
-    await rm(join(root, META, "global"), { recursive: true });
-    expect(await delivery.read(INCLUDE, null)).toBeNull();
+  });
+
+  it("lists source not committed, and commits exactly the files it is given", async () => {
+    const { root } = await workspace();
+    const delivery = new GitDeliveryWorkspace(root, InstanceName.parse("pdi"));
+    expect(await delivery.uncommittedSource()).toEqual([]);
+    await mkdir(join(root, "source/x_app"), { recursive: true });
+    await writeFile(join(root, "source/x_app/snagentic.ledger.yaml"), "pdi: {}\n");
+    await writeFile(join(root, "source/x_app/other.now.ts"), "// draft\n");
+    expect(await delivery.uncommittedSource()).toEqual([
+      "source/x_app/other.now.ts",
+      "source/x_app/snagentic.ledger.yaml",
+    ]);
+    const commit = await delivery.commitFiles(
+      ["source/x_app/snagentic.ledger.yaml"],
+      "chore: ledger",
+    );
+    expect(commit).toMatch(/^[0-9a-f]{40}$/);
+    expect(await delivery.uncommittedSource()).toEqual(["source/x_app/other.now.ts"]);
   });
 
   it("knows when nothing was pulled yet", async () => {
@@ -125,74 +139,46 @@ describe("GitDeliveryWorkspace", () => {
 });
 
 describe("plan-push rendering", () => {
-  it("shows lists, waived findings, waiver problems and records held elsewhere", () => {
+  it("shows units, what they also set, waived findings, waiver problems and records held elsewhere", () => {
+    const finding = {
+      ruleId: "SN-MNT-006",
+      severity: "warn" as const,
+      path: "p",
+      line: null,
+      message: "m",
+    };
     const text = planPush.render(
       {
         instance: "pdi",
         planId: "0123456789abcdef",
-        mirrorCommit: "c",
         label: "b",
-        updateSets: [],
-        changes: [
+        updateSets: ["snagentic: b"],
+        units: [
           {
-            operation: "update",
-            table: "t",
+            project: "source/global",
+            scope: "global",
+            updateName: "sys_script_x",
+            table: "sys_script",
             sysId: "s",
-            scope: "global",
-            path: "p.yaml",
-            fields: ["a"],
-            elevated: false,
-            loaded: true,
+            name: "Rule",
+            operation: "load",
+            changes: ["sys_script.order"],
+            losses: ["api-default"],
           },
         ],
-        layouts: [
-          {
-            kind: "list",
-            operation: "update",
-            scope: "global",
-            table: "incident",
-            view: "Default view",
-            domain: "global",
-            sysId: "l",
-            path: "global/sys_ui_list/incident--l.yaml",
-            rows: ["number", "state"],
-          },
-          {
-            kind: "section",
-            operation: "create",
-            scope: "global",
-            table: "incident",
-            view: "Default view",
-            domain: "d".repeat(32),
-            sysId: "m",
-            path: "domains/d/global/sys_ui_list/incident--m.yaml",
-            rows: ["number"],
-          },
-        ],
-        fluent: [],
         problems: [],
         gate: {
           passed: true,
           blocking: [],
-          waived: [
-            {
-              ruleId: "SN-SEC-001",
-              severity: "block",
-              path: "p.js",
-              line: 1,
-              message: "m",
-              reason: "ok",
-              approver: "lead",
-            },
-          ],
+          waived: [{ ...finding, reason: "legacy", approver: "pat" }],
           warnings: 0,
-          waiverProblems: [{ index: 1, reason: "expired on 2026-01-01" }],
+          waiverProblems: [{ index: 0, reason: "expired" }],
         },
         collisions: [
           {
-            path: "p.yaml",
-            record: "t_s",
-            heldBy: [{ updateSet: "u", updateSetName: "Pat's work", updatedBy: "pat" }],
+            path: "source/global",
+            record: "sys_script_x",
+            heldBy: [{ updateSet: "s1", updateSetName: "Other", updatedBy: "sam" }],
           },
         ],
         ready: false,
@@ -200,14 +186,13 @@ describe("plan-push rendering", () => {
       },
       "text",
     );
-    expect(text).toContain("waived:  SN-SEC-001 p.js (lead: ok)");
-    expect(text).toContain("waivers.yaml entry 2: expired on 2026-01-01");
-    expect(text).toContain(`held:    p.yaml in "Pat's work" (pat)`);
-    expect(text).toContain("update sets: none");
-    expect(text).toContain("update t  p.yaml  (a)  loaded");
-    expect(text).toContain(
-      "update list incident (Default view)  global/sys_ui_list/incident--l.yaml  number, state",
-    );
-    expect(text).toContain(`create form section incident (Default view, domain ${"d".repeat(32)})`);
+    expect(text.split("\n")).toEqual([
+      "load   sys_script_x  source/global  (sys_script.order)  also sets: api-default",
+      "waived:  SN-MNT-006 p (pat: legacy)",
+      "waivers.yaml entry 1: expired",
+      'held:    sys_script_x in "Other" (sam)',
+      "update sets: snagentic: b",
+      "not ready: fix the items above, then plan again",
+    ]);
   });
 });

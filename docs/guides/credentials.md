@@ -50,11 +50,6 @@ snagentic doctor --instance dev     # credentials, connection, roles, timestamps
    - service `snagentic`;
    - account `<username>@<host>`, for example `jdoe@dev12345.service-now.com`.
 
-With `--allow-elevation` (development instances with a password only), `auth login` also
-checks the user holds `security_admin` and records the permission in the same item, so `push`
-may elevate to write ACLs ([ADR-0024](../adr/0024-elevated-session-for-acl-writes.md)). Run
-`auth login` again without the flag to withdraw it.
-
 The keychain is macOS Keychain, Windows Credential Manager or Linux Secret Service.
 `snagentic auth logout <name>` deletes the item.
 
@@ -118,7 +113,6 @@ three**: the URL and kind take the place of the keychain binding.
 | `SNAGENTIC_<NAME>_PASSWORD` | The password |
 | `SNAGENTIC_<NAME>_URL` | The instance URL, in any form `instance add` accepts: `acme`, `acme.service-now.com` or `https://acme.service-now.com` |
 | `SNAGENTIC_<NAME>_KIND` | `development`, `test` or `production` |
-| `SNAGENTIC_<NAME>_ALLOW_ELEVATION` | Optional, development only: `true` lets `push` write ACLs, like `auth login --allow-elevation` |
 
 `<NAME>` is the instance name in capitals, with `-` replaced by `_`: instance `acme-prod`
 uses `SNAGENTIC_ACME_PROD_PASSWORD`.
@@ -147,7 +141,7 @@ pull request could change them together with `instance.yaml`.
 The host hooks and permission rules installed by `snagentic agent install` refuse:
 
 - any `snagentic auth` command;
-- shell commands that set `SNAGENTIC_<NAME>_PASSWORD`, `_URL`, `_KIND` or `_ALLOW_ELEVATION`;
+- shell commands that set `SNAGENTIC_<NAME>_PASSWORD`, `_URL` or `_KIND`;
 - edits to protected files, such as the git hooks and the host settings.
 
 An agent can still edit `instance.yaml`. That's harmless: the change makes the password

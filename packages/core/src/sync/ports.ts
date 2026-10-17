@@ -1,3 +1,4 @@
+import type { PulledRecord } from "../authoring/domain/drift";
 import type { CatalogData } from "../metadata/domain/catalog";
 import type { RenderedRecord } from "../metadata/domain/record-layout";
 import type { TableFingerprint } from "./domain/fingerprint";
@@ -94,8 +95,11 @@ export interface IntegrationResult {
   // The commit now checked out, or null when the workspace was already up to date.
   readonly commit: string | null;
   readonly changedFiles: number;
-  // Records created here and pushed, whose instance copy was taken (instanceConfirms).
-  readonly confirmed: readonly string[];
+  // Mirror files edited locally, replaced by the instance's copy: the mirror is read-only
+  // (ADR-0031 item 2).
+  readonly discarded: readonly string[];
+  // Records the merge brought in changed, with their stamps, for the drift report.
+  readonly pulled: readonly PulledRecord[];
 }
 
 // Brings an instance's remote branch into the workspace's current branch with a git merge.

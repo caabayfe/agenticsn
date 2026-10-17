@@ -43,12 +43,30 @@ describe("workspace Fluent projects", () => {
       const { root, projects } = await workspace();
       const [project] = await projects.holding([`${PROJECT}/package.json`]);
       if (project === undefined) throw new Error("no project");
-      expect(await projects.build(project)).toEqual({
-        built: true,
-        keys: null,
-        deletes: [],
-      });
+      const build = await projects.build(project);
+      expect(build).toMatchObject({ built: true, keys: null, deletes: [] });
+      // The units validate checks, the project's flow among them.
+      expect(build.built && build.units.map((unit) => unit.head.table)).toContain("sys_hub_flow");
       expect((await runGitOrThrow(["status", "--porcelain"], root)).trim()).toBe("");
+      // As the last commit held it, and nothing for a commit before the project existed.
+      const head = (await runGitOrThrow(["rev-parse", "HEAD"], root)).trim();
+      expect(await projects.buildAt(project, head)).toMatchObject({ built: true, keys: null });
+      const empty = (
+        await runGitOrThrow(
+          [
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit-tree",
+            "-m",
+            "empty",
+            "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+          ],
+          root,
+        )
+      ).trim();
+      expect(await projects.buildAt(project, empty)).toBeNull();
     },
     BUILD_TIMEOUT,
   );

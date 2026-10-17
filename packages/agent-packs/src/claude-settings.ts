@@ -6,11 +6,10 @@ const hook = (event: string) => [{ type: "command", command: `snagentic hook cla
 const EDITS = "Edit|Write|MultiEdit|NotebookEdit";
 const PROTECTED = [
   ".snagentic/**",
-  // Flow, workflow and variable-value child rows stay read-only; choices and layouts are
-  // edited (ADR-0025). The pre-edit hook checks every child table by name.
-  "**/*.children.sys_hub_*.yaml",
-  "**/*.children.wf_*.yaml",
-  "**/*.children.sys_variable_value.yaml",
+  // The mirror is the instance as last pulled, and the ledgers record what it held: pull,
+  // adopt and push write them (ADR-0031, ADR-0033).
+  "instances/*/metadata/**",
+  "source/*/snagentic.ledger.yaml",
   "instances/*/instance.yaml",
   "snagentic.yaml",
   "waivers.yaml",
@@ -70,7 +69,7 @@ export const SHELL_DENY: readonly { readonly pattern: RegExp; readonly reason: s
   { pattern: /--no-verify\b|core\.hooksPath/, reason: GIT_HOOKS },
   { pattern: /\bcommit\b[^;&|]*\s-[a-zA-Z]*n[a-zA-Z]*(?=\s|$)/, reason: GIT_HOOKS },
   { pattern: /\bsnagentic\s+auth\b/, reason: CREDENTIALS },
-  { pattern: /\bSNAGENTIC_\w+_(?:PASSWORD|URL|KIND|ALLOW_ELEVATION)\s*=/, reason: CREDENTIALS },
+  { pattern: /\bSNAGENTIC_\w+_(?:PASSWORD|URL|KIND)\s*=/, reason: CREDENTIALS },
   { pattern: /\bsnagentic\s+upgrade\b/, reason: UPGRADE },
   {
     pattern:

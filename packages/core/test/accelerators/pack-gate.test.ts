@@ -1,14 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
-  computePlan,
+  computeUnitPlan,
   type InventoryReader,
   type PackSource,
-  type PackWorkspace,
   packFindings,
 } from "@snagentic/core";
-import { RULE, setup } from "../support/delivery-fixture";
+import { unitSetup } from "../delivery/unit-fixture";
 
-const SLA = "3d5fd9f1c0a8016400cbc76ea0b4c9a4";
 const MINIMAL = {
   id: "minimal",
   version: "1.0.0",
@@ -30,9 +28,10 @@ const packs: PackSource = {
   files: async () =>
     new Map([
       ["accelerator.yaml", ""],
-      ["metadata/base/x_snagentic_min/sys_app/min--a1.yaml", "name: min"],
-      ["metadata/extra/global/sys_script/rule--a3.yaml", "name: rule"],
-      ["patches/extra/sla.yaml", `PATCH ${SLA}`],
+      ["source/base/x_snagentic_min/src/fluent/app.now.ts", "Record({})"],
+      ["source/extra/global/src/fluent/rule.now.ts", "BusinessRule({})"],
+      ["source/extra/x_snagentic_min/now.config.json", "{}"],
+      ["adopt/extra.yaml", "[]"],
     ]),
 };
 const inventory = (state: "active" | "inactive"): InventoryReader => ({
@@ -41,29 +40,20 @@ const inventory = (state: "active" | "inactive"): InventoryReader => ({
       ? [{ id: "com.snc.on_call_rotation", active: state, version: "1.0.0" }]
       : null,
 });
-const workspace: PackWorkspace = {
-  mirrorCommit: async () => "m1",
-  includes: async () => true,
-  mirrored: async (_c, ids) =>
-    new Map(ids.map((id) => [id, { path: `global/contract_sla/p1--${id}.yaml`, document: {} }])),
-  parse: (text) => (text.startsWith("PATCH ") ? { sys_id: text.slice(6) } : {}),
-  previous: async () => ({ written: [], kept: [] }),
-  commit: async () => "c",
-  merge: async () => ({ branch: "b", conflicts: [] }),
-};
 const QUERY = { instance: { root: "/w", name: "pdi2" }, snagentic: "1.6.0" };
 
-describe("the gate's accelerator check (SN-MNT-012, ADR-0026)", () => {
-  it("blocks a planned file of a capability whose plugin is inactive, with the commands that fix it", async () => {
+describe("the gate's accelerator check (SN-MNT-012, ADR-0026, ADR-0031)", () => {
+  it("blocks a planned project a capability ships into while it is not ready, with the commands that fix it", async () => {
     const findings = await packFindings(
-      { packs, inventory: inventory("inactive"), workspace },
-      { ...QUERY, paths: ["global/sys_script/rule--a3.yaml", "global/sys_script/other--b1.yaml"] },
+      { packs, inventory: inventory("inactive") },
+      { ...QUERY, paths: ["source/global", "source/x_other"] },
     );
     expect(findings).toEqual([
       expect.objectContaining({
         ruleId: "SN-MNT-012",
         severity: "block",
-        path: "global/sys_script/rule--a3.yaml",
+        path: "source/global",
+        root: "workspace",
         message: "capability extra of minimal is needs-plugins: com.snc.on_call_rotation",
         remediation:
           "snagentic plugins activate pdi2 com.snc.on_call_rotation --confirm; then snagentic pull pdi2; then plan again",
@@ -71,34 +61,42 @@ describe("the gate's accelerator check (SN-MNT-012, ADR-0026)", () => {
     ]);
   });
 
-  it("finds a patched out-of-box record through its sys_id in the mirror", async () => {
+  it("names only the capabilities that are not ready, when several ship into one project", async () => {
     const findings = await packFindings(
-      { packs, inventory: inventory("inactive"), workspace },
-      { ...QUERY, paths: [`global/contract_sla/p1--${SLA}.yaml`] },
+      { packs, inventory: inventory("inactive") },
+      { ...QUERY, paths: ["source/x_snagentic_min"] },
     );
-    expect(findings.map((f) => f.path)).toEqual([`global/contract_sla/p1--${SLA}.yaml`]);
+    expect(findings.map((f) => [f.path, f.message])).toEqual([
+      [
+        "source/x_snagentic_min",
+        "capability extra of minimal is needs-plugins: com.snc.on_call_rotation",
+      ],
+    ]);
   });
 
-  it("passes once the inventory shows the plugin active, and for files no pack added", async () => {
-    const paths = ["global/sys_script/rule--a3.yaml", "x_snagentic_min/sys_app/min--a1.yaml"];
+  it("passes once the inventory shows the plugin active, for projects no pack ships into, and with nothing planned", async () => {
+    const paths = ["source/global", "source/x_snagentic_min"];
     expect(
-      await packFindings({ packs, inventory: inventory("active"), workspace }, { ...QUERY, paths }),
+      await packFindings({ packs, inventory: inventory("active") }, { ...QUERY, paths }),
     ).toEqual([]);
     expect(
       await packFindings(
-        { packs, inventory: inventory("inactive"), workspace },
-        { ...QUERY, paths: [] },
+        { packs, inventory: inventory("inactive") },
+        { ...QUERY, paths: ["source/x_other"] },
       ),
+    ).toEqual([]);
+    expect(
+      await packFindings({ packs, inventory: inventory("inactive") }, { ...QUERY, paths: [] }),
     ).toEqual([]);
   });
 
   it("makes plan not ready: the finding blocks the gate like any other", async () => {
-    const { deps } = setup();
+    const { deps } = unitSetup({ source: "Edited in source." });
     const finding = {
       ruleId: "SN-MNT-012",
       severity: "block" as const,
       title: "t",
-      path: `${RULE}.yaml`,
+      path: "source/x_app",
       field: null,
       line: null,
       message: "capability extra of minimal is needs-plugins",
@@ -114,8 +112,8 @@ describe("the gate's accelerator check (SN-MNT-012, ADR-0026)", () => {
         return [finding];
       },
     };
-    const { plan } = await computePlan(gated, { instance: "dev", allowCollisions: false });
-    expect(seen).toEqual([[`${RULE}.yaml`]]);
+    const { plan } = await computeUnitPlan(gated, { instance: "dev", allowCollisions: false });
+    expect(seen).toEqual([["source/x_app"]]);
     expect(plan.ready).toBe(false);
     expect(plan.gate.blocking).toEqual([expect.objectContaining({ ruleId: "SN-MNT-012" })]);
   });

@@ -1,40 +1,27 @@
 // Public API of the delivery context: plan and push to development update sets (spec 004).
 
 export {
-  computePlan,
+  computeUnitPlan,
   type HeldRecord,
-  type PlanDependencies,
-  type PlanQuery,
-  type PushPlan,
-} from "./application/plan-push";
+  type ProjectLoad,
+  type UnitPlanDependencies,
+  type UnitPlanQuery,
+  type UnitPushPlan,
+} from "./application/plan-units";
 export {
   type PullRequestOutcome,
   pullRequestFor,
 } from "./application/pull-request";
+export type { PushedUnit } from "./application/push-project";
 export {
-  type PushDependencies,
-  type PushQuery,
-  type PushResult,
-  push,
-} from "./application/push";
-export {
-  type ChangeOutcome,
-  changeOf,
-  needsElevation,
-  type Operation,
-  type ParsedRecord,
-  type PlannedWrite,
-  type PlanProblem,
-} from "./domain/change";
-export { childRowChanges, type RowOwner } from "./domain/child-rows";
+  pushUnits,
+  type UnitPushDependencies,
+  type UnitPushQuery,
+  type UnitPushResult,
+} from "./application/push-units";
 export {
   BranchNotPublishedError,
-  ElevatedUserMismatchError,
-  ElevationUnavailableError,
-  FluentLoadUnavailableError,
   IntegrationUserNotFoundError,
-  MirrorNotIntegratedError,
-  NothingPulledYetError,
   PlanChangedError,
   PlanNotReadyError,
   PullRequestFromDefaultBranchError,
@@ -42,10 +29,9 @@ export {
   PushConfirmationRequiredError,
   RecordChangedOnInstanceError,
   UncommittedPlannedChangesError,
-  UnfinishedPushError,
   UpdateSetScopeError,
 } from "./domain/errors";
-export { FlowDomainMismatchError, FlowPublishFailedError } from "./domain/fluent-errors";
+export { FlowPublishFailedError } from "./domain/fluent-errors";
 export {
   type FluentRecord,
   type FluentRecordKind,
@@ -53,54 +39,18 @@ export {
   holdsPublished,
   toPublish,
 } from "./domain/fluent-records";
+export { type GateFinding, type GateResult, gateOf } from "./domain/gate";
 export {
-  type FormLayout,
-  type FormSectionRef,
-  formLayoutXml,
-  formUpdateName,
-} from "./domain/form-layout";
-export { type GateFinding, type GateResult, gateOf, planId } from "./domain/gate";
-export {
-  type LayoutFiles,
-  layoutChange,
-  layoutVersion,
-  type PlannedLayout,
-  type Row as LayoutRow,
-  type SectionRef,
-} from "./domain/layout-changes";
-export {
-  KIND_TABLE,
-  LAYOUT_KINDS,
-  type LayoutKind,
-  type LayoutKindSpec,
-  layoutKindOf,
-} from "./domain/layout-kinds";
-export { layoutUpdateName, layoutXml } from "./domain/layout-render";
-export {
-  DEFAULT_VIEW,
-  type ListColumn,
-  type ListLayout,
-  listLayoutXml,
-  listUpdateName,
-} from "./domain/list-layout";
-export {
-  type RecordUpdate,
-  recordUpdateName,
-  recordUpdateXml,
-} from "./domain/record-update";
-export { type Recording, recordingOf, type TableAttributes } from "./domain/recording";
-export {
-  type RelatedListEntry,
-  type RelatedListLayout,
-  relatedListLayoutXml,
-  relatedListUpdateName,
-} from "./domain/related-list-layout";
-export {
-  type SectionElement,
-  type SectionLayout,
-  sectionLayoutXml,
-  sectionUpdateName,
-} from "./domain/section-layout";
+  changesOf,
+  type PlannedUnit,
+  plannedOrProblem,
+  type UnitOperation,
+  type UnitProblem,
+  type UnitProblemKind,
+  unitName,
+  unitPlanId,
+} from "./domain/unit-plan";
+export { nextCount, stampedXml } from "./domain/unit-stamp";
 export {
   globMatches,
   readWaivers,
@@ -108,20 +58,13 @@ export {
   type WaiverProblem,
   waiverFor,
 } from "./domain/waivers";
-export { pushUnfinished, writeOrder } from "./domain/write-order";
 export type {
   DeliveryWorkspace,
-  ElevatedSession,
-  ElevatedSessions,
   FluentInstaller,
-  FluentPackage,
-  FluentPackages,
   FluentPublishResult,
   InstanceWriter,
   PullRequestLookup,
   PullRequests,
   PushJournal,
   PushJournalStore,
-  RecordFiles,
-  TableDictionary,
 } from "./ports";

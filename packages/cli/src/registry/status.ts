@@ -5,7 +5,6 @@ import {
   type InstanceProfile,
   instanceStatus,
   listInstances,
-  pushUnfinished,
 } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase, type UseCaseContext } from "./use-case";
@@ -25,7 +24,7 @@ const InstanceStatusOutput = z.object({
   remoteCommit: z.string().nullable(),
   unintegratedPulls: z.number(),
   localChanges: z.array(z.string()),
-  // The plan id of a push that stopped part way, until a pull shows what it wrote.
+  // The plan id of a push that stopped part way: plan and push again to finish it.
   unfinishedPush: z.string().nullable(),
   // The instance's domains besides global, from the operational inventory (ADR-0027): build an
   // application in global, and in a customer's domain only that customer's changes.
@@ -50,8 +49,8 @@ async function statusOf(root: string, profile: InstanceProfile, context: UseCase
   const domains = ((await context.inventory.read(root, profile.name, "domains")) ?? [])
     .map((row) => ({ name: row["name"] ?? "", sysId: row["sys_id"] ?? "" }))
     .filter((domain) => domain.sysId !== "" && domain.sysId !== "global");
-  const stopped =
-    status.remoteCommit !== null && pushUnfinished(journal, status.remoteCommit) ? journal : null;
+  // Push clears its journal when it finishes: one left behind is a push that stopped.
+  const stopped = journal;
   return {
     ...status,
     kind: profile.kind,
@@ -62,7 +61,7 @@ async function statusOf(root: string, profile: InstanceProfile, context: UseCase
     next:
       stopped === null
         ? status.next
-        : `snagentic pull ${profile.name}, then snagentic integrate ${profile.name}`,
+        : `snagentic plan-push --instance ${profile.name}, then push: what reached the instance is only recorded`,
   };
 }
 

@@ -5,8 +5,6 @@ import { credentialVariable, type InstanceKind, type InstanceProfile } from "./p
 export interface TrustedSettings {
   readonly url: string;
   readonly kind: InstanceKind;
-  // ADR-0024: the person allowed writes through a session elevated to security_admin.
-  readonly elevation?: boolean;
 }
 
 export type CredentialSource = "keychain" | "environment";

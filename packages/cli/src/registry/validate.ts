@@ -1,9 +1,4 @@
-import {
-  EXIT_CODES,
-  fluentSourcePath,
-  metadataPath,
-  validate as validateRecords,
-} from "@snagentic/core";
+import { EXIT_CODES, fluentSourcePath, validate as validateSource } from "@snagentic/core";
 import { z } from "zod";
 import { instanceFor } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
@@ -14,16 +9,17 @@ const Severity = z.enum(["block", "warn", "info"]);
 export const validate = defineUseCase({
   name: "validate",
   description:
-    "Check changed ServiceNow records against the platform rules (security, performance, " +
-    "upgradability, manageability, user experience) and report only what the change " +
-    "introduced, with rule id, file, line, why and remediation. By default checks every " +
-    "record edited since HEAD; give paths to check those, or base=origin/main to check a " +
+    "Build the Fluent source the change touched and check what it adds or edits against the " +
+    "platform rules (security, performance, upgradability, manageability, user experience), " +
+    "reporting only what the change introduced, with rule id, file, line, why and " +
+    "remediation; edits to the read-only mirror are refused. By default checks every project " +
+    "changed since HEAD; give paths to check those projects, or base=origin/main to check a " +
     "branch. Fix every block finding before delivering; never silence one.",
   input: z.object({
     paths: z
       .array(z.string())
       .optional()
-      .describe("record files to check (default: every record changed since base)"),
+      .describe("source files whose projects to check (default: every project changed since base)"),
     base: z
       .string()
       .default("HEAD")
@@ -39,8 +35,8 @@ export const validate = defineUseCase({
   output: z.object({
     instance: z.string(),
     base: z.string(),
-    records: z.number(),
-    fluentProjects: z.number().describe("Fluent projects under source/ built (ADR-0028)"),
+    units: z.number().describe("units (one update each) the change added or edited, checked"),
+    fluentProjects: z.number().describe("Fluent projects under source/ built"),
     passed: z.boolean(),
     counts: z.object({ block: z.number(), warn: z.number(), info: z.number() }),
     findings: z
@@ -50,10 +46,7 @@ export const validate = defineUseCase({
           severity: Severity,
           title: z.string(),
           path: z.string(),
-          root: z
-            .enum(["workspace"])
-            .optional()
-            .describe("path is relative to the workspace (default: the instance's metadata)"),
+          root: z.enum(["workspace"]).optional().describe("path is relative to the workspace"),
           field: z.string().nullable(),
           line: z.number().nullable(),
           message: z.string(),
@@ -72,15 +65,12 @@ export const validate = defineUseCase({
   async handle(input, context, run) {
     const root = await workspaceRoot(context);
     const instance = await instanceFor(root, context, input.instance);
-    run.progress({ message: "checking changed records" });
-    const fluentPaths = (input.paths ?? []).flatMap((p) => fluentSourcePath(root, p) ?? []);
-    const recordPaths = (input.paths ?? []).filter((p) => fluentSourcePath(root, p) === null);
+    run.progress({ message: "building the source and checking it" });
     const governance = context.governance(root, instance, { staged: input.staged });
-    const result = await validateRecords(governance, {
+    const paths = (input.paths ?? []).flatMap((p) => fluentSourcePath(root, p) ?? []);
+    const result = await validateSource(governance, {
       base: input.base,
-      ...(input.paths === undefined
-        ? {}
-        : { paths: recordPaths.map((path) => metadataPath(instance, root, path)), fluentPaths }),
+      ...(input.paths === undefined ? {} : { paths }),
     });
     return { instance, ...result };
   },
@@ -92,12 +82,10 @@ export const validate = defineUseCase({
     ]);
     const skipped = output.notChecked.map((s) => `not checked: ${s.path} (${s.reason})`);
     const { block, warn, info } = output.counts;
-    const fluent =
-      output.fluentProjects === 0 ? "" : ` and ${output.fluentProjects} Fluent project(s) built`;
     const summary =
-      output.records === 0 && output.fluentProjects === 0
-        ? `no changed records since ${output.base}`
-        : `${output.records} record(s)${fluent} checked against ${output.base}: ${block} block, ${warn} warn, ${info} info`;
+      output.fluentProjects === 0 && output.findings.length === 0
+        ? `no changed source since ${output.base}`
+        : `${output.units} unit(s) in ${output.fluentProjects} project(s) checked against ${output.base}: ${block} block, ${warn} warn, ${info} info`;
     return [...lines, ...skipped, summary].join("\n");
   },
   exitCode: (output) => (output.passed ? 0 : EXIT_CODES.findings),

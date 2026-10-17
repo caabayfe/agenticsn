@@ -6,12 +6,10 @@ import {
   instancePaths,
   type MaterializedFile,
   type PackWorkspace,
-  type PatchTarget,
   type PreviousAdd,
 } from "@snagentic/core";
-import { parse } from "yaml";
 import { runGit, runGitOrThrow } from "../git/run-git";
-import { fromYamlStrings, toYaml } from "../yaml/own-style";
+import { fromYamlStrings } from "../yaml/own-style";
 
 // Pack commits are snagentic's, as mirror commits are (ADR-0007).
 const IDENTITY = {
@@ -42,28 +40,17 @@ async function git(cwd: string, args: string[], env: Record<string, string>, inp
   return out.trim();
 }
 
-// Typed, so a patched record is written back exactly as pull wrote it but for its patched
-// fields (hash_version stays a number).
-const record = (text: string): Readonly<Record<string, unknown>> => {
-  const parsed: unknown = parse(text);
-  return parsed !== null && typeof parsed === "object"
-    ? Object.fromEntries(Object.entries(parsed))
-    : {};
-};
-
 // One instance's pack branches in a workspace (ADR-0026, item 2): accelerator/<pack>/<instance>,
-// built with plumbing on the instance's mirror, merged into the working branch.
+// built with plumbing on the instance's mirror, merged into the working branch. File paths are
+// workspace-relative (source/<scope>/..., ADR-0031).
 export class GitPackWorkspace implements PackWorkspace {
-  private readonly metadata: string;
   private readonly remote: string;
 
   constructor(
     private readonly root: string,
     private readonly instance: string,
   ) {
-    const paths = instancePaths(InstanceName.parse(instance));
-    this.metadata = paths.metadata;
-    this.remote = paths.remoteBranch;
+    this.remote = instancePaths(InstanceName.parse(instance)).remoteBranch;
   }
 
   private branch(pack: string): string {
@@ -82,25 +69,6 @@ export class GitPackWorkspace implements PackWorkspace {
     return (
       (await runGit(["merge-base", "--is-ancestor", commit, "HEAD"], this.root)).exitCode === 0
     );
-  }
-
-  async mirrored(
-    commit: string,
-    sysIds: readonly string[],
-  ): Promise<ReadonlyMap<string, PatchTarget>> {
-    const found = new Map<string, PatchTarget>();
-    if (sysIds.length === 0) return found;
-    const listing = await runGitOrThrow(
-      ["ls-tree", "-r", "--name-only", commit, "--", this.metadata],
-      this.root,
-    );
-    for (const path of listing.split("\n")) {
-      const sysId = sysIds.find((id) => path.endsWith(`--${id}.yaml`));
-      if (sysId === undefined || found.has(sysId)) continue;
-      const text = await runGitOrThrow(["show", `${commit}:${path}`], this.root);
-      found.set(sysId, { path: path.slice(this.metadata.length + 1), document: record(text) });
-    }
-    return found;
   }
 
   parse(text: string): unknown {
@@ -170,23 +138,18 @@ export class GitPackWorkspace implements PackWorkspace {
     const scratch = await mkdtemp(join(tmpdir(), "snagentic-pack-"));
     const env = { GIT_INDEX_FILE: join(scratch, "index") };
     const stage = (blob: string, path: string) =>
-      git(
-        this.root,
-        ["update-index", "--add", "--cacheinfo", `100644,${blob},${this.metadata}/${path}`],
-        env,
-      );
+      git(this.root, ["update-index", "--add", "--cacheinfo", `100644,${blob},${path}`], env);
     try {
       await git(this.root, ["read-tree", mirror], env);
       for (const file of files) {
-        const content = file.kind === "copy" ? file.text : toYaml(file.document);
         await stage(
-          await git(this.root, ["hash-object", "-w", "--stdin"], env, content),
+          await git(this.root, ["hash-object", "-w", "--stdin"], env, file.text),
           file.path,
         );
       }
       for (const [commit, path] of kept) {
         const blob = await runGit(
-          ["rev-parse", "--verify", "--quiet", `${commit}:${this.metadata}/${path}`],
+          ["rev-parse", "--verify", "--quiet", `${commit}:${path}`],
           this.root,
         );
         if (blob.exitCode === 0) await stage(blob.stdout.trim(), path);

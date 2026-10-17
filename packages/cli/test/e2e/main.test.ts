@@ -45,7 +45,7 @@ describe("snagentic entry point (real adapters)", () => {
   );
 
   it(
-    "serves doctor as an MCP tool over stdio",
+    "serves the agent's tools over stdio",
     async () => {
       const client = new Client({ name: "e2e", version: "1.0.0" });
       await client.connect(new StdioClientTransport({ command: "bun", args: [MAIN, "mcp"] }));
@@ -55,7 +55,6 @@ describe("snagentic entry point (real adapters)", () => {
           "accelerator",
           "advise",
           "describe",
-          "doctor",
           "find",
           "plan_push",
           "plugins",
@@ -72,8 +71,8 @@ describe("snagentic entry point (real adapters)", () => {
           "explain",
           "deliver",
         ]);
-        const result = await client.callTool({ name: "doctor", arguments: {} });
-        expect(result.structuredContent).toHaveProperty("checks");
+        const result = await client.callTool({ name: "accelerator", arguments: {} });
+        expect(result.structuredContent).toHaveProperty("packs");
       } finally {
         await client.close();
       }

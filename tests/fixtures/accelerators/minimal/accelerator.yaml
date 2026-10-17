@@ -1,5 +1,5 @@
-# The minimal test pack (spec 005 plan, section 4.2): one scoped application, one property,
-# one patch to an out-of-box record, one data entity. Never shipped.
+# The minimal test pack (spec 005 plan, section 4.2): one scoped application and one property in
+# Fluent, one out-of-box record to adopt, one data entity. Never shipped.
 id: minimal
 version: 1.0.0
 # The version under development: tests install this pack with today's code.

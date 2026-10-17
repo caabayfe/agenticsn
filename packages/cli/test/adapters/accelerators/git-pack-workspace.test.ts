@@ -6,9 +6,9 @@ import type { MaterializedFile } from "@snagentic/core";
 import { GitPackWorkspace } from "../../../src/adapters/accelerators/git-pack-workspace";
 import { runGitOrThrow } from "../../../src/adapters/git/run-git";
 
-const SLA = "3d5fd9f1c0a8016400cbc76ea0b4c9a4";
-const METADATA = "instances/pdi/metadata";
-const SLA_PATH = `global/contract_sla/p1--${SLA}.yaml`;
+const APP = "source/x_min/src/fluent/app.now.ts";
+const PROPERTY = "source/x_min/src/fluent/properties.now.ts";
+const CONFIG = "source/x_min/now.config.json";
 
 const git = (root: string, ...args: string[]) => runGitOrThrow(args, root);
 
@@ -18,47 +18,34 @@ async function workspace() {
   await git(root, "init", "-q", "-b", "main");
   await git(root, "config", "user.name", "t");
   await git(root, "config", "user.email", "t@t");
-  mkdirSync(join(root, METADATA, "global/contract_sla"), { recursive: true });
-  writeFileSync(
-    join(root, METADATA, SLA_PATH),
-    `_meta:\n  hash_version: 1\n  sys_id: ${SLA}\nduration: 8h\nname: P1\n`,
-  );
+  mkdirSync(join(root, "instances/pdi/metadata/global"), { recursive: true });
+  writeFileSync(join(root, "instances/pdi/metadata/global/p--a1.yaml"), "name: p\n");
   await git(root, "add", ".");
   await git(root, "commit", "-q", "-m", "pull");
   await git(root, "branch", "servicenow-remote/pdi");
   return { root, packs: new GitPackWorkspace(root, "pdi") };
 }
 
-const files = (duration: string): MaterializedFile[] => [
-  { kind: "copy", path: "x_min/sys_app/min--a1.yaml", text: "name: min\n", capability: "base" },
-  {
-    kind: "patch",
-    path: SLA_PATH,
-    document: { _meta: { sys_id: SLA }, name: "P1", duration },
-    fields: ["duration"],
-  },
+const file = (path: string, text: string): MaterializedFile => ({ path, text, capability: "base" });
+const files = (value: string): MaterializedFile[] => [
+  file(CONFIG, '{ "scope": "x_min" }\n'),
+  file(APP, `Record({ value: '${value}' })\n`),
 ];
+const read = (root: string, path: string) => readFileSync(join(root, path), "utf8");
 
-describe("git pack workspace (ADR-0026)", () => {
-  it("knows the mirror commit, that main integrated it, and finds a mirrored record by sys_id", async () => {
+describe("git pack workspace (ADR-0026, ADR-0031)", () => {
+  it("knows the mirror commit and that main integrated it", async () => {
     const { packs } = await workspace();
     const mirror = await packs.mirrorCommit();
     expect(mirror).toMatch(/^[0-9a-f]{40}$/);
     expect(await packs.includes(mirror ?? "")).toBe(true);
-    const found = await packs.mirrored(mirror ?? "", [SLA, "f".repeat(32)]);
-    expect([...found.keys()]).toEqual([SLA]);
-    expect(found.get(SLA)).toEqual({
-      path: SLA_PATH,
-      document: { _meta: { hash_version: 1, sys_id: SLA }, name: "P1", duration: "8h" },
-    });
-    expect(await packs.mirrored(mirror ?? "", [])).toEqual(new Map());
   });
 
-  it("commits the pack on the mirror with plumbing, then merges it into the working branch", async () => {
+  it("commits the pack's source on the mirror with plumbing, then merges it at its workspace paths", async () => {
     const { root, packs } = await workspace();
     const mirror = (await packs.mirrorCommit()) ?? "";
     const status = await git(root, "status", "--porcelain");
-    const commit = await packs.commit("minimal", mirror, files("4h"), "add minimal 1.0.0", []);
+    const commit = await packs.commit("minimal", mirror, files("a"), "add minimal 1.0.0", []);
     // The working tree is untouched until the merge.
     expect(await git(root, "status", "--porcelain")).toBe(status);
     expect(await git(root, "rev-parse", "accelerator/minimal/pdi")).toBe(`${commit}\n`);
@@ -66,37 +53,18 @@ describe("git pack workspace (ADR-0026)", () => {
       branch: "accelerator/minimal/pdi",
       conflicts: [],
     });
-    expect(readFileSync(join(root, METADATA, "x_min/sys_app/min--a1.yaml"), "utf8")).toBe(
-      "name: min\n",
-    );
-    expect(readFileSync(join(root, METADATA, SLA_PATH), "utf8")).toContain("duration: 4h");
-  });
-
-  it("writes a patched record back as pull wrote it, but for the patched field", async () => {
-    const { root, packs } = await workspace();
-    const mirror = (await packs.mirrorCommit()) ?? "";
-    const [target] = (await packs.mirrored(mirror, [SLA])).values();
-    const patched: MaterializedFile = {
-      kind: "patch",
-      path: SLA_PATH,
-      document: { ...(target?.document ?? {}), duration: "4h" },
-      fields: ["duration"],
-    };
-    await packs.commit("minimal", mirror, [patched], "patch", []);
-    await packs.merge("minimal");
-    expect(await git(root, "diff", "HEAD~1", "--", `${METADATA}/${SLA_PATH}`)).toContain(
-      "-duration: 8h\n+duration: 4h",
-    );
-    expect(readFileSync(join(root, METADATA, SLA_PATH), "utf8")).toContain("hash_version: 1\n");
+    expect(read(root, APP)).toBe("Record({ value: 'a' })\n");
+    expect(read(root, CONFIG)).toBe('{ "scope": "x_min" }\n');
+    expect(read(root, "instances/pdi/metadata/global/p--a1.yaml")).toBe("name: p\n");
   });
 
   it("changes nothing when the same version is added again", async () => {
     const { root, packs } = await workspace();
     const mirror = (await packs.mirrorCommit()) ?? "";
-    const first = await packs.commit("minimal", mirror, files("4h"), "add", []);
+    const first = await packs.commit("minimal", mirror, files("a"), "add", []);
     await packs.merge("minimal");
     const head = await git(root, "rev-parse", "HEAD");
-    expect(await packs.commit("minimal", mirror, files("4h"), "add again", [])).toBe(first);
+    expect(await packs.commit("minimal", mirror, files("a"), "add again", [])).toBe(first);
     expect(await packs.merge("minimal")).toEqual({
       branch: "accelerator/minimal/pdi",
       conflicts: [],
@@ -104,18 +72,17 @@ describe("git pack workspace (ADR-0026)", () => {
     expect(await git(root, "rev-parse", "HEAD")).toBe(head);
   });
 
-  it("leaves a conflict for the user when a new version changes a field they edited", async () => {
+  it("leaves a conflict for the user when a new version changes a line they edited", async () => {
     const { root, packs } = await workspace();
     const mirror = (await packs.mirrorCommit()) ?? "";
-    await packs.commit("minimal", mirror, files("4h"), "1.0.0", []);
+    await packs.commit("minimal", mirror, files("a"), "1.0.0", []);
     await packs.merge("minimal");
-    const path = join(root, METADATA, SLA_PATH);
-    writeFileSync(path, readFileSync(path, "utf8").replace("duration: 4h", "duration: 6h"));
-    await git(root, "commit", "-qam", "the user's own SLA");
-    await packs.commit("minimal", mirror, files("2h"), "1.0.1", []);
+    writeFileSync(join(root, APP), "Record({ value: 'ours' })\n");
+    await git(root, "commit", "-qam", "the user's own value");
+    await packs.commit("minimal", mirror, files("b"), "1.0.1", []);
     expect(await packs.merge("minimal")).toEqual({
       branch: "accelerator/minimal/pdi",
-      conflicts: [`${METADATA}/${SLA_PATH}`],
+      conflicts: [APP],
     });
   });
 
@@ -123,39 +90,20 @@ describe("git pack workspace (ADR-0026)", () => {
     const { root, packs } = await workspace();
     const mirror = (await packs.mirrorCommit()) ?? "";
     expect(await packs.previous("minimal")).toEqual({ written: [], kept: [] });
-    const property = (value: string): MaterializedFile => ({
-      kind: "copy",
-      path: "x_min/sys_properties/on--a2.yaml",
-      text: `name: x.on\nvalue: ${value}\n`,
-      capability: "base",
-    });
-    await packs.commit("minimal", mirror, [...files("4h"), property("true")], "1.0.0", []);
+    const property = (value: string) => file(PROPERTY, `Record({ on: ${value} })\n`);
+    await packs.commit("minimal", mirror, [...files("a"), property("true")], "1.0.0", []);
     await packs.merge("minimal");
-    expect(await packs.previous("minimal")).toEqual({
-      written: [SLA_PATH, "x_min/sys_app/min--a1.yaml", "x_min/sys_properties/on--a2.yaml"],
-      kept: [],
-    });
-    const path = join(root, METADATA, SLA_PATH);
-    writeFileSync(path, readFileSync(path, "utf8").replace("name: P1", "name: P1 (ours)"));
-    await git(root, "commit", "-qam", "the user's own SLA name");
-    // 1.0.1 changes the property and drops the application record.
-    const next = [files("4h")[1], property("false")].filter((f) => f !== undefined);
-    await packs.commit("minimal", mirror, next, "1.0.1", ["x_min/sys_app/min--a1.yaml"]);
+    expect(await packs.previous("minimal")).toEqual({ written: [CONFIG, APP, PROPERTY], kept: [] });
+    // 1.0.1 changes the property and drops the application file.
+    const next = [file(CONFIG, '{ "scope": "x_min" }\n'), property("false")];
+    await packs.commit("minimal", mirror, next, "1.0.1", [APP]);
     expect(await packs.merge("minimal")).toEqual({
       branch: "accelerator/minimal/pdi",
       conflicts: [],
     });
-    expect(readFileSync(join(root, METADATA, "x_min/sys_app/min--a1.yaml"), "utf8")).toBe(
-      "name: min\n",
-    );
-    expect(
-      readFileSync(join(root, METADATA, "x_min/sys_properties/on--a2.yaml"), "utf8"),
-    ).toContain("value: false");
-    expect(readFileSync(path, "utf8")).toContain("name: P1 (ours)");
-    expect(await packs.previous("minimal")).toEqual({
-      written: [SLA_PATH, "x_min/sys_properties/on--a2.yaml"],
-      kept: ["x_min/sys_app/min--a1.yaml"],
-    });
+    expect(read(root, APP)).toBe("Record({ value: 'a' })\n");
+    expect(read(root, PROPERTY)).toBe("Record({ on: false })\n");
+    expect(await packs.previous("minimal")).toEqual({ written: [CONFIG, PROPERTY], kept: [APP] });
   });
 
   it("reports a merge that fails for another reason", async () => {
@@ -165,8 +113,10 @@ describe("git pack workspace (ADR-0026)", () => {
     );
   });
 
-  it("parses a patch file as YAML", async () => {
+  it("parses an adopt file as YAML", async () => {
     const { packs } = await workspace();
-    expect(packs.parse("table: incident\nsys_id: x\n")).toEqual({ table: "incident", sys_id: "x" });
+    expect(packs.parse("- table: incident\n  sys_id: x\n")).toEqual([
+      { table: "incident", sys_id: "x" },
+    ]);
   });
 });

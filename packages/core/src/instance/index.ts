@@ -18,7 +18,6 @@ export {
 } from "./application/verify-access";
 export {
   CredentialsMissingError,
-  ElevationUnsupportedError,
   IdentityMismatchError,
   IdentityUnverifiedError,
   InstanceExistsError,
@@ -27,7 +26,6 @@ export {
   InvalidInstanceUrlError,
   ProfileNotTrustedError,
   ReadOnlyAcknowledgementRequiredError,
-  SecurityAdminRequiredError,
 } from "./domain/errors";
 export { normalizeInstanceUrl } from "./domain/instance-url";
 export {

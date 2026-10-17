@@ -1,83 +1,77 @@
 import { describe, expect, it } from "bun:test";
-import { type ChangedRecords, type RecordVersion, validate } from "@snagentic/core";
+import { type BuiltUnit, validate } from "@snagentic/core";
+import { governanceOf, unitOf } from "../support/fake-governance";
 
-const BASE = "global/sys_security_acl/incident--a1c";
+// ACL checks on built units: roles are the build's sys_security_acl_role units, and a deletion is
+// a Now.del naming the ACL's keys.
+
+const PROJECT = "source/global";
+const ACL_ID = "a1c0".padEnd(32, "0");
 const RULE_IDS = (result: Awaited<ReturnType<typeof validate>>) =>
-  result.findings.map((finding) => finding.ruleId);
+  result.findings.map((f) => f.ruleId);
 
-const acl = (fields: Record<string, string>): RecordVersion => ({
-  className: "sys_security_acl",
-  scope: "global",
-  fields: {
-    active: "true",
-    admin_overrides: "true",
-    advanced: "false",
-    condition: "",
-    decision_type: "allow",
-    name: "incident",
-    operation: "write",
-    script: "",
-    security_attribute: "",
-    ...fields,
-  },
-  files: {},
-});
-
-// The ACL now and at the base, and the role records pointing at it in each.
-function records(options: {
-  now: RecordVersion | null;
-  before?: RecordVersion;
-  roles?: { now: number; before: number };
-  lookups?: string[];
-}): ChangedRecords {
-  return {
-    resolve: async () => "c0ffee",
-    changedSince: async () => [BASE],
-    current: async () => options.now,
-    at: async () => options.before ?? null,
-    mirrorMerge: async () => null,
-    privileges: async () => [],
-    countReferences: async (className, field, sysId, commit) => {
-      options.lookups?.push(`${className}.${field}=${sysId} at ${commit ?? "workspace"}`);
-      return commit === null ? (options.roles?.now ?? 0) : (options.roles?.before ?? 0);
+const acl = (fields: Record<string, string>): BuiltUnit =>
+  unitOf(
+    "sys_security_acl",
+    {
+      active: "true",
+      admin_overrides: "true",
+      advanced: "false",
+      condition: "",
+      decision_type: "allow",
+      name: "incident",
+      operation: "write",
+      script: "",
+      security_attribute: "",
+      ...fields,
     },
-  };
-}
+    ACL_ID,
+  );
 
-const checker = { check: () => ({ parsed: true as const, hits: [] }) };
-const run = (deps: ChangedRecords) => validate({ records: deps, checker }, { base: "HEAD" });
+const role = (id: string) =>
+  unitOf("sys_security_acl_role", { sys_security_acl: ACL_ID, sys_user_role: "itil" }, id);
 
-describe("validate: ACL records (ADR-0024)", () => {
+const deletion: BuiltUnit = {
+  updateName: `sys_security_acl_${"d".repeat(32)}`,
+  file: `sys_security_acl_${"d".repeat(32)}.xml`,
+  head: {
+    table: "sys_security_acl",
+    sysId: "d".repeat(32),
+    action: "DELETE",
+    fields: { sys_id: "d".repeat(32), name: "incident", operation: "read" },
+    referenceNames: {},
+  },
+  children: [],
+};
+
+const run = (now: readonly BuiltUnit[], base: readonly BuiltUnit[] = []) =>
+  validate(governanceOf({ [PROJECT]: { now, base } }), { base: "HEAD" });
+
+describe("validate: ACL units", () => {
   it("blocks a new write ACL that no role, condition or script restricts", async () => {
-    const lookups: string[] = [];
-    const result = await run(records({ now: acl({}), lookups }));
+    const result = await run([acl({})]);
     expect(result.passed).toBe(false);
     expect(result.findings).toEqual([
       expect.objectContaining({
         ruleId: "SN-SEC-006",
         severity: "block",
-        path: `${BASE}.yaml`,
+        path: `${PROJECT}/sys_security_acl_${ACL_ID}`,
         message: "the write ACL incident has no role, condition or script, so it restricts nothing",
       }),
     ]);
-    expect(lookups).toEqual(["sys_security_acl_role.sys_security_acl=a1c at workspace"]);
   });
 
-  it("passes it once a role record points at it", async () => {
-    const result = await run(records({ now: acl({}), roles: { now: 1, before: 0 } }));
-    expect(result.findings).toEqual([]);
+  it("passes it once a role unit names it", async () => {
+    expect((await run([acl({}), role("r".repeat(32))])).findings).toEqual([]);
   });
 
   it("blocks removing the last role of a write ACL", async () => {
-    const result = await run(
-      records({ now: acl({}), before: acl({}), roles: { now: 0, before: 1 } }),
-    );
+    const result = await run([acl({ description: "d" })], [acl({}), role("r".repeat(32))]);
     expect(RULE_IDS(result)).toEqual(["SN-SEC-006"]);
   });
 
   it("does not report an unrestricted ACL the change did not open", async () => {
-    const result = await run(records({ now: acl({ description: "d" }), before: acl({}) }));
-    expect(result.findings).toEqual([]);
+    expect((await run([acl({ description: "d" })], [acl({})])).findings).toEqual([]);
   });
 
   it("counts roles only for ACLs nothing else restricts", async () => {
@@ -89,26 +83,23 @@ describe("validate: ACL records (ADR-0024)", () => {
       { decision_type: "deny" },
       { active: "false" },
     ]) {
-      const lookups: string[] = [];
-      const result = await run(records({ now: acl(fields), lookups }));
-      expect({ fields, ids: RULE_IDS(result), lookups }).toEqual({ fields, ids: [], lookups: [] });
+      expect({ fields, ids: RULE_IDS(await run([acl(fields)])) }).toEqual({ fields, ids: [] });
     }
   });
 
   it("ignores a script on an ACL that is not advanced, as the platform does", async () => {
-    const result = await run(records({ now: acl({ script: "answer = false;" }) }));
-    expect(RULE_IDS(result)).toEqual(["SN-SEC-006"]);
+    expect(RULE_IDS(await run([acl({ script: "answer = false;" })]))).toEqual(["SN-SEC-006"]);
   });
 
-  it("blocks deactivating, deleting or allowing a deny ACL", async () => {
+  it("blocks deactivating, allowing, or deleting with Now.del a deny ACL", async () => {
     const deny = acl({ decision_type: "deny", operation: "read" });
-    const cases: [RecordVersion | null, string][] = [
+    const cases: [BuiltUnit, string][] = [
       [acl({ decision_type: "deny", operation: "read", active: "false" }), "deactivates"],
-      [null, "deletes"],
       [acl({ operation: "read" }), "turns"],
+      [deletion, "deletes"],
     ];
     for (const [now, verb] of cases) {
-      const result = await run(records({ now, before: deny, roles: { now: 1, before: 1 } }));
+      const result = await run([now, role("r".repeat(32))], [deny, role("r".repeat(32))]);
       expect(result.passed).toBe(false);
       expect(result.findings).toEqual([
         expect.objectContaining({
@@ -119,19 +110,18 @@ describe("validate: ACL records (ADR-0024)", () => {
     }
   });
 
-  it("does not report a deny ACL that was already inactive", async () => {
-    const before = acl({ decision_type: "deny", active: "false" });
-    const result = await run(records({ now: null, before }));
-    expect(result).toMatchObject({ records: 0, findings: [] });
+  it("does not report deleting a deny ACL that was already inactive", async () => {
+    const result = await run(
+      [deletion],
+      [acl({ decision_type: "deny", operation: "read", active: "false" })],
+    );
+    expect(result.findings).toEqual([]);
   });
 
   it("warns when admin overrides are turned off", async () => {
     const result = await run(
-      records({
-        now: acl({ admin_overrides: "false" }),
-        before: acl({}),
-        roles: { now: 1, before: 1 },
-      }),
+      [acl({ admin_overrides: "false" }), role("r".repeat(32))],
+      [acl({}), role("r".repeat(32))],
     );
     expect(result.passed).toBe(true);
     expect(result.findings).toEqual([
@@ -139,12 +129,7 @@ describe("validate: ACL records (ADR-0024)", () => {
     ]);
   });
 
-  it("leaves records of other classes alone", async () => {
-    const result = await run(
-      records({
-        now: { ...acl({}), className: "sys_script_include", fields: { description: "d" } },
-      }),
-    );
-    expect(result.findings).toEqual([]);
+  it("leaves units of other classes alone", async () => {
+    expect((await run([unitOf("sys_script_include", { description: "d" })])).findings).toEqual([]);
   });
 });

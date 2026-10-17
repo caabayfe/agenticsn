@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { InstanceName } from "@snagentic/core";
-import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { executeUseCase } from "../../src/registry/execute";
 import { status } from "../../src/registry/status";
 import { instanceWorkspace } from "../support/instance-workspace";
@@ -120,27 +119,27 @@ describe("status and a push that stopped part way", () => {
     expect(text).toContain("next: snagentic pull pdi, then snagentic integrate pdi");
   });
 
-  it("reads the push journal until a pull moves the mirror past it", async () => {
+  it("reports a push that stopped part way until a push finishes it", async () => {
     const ws = await instanceWorkspace({});
     cleanups.push(ws.cleanup);
-    const git = (...args: string[]) =>
-      runGitOrThrow(["-c", "user.name=t", "-c", "user.email=t@t", ...args], ws.root);
-    await git("commit", "-q", "--allow-empty", "-m", "pull");
-    await git("branch", "servicenow-remote/pdi");
-    const mirror = (await git("rev-parse", "servicenow-remote/pdi")).trim();
-    const journal = { planId: "p1", startedAt: "t", preferences: [], steps: [] };
-    await ws.context
-      .pushJournal(ws.root, InstanceName.parse("pdi"))
-      .write({ ...journal, mirrorCommit: mirror });
+    const journals = ws.context.pushJournal(ws.root, InstanceName.parse("pdi"));
+    await journals.write({
+      planId: "p1",
+      mirrorCommit: "",
+      startedAt: "t",
+      preferences: [],
+      steps: [],
+    });
     const { output } = await executeUseCase(status, { instance: "pdi" }, ws.context);
     expect(output).toMatchObject({
       instances: [
-        { unfinishedPush: "p1", next: "snagentic pull pdi, then snagentic integrate pdi" },
+        {
+          unfinishedPush: "p1",
+          next: "snagentic plan-push --instance pdi, then push: what reached the instance is only recorded",
+        },
       ],
     });
-    await ws.context
-      .pushJournal(ws.root, InstanceName.parse("pdi"))
-      .write({ ...journal, mirrorCommit: "0".repeat(40) });
+    await journals.clear();
     const later = await executeUseCase(status, { instance: "pdi" }, ws.context);
     expect(later.output).toMatchObject({ instances: [{ unfinishedPush: null }] });
   });

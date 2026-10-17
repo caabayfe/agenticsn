@@ -7,7 +7,7 @@ export const ACCELERATOR_RULES: readonly Rule[] = [
     category: "manageability",
     severity: "block",
     title: "Activate a capability's plugins before pushing it",
-    why: "A file an accelerator pack added belongs to a capability whose plugins are not active in the mirror's inventory: on the instance it would reference tables or behavior that do not exist yet.",
+    why: "Source an accelerator pack added belongs to a capability whose plugins are not active in the mirror's inventory: on the instance it would reference tables or behavior that do not exist yet.",
     remediation:
       "Run snagentic accelerator check with the pack and instance, activate the plugins it names, pull, then plan again.",
     scripts: [],

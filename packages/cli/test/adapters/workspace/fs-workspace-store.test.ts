@@ -25,7 +25,7 @@ describe("FsWorkspaceStore", () => {
     const root = join(await scratch(), "acme");
     await store.create(root, manifestFor("snagentic test"));
     expect(await readFile(join(root, "snagentic.yaml"), "utf8")).toBe(
-      "created_with: snagentic test\nlayout: 1\n",
+      "created_with: snagentic test\nlayout: 2\n",
     );
     expect(await readFile(join(root, ".gitignore"), "utf8")).toContain(".snagentic/");
     const manyFiles = await runGit(["config", "--get", "feature.manyFiles"], root);
@@ -44,7 +44,7 @@ describe("FsWorkspaceStore", () => {
   it("reads back the manifest it wrote", async () => {
     const root = join(await scratch(), "acme");
     await store.create(root, manifestFor("snagentic test"));
-    expect(await store.readManifest(root)).toEqual({ layout: 1, createdWith: "snagentic test" });
+    expect(await store.readManifest(root)).toEqual({ layout: 2, createdWith: "snagentic test" });
   });
 
   it("reads no manifest from an ordinary folder", async () => {

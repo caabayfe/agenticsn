@@ -32,18 +32,17 @@ async function repository() {
 }
 
 describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
-  it("lists metadata files whose working copy differs from HEAD: edited, staged or new", async () => {
+  it("lists source files whose working copy differs from HEAD: edited, staged or new", async () => {
     const { root, write, workspace } = await repository();
-    expect(await workspace.uncommittedFiles()).toEqual([]);
-    await write(`${META}/global/a.yaml`, "a: 2\n");
-    await write(`${META}/global/b.yaml`, "b: 2\n");
-    await git(root, "add", `${META}/global/b.yaml`);
+    expect(await workspace.uncommittedSource()).toEqual([]);
+    await write("source/x_app/a.now.ts", "a\n");
+    await write("source/x_app/b.now.ts", "b\n");
+    await git(root, "add", "source/x_app/b.now.ts");
     await write(`${META}/global/c.script.js`, "c();\n");
     await write("README.md", "changed\n");
-    expect(await workspace.uncommittedFiles()).toEqual([
-      "global/a.yaml",
-      "global/b.yaml",
-      "global/c.script.js",
+    expect(await workspace.uncommittedSource()).toEqual([
+      "source/x_app/a.now.ts",
+      "source/x_app/b.now.ts",
     ]);
   });
 
@@ -78,42 +77,5 @@ describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
     await expect(workspace.publishBranch("main")).rejects.toMatchObject({
       code: "branch-not-published",
     });
-  });
-});
-
-describe("GitDeliveryWorkspace record listings", () => {
-  it("lists a folder's records at a commit and in the working tree, without field files or child rows", async () => {
-    const { root, write, workspace } = await repository();
-    const head = (await git(root, "rev-parse", "HEAD")).trim();
-    await write(`${META}/global/c.yaml`, "c: 1\n");
-    await write(`${META}/global/c.script.js`, "c();\n");
-    await write(`${META}/global/c.children.sys_ui_element.yaml`, "[]\n");
-    expect(await workspace.recordsIn("global", head)).toEqual(["global/a", "global/b"]);
-    expect((await workspace.recordsIn("global", null)).sort()).toEqual([
-      "global/a",
-      "global/b",
-      "global/c",
-    ]);
-    expect(await workspace.recordsIn("missing", head)).toEqual([]);
-  });
-
-  it("lists the same folder in every domain, as the instance may put a record in one", async () => {
-    const { root, write, workspace } = await repository();
-    await write(`${META}/domains/d1/global/x.yaml`, "x: 1\n");
-    await git(root, "add", ".");
-    await git(root, "commit", "-qm", "domain");
-    const head = (await git(root, "rev-parse", "HEAD")).trim();
-    await write(`${META}/domains/d2/global/y.yaml`, "y: 1\n");
-    expect(await workspace.recordsIn("global", head)).toEqual([
-      "global/a",
-      "global/b",
-      "domains/d1/global/x",
-    ]);
-    expect((await workspace.recordsIn("global", null)).sort()).toEqual([
-      "domains/d1/global/x",
-      "domains/d2/global/y",
-      "global/a",
-      "global/b",
-    ]);
   });
 });

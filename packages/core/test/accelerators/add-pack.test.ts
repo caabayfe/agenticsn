@@ -26,18 +26,19 @@ const MINIMAL = {
   },
 };
 
+const ADOPT = JSON.stringify([{ table: "contract_sla", sys_id: SLA, note: "set duration to 4h" }]);
 const FILES = new Map([
   ["accelerator.yaml", "id: minimal"],
-  ["metadata/base/x_snagentic_min/sys_app/min--a1.yaml", "name: min\n"],
-  ["patches/base/sla.yaml", `PATCH ${SLA}`],
-  ["metadata/extra/global/sys_script/rule--a3.yaml", "name: rule\n"],
+  ["source/base/x_snagentic_min/src/fluent/app.now.ts", "Record({})\n"],
+  ["adopt/base.yaml", ADOPT],
+  ["source/extra/global/src/fluent/rule.now.ts", "BusinessRule({})\n"],
 ]);
 
-const packs: PackSource = {
+const packs = (files: ReadonlyMap<string, string> = FILES): PackSource => ({
   ids: async () => ["minimal"],
   manifest: async (id) => (id === "minimal" ? MINIMAL : null),
-  files: async () => FILES,
-};
+  files: async () => files,
+});
 
 const inventory = (onCall: "active" | "inactive"): InventoryReader => ({
   read: async (_r, _i, file) =>
@@ -58,26 +59,11 @@ function fakeWorkspace(
     committed?: readonly MaterializedFile[];
     kept?: readonly string[];
     message?: string;
-    asked?: readonly string[];
   } = {};
   const workspace: PackWorkspace = {
     mirrorCommit: async () => (state.mirror === undefined ? "m1" : state.mirror),
     includes: async () => state.integrated ?? true,
-    mirrored: async (_commit, sysIds) => {
-      calls.asked = sysIds;
-      return new Map(
-        sysIds
-          .filter((id) => id === SLA)
-          .map((id) => [
-            id,
-            { path: `global/contract_sla/p1--${id}.yaml`, document: { _meta: {}, duration: "8h" } },
-          ]),
-      );
-    },
-    parse: (text) =>
-      text.startsWith("PATCH ")
-        ? { table: "contract_sla", sys_id: text.slice(6), fields: { duration: "4h" } }
-        : {},
+    parse: (text) => JSON.parse(text),
     previous: async () => state.previous ?? { written: [], kept: [] },
     commit: async (_pack, _mirror, files, message, keep) => {
       calls.committed = files;
@@ -95,55 +81,66 @@ function fakeWorkspace(
 
 const QUERY = { pack: "minimal", instance: { root: "/w", name: "pdi2" }, snagentic: "1.8.0" };
 
-describe("accelerator add (ADR-0026)", () => {
-  it("commits the selection's files to the pack branch and merges it", async () => {
+describe("accelerator add (ADR-0026, ADR-0031)", () => {
+  it("commits the selection's Fluent source to the pack branch, merges it, and lists what to adopt", async () => {
     const { workspace, calls } = fakeWorkspace();
-    const result = await addPack({ packs, inventory: inventory("active"), workspace }, QUERY);
+    const result = await addPack(
+      { packs: packs(), inventory: inventory("active"), workspace },
+      QUERY,
+    );
     expect(result).toEqual({
       pack: "minimal",
+      instance: "pdi2",
       version: "1.0.0",
       selected: ["base", "extra"],
       branch: "accelerator/minimal/pdi2",
       commit: "c1",
-      copied: 2,
-      patched: 1,
+      copied: [
+        "source/x_snagentic_min/src/fluent/app.now.ts",
+        "source/global/src/fluent/rule.now.ts",
+      ],
+      adoptions: [
+        { capability: "base", table: "contract_sla", sysId: SLA, note: "set duration to 4h" },
+      ],
       removed: [],
       conflicts: [],
     });
     expect(calls.kept).toEqual([]);
-    // The records it creates (they may exist from an earlier add) and the patch target.
-    expect(calls.asked).toEqual(["a1", SLA, "a3"]);
     expect(calls.message).toBe("snagentic accelerator add minimal 1.0.0: base, extra");
-    expect(calls.committed?.find((f) => f.kind === "patch")).toMatchObject({
-      path: `global/contract_sla/p1--${SLA}.yaml`,
-      document: { duration: "4h" },
+    expect(calls.committed?.[0]).toEqual({
+      path: "source/x_snagentic_min/src/fluent/app.now.ts",
+      text: "Record({})\n",
+      capability: "base",
     });
   });
 
-  it("keeps a record the last add wrote and this version dropped, and reports it (M8)", async () => {
-    const dropped = "x_snagentic_min/sys_properties/old--a9.yaml";
+  it("keeps a file the last add wrote and this version dropped, and reports it (M8)", async () => {
+    const dropped = "source/x_snagentic_min/src/fluent/old.now.ts";
     const { workspace, calls } = fakeWorkspace({
-      previous: { written: ["x_snagentic_min/sys_app/min--a1.yaml", dropped], kept: [] },
+      previous: { written: ["source/x_snagentic_min/src/fluent/app.now.ts", dropped], kept: [] },
     });
-    const result = await addPack({ packs, inventory: inventory("active"), workspace }, QUERY);
+    const result = await addPack(
+      { packs: packs(), inventory: inventory("active"), workspace },
+      QUERY,
+    );
     expect(result.removed).toEqual([dropped]);
     expect(calls.kept).toEqual([dropped]);
   });
 
   it("reports the files the merge left in conflict with the user's edits", async () => {
-    const { workspace } = fakeWorkspace({ conflicts: ["instances/pdi2/metadata/x.yaml"] });
-    const result = await addPack({ packs, inventory: inventory("active"), workspace }, QUERY);
-    expect(result.conflicts).toEqual(["instances/pdi2/metadata/x.yaml"]);
+    const { workspace } = fakeWorkspace({ conflicts: ["source/global/src/fluent/rule.now.ts"] });
+    const result = await addPack(
+      { packs: packs(), inventory: inventory("active"), workspace },
+      QUERY,
+    );
+    expect(result.conflicts).toEqual(["source/global/src/fluent/rule.now.ts"]);
   });
 
   it("refuses a selection that is not ready, naming why, and writes nothing", async () => {
     const { workspace, calls } = fakeWorkspace();
     const add = addPack(
-      { packs, inventory: inventory("inactive"), workspace },
-      {
-        ...QUERY,
-        capabilities: ["extra", "nope"],
-      },
+      { packs: packs(), inventory: inventory("inactive"), workspace },
+      { ...QUERY, capabilities: ["extra", "nope"] },
     );
     await expect(add).rejects.toThrow(PackNotAddableError);
     await expect(add).rejects.toThrow("the pack has no capability nope; extra is needs-plugins");
@@ -153,19 +150,20 @@ describe("accelerator add (ADR-0026)", () => {
   it("refuses before the first pull, and while the latest pull is not integrated", async () => {
     const never = fakeWorkspace({ mirror: null }).workspace;
     await expect(
-      addPack({ packs, inventory: inventory("active"), workspace: never }, QUERY),
+      addPack({ packs: packs(), inventory: inventory("active"), workspace: never }, QUERY),
     ).rejects.toThrow("pull pdi2 first");
     const behind = fakeWorkspace({ integrated: false }).workspace;
     await expect(
-      addPack({ packs, inventory: inventory("active"), workspace: behind }, QUERY),
+      addPack({ packs: packs(), inventory: inventory("active"), workspace: behind }, QUERY),
     ).rejects.toThrow("integrate pdi2 first");
   });
 
-  it("refuses a patch whose record the mirror does not have", async () => {
-    const { workspace } = fakeWorkspace();
-    const other = { ...workspace, mirrored: async () => new Map() };
+  it("refuses a pack still in format 1, and writes nothing", async () => {
+    const { workspace, calls } = fakeWorkspace();
+    const old = new Map([...FILES, ["patches/base/sla.yaml", "table: contract_sla"]]);
     await expect(
-      addPack({ packs, inventory: inventory("active"), workspace: other }, QUERY),
-    ).rejects.toThrow(`contract_sla ${SLA} is not in the mirror`);
+      addPack({ packs: packs(old), inventory: inventory("active"), workspace }, QUERY),
+    ).rejects.toThrow("patches/base/sla.yaml: pack format 1");
+    expect(calls.committed).toBeUndefined();
   });
 });

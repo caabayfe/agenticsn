@@ -1,8 +1,8 @@
 import { WorkspaceLayoutError } from "./errors";
 
-// Version of the on-disk layout (ADR-0014). Changing the layout means a new version and a
-// `snagentic migrate` step; layouts are never changed silently.
-export const LAYOUT_VERSION = 1;
+// Version of the on-disk layout (ADR-0014); layouts are never changed silently. Layout 2 adds the
+// Fluent source under source/<scope>/ and makes the mirror read-only (ADR-0031).
+export const LAYOUT_VERSION = 2;
 export const MANIFEST_FILE = "snagentic.yaml";
 
 export interface WorkspaceManifest {
@@ -32,8 +32,8 @@ export function checkLayout(manifest: unknown): WorkspaceManifest {
   }
   if (layout !== LAYOUT_VERSION) {
     throw new WorkspaceLayoutError(
-      "this workspace uses an older or unreadable layout",
-      "run `snagentic migrate` to update it",
+      "this workspace uses an older or unreadable layout: layout 1 kept changes as mirrored YAML, before Fluent source (ADR-0031)",
+      "create a new workspace with snagentic init, add the instances, pull, and adopt the records to change",
     );
   }
   const createdWith =

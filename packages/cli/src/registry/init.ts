@@ -14,7 +14,8 @@ export const init = defineUseCase({
   name: "init",
   description:
     "Create a snagentic workspace: a dedicated git repository with the standard layout for " +
-    "synced instance data. Run once per ServiceNow estate.",
+    "synced instance data, and the Fluent project for global changes (source/global). Run " +
+    "once per ServiceNow estate.",
   input: z.object({
     path: z.string().optional().describe("where to create it (default ~/snagentic/<name>)"),
     name: z.string().default("workspace").describe("folder name for the default location"),
@@ -29,7 +30,11 @@ export const init = defineUseCase({
   arguments: ["path"],
   async handle(input, context) {
     const root = resolvePath(input.path ?? `~/snagentic/${input.name}`, context.host);
-    const manifest = await initWorkspace(root, context.host.version, context.workspaces);
+    // Global changes have a project from the start (ADR-0031); a scope gets one when its first
+    // record is adopted.
+    const scaffold = () =>
+      context.authoring(root).workspace.scaffold({ name: "global", sysId: "global" });
+    const manifest = await initWorkspace(root, context.host.version, context.workspaces, scaffold);
     return { root, layout: manifest.layout, nextSteps: [`cd ${root}`] };
   },
   render(output) {

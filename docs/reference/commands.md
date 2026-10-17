@@ -10,7 +10,7 @@ Generated from the use-case registry; do not edit. Regenerate with `bun run docs
 snagentic init [path] [options]
 ```
 
-Create a snagentic workspace: a dedicated git repository with the standard layout for synced instance data. Run once per ServiceNow estate.
+Create a snagentic workspace: a dedicated git repository with the standard layout for synced instance data, and the Fluent project for global changes (source/global). Run once per ServiceNow estate.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
@@ -74,13 +74,9 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic auth login <instance> [options]
 ```
 
-Check the password (or OAuth client secret) with the instance, then store it in the OS keychain together with the profile's url and kind; it is used only while they match. Prompts without echo, or reads stdin. allowElevation lets push write ACLs through a browser session elevated to security_admin (ADR-0024): development instances with Basic authentication only, for a user who holds security_admin.
+Check the password (or OAuth client secret) with the instance, then store it in the OS keychain together with the profile's url and kind; it is used only while they match. Prompts without echo, or reads stdin.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
-
-Options:
-
-- `--allow-elevation`: let push elevate to security_admin to write ACLs (needs Chrome or Edge)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -119,7 +115,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic integrate <instance> [options]
 ```
 
-Merge the latest pull of an instance into the workspace's current branch. Local work is never overwritten: conflicting changes get git conflict markers. A record created here and pushed takes the instance's copy when it holds every field set here with the same value.
+Merge the latest pull of an instance into the workspace's current branch. The mirror is read-only, so the instance's copy always wins there; a local edit to it is discarded and named. Reports adopted units the instance changed since they last agreed with source (drift): run adopt --refresh on them before planning.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
@@ -201,7 +197,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic validate [paths...] [options]
 ```
 
-Check changed ServiceNow records against the platform rules (security, performance, upgradability, manageability, user experience) and report only what the change introduced, with rule id, file, line, why and remediation. By default checks every record edited since HEAD; give paths to check those, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
+Build the Fluent source the change touched and check what it adds or edits against the platform rules (security, performance, upgradability, manageability, user experience), reporting only what the change introduced, with rule id, file, line, why and remediation; edits to the read-only mirror are refused. By default checks every project changed since HEAD; give paths to check those projects, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
 
 Changes the instance: no. MCP tool: `validate`.
 
@@ -235,14 +231,26 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic check <paths...> [options]
 ```
 
-Check files around an edit: whether they may be edited at all (local state, child rows and workspace configuration may not), and what the edit introduced (validate on those records). Fast; host hooks run it after every edit.
+Check whether files may be edited at all: the mirror of the instance, the ledgers, local state and workspace configuration may not. Fast; host hooks run it around every edit. What an edit to Fluent source introduces is validate's job.
 
 Changes the instance: no. MCP tool: none.
 
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `adopt`
+
+```
+snagentic adopt <records...> [options]
+```
+
+Bring records from a development instance into the workspace's Fluent source, to edit them there (ADR-0031). The SDK converts each record; snagentic builds the result and checks it would rebuild what the instance holds before writing anything. Writes source/<scope>/ and its ledger; commit them. Name records by mirror path, table:sys_id or sys_id.
+
+Changes the instance: **yes, development instances only**. MCP tool: `adopt`.
+
 Options:
 
-- `--no-edited`: false before an edit: only whether it is allowed
-- `--instance <value>`: validate only this instance's records (default: each record's own instance)
+- `--instance <value>`: the development instance the records are read from
+- `--refresh`: re-read adopted records changed on the instance, merged with local work as git merges
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -252,7 +260,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic plan-push [options]
 ```
 
-Plan delivering the workspace's changes to the instance: the records and fields that would change, the update sets they go into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
+Plan delivering the workspace's Fluent source to the instance: each unit (one update) that would be created, loaded or deleted, compared with the instance's live copy, the update sets it goes into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
 
 Changes the instance: no. MCP tool: `plan_push`.
 
@@ -270,7 +278,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic push [options]
 ```
 
-Deliver a reviewed plan to the development instance: writes the planned records into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace.
+Deliver a reviewed plan to the development instance: loads the planned units of the Fluent source (fluent/load) into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, checks each was captured and reads it back, then commits the ledgers. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace.
 
 Changes the instance: **yes, development instances only**. MCP tool: `push`.
 
@@ -426,7 +434,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic accelerator add <pack> <instance> [options]
 ```
 
-Write an accelerator pack's capabilities into the workspace (ADR-0026): new records as files, patches on the mirrored records, committed to the branch accelerator/<pack>/<instance> and merged into this one. Changes nothing on the instance: validate, plan_push and push deliver it. Refuses until accelerator check says every capability is ready.
+Write an accelerator pack's capabilities into the workspace (ADR-0026, ADR-0031): their Fluent source into the projects under source/, committed to the branch accelerator/<pack>/<instance> and merged into this one, and the out-of-box records they customize, to adopt and edit next. Changes nothing on the instance: validate, plan_push and push deliver it. Refuses until accelerator check says every capability is ready.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
@@ -480,7 +488,7 @@ snagentic doctor [options]
 
 Check that snagentic can work: git, OS keychain and search index on this machine, and, with --instance, credentials, connection, roles and timestamp handling of an instance.
 
-Changes the instance: no. MCP tool: `doctor`.
+Changes the instance: no. MCP tool: none.
 
 Options:
 
@@ -534,16 +542,20 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `phase` (design | build | review, optional): design before editing, build while editing, review before delivering
   - `classes` (array, optional): build and review: classes being changed, such as sys_script
   - `instance` (string, optional): default: the workspace's only instance
-- `validate`: Check changed ServiceNow records against the platform rules (security, performance, upgradability, manageability, user experience) and report only what the change introduced, with rule id, file, line, why and remediation. By default checks every record edited since HEAD; give paths to check those, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
-  - `paths` (array, optional): record files to check (default: every record changed since base)
+- `validate`: Build the Fluent source the change touched and check what it adds or edits against the platform rules (security, performance, upgradability, manageability, user experience), reporting only what the change introduced, with rule id, file, line, why and remediation; edits to the read-only mirror are refused. By default checks every project changed since HEAD; give paths to check those projects, or base=origin/main to check a branch. Fix every block finding before delivering; never silence one.
+  - `paths` (array, optional): source files whose projects to check (default: every project changed since base)
   - `base` (string, optional): commit, branch or tag to compare with; findings already there are not reported
   - `instance` (string, optional): default: the workspace's only instance
   - `staged` (boolean, optional): check only what is staged for commit, as the index holds it (the pre-commit hook)
-- `plan_push`: Plan delivering the workspace's changes to the instance: the records and fields that would change, the update sets they go into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
+- `adopt`: Bring records from a development instance into the workspace's Fluent source, to edit them there (ADR-0031). The SDK converts each record; snagentic builds the result and checks it would rebuild what the instance holds before writing anything. Writes source/<scope>/ and its ledger; commit them. Name records by mirror path, table:sys_id or sys_id.
+  - `instance` (string, required): the development instance the records are read from
+  - `records` (array, required): mirror paths, table:sys_id, or sys_ids
+  - `refresh` (boolean, optional): re-read adopted records changed on the instance, merged with local work as git merges
+- `plan_push`: Plan delivering the workspace's Fluent source to the instance: each unit (one update) that would be created, loaded or deleted, compared with the instance's live copy, the update sets it goes into, the gate (validate plus waivers), and records held in other open update sets. Writes nothing. Returns a planId for push when ready; show the plan to the user before pushing.
   - `instance` (string, optional): default: the workspace's only instance
   - `label` (string, optional): names the update sets (default: the git branch)
   - `allowCollisions` (boolean, optional): accept records already held in someone else's open update set
-- `push`: Deliver a reviewed plan to the development instance: writes the planned records into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. Destructive: hosts ask before running it.
+- `push`: Deliver a reviewed plan to the development instance: loads the planned units of the Fluent source (fluent/load) into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, checks each was captured and reads it back, then commits the ledgers. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. Destructive: hosts ask before running it.
   - `instance` (string, required): the development instance
   - `plan` (string, required): the planId from plan_push
   - `confirm` (boolean, optional): true once the user approved the plan
@@ -570,5 +582,3 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `instance` (string, optional): check against this instance's mirrored plugins
   - `waves` (array, optional): install these waves (default: all)
   - `capabilities` (array, optional): install these capabilities
-- `doctor`: Check that snagentic can work: git, OS keychain and search index on this machine, and, with --instance, credentials, connection, roles and timestamp handling of an instance.
-  - `instance` (string, optional): also check this instance of the workspace

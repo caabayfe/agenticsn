@@ -1,6 +1,4 @@
-import { baseOfFile } from "../../knowledge/index";
 import { pullRequestBody } from "../domain/batch";
-import type { PlannedWrite } from "../domain/change";
 import {
   PullRequestFromDefaultBranchError,
   PullRequestUnavailableError,
@@ -23,18 +21,14 @@ export interface PullRequestDependencies {
 
 export interface PullRequestRequest {
   readonly label: string;
-  readonly writes: readonly PlannedWrite[];
   readonly pr?: string;
   readonly draftPr?: boolean;
 }
 
-// A pull request shows commits: opening one while a planned record has uncommitted changes
-// would show something other than what is pushed.
-async function refuseUncommitted(workspace: DeliveryWorkspace, writes: readonly PlannedWrite[]) {
-  const planned = new Set(writes.map((write) => baseOfFile(write.path)));
-  const uncommitted = (await workspace.uncommittedFiles()).filter((path) =>
-    planned.has(baseOfFile(path)),
-  );
+// A pull request shows commits: opening one while the source has uncommitted changes would
+// show something other than what is pushed.
+async function refuseUncommitted(workspace: DeliveryWorkspace) {
+  const uncommitted = await workspace.uncommittedSource();
   if (uncommitted.length > 0) {
     throw new UncommittedPlannedChangesError(uncommitted);
   }
@@ -48,7 +42,7 @@ async function openDraft(
   if ((await deps.pullRequests.defaultBranch(deps.signal)) === branch) {
     throw new PullRequestFromDefaultBranchError(branch);
   }
-  await refuseUncommitted(deps.workspace, request.writes);
+  await refuseUncommitted(deps.workspace);
   await deps.workspace.publishBranch(branch);
   return deps.pullRequests.openDraft(
     { branch, title: branch, body: pullRequestBody(request.label, deps.url) },

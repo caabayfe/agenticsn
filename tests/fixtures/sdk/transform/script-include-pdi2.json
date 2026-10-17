@@ -1,0 +1,22 @@
+{
+  "records": [
+    {
+      "table": "sys_script_include",
+      "sysId": "123833b4d97d48be8e9ec5ea16f27764"
+    }
+  ],
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "/api/sn_glider/fluent_support/table_relationship_exporter",
+        "body": "{\"records\":[{\"table\":\"sys_script_include\",\"sysIds\":[\"123833b4d97d48be8e9ec5ea16f27764\"],\"graphIds\":[\"g1\"]}],\"graphs\":{\"g1\":{\"sys_script_include\":{\"nodeId\":\"node1\",\"table\":\"sys_script_include\",\"composite\":false}}},\"scopeId\":\"489da54ae67c4a3e9f1e1e4347e9119b\"}"
+      },
+      "answer": {
+        "status": 200,
+        "contentType": "application/json;charset=UTF-8",
+        "text": "{\"result\":{\"status\":\"success\",\"xmlRecords\":[{\"name\":\"E2EUtil\",\"sysId\":\"123833b4d97d48be8e9ec5ea16f27764\",\"tableLabel\":\"Script Include\",\"tableName\":\"sys_script_include\",\"content\":\"<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?><record_update table=\\\"sys_script_include\\\"><sys_script_include action=\\\"INSERT_OR_UPDATE\\\"><access>package_private</access><active>true</active><api_name>x_2222332_s11.E2EUtil</api_name><caller_access/><client_callable>false</client_callable><description>Helpers for the E2E probe (edited on the instance).</description><mobile_callable>false</mobile_callable><name>E2EUtil</name><sandbox_callable>false</sandbox_callable><script><![CDATA[var E2EUtil = Class.create();\\nE2EUtil.prototype = {\\n  initialize: function () {},\\n  ping: function () {\\n    return 'local';\\n  },\\n  type: 'E2EUtil'\\n};]]></script><sys_class_name>sys_script_include</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-10-15 22:34:03</sys_created_on><sys_id>123833b4d97d48be8e9ec5ea16f27764</sys_id><sys_mod_count>1</sys_mod_count><sys_name>E2EUtil</sys_name><sys_package display_value=\\\"snagentic spike S11\\\" source=\\\"x_2222332_s11\\\">489da54ae67c4a3e9f1e1e4347e9119b</sys_package><sys_policy/><sys_scope display_value=\\\"snagentic spike S11\\\">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope><sys_update_name>sys_script_include_123833b4d97d48be8e9ec5ea16f27764</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-10-16 06:30:48</sys_updated_on></sys_script_include></record_update>\"}]}}"
+      }
+    }
+  ]
+}

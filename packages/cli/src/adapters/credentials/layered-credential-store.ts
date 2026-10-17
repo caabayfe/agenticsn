@@ -12,12 +12,8 @@ export class LayeredCredentialStore implements CredentialStore {
     return (await this.environment.read(profile)) ?? (await this.persistent.read(profile));
   }
 
-  async write(
-    profile: InstanceProfile,
-    secret: string,
-    options?: { readonly elevation: boolean },
-  ): Promise<void> {
-    await this.persistent.write(profile, secret, options);
+  async write(profile: InstanceProfile, secret: string): Promise<void> {
+    await this.persistent.write(profile, secret);
   }
 
   async remove(profile: InstanceProfile): Promise<boolean> {

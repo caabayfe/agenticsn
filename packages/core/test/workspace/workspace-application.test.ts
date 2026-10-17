@@ -31,7 +31,7 @@ function fakeStore(options: {
   return { store, created };
 }
 
-const MANIFEST = { layout: 1, createdWith: "snagentic test" };
+const MANIFEST = { layout: 2, createdWith: "snagentic test" };
 
 describe("initWorkspace", () => {
   it("creates a workspace in an empty folder outside any repository", async () => {

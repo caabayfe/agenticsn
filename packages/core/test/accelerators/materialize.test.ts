@@ -1,182 +1,109 @@
 import { describe, expect, it } from "bun:test";
 import { materialize } from "@snagentic/core";
 
-const INCIDENT_SLA = "global/contract_sla/priority-1-resolution--3d5fd9f1c0a8016400cbc76ea0b4c9a4";
-const PATCH_ID = "3d5fd9f1c0a8016400cbc76ea0b4c9a4";
+const SLA = "3d5fd9f1c0a8016400cbc76ea0b4c9a4";
+const CONFIG = '{ "scope": "x_snagentic_min" }\n';
 
 // What the pack holds for two capabilities, as files under the pack directory.
 const PACK = new Map([
-  ["metadata/base/x_snagentic_min/sys_app/min--a1.yaml", "name: min\n"],
-  ["metadata/base/x_snagentic_min/sys_properties/x-on--a2.yaml", "name: x_snagentic_min.on\n"],
-  ["metadata/extra/global/sys_script/rule--a3.yaml", "name: rule\n"],
-  ["metadata/extra/global/sys_script/rule--a3.script.js", "current.update();\n"],
+  ["accelerator.yaml", "id: minimal\n"],
+  ["data/location.csv", "name,city\n"],
+  ["source/base/global/src/fluent/app.now.ts", "Record({})\n"],
+  ["source/base/x_snagentic_min/now.config.json", CONFIG],
+  ["source/base/x_snagentic_min/src/fluent/properties.now.ts", "Record({})\n"],
+  ["source/extra/x_snagentic_min/now.config.json", CONFIG],
+  ["source/extra/x_snagentic_min/src/fluent/rule.now.ts", "BusinessRule({})\n"],
   [
-    "patches/base/sla.yaml",
-    `table: contract_sla\nsys_id: ${PATCH_ID}\nfields:\n  duration: "1970-01-01 04:00:00"\n`,
+    "adopt/base.yaml",
+    JSON.stringify([{ table: "contract_sla", sys_id: SLA, note: "set duration to 4 hours" }]),
   ],
 ]);
 
-const parsePatch = (text: string): unknown => {
-  const sysId = /sys_id: (\w+)/.exec(text)?.[1];
-  const duration = /duration: "([^"]+)"/.exec(text)?.[1];
-  return { table: "contract_sla", sys_id: sysId, fields: { duration } };
-};
+// Adopt files written as JSON, which is YAML too.
+const parse = (text: string): unknown => JSON.parse(text);
+const run = (selected: readonly string[], pack: ReadonlyMap<string, string> = PACK) =>
+  materialize({ selected, files: pack, parse });
 
-const mirrored = (sysId: string) =>
-  sysId === PATCH_ID
-    ? {
-        path: `${INCIDENT_SLA}.yaml`,
-        document: {
-          _meta: { sys_id: PATCH_ID, hash: "h" },
-          name: "P1",
-          duration: "1970-01-01 08:00:00",
-        },
-      }
-    : null;
-
-const run = (selected: readonly string[], pack = PACK, find = mirrored) =>
-  materialize({ selected, files: pack, parse: parsePatch, mirrored: find });
-
-describe("materializing a pack (ADR-0026)", () => {
-  it("copies the selected capabilities' records into the workspace layout, field files included", () => {
+describe("materializing a pack (ADR-0026, ADR-0031)", () => {
+  it("copies the selected capabilities' Fluent source into the workspace's projects", () => {
     const { files, problems } = run(["base", "extra"]);
     expect(problems).toEqual([]);
-    expect(files.filter((f) => f.kind === "copy").map((f) => f.path)).toEqual([
-      "x_snagentic_min/sys_app/min--a1.yaml",
-      "x_snagentic_min/sys_properties/x-on--a2.yaml",
-      "global/sys_script/rule--a3.yaml",
-      "global/sys_script/rule--a3.script.js",
+    expect(files.map((f) => [f.path, f.capability])).toEqual([
+      ["source/global/src/fluent/app.now.ts", "base"],
+      ["source/x_snagentic_min/now.config.json", "base"],
+      ["source/x_snagentic_min/src/fluent/properties.now.ts", "base"],
+      ["source/x_snagentic_min/src/fluent/rule.now.ts", "extra"],
     ]);
+    expect(files[0]?.text).toBe("Record({})\n");
   });
 
   it("leaves out the capabilities not selected", () => {
-    const { files } = run(["base"]);
-    expect(files.some((f) => f.path.startsWith("global/sys_script/"))).toBe(false);
+    const { files, adoptions } = run(["extra"]);
+    expect(files.map((f) => f.path)).toEqual([
+      "source/x_snagentic_min/now.config.json",
+      "source/x_snagentic_min/src/fluent/rule.now.ts",
+    ]);
+    expect(adoptions).toEqual([]);
   });
 
-  it("patches the mirrored copy of an out-of-box record: only the named fields, its _meta kept", () => {
-    const patched = run(["base"]).files.find((f) => f.kind === "patch");
-    expect(patched).toEqual({
-      kind: "patch",
-      path: `${INCIDENT_SLA}.yaml`,
-      document: {
-        _meta: { sys_id: PATCH_ID, hash: "h" },
-        name: "P1",
-        duration: "1970-01-01 04:00:00",
-      },
-      fields: ["duration"],
-    });
-  });
-
-  it("is blocked by a patch whose record the instance does not have", () => {
-    expect(run(["base"], PACK, () => null).problems).toEqual([
-      `patches/base/sla.yaml: contract_sla ${PATCH_ID} is not in the mirror (run accelerator check; it may need a plugin)`,
+  it("lists the out-of-box records a capability customizes, with what to change after adopting", () => {
+    expect(run(["base"]).adoptions).toEqual([
+      { capability: "base", table: "contract_sla", sysId: SLA, note: "set duration to 4 hours" },
     ]);
   });
 
-  it("refuses a malformed patch, and one that would change identity fields", () => {
+  it("names each malformed adoption, and an adopt file that is not a list", () => {
     const bad = new Map([
-      ["patches/base/a.yaml", "x"],
-      ["patches/base/b.yaml", "y"],
+      [
+        "adopt/base.yaml",
+        JSON.stringify([
+          { table: "contract_sla", sys_id: SLA },
+          { table: "incident", sys_id: "x", note: "n" },
+          3,
+        ]),
+      ],
+      ["adopt/extra.yaml", '{ "table": "incident" }'],
     ]);
-    const parse = (text: string) =>
-      text === "x"
-        ? { table: "t" }
-        : { table: "t", sys_id: PATCH_ID, fields: { sys_id: "z", _meta: "m" } };
-    expect(materialize({ selected: ["base"], files: bad, parse, mirrored }).problems).toEqual([
-      "patches/base/a.yaml: a patch needs table, sys_id and fields",
-      "patches/base/b.yaml: a patch may not change sys_id, _meta",
+    expect(run(["base", "extra"], bad).problems).toEqual([
+      "adopt/base.yaml: entry 1 needs table, sys_id (32 hexadecimal characters) and note",
+      "adopt/base.yaml: entry 2 needs table, sys_id (32 hexadecimal characters) and note",
+      "adopt/base.yaml: entry 3 needs table, sys_id (32 hexadecimal characters) and note",
+      "adopt/extra.yaml: a list of { table, sys_id, note }",
     ]);
   });
 
-  it("refuses a pack file outside metadata/ and patches/, or a metadata path outside the layout", () => {
+  it("refuses a pack in format 1 (YAML records and patches), naming the new layout", () => {
+    const old = new Map([
+      ["metadata/base/global/sys_properties/x--a9.yaml", "name: x\n"],
+      ["patches/base/sla.yaml", "table: contract_sla\n"],
+    ]);
+    expect(run(["base"], old).problems).toEqual([
+      "metadata/base/global/sys_properties/x--a9.yaml and 1 more: pack format 1: YAML records and patches are no longer installed; ship Fluent under source/ and customizations under adopt/",
+    ]);
+    const one = new Map([["patches/base/sla.yaml", "x"]]);
+    expect(run(["base"], one).problems[0]).toStartWith("patches/base/sla.yaml: pack format 1");
+  });
+
+  it("refuses a pack file outside source/ and adopt/, or a source file outside a project folder", () => {
     const odd = new Map([
-      ["metadata/base/readme.md", "x"],
+      ["source/base/readme.md", "x"],
       ["scripts/base/x.sh", "y"],
+      ["adopt/base/nested.yaml", "z"],
     ]);
     expect(run(["base"], odd).problems).toEqual([
-      "metadata/base/readme.md: not a record file in the workspace layout (<scope>/<class>/<file>)",
-      "scripts/base/x.sh: not under metadata/<capability>/ or patches/<capability>/",
+      "adopt/base/nested.yaml: not under source/<capability>/<scope>/ or adopt/<capability>.yaml",
+      "scripts/base/x.sh: not under source/<capability>/<scope>/ or adopt/<capability>.yaml",
+      "source/base/readme.md: not in a project folder (source/<capability>/<scope>/...)",
     ]);
   });
 
-  it("refuses two capabilities that write the same file", () => {
+  it("refuses two capabilities that write different content to the same file", () => {
     const twice = new Map([
-      ["metadata/base/global/sys_properties/x--a9.yaml", "a"],
-      ["metadata/extra/global/sys_properties/x--a9.yaml", "b"],
+      ["source/base/global/src/fluent/x.now.ts", "a"],
+      ["source/extra/global/src/fluent/x.now.ts", "b"],
     ]);
     expect(run(["base", "extra"], twice).problems).toEqual([
-      "global/sys_properties/x--a9.yaml is written by both base and extra",
-    ]);
-  });
-
-  it("writes a pack record the instance already holds onto its mirrored copy, like a patch", () => {
-    const existing = (sysId: string) =>
-      sysId === "a2"
-        ? {
-            path: "x_snagentic_min/sys_properties/x-snagentic-min-on--a2.yaml",
-            document: {
-              _meta: { sys_id: "a2", hash: "h" },
-              name: "x_snagentic_min.on",
-              sys_policy: "",
-            },
-          }
-        : sysId === "a3"
-          ? {
-              path: "global/sys_script/rule-renamed--a3.yaml",
-              document: { _meta: { sys_id: "a3" }, name: "rule" },
-            }
-          : mirrored(sysId);
-    const parse = (text: string) =>
-      text.startsWith("name: ") ? { name: text.slice(6).trim() } : parsePatch(text);
-    const { files, problems } = materialize({
-      selected: ["base", "extra"],
-      files: PACK,
-      parse,
-      mirrored: existing,
-    });
-    expect(problems).toEqual([]);
-    expect(files.find((f) => f.path.includes("x-snagentic-min-on"))).toEqual({
-      kind: "patch",
-      path: "x_snagentic_min/sys_properties/x-snagentic-min-on--a2.yaml",
-      document: { _meta: { sys_id: "a2", hash: "h" }, name: "x_snagentic_min.on", sys_policy: "" },
-      fields: ["name"],
-    });
-    // A field file follows its record's mirrored name.
-    expect(files.filter((f) => f.path.startsWith("global/sys_script/")).map((f) => f.path)).toEqual(
-      ["global/sys_script/rule-renamed--a3.yaml", "global/sys_script/rule-renamed--a3.script.js"],
-    );
-  });
-
-  it("leaves the fields pull never mirrors (secrets) to the instance, and refuses a patch of one", () => {
-    const secret = {
-      path: "x_snagentic_min/sys_properties/x-on--a2.yaml",
-      document: { _meta: { sys_id: "a2", redacted: ["value"] }, name: "x.on" },
-    };
-    const parse = (text: string) =>
-      text.startsWith("PROP")
-        ? { name: "x.on", value: "true" }
-        : { table: "sys_properties", sys_id: "a2", fields: { value: "x" } };
-    const pack = new Map([
-      ["metadata/base/x_snagentic_min/sys_properties/x-on--a2.yaml", "PROP"],
-      ["patches/base/p.yaml", "PATCH"],
-    ]);
-    const { files, problems } = materialize({
-      selected: ["base"],
-      files: pack,
-      parse,
-      mirrored: () => secret,
-    });
-    expect(files).toEqual([
-      {
-        kind: "patch",
-        path: secret.path,
-        document: { ...secret.document, name: "x.on" },
-        fields: ["name"],
-      },
-    ]);
-    expect(problems).toEqual([
-      "patches/base/p.yaml: value is never mirrored (it may hold a secret): set it on the instance",
+      "source/global/src/fluent/x.now.ts is written by both base and extra",
     ]);
   });
 });

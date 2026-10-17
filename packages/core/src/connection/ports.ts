@@ -12,6 +12,9 @@ export interface TableQuery {
   // records that are about to be written, which need every field (ADR-0016).
   readonly fields: readonly string[] | "all";
   readonly limit: number;
+  // Rows of every domain, not only those the session's domain sees
+  // (sysparm_query_no_domain): composites keep rows in other domains (ADR-0033, ADR-0030 #9).
+  readonly allDomains?: boolean;
 }
 
 export interface ConnectionStats {

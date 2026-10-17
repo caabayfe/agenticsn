@@ -16,6 +16,7 @@ import {
 export interface KeysetListing extends KeysetFilter {
   readonly table: TableName;
   readonly fields: readonly string[] | "all";
+  readonly allDomains?: boolean;
 }
 
 export interface PagerSettings {
@@ -93,8 +94,9 @@ export class KeysetPager {
   ): Promise<readonly Row[] | "retry-smaller"> {
     try {
       const query = keysetQuery(listing, cursor);
+      const domains = listing.allDomains === true ? { allDomains: true } : {};
       return await this.reader.query(
-        { table: listing.table, query, fields: listing.fields, limit: size },
+        { table: listing.table, query, fields: listing.fields, limit: size, ...domains },
         signal,
       );
     } catch (error) {

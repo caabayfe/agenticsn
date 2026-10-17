@@ -1,5 +1,6 @@
 import {
   type CredentialStore,
+  EMPTY_LEDGER,
   type EnvironmentProbe,
   type ProfileStore,
   SnagenticError,
@@ -61,17 +62,36 @@ export const FAKE_CONTEXT: UseCaseContext = {
   packWorkspace: () => ({
     mirrorCommit: async () => null,
     includes: async () => false,
-    mirrored: async () => new Map(),
     parse: () => null,
     previous: async () => ({ written: [], kept: [] }),
     commit: async () => "",
     merge: async (pack) => ({ branch: `accelerator/${pack}`, conflicts: [] }),
   }),
-  fluentPackages: () => ({ changedSince: async () => [] }),
+  authoring: () => ({
+    workspace: {
+      projects: async () => [],
+      project: async () => null,
+      scaffold: async ({ name, sysId }) => ({
+        path: `source/${name}`,
+        scope: name,
+        scopeId: sysId,
+      }),
+      readLedger: async () => EMPTY_LEDGER,
+      writeLedger: async () => {},
+      writeFiles: async () => {},
+      ledgerCommit: async () => null,
+      mergeFiles: async () => [],
+    },
+    toolchain: {
+      build: async () => ({ ok: false, message: "no SDK in the fake context" }),
+      draftTransform: async () => ({ ok: false, message: "no SDK in the fake context" }),
+    },
+  }),
   fluentProjects: () => ({
     changedSince: async () => [],
     holding: async () => [],
-    build: async () => ({ built: true, keys: null, deletes: [] }),
+    build: async () => ({ built: true, keys: null, deletes: [], units: [], scripts: new Map() }),
+    buildAt: async () => null,
     sdkVersion: async () => "4.13.6",
     writeKeys: async () => {},
   }),
@@ -85,11 +105,6 @@ export const FAKE_CONTEXT: UseCaseContext = {
       throw new Error("tests that need an instance provide their own connections");
     },
   },
-  elevatedSessions: () => ({
-    open: async () => {
-      throw new Error("tests that elevate provide their own sessions");
-    },
-  }),
   syncState: () => {
     throw new Error("tests that pull provide their own sync state");
   },
@@ -98,7 +113,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
       throw new Error("tests that pull provide their own mirror");
     },
   },
-  integrator: { integrate: async () => ({ commit: null, changedFiles: 0, confirmed: [] }) },
+  integrator: {
+    integrate: async () => ({ commit: null, changedFiles: 0, discarded: [], pulled: [] }),
+  },
   files: { create: async () => "created" },
   inventory: { read: async () => null },
   knowledge: () => {

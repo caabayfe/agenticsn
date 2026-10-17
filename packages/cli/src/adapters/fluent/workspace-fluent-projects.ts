@@ -9,8 +9,15 @@ import {
   type FluentProjects,
 } from "@snagentic/core";
 import { runGit, runGitOrThrow } from "../git/run-git";
-import { buildInCopy, fromIndex, fromWorkingTree } from "./build-in-copy";
+import {
+  buildInCopy,
+  fromCommit,
+  fromIndex,
+  fromWorkingTree,
+  type ProjectSource,
+} from "./build-in-copy";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
+import { builtFiles, unitsOf } from "./fluent-toolchain";
 
 const lines = (text: string) => text.split("\n").filter(Boolean);
 const DELETE_RECORD = /action="DELETE"[\s\S]*?<sys_update_name>([^<]+)<\/sys_update_name>/;
@@ -39,6 +46,16 @@ async function deletesIn(directory: string): Promise<string[]> {
     if (match?.[1] !== undefined) names.push(match[1]);
   }
   return names;
+}
+
+// The project's script files (.js), by project-relative path: what Now.include reads.
+async function scriptsIn(project: string): Promise<Map<string, string>> {
+  const names = await readdir(join(project, "src"), { recursive: true }).catch(() => []);
+  const scripts = new Map<string, string>();
+  for (const name of names.filter((n) => n.endsWith(".js")).sort()) {
+    scripts.set(`src/${name}`, (await readText(join(project, "src", name))) ?? "");
+  }
+  return scripts;
 }
 
 // The workspace's Fluent projects under source/<scope>/, built with the embedded SDK in a
@@ -99,14 +116,37 @@ export class WorkspaceFluentProjects implements FluentProjects {
     const fill = this.staged
       ? fromIndex(this.workspace, project.path)
       : fromWorkingTree(join(this.workspace, project.path));
-    const committed = await this.committedKeys(project);
+    return this.buildFrom(fill, { committed: await this.committedKeys(project) });
+  }
+
+  async buildAt(project: FluentProject, commit: string): Promise<FluentBuild | null> {
+    const listed = await runGit(
+      ["ls-tree", "--name-only", commit, "--", project.path],
+      this.workspace,
+    );
+    if (listed.exitCode !== 0 || listed.stdout.trim() === "") return null;
+    return this.buildFrom(fromCommit(this.workspace, project.path, commit), null);
+  }
+
+  // Builds a copy filled by `fill`: the units and script files validate checks (ADR-0031), and
+  // whether keys.ts changed from the committed one (`keys` null: not compared, a past build).
+  private buildFrom(
+    fill: ProjectSource,
+    keys: { readonly committed: string | null } | null,
+  ): Promise<FluentBuild> {
     return buildInCopy(this.load, fill, async (copy, outcome) => {
       if (!outcome.success) return { built: false, errors: outcome.errors };
       const built = await readText(join(copy, FLUENT_KEYS_FILE));
+      const files = await builtFiles(copy);
       return {
         built: true,
-        keys: built === null || built === committed ? null : { committed, built },
+        keys:
+          keys === null || built === null || built === keys.committed
+            ? null
+            : { committed: keys.committed, built },
         deletes: await deletesIn(join(copy, "dist", "app")),
+        units: unitsOf(files),
+        scripts: await scriptsIn(copy),
       };
     });
   }

@@ -43,7 +43,7 @@ export class AccessDeniedError extends SnagenticError {
         : `the instance refused ${what}: ${detail}`,
       access === "read"
         ? "grant the user read access (ACL or role) to it, or exclude it from the sync"
-        : "the signed-in user lacks a role this write needs (ACLs need security_admin: a person opts the instance in with snagentic auth login <instance> --allow-elevation, ADR-0024): make the change on the instance, then pull",
+        : "the signed-in user lacks a role this write needs: grant it on the instance, or make the change there and adopt it",
     );
   }
 }

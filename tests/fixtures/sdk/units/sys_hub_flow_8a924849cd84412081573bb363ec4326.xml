@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_flow">
+  <sys_hub_flow action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>8a924849cd84412081573bb363ec4326</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_8a924849cd84412081573bb363ec4326</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <category/>
+    <description>Spike S11: adds a work note to incidents whose short description starts with S11</description>
+    <flow_priority>MEDIUM</flow_priority>
+    <generation_source>fluent</generation_source>
+    <internal_name>snagentic_spike_s11_flow</internal_name>
+    <label_cache>[{"name":"Created_1.current","label":"Trigger - Record Created➛incident Record","type":"reference","base_type":"reference","usedInstances":{"799d072d-fdad-466c-b87e-374254335599":["record"]},"attributes":{}}]</label_cache>
+    <latest_snapshot>8b23c4ef83ff8710292aca75eeaad393</latest_snapshot>
+    <master_snapshot>8b23c4ef83ff8710292aca75eeaad393</master_snapshot>
+    <name>snagentic spike S11 flow</name>
+    <run_as>system</run_as>
+    <run_with_roles/>
+    <show_draft_actions>false</show_draft_actions>
+    <status>draft</status>
+    <sys_policy/>
+    <type>flow</type>
+    <version>2</version>
+  </sys_hub_flow>
+  <sys_hub_trigger_instance_v2 action="delete_multiple" query="flow=8a924849cd84412081573bb363ec4326^sys_idNOT INf9381d9198a9460882d172d3bb7b188c"/>
+  <sys_hub_trigger_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>f9381d9198a9460882d172d3bb7b188c</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_trigger_instance_v2_f9381d9198a9460882d172d3bb7b188c</sys_update_name>
+    <category/>
+    <comment/>
+    <flow>8a924849cd84412081573bb363ec4326</flow>
+    <name>Created</name>
+    <trigger_definition>798916a0c31322002841b63b12d3ae7c</trigger_definition>
+    <trigger_inputs>H4sIAAAAAAAAE8VXTW/bMAz9K4JPG5AB7bW3bt3QAN0KNNl6KApDsehEmCIFEp3UKPLfR/kjlR3nC3G7UytKJh8fHynl6TVCK6dTsEPtkOsERrkbiugqigaR4hNQ9O+YTxTQWmoEq7ka5wsgM3pzrPnc7wlYgBagsfw0mRmZwJ10tH56HkRzrgVHY/PoCm0Gg8hYATa6ury4GESFi8offbvkKvNrqRNZeCTv0i0Uz//s3PkhQVWoXWLlAq8TlEs6m3LlwOORSljQJZoFtxQSPQDKvyObFqImEev14BjWHjLN7jX7/oKeGMGKj902jSVVByh8jdI6ec8fbad3QRyjWZJZyg8ZEc2gjol1zHQ451MoHacjUJAgiA076W8Xrn5K56SeVgaf7SZ4YdmOrvIQQk3bOUGbmqkOdYjGZjo2Oq4zDuRTQ21pp2U+Xzib+u1EdFARHElOkwxpQX65WHpJibrW6xME9zgDzUZAVBr/F9FTerbkJgZn7aKnxrKvZGdD75sXrBXi+2X0l9BWoelThZr4lW8hQmj3Xos1vh1QekRyDApyZln/ME7pkBXJInYbOSybdW11SNP6Pg3SAnSEhPvrkVSZFdXj/LbgOt/qCu9bamqEnCWG3L9gj2qb8OTv1JpMi11x306wTwJSnin83Of4Nxb2A2ie+CB5++A0EAJll6VpCbthfB9dvyHpVlw/Kv5mtJBYjpC2hustd9KjbDe/SRCrZtfNjMVYQEkc7Y3G1w/j0eNwfDu6vNwm/tjzPdQkTL8jgy4GmzVZcY0uRhNzIeLA3ebhNTcC1E3AbFUvKvsiQxetA97pIRA8IzMHcVAS7+/Uq724S3q717sGGF1YfngRVtvj4DAaYpN2XpEyZRUB9CSa5AxnQCgUtQz5KnD0+3TwRWmDuTGMNpj9EDgnX9w+aMft/b9mXBemQ0Lt+YVbeC/0vNUDU0U/DWNV7vUxAJspV47rGmwX4Hj2Cx9Bloer0chtH7y9hB2sxfM/C9zhERYQAAA=</trigger_inputs>
+    <trigger_outputs/>
+    <trigger_type>record_create</trigger_type>
+  </sys_hub_trigger_instance_v2>
+  <sys_hub_action_instance_v2 action="delete_multiple" query="flow=8a924849cd84412081573bb363ec4326^sys_idNOT IN799d072dfdad466cb87e374254335599"/>
+  <sys_hub_action_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>799d072dfdad466cb87e374254335599</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_action_instance_v2_799d072dfdad466cb87e374254335599</sys_update_name>
+    <action_type>f9d01dd2c31332002841b63b12d3aea1</action_type>
+    <action_type_parent>f9d01dd2c31332002841b63b12d3aea1</action_type_parent>
+    <active>true</active>
+    <comment/>
+    <display_text/>
+    <flow>8a924849cd84412081573bb363ec4326</flow>
+    <generation_source/>
+    <order>1</order>
+    <parent_ui_id/>
+    <sys_class_name>sys_hub_action_instance_v2</sys_class_name>
+    <ui_id>799d072d-fdad-466c-b87e-374254335599</ui_id>
+    <updation_source/>
+    <values>H4sIAAAAAAAAE52Qz4rCMBCHXyXkpFCEXvZQ8LCIDyCCl2U3zCZTCaZJmUwqUvLum1UQtQjicX7z5/uYr1F66FA2kuHXoToXlRzApf/Qem0Nei6RsbF3cNpNO1GT7flTsx1KpwUXsZI9UDnFSLIZJZ/6B0TO1ZVMqAOZG+o4rgiB0ah6oRNRweQ8VXg29rKPCTp1ZUtZcyd09og3QsdAB+UDY1xu61q0LhwFgRez4aMSOvjW7hMB2+AFhcQ4/1lvpr5vXnn9vdgVHKO6aOf8/QeL/vGj3gEAAA==</values>
+  </sys_hub_action_instance_v2>
+  <sys_hub_alias_mapping action="delete_multiple" query="source_id=799d072dfdad466cb87e374254335599"/>
+  <sys_hub_flow_snapshot action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>8b23c4ef83ff8710292aca75eeaad393</sys_id>
+    <sys_scope display_value="x_2222332_s11">489da54ae67c4a3e9f1e1e4347e9119b</sys_scope>
+    <sys_update_name>sys_hub_flow_snapshot_8b23c4ef83ff8710292aca75eeaad393</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <attributes/>
+    <callable_by_client_api>false</callable_by_client_api>
+    <category/>
+    <description>Spike S11: adds a work note to incidents whose short description starts with S11</description>
+    <flow_priority>MEDIUM</flow_priority>
+    <label_cache>[{"name":"Created_1.current","label":"Trigger - Record Created➛incident Record","type":"reference","base_type":"reference","usedInstances":{"799d072d-fdad-466c-b87e-374254335599":["record"]},"attributes":{}}]</label_cache>
+    <master>true</master>
+    <name>snagentic spike S11 flow</name>
+    <natlang/>
+    <outputs/>
+    <parent_flow>8a924849cd84412081573bb363ec4326</parent_flow>
+    <remote_trigger_id/>
+    <run_as>system</run_as>
+    <run_with_roles/>
+    <sc_callable>false</sc_callable>
+    <status>draft</status>
+    <sys_policy/>
+    <type>flow</type>
+    <version>2</version>
+  </sys_hub_flow_snapshot>
+</record_update>

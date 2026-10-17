@@ -3,17 +3,18 @@
 **Build ServiceNow with any coding agent, in git, with guardrails.**
 
 snagentic mirrors a ServiceNow instance's metadata into a git repository, so developers and
-their coding agents (Claude Code, GitHub Copilot, Codex, Cursor…) can understand, change and
-review it as files. Changes go back to a **development** instance through a validated,
-reviewed plan, into a normal update set. Test and production stay read-only by construction.
+their coding agents (Claude Code, GitHub Copilot, Codex, Cursor…) can understand and review it
+as files, and write changes as **Fluent**, the ServiceNow SDK's TypeScript. Changes go back to a
+**development** instance through a validated, reviewed plan, loaded the way the platform records
+them, into a normal update set. Test and production stay read-only by construction.
 
 ```text
-ServiceNow instance ──pull──▶ git workspace ──▶ agent + developer edit files
-        ▲                                              │
-        └──── push (development only) ◀── plan ◀── validate (24 platform rules)
+ServiceNow instance ──pull──▶ read-only mirror ──▶ adopt ──▶ agent + developer edit Fluent source
+        ▲                                                              │
+        └──── push: fluent/load (development only) ◀── plan ◀── validate (platform rules)
 ```
 
-> Status: **v1.2.0**. Sync, knowledge, guardrails and delivery to development instances.
+> Status: **v2.0.0**. Sync, knowledge, guardrails, and Fluent authoring delivered to development instances.
 > See the [changelog](CHANGELOG.md) and the [roadmap](docs/product/overview.md#roadmap).
 
 ## Why
@@ -30,10 +31,10 @@ advice, and enforces checks in code instead of trusting prompts.
 
 | | Capability | Commands and tools |
 |---|---|---|
-| **Develop** | Mirror every metadata record into git; keep it fresh incrementally with almost no instance load; edit records as files; push a reviewed plan to a development update set | `pull`, `integrate`, `status`, `plan-push`, `push` |
+| **Develop** | Mirror every metadata record into git and keep it fresh with almost no instance load; adopt records into Fluent source with the ServiceNow SDK; push a reviewed plan to a development update set, recorded as the platform records it | `pull`, `integrate`, `adopt`, `status`, `plan-push`, `push` |
 | **Understand and audit** | Find anything in the instance in milliseconds; explain a table's behavior in execution order (client scripts, UI policies, business rules, notifications, ACLs); show who uses a record | `find`, `describe`, `update-sets`, `plugins` |
 | **Guardrails** | Advice before building (least custom option first); 24 platform rules for security, performance, upgradability, manageability and UX, reporting only what a change introduced; checks after each agent edit, at commit and inside `push` | `advise`, `validate`, `check`, hooks |
-| **Agents** | One MCP server with 12 tools, five workflow skills (design, build, review, explain, deliver), short instructions and host hooks, installed with one command and shared through git | `mcp`, `agent install` |
+| **Agents** | One MCP server with 13 tools, five workflow skills (design, build, review, explain, deliver), short instructions and host hooks, installed with one command and shared through git | `mcp`, `agent install` |
 
 ## Safe by design
 
@@ -41,8 +42,11 @@ advice, and enforces checks in code instead of trusting prompts.
   commands are not registered at all, and the credential must hold `snc_read_only`, checked
   before every connection.
 - **Every push is gated.** It needs a plan id, passing validation (or a reviewed, expiring
-  waiver), user confirmation and an unchanged remote record. It writes only into its own
-  update set and verifies each write was captured.
+  waiver), user confirmation and unchanged records on the instance. It loads only into its own
+  update set, verifies each load was captured and reads it back; an edit someone made on the
+  instance is never overwritten silently.
+- **The SDK never holds a credential.** It runs inside snagentic and reads the instance through
+  snagentic's own connection, limited to reads.
 - **Light on the instance.** Keyset paging, named fields, an adaptive request scheduler.
   An incremental pull with no changes costs 22 small requests and about 4 seconds.
 - **No secrets on disk.** Credentials (a password or an OAuth client) live in the OS keychain or environment variables, each

@@ -1,7 +1,8 @@
-import { InstanceName, packFindings, push as pushPlan, VERSION } from "@snagentic/core";
+import { InstanceName, pushUnits } from "@snagentic/core";
 import { z } from "zod";
 import { connect } from "./connect";
 import { NextCalls } from "./knowledge-schemas";
+import { installerOf, unitPlanDependencies } from "./unit-delivery";
 import { defineUseCase } from "./use-case";
 
 // What the batch is linked to on the git platform (ADR-0022).
@@ -25,9 +26,11 @@ function pullRequestLine(pr: {
 export const push = defineUseCase({
   name: "push",
   description:
-    "Deliver a reviewed plan to the development instance: writes the planned records into " +
+    "Deliver a reviewed plan to the development instance: loads the planned units of the " +
+    "Fluent source (fluent/load) into " +
     "the branch's update set batch, 'snagentic: <label>' (global changes) with a child " +
-    "'snagentic: <label> [<scope>]' per other scope, then checks each was captured. Pass pr " +
+    "'snagentic: <label> [<scope>]' per other scope, checks each was captured and reads it " +
+    "back, then commits the ledgers. Pass pr " +
     "to name the branch's pull request; otherwise its open one is linked when the GitHub CLI " +
     "is signed in. draftPr opens a draft pull request first when there is none (the planned " +
     "changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved " +
@@ -73,79 +76,48 @@ export const push = defineUseCase({
         }),
       )
       .readonly(),
-    written: z
-      .array(
-        z.object({
-          operation: z.string(),
-          table: z.string(),
-          sysId: z.string(),
-          path: z.string(),
-          captured: z.boolean(),
-          elevated: z.boolean(),
-        }),
-      )
-      .readonly(),
-    fluent: z
+    units: z
       .array(
         z.object({
           project: z.string(),
+          updateName: z.string(),
           table: z.string(),
-          sysId: z.string(),
           name: z.string(),
-          kind: z.string(),
-          captured: z.boolean(),
+          operation: z.enum(["create", "load", "delete", "record"]),
+          captured: z.boolean().describe("recorded in the update set under its update name"),
+          applied: z.boolean().describe("read back, the instance holds what the build loaded"),
         }),
       )
       .readonly(),
-    flowsInactiveMs: z
-      .number()
-      .nullable()
-      .describe("how long redelivered flows were inactive; triggers in that time do not run"),
     notCaptured: z.number(),
+    notApplied: z.number(),
+    ledgerCommit: z
+      .string()
+      .nullable()
+      .describe("the commit of the ledgers: what each unit now agrees with on the instance"),
     next: NextCalls,
   }),
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
   mcp: true,
   async handle(input, context, run) {
-    const { root, name, profile, reader, pager, elevatedSessions } = await connect(
-      context,
-      input.instance,
-      run.signal,
-    );
-    const catalog = await context.syncState(root, name).readCatalog();
+    const connection = await connect(context, input.instance, run.signal);
+    const { root, profile, reader } = connection;
     run.progress({ message: `pushing plan ${input.plan}` });
     const instance = InstanceName.parse(input.instance);
-    return pushPlan(
+    return pushUnits(
       {
+        ...unitPlanDependencies(context, connection, run.signal),
         workspace: context.delivery(root, instance),
-        governance: context.governance(root, instance),
-        packGate: (paths) =>
-          packFindings(
-            {
-              packs: context.packs,
-              inventory: context.inventory,
-              workspace: context.packWorkspace(root, instance),
-            },
-            { instance: { root, name: instance }, paths, snagentic: VERSION },
-          ),
-        updateSets: { pager, statistics: reader, now: context.clock },
-        now: context.clock,
-        signal: run.signal,
         reader,
         writer: reader.writer,
         journal: context.pushJournal(root, instance),
-        catalog: catalog ?? { parents: {}, scopes: {}, typedFields: {} },
         username: profile.auth.username,
         url: profile.url,
         pullRequests: context.pullRequests(root),
-        elevation: elevatedSessions !== null,
-        elevatedSessions,
-        fluent: context.fluentPackages(root),
-        ...(reader.dictionary === undefined ? {} : { dictionary: reader.dictionary }),
-        fluentInstaller: reader.fluent ?? null,
+        installer: installerOf(connection),
       },
       {
-        instance: name,
+        instance: connection.name,
         planId: input.plan,
         confirm: input.confirm,
         allowCollisions: input.allowCollisions,
@@ -162,23 +134,17 @@ export const push = defineUseCase({
       ...output.updateSets
         .filter((set) => set.sysId !== output.batch.sysId)
         .map((set) => `update set ${set.created ? "created" : "reused"}: ${set.name}  ${set.link}`),
-      ...output.written.map(
-        (w) =>
-          `${w.operation.padEnd(6)} ${w.table}  ${w.path}${w.elevated ? "  elevated: security_admin" : ""}${w.captured ? "" : "  NOT captured in the update set"}`,
+      ...output.units.map(
+        (u) =>
+          `${u.operation.padEnd(6)} ${u.updateName}${u.captured ? "" : "  NOT captured in the update set"}${u.applied ? "" : "  NOT applied as built"}`,
       ),
-      ...output.fluent.map(
-        (f) =>
-          `publish ${f.kind} ${f.name}  ${f.project}${f.captured ? "" : "  NOT captured in the update set"}`,
-      ),
-      ...(output.flowsInactiveMs === null
-        ? []
-        : [
-            `flows were inactive for ${output.flowsInactiveMs} ms while redelivered: records created meanwhile did not trigger them`,
-          ]),
-      output.notCaptured === 0
-        ? `pushed ${output.written.length} record(s) and ${output.fluent.length} Fluent record(s); next: snagentic pull ${output.instance}, then snagentic integrate ${output.instance}`
-        : `${output.notCaptured} write(s) were not captured in the update set: add them to it on the instance before moving it`,
+      output.ledgerCommit === null
+        ? "no ledger change"
+        : `ledger committed: ${output.ledgerCommit.slice(0, 10)}`,
+      output.notCaptured + output.notApplied === 0
+        ? `pushed ${output.units.length} unit(s)`
+        : `${output.notCaptured} load(s) not captured, ${output.notApplied} not applied as built: check them on the instance before moving the update set`,
     ].join("\n");
   },
-  exitCode: (output) => (output.notCaptured === 0 ? 0 : 1),
+  exitCode: (output) => (output.notCaptured + output.notApplied === 0 ? 0 : 1),
 });

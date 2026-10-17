@@ -1,8 +1,0 @@
-_meta:
-  scope: x_snagentic_min
-  sys_class_name: sys_properties
-  sys_id: 6f2a1d3b0c9e4f8ab2d4e6f8a0b1c3d5
-description: Switches the minimal test pack on (spec 005, M7).
-name: x_snagentic_min.enabled
-type: boolean
-value: 'true'

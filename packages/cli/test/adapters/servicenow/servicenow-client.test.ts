@@ -207,7 +207,7 @@ describe("ServiceNowClient.fingerprint", () => {
       code: "access-denied",
       message:
         "the instance refused creating a sys_security_acl record: Insert Failed due to security constraints",
-      hint: expect.stringContaining("security_admin"),
+      hint: expect.stringContaining("lacks a role this write needs"),
     });
   });
 

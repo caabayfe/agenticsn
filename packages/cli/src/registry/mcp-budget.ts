@@ -1,7 +1,8 @@
 import type { UseCase } from "./use-case";
 
 // ADR-0002: at most 12 task-level MCP tools, to keep the agent's standing context small.
-// 13 since ADR-0026 (the read-only accelerator tool).
+// 13 since ADR-0026 (the read-only accelerator tool). ADR-0031: adopt takes doctor's place, a
+// setup check for people.
 export const MCP_TOOL_BUDGET = 13;
 
 export function assertMcpBudget(useCases: readonly UseCase[]): void {

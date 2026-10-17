@@ -33,7 +33,7 @@ async function workspace(): Promise<string> {
   const base = await mkdtemp(join(tmpdir(), "snagentic-inspect-"));
   temporary.push(base);
   const root = join(base, "w");
-  await new FsWorkspaceStore().create(root, { layout: 1, createdWith: "test" });
+  await new FsWorkspaceStore().create(root, { layout: 2, createdWith: "test" });
   return root;
 }
 

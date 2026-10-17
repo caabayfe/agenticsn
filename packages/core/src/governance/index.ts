@@ -25,8 +25,8 @@ export {
   KEYS_FILE as FLUENT_KEYS_FILE,
 } from "./domain/fluent-findings";
 export type {
-  ChangedRecords,
   FluentProjects,
+  MirrorState,
   RecordVersion,
   ScriptChecker,
   ScriptCheckResult,

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<record_update table="sys_ui_related_list_entry">
+  <sys_ui_related_list_entry action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>63905383091dc78058ba6636cf1cfd27</sys_id>
+    <sys_scope display_value="x_2222332_acc_rev">24585a3c3484e481f8994b3c68c5d588</sys_scope>
+    <sys_update_name>sys_ui_related_list_entry_63905383091dc78058ba6636cf1cfd27</sys_update_name>
+    <list_id>9e5cb76367ac8af3e99e8238df8630db</list_id>
+    <position>0</position>
+    <related_list>x_2222332_acc_rev_revocation.review_item</related_list>
+  </sys_ui_related_list_entry>
+</record_update>

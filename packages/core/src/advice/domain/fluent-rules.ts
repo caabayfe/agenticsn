@@ -1,7 +1,7 @@
 import type { Rule } from "./rule-types";
 
 // Checks on Fluent projects (`source/<scope>/`), which snagentic builds with the embedded
-// ServiceNow SDK and delivers by push (ADR-0028 as amended). They read the build, not scripts.
+// ServiceNow SDK and delivers by push (ADR-0031). They read the build, not scripts.
 const FLOWS: readonly string[] = ["sys_hub_flow", "sys_hub_action_type_definition"];
 
 export const FLUENT_RULES: readonly Rule[] = [
@@ -32,7 +32,7 @@ export const FLUENT_RULES: readonly Rule[] = [
     category: "manageability",
     severity: "block",
     title: "A Fluent build must not delete records",
-    why: "The SDK deletes the records of keys a project no longer uses. Removing a flow from source would delete it from the instance, and keys the project never owned (such as the SDK's built-in actions) would delete platform records.",
+    why: "The SDK deletes the records of keys a package project no longer uses: removing a flow from source would delete it from the instance. A configuration project, which snagentic makes, deletes only what a Now.del names, so this rule applies to package projects only.",
     remediation:
       "Restore the removed source and deactivate it instead; remove keys from keys.ts only for records this project created.",
     scripts: [],
@@ -48,5 +48,15 @@ export const FLUENT_RULES: readonly Rule[] = [
       "Set @servicenow/sdk in the project's package.json to the version validate reports, or upgrade snagentic.",
     scripts: [],
     classes: FLOWS,
+  },
+  {
+    id: "SN-MNT-013",
+    category: "manageability",
+    severity: "block",
+    title: "The mirror is read-only",
+    why: "The files under instances/<name>/metadata are the instance as last pulled, written only by pull (ADR-0031). An edit there is never delivered and is lost at the next integrate; changes are made in Fluent source.",
+    remediation:
+      "Restore the file with git (git checkout -- <file>); to change the record, adopt it (snagentic adopt) and edit its source under source/<scope>/.",
+    scripts: [],
   },
 ];

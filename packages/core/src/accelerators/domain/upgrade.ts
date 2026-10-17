@@ -3,7 +3,7 @@
 // has it, the three-way merge leaves the user's copy alone. Pure.
 
 export interface PreviousAdd {
-  // Paths the last add wrote, relative to the instance's metadata folder.
+  // Workspace paths the last add wrote.
   readonly written: readonly string[];
   // Paths it kept from earlier versions.
   readonly kept: readonly string[];

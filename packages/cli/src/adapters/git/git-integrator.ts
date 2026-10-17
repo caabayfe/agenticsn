@@ -1,17 +1,13 @@
 import {
   InstanceName,
   type IntegrationResult,
-  instanceConfirms,
   instancePaths,
   type MirrorIntegrator,
   NothingPulledError,
-  type RecordCopy,
-  relocatedRecords,
+  type PulledRecord,
   SnagenticError,
 } from "@snagentic/core";
 import { fromYamlStrings } from "../yaml/own-style";
-import { childFilesConfirmed, takeConfirmedRows } from "./confirmed-rows";
-import { takeReplaced, takeReplacedNew, takeTheirsNew } from "./replaced-records";
 import { runGit, runGitOrThrow } from "./run-git";
 
 class IntegrationBlockedError extends SnagenticError {
@@ -22,11 +18,9 @@ class IntegrationBlockedError extends SnagenticError {
 
 const FALLBACK_IDENTITY = ["-c", "user.name=snagentic", "-c", "user.email=snagentic@localhost"];
 
-function lines(text: string): string[] {
-  return text.split("\n").filter(Boolean);
-}
+const lines = (text: string): string[] => text.split("\n").filter(Boolean);
 
-async function ensureIntegrable(root: string, instance: string): Promise<string> {
+async function ensureIntegrable(root: string, instance: string) {
   const paths = instancePaths(InstanceName.parse(instance));
   if (
     (await runGit(["rev-parse", "--verify", "--quiet", paths.remoteBranch], root)).exitCode !== 0
@@ -41,156 +35,19 @@ async function ensureIntegrable(root: string, instance: string): Promise<string>
     throw new IntegrationBlockedError(
       "uncommitted-changes",
       `${paths.root} has uncommitted changes to synced files`,
-      "commit or stash them first, so nothing local is lost",
+      "restore them (git checkout -- instances): the mirror is written only by pull",
     );
   }
-  return paths.remoteBranch;
+  return { branch: paths.remoteBranch, owned };
 }
 
 // A brand-new workspace has no commit yet: start its history from the pull.
-async function adopt(root: string, branch: string): Promise<IntegrationResult> {
+async function startFrom(root: string, branch: string): Promise<IntegrationResult> {
   await runGitOrThrow(["reset", "-q", branch], root);
   await runGitOrThrow(["checkout", "-q", "--", "."], root);
   const commit = (await runGitOrThrow(["rev-parse", "HEAD"], root)).trim();
   const files = lines(await runGitOrThrow(["ls-tree", "-r", "--name-only", "HEAD"], root));
-  return { commit, changedFiles: files.length, confirmed: [] };
-}
-
-// Files both sides added (index stages 2 and 3, no common ancestor), among the conflicts.
-async function addedOnBothSides(root: string): Promise<{ added: string[]; conflicted: string[] }> {
-  const stages = new Map<string, Set<string>>();
-  for (const line of lines(await runGitOrThrow(["ls-files", "-u"], root))) {
-    const [info = "", path = ""] = line.split("\t");
-    const stage = info.split(" ")[2] ?? "";
-    stages.set(path, (stages.get(path) ?? new Set()).add(stage));
-  }
-  const conflicted = [...stages.keys()];
-  const added = conflicted.filter((path) => {
-    const s = stages.get(path);
-    return s?.has("2") === true && s.has("3") && !s.has("1");
-  });
-  return { added, conflicted };
-}
-
-// Reads records as committed at a revision. Class folders can hold over 100,000 files, so
-// each folder is listed once per revision.
-function recordReader(root: string) {
-  const listings = new Map<string, Promise<string[]>>();
-  const list = (rev: string, folder: string) => {
-    const key = `${rev}:${folder}`;
-    const listed =
-      listings.get(key) ??
-      runGitOrThrow(["ls-tree", "--name-only", rev, `${folder}/`], root).then(lines);
-    listings.set(key, listed);
-    return listed;
-  };
-  // A record's YAML and field files (<base>.<field>.<ext>).
-  return async (rev: string, base: string): Promise<RecordCopy> => {
-    const files: { field: string; content: string }[] = [];
-    for (const path of await list(rev, base.slice(0, base.lastIndexOf("/")))) {
-      const [field = "", extension, ...rest] = path.slice(base.length + 1).split(".");
-      const own = path.startsWith(`${base}.`) && extension !== undefined && rest.length === 0;
-      if (own && field !== "children" && extension !== "yaml") {
-        files.push({ field, content: await runGitOrThrow(["show", `${rev}:${path}`], root) });
-      }
-    }
-    const yaml = await runGit(["show", `${rev}:${base}.yaml`], root);
-    return { document: yaml.exitCode === 0 ? fromYamlStrings(yaml.stdout) : null, files };
-  };
-}
-
-type RecordReader = ReturnType<typeof recordReader>;
-
-// A record created here and pushed comes back from the instance with what the platform fills
-// in. When the instance's copy confirms the local one (instanceConfirms, scripts included),
-// take all of its files: nothing local is lost.
-async function takeConfirmed(
-  root: string,
-  read: RecordReader,
-  where: { metadata: string; branch: string },
-): Promise<string[]> {
-  const { metadata, branch } = where;
-  const { added, conflicted } = await addedOnBothSides(root);
-  const confirmed: string[] = [];
-  for (const path of added) {
-    const base = path.slice(0, -".yaml".length);
-    if (
-      !path.startsWith(`${metadata}/`) ||
-      !path.endsWith(".yaml") ||
-      path.includes(".children.")
-    ) {
-      continue;
-    }
-    if (instanceConfirms(await read("HEAD", base), await read(branch, base))) {
-      const own = conflicted.filter((other) => other === path || other.startsWith(`${base}.`));
-      await runGitOrThrow(["checkout", "--theirs", "--", ...own], root);
-      await runGitOrThrow(["add", "--", ...own], root);
-      confirmed.push(path);
-    }
-  }
-  return confirmed;
-}
-
-// Records created here that the pull brought back under the name the platform gave them (same
-// folder and sys_id): the local files go when the instance's copy confirms them; otherwise
-// both stay, and the user keeps one.
-async function takeRelocated(
-  root: string,
-  read: RecordReader,
-  where: { metadata: string; branch: string },
-) {
-  const { metadata, branch } = where;
-  const fork = (await runGitOrThrow(["merge-base", "HEAD", branch], root)).trim();
-  const added = async (rev: string) =>
-    lines(
-      await runGitOrThrow(
-        ["diff", "--name-only", "--diff-filter=A", fork, rev, "--", metadata],
-        root,
-      ),
-    )
-      .filter((path) => path.endsWith(".yaml") && !path.includes(".children."))
-      .map((path) => path.slice(metadata.length + 1, -".yaml".length));
-  const confirmed: string[] = [];
-  const unresolved: string[] = [];
-  for (const { local, mirror } of relocatedRecords(await added("HEAD"), await added(branch))) {
-    const [mine, theirs] = [`${metadata}/${local}`, `${metadata}/${mirror}`];
-    if (
-      instanceConfirms(await read("HEAD", mine), await read(branch, theirs)) &&
-      (await childFilesConfirmed(root, { mine, theirs, branch }))
-    ) {
-      await runGitOrThrow(["rm", "-q", "--", `${mine}.yaml`, `${mine}.*`], root);
-      confirmed.push(`${theirs}.yaml`);
-    } else {
-      unresolved.push(`${mine}.yaml and ${theirs}.yaml`);
-    }
-  }
-  return { confirmed, unresolved };
-}
-
-function blocked(conflicts: readonly string[], unresolved: readonly string[], taken: number) {
-  const parts = [
-    ...(conflicts.length === 0
-      ? []
-      : [
-          `${conflicts.length} file(s) changed both locally and on the instance: ${conflicts.slice(0, 5).join(", ")}`,
-        ]),
-    ...unresolved.map((pair) => `one record in two files that differ: ${pair}`),
-  ];
-  const note =
-    taken === 0 ? "" : `; took the instance's copy of ${taken} record(s) pushed from here`;
-  const steps = [
-    ...(conflicts.length === 0 ? [] : ["resolve the conflict markers"]),
-    ...(unresolved.length === 0
-      ? []
-      : [
-          "for a record in two files, keep the instance's file, copy any local change into it and delete the other",
-        ]),
-  ];
-  return new IntegrationBlockedError(
-    "integration-conflicts",
-    `${parts.join("; ")}${note}`,
-    `${steps.join("; ")}, then run: git commit`,
-  );
+  return { commit, changedFiles: files.length, discarded: [], pulled: [] };
 }
 
 // Files git names when it will not overwrite them: one per tab-indented line, or one quoted.
@@ -204,27 +61,25 @@ function untrackedInTheWay(stderr: string): string[] {
 }
 
 // git refused to start the merge (no MERGE_HEAD): committing now would commit nothing but
-// whatever the index holds, and the pre-commit hook would check every file in the way.
+// whatever the index holds.
 function refused(stderr: string): IntegrationBlockedError {
   const files = untrackedInTheWay(stderr);
+  const more = files.length > 3 ? ", ..." : "";
   const reason =
     files.length > 0
-      ? `${files.length} untracked file(s) would be overwritten: ${files.slice(0, 3).join(", ")}${files.length > 3 ? ", ..." : ""}`
+      ? `${files.length} untracked file(s) would be overwritten: ${files.slice(0, 3).join(", ")}${more}`
       : (stderr.trim().split("\n")[0] ?? "");
   return new IntegrationBlockedError(
     "merge-refused",
     `git refused to start the merge: ${reason}`,
-    "an interrupted integrate leaves copies of the pulled files; commit any record you created, delete the other untracked files under the instance's metadata folder, then integrate again",
+    "an interrupted integrate leaves copies of the pulled files; delete the untracked files under the instance's metadata folder, then integrate again",
   );
 }
 
-// The pre-commit hook (validate) refused the merge commit: the merge stays in progress, for the
-// user to fix what it reports and commit.
+// The pre-commit hook (validate) refused the merge commit: the merge stays in progress.
 function commitRefused(output: string): IntegrationBlockedError {
-  const reported = output
-    .split("\n")
+  const reported = lines(output)
     .map((line) => line.trim())
-    .filter(Boolean)
     .slice(0, 5)
     .join("; ");
   return new IntegrationBlockedError(
@@ -234,12 +89,56 @@ function commitRefused(output: string): IntegrationBlockedError {
   );
 }
 
-async function merge(
-  root: string,
-  instance: string,
-  branch: string,
-  before: string,
-): Promise<IntegrationResult> {
+// After the merge, every mirror file the index holds differently from the instance's copy is a
+// local edit: it takes the instance's copy, or goes when the instance has none.
+async function takeInstance(root: string, branch: string, owned: readonly string[]) {
+  const differing = lines(
+    await runGitOrThrow(
+      ["diff", "--cached", "--name-only", "--no-renames", branch, "--", ...owned],
+      root,
+    ),
+  );
+  const unmerged = lines(await runGitOrThrow(["diff", "--name-only", "--diff-filter=U"], root));
+  const files = [...new Set([...differing, ...unmerged])].sort();
+  for (const file of files) {
+    const there = (await runGit(["cat-file", "-e", `${branch}:${file}`], root)).exitCode === 0;
+    if (there) await runGitOrThrow(["checkout", branch, "--", file], root);
+    else await runGitOrThrow(["rm", "-q", "--cached", "--ignore-unmatch", "--", file], root);
+  }
+  return files;
+}
+
+// The records a range of commits changed in the mirror, with their stamps (ADR-0033 drift).
+async function pulledRecords(root: string, from: string, to: string, metadata: string) {
+  const changed = lines(
+    await runGitOrThrow(
+      ["diff", "--name-only", "--diff-filter=AM", from, to, "--", metadata],
+      root,
+    ),
+  ).filter((path) => path.endsWith(".yaml") && !path.includes(".children."));
+  const records: PulledRecord[] = [];
+  for (const path of changed) {
+    const shown = await runGit(["show", `${to}:${path}`], root);
+    const document: unknown = shown.exitCode === 0 ? fromYamlStrings(shown.stdout) : null;
+    const meta =
+      typeof document === "object" && document !== null ? Reflect.get(document, "_meta") : null;
+    const field = (name: string) => {
+      const value: unknown =
+        typeof meta === "object" && meta !== null ? Reflect.get(meta, name) : undefined;
+      return typeof value === "string" ? value : "";
+    };
+    if (field("sys_update_name") === "") continue;
+    records.push({
+      updateName: field("sys_update_name"),
+      modCount: field("sys_mod_count"),
+      updatedOn: field("sys_updated_on"),
+    });
+  }
+  return records;
+}
+
+async function merge(root: string, instance: string, before: string): Promise<IntegrationResult> {
+  const { branch, owned } = await ensureIntegrable(root, instance);
   const related = (await runGit(["merge-base", "HEAD", branch], root)).exitCode === 0;
   const configured = (await runGit(["config", "user.email"], root)).stdout.trim() !== "";
   const identity = configured ? [] : FALLBACK_IDENTITY;
@@ -249,49 +148,33 @@ async function merge(
     ...(related ? [] : ["--allow-unrelated-histories"]),
     branch,
   ];
-  const where = { metadata: instancePaths(InstanceName.parse(instance)).metadata, branch };
-  const read = recordReader(root);
   const attempt = await runGit(args, root);
-  const clean = attempt.exitCode === 0;
   const merging = (await runGit(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], root)).exitCode;
-  if (!clean && merging !== 0) {
-    throw refused(attempt.stderr);
-  }
-  const pushed = clean ? [] : await takeConfirmed(root, read, where);
-  const moved = related ? await takeRelocated(root, read, where) : NOTHING_MOVED;
-  const created = await takeReplacedNew(root, where);
-  const unmerged = async () =>
-    lines(await runGitOrThrow(["diff", "--name-only", "--diff-filter=U"], root));
-  await takeTheirsNew(root, branch, await unmerged());
-  const replaced = await takeReplaced(root, where, await unmerged());
-  const rows = await takeConfirmedRows(root, branch, await unmerged());
-  const confirmed = [...pushed, ...moved.confirmed, ...created, ...replaced, ...rows];
-  const conflicts = await unmerged();
-  if (conflicts.length > 0 || moved.unresolved.length > 0) {
-    throw blocked(conflicts, moved.unresolved, confirmed.length);
-  }
+  if (attempt.exitCode !== 0 && merging !== 0) throw refused(attempt.stderr);
+  const discarded = await takeInstance(root, branch, owned);
   const committed = await runGit([...identity, "commit", "-q", "--no-edit"], root);
-  if (committed.exitCode !== 0) {
-    throw commitRefused(`${committed.stdout}\n${committed.stderr}`);
-  }
+  if (committed.exitCode !== 0) throw commitRefused(`${committed.stdout}\n${committed.stderr}`);
   const commit = (await runGitOrThrow(["rev-parse", "HEAD"], root)).trim();
   const changed = lines(await runGitOrThrow(["diff", "--name-only", before, commit], root));
-  return { commit, changedFiles: changed.length, confirmed };
+  const metadata = owned[0] ?? "";
+  return {
+    commit,
+    changedFiles: changed.length,
+    discarded,
+    pulled: await pulledRecords(root, before, commit, metadata),
+  };
 }
 
-const NOTHING_MOVED = { confirmed: [], unresolved: [] } as const;
-
-// `integrate` (ADR-0007): git's three-way merge reconciles remote changes with local work.
+// `integrate` (ADR-0007, ADR-0031): the instance's copy is merged into the current branch. The
+// mirror is read-only, so the instance's copy always wins there.
 async function integrate(root: string, instance: string): Promise<IntegrationResult> {
-  const branch = await ensureIntegrable(root, instance);
+  const { branch } = await ensureIntegrable(root, instance);
   const head = await runGit(["rev-parse", "--verify", "--quiet", "HEAD"], root);
-  if (head.exitCode !== 0) {
-    return adopt(root, branch);
-  }
+  if (head.exitCode !== 0) return startFrom(root, branch);
   if ((await runGit(["merge-base", "--is-ancestor", branch, "HEAD"], root)).exitCode === 0) {
-    return { commit: null, changedFiles: 0, confirmed: [] };
+    return { commit: null, changedFiles: 0, discarded: [], pulled: [] };
   }
-  return merge(root, instance, branch, head.stdout.trim());
+  return merge(root, instance, head.stdout.trim());
 }
 
 export const gitIntegrator: MirrorIntegrator = { integrate };

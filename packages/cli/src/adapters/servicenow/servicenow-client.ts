@@ -10,9 +10,9 @@ import {
   type InstanceWriter,
   type PluginActivator,
   type Row,
+  type SdkAccess,
   type ServerCost,
   type ServerCostReader,
-  type TableDictionary,
   type TableFingerprint,
   TableName,
   type TableQuery,
@@ -23,7 +23,6 @@ import { CicdPluginActivator } from "./cicd-plugin-activator";
 import { type ApiBody, ApiFluentInstaller } from "./fluent-installer";
 import type { HttpResponse } from "./http-types";
 import { ImportSetApiWriter } from "./import-set-writer";
-import { InstanceTableDictionary } from "./instance-table-dictionary";
 import { costOf, costParams } from "./server-cost";
 import { TableApiWriter } from "./table-api-writer";
 
@@ -64,7 +63,6 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   readonly writer: InstanceWriter = new TableApiWriter(this);
   // Fluent builds loaded and published through the ServiceNow IDE's endpoints (ADR-0028).
   readonly fluent: FluentInstaller = new ApiFluentInstaller(this);
-  readonly dictionary: TableDictionary = new InstanceTableDictionary(this);
   // Accelerator data loads through the Import Set API (ADR-0026).
   readonly imports: ImportSetWriter = new ImportSetApiWriter(this);
 
@@ -104,6 +102,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       sysparm_display_value: "false",
       sysparm_exclude_reference_link: "true",
       sysparm_no_count: "true",
+      ...(query.allDomains === true ? { sysparm_query_no_domain: "true" } : {}),
     }).toString();
     const response = await this.scheduler.send(
       { method: "GET", url: url.href, headers: this.headers },
@@ -198,6 +197,26 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     const body = method === "POST" ? { body: post.body ?? "{}" } : {};
     const response = await this.scheduler.send({ method, url: url.href, headers, ...body }, signal);
     return this.result(response, what, method === "POST" ? "write" : "read", post.answers);
+  }
+
+  // A request made on behalf of the embedded SDK (ADR-0032): signed and scheduled like every
+  // other, answered as it came, for the SDK to read. The connector checks the route first.
+  async exchange(
+    request: { readonly method: "GET" | "POST"; readonly url: string; readonly body?: string },
+    signal: AbortSignal,
+  ): Promise<{ readonly status: number; readonly contentType: string; readonly text: string }> {
+    const url = new URL(request.url, this.profile.url);
+    const type = request.method === "POST" ? { "Content-Type": "application/json" } : {};
+    const body = request.body === undefined ? {} : { body: request.body };
+    const send = { method: request.method, url: url.href, headers: { ...this.headers, ...type } };
+    const response = await this.scheduler.send({ ...send, ...body }, signal);
+    const contentType = response.headers.get("content-type") ?? "application/json";
+    return { status: response.status, contentType, text: await response.text() };
+  }
+
+  // The embedded SDK's way to the instance (ADR-0032), bound to a use case's signal.
+  sdkAccess(signal: AbortSignal): SdkAccess {
+    return { host: this.profile.url, exchange: (request) => this.exchange(request, signal) };
   }
 
   private async aggregate(

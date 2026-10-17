@@ -1,40 +1,20 @@
-import type { TableAttributes } from "./domain/recording";
-
-// A record as stored: its parsed YAML document and its field files.
-export interface RecordFiles {
-  readonly document: unknown;
-  readonly files: readonly { readonly field: string; readonly content: string }[];
-}
-
-// The workspace as delivery sees it: the instance's mirror branch and the working tree.
+// The workspace as delivery sees it: the instance's mirror branch and the git working tree.
 export interface DeliveryWorkspace {
   // instances/<name>/metadata, relative to the workspace root.
   readonly metadataRoot: string;
-  // The mirror branch's commit (the instance as last pulled), or null before the first pull.
+  // The mirror branch's commit (the instance as last pulled), or null before the first pull:
+  // the base validate compares with.
   mirrorCommit(): Promise<string | null>;
-  // Whether the working branch contains that commit (the mirror is integrated).
-  includes(commit: string): Promise<boolean>;
   branch(): Promise<string>;
-  // Files that differ between `commit` and the working tree (edited, added, deleted),
-  // relative to the metadata root.
-  changedFiles(commit: string): Promise<string[]>;
-  // A record's files in the working tree (`at` null) or at a commit; null when it has none.
-  read(base: string, at: string | null): Promise<RecordFiles | null>;
-  // The record bases (paths without extension) in a <scope>/<class> folder, in the global domain
-  // and every other one (domains/<domain>/<scope>/<class>), at a commit or in the working tree
-  // (`at` null), relative to the metadata root.
-  recordsIn(folder: string, at: string | null): Promise<string[]>;
-  // A file's text in the working tree, or null when it does not exist.
-  text(path: string): Promise<string | null>;
-  // A YAML file parsed, in the working tree (`at` null) or at a commit; null when absent.
-  document(path: string, at: string | null): Promise<unknown | null>;
   // waivers.yaml at the workspace root as committed (parsed, or null when there is none), and
   // whether the working tree differs. Only committed waivers apply: they are reviewed in git.
   waivers(): Promise<{ readonly committed: unknown | null; readonly uncommitted: boolean }>;
-  // Files under the metadata root whose working copy differs from HEAD, relative to it.
-  uncommittedFiles(): Promise<string[]>;
   // Pushes the branch to its remote (origin when it has none), setting it as upstream.
   publishBranch(branch: string): Promise<void>;
+  // Files under source/ that differ from HEAD (edited, staged or new), workspace-relative.
+  uncommittedSource(): Promise<string[]>;
+  // Commits exactly these workspace-relative files, whatever else is staged; returns the commit.
+  commitFiles(paths: readonly string[], message: string): Promise<string>;
 }
 
 // A branch's pull request as the git platform reports it (ADR-0022). `unavailable`: the
@@ -56,8 +36,9 @@ export interface PullRequests {
   ): Promise<string>;
 }
 
-// Writes to a development instance's tables (Table API). Never retried: a write whose outcome
-// is unknown fails, and the push stops (ADR-0016).
+// Writes to a development instance's tables (Table API), for push's bookkeeping only: update
+// sets and the user's preferences; metadata is only ever loaded (ADR-0031). Never retried: a
+// write whose outcome is unknown fails, and the push stops (ADR-0016).
 export interface InstanceWriter {
   insert(
     table: string,
@@ -70,20 +51,6 @@ export interface InstanceWriter {
     values: Readonly<Record<string, string>>,
     signal: AbortSignal,
   ): Promise<Readonly<Record<string, string>>>;
-}
-
-// ADR-0024: a browser session signed in as the profile's user and elevated to security_admin,
-// for the records only that role may write. It reads the user's current update set at sign-in,
-// so push opens it after switching that; closing it signs out, which ends the elevation.
-export interface ElevatedSession {
-  // The user the session signed in as, checked against the profile's.
-  readonly username: string;
-  readonly writer: InstanceWriter;
-  close(): Promise<void>;
-}
-
-export interface ElevatedSessions {
-  open(signal: AbortSignal): Promise<ElevatedSession>;
 }
 
 export interface SwitchedPreference {
@@ -116,28 +83,6 @@ export interface PushJournalStore {
   clear(): Promise<void>;
 }
 
-// A Fluent project built for delivery (ADR-0028 as amended): the update XML its build
-// produced, to load into the batch, and a digest of their content for the plan id.
-export interface FluentPackage {
-  // Relative to the workspace: source/<scope>.
-  readonly project: string;
-  // The application's scope and its sys_id, from the project's now.config.json.
-  readonly scope: string;
-  readonly scopeId: string;
-  // Push loads records into an update set, which only a project of type "configuration" builds
-  // (ADR-0028 as amended, item 1); a "package" project builds a whole application.
-  readonly configuration: boolean;
-  readonly files: readonly { readonly name: string; readonly content: string }[];
-  // Of the files' content: gzipped values compared as text, the SBOM's random fields left
-  // out, so the same source always gives the same digest (ASR-13).
-  readonly digest: string;
-}
-
-export interface FluentPackages {
-  // Builds each Fluent project with a file changed since `commit`, in a copy.
-  changedSince(commit: string): Promise<readonly FluentPackage[]>;
-}
-
 export interface FluentPublishResult {
   readonly sysId: string;
   readonly published: boolean;
@@ -152,7 +97,7 @@ export interface FluentInstaller {
   // update records in that set.
   load(
     scopeId: string,
-    files: FluentPackage["files"],
+    files: readonly { readonly name: string; readonly content: string }[],
     updateSet: string,
     signal: AbortSignal,
   ): Promise<void>;
@@ -162,10 +107,4 @@ export interface FluentInstaller {
     records: { readonly flows: readonly string[]; readonly actions: readonly string[] },
     signal: AbortSignal,
   ): Promise<readonly FluentPublishResult[]>;
-}
-
-// The instance's data dictionary, as delivery needs it (ADR-0030): each table's parent and its
-// collection entry's attributes, which say whether the platform records its records.
-export interface TableDictionary {
-  tables(names: readonly string[], signal: AbortSignal): Promise<readonly TableAttributes[]>;
 }

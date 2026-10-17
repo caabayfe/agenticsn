@@ -68,7 +68,7 @@ export const doctor = defineUseCase({
   }),
   output: z.object({ ok: z.boolean(), checks: z.array(CheckSchema).readonly() }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
-  mcp: true,
+  mcp: false,
   async handle(input, context, run) {
     const local = summarizeChecks([
       ...(await runDoctor(context.environmentProbes)).checks,

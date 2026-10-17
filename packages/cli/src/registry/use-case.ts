@@ -1,15 +1,14 @@
 // A use case is the single definition of one operation (ADR-0003). The CLI command, the MCP
 // tool and the JSON output are all generated from it; nothing is defined twice by hand.
 import type {
-  ChangedRecords,
+  AuthoringWorkspace,
   CredentialStore,
   DataTemplates,
   DeliveryWorkspace,
-  ElevatedSessions,
   EnvironmentProbe,
   FluentInstaller,
-  FluentPackages,
   FluentProjects,
+  FluentToolchain,
   ImportSetWriter,
   IncrementalMirror,
   InstalledBinary,
@@ -30,11 +29,11 @@ import type {
   PullRequests,
   PushJournalStore,
   ReleaseSource,
-  ScriptChecker,
+  SdkAccess,
   ServerCostReader,
   SyncStateStore,
-  TableDictionary,
   TableStatistics,
+  ValidateDependencies,
   WorkspaceFiles,
   WorkspaceStore,
 } from "@snagentic/core";
@@ -68,12 +67,12 @@ export interface ConnectionFactory {
     ServerCostReader & {
       readonly plugins: PluginActivator;
       readonly writer: InstanceWriter;
-      // Flow delivery (ADR-0028); absent from connections that cannot push flows.
+      // fluent/load and flow publishing (ADR-0031); absent from connections that cannot push.
       readonly fluent?: FluentInstaller;
       // Accelerator data loads (ADR-0026); absent from connections that cannot load.
       readonly imports?: ImportSetWriter;
-      // Which classes the platform records (ADR-0030); absent where it cannot be read.
-      readonly dictionary?: TableDictionary;
+      // The embedded SDK's reads through this connection (ADR-0032); absent where it has none.
+      readonly sdkAccess?: (signal: AbortSignal) => SdkAccess;
     };
 }
 
@@ -85,8 +84,6 @@ export interface UseCaseContext {
   readonly credentials: CredentialStore;
   readonly secrets: SecretReader;
   readonly connections: ConnectionFactory;
-  // Sessions elevated to security_admin, for push to write ACLs (ADR-0024).
-  readonly elevatedSessions: (profile: InstanceProfile, secret: string) => ElevatedSessions;
   // Per-instance local sync state (.snagentic/<name>/) and the git mirror of a workspace.
   readonly syncState: (root: string, instance: InstanceName) => SyncStateStore;
   readonly mirrors: {
@@ -103,13 +100,14 @@ export interface UseCaseContext {
     readonly store: KnowledgeStore;
     readonly files: MirrorFiles;
   };
-  // What validate checks: an instance's changed records, and the rule pack that checks them.
-  // Staged: the records as the index holds them, for the pre-commit hook.
+  // What validate checks: the Fluent projects and their build, the instance's mirror (edits
+  // to it are refused), and the rule pack. Staged: as the index holds them, for the pre-commit
+  // hook.
   readonly governance: (
     root: string,
     instance: InstanceName,
     options?: { readonly staged?: boolean },
-  ) => { readonly records: ChangedRecords; readonly checker: ScriptChecker };
+  ) => ValidateDependencies;
   // An instance's mirror branch and working tree, for plan and push.
   readonly delivery: (root: string, instance: InstanceName) => DeliveryWorkspace;
   // The accelerator packs snagentic ships (ADR-0026).
@@ -118,8 +116,12 @@ export interface UseCaseContext {
   readonly dataTemplates: DataTemplates;
   // The pack branches of one instance in a workspace (accelerator add).
   readonly packWorkspace: (root: string, instance: InstanceName) => PackWorkspace;
-  // Fluent projects under source/, built for delivery (ADR-0028 as amended).
-  readonly fluentPackages: (root: string) => FluentPackages;
+  // The workspace's Fluent projects and the embedded SDK that converts and builds them
+  // (ADR-0031).
+  readonly authoring: (root: string) => {
+    readonly workspace: AuthoringWorkspace;
+    readonly toolchain: FluentToolchain;
+  };
   // Fluent projects under source/, built to check them and write their keys; staged: as the
   // index holds them, for the pre-commit hook.
   readonly fluentProjects: (

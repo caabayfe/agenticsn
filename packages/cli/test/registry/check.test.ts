@@ -15,7 +15,7 @@ describe("check", () => {
     cleanups.push(ws.cleanup);
     const { output, exitCode } = await executeUseCase(
       check,
-      { paths: [join(ws.root, ".snagentic/pdi/sync-state.json")], edited: false },
+      { paths: [join(ws.root, ".snagentic/pdi/sync-state.json")] },
       ws.context,
     );
     expect(output).toMatchObject({
@@ -28,40 +28,18 @@ describe("check", () => {
     );
   });
 
-  it("renders findings with their fix, and a pass", () => {
-    const text = check.render(
-      {
-        protected: [],
-        missing: [],
-        findings: [
-          {
-            ruleId: "SN-MNT-001",
-            severity: "warn",
-            path: "a.js",
-            line: 3,
-            message: "m",
-            remediation: "r",
-          },
-        ],
-        passed: true,
-      },
-      "text",
+  it("refuses an edit to the mirror, and passes Fluent source", async () => {
+    const ws = await instanceWorkspace({});
+    cleanups.push(ws.cleanup);
+    const mirror = "instances/pdi/metadata/global/sys_script/r--b1.yaml";
+    const refused = await executeUseCase(check, { paths: [join(ws.root, mirror)] }, ws.context);
+    expect(refused.output).toMatchObject({ protected: [{ path: mirror }], passed: false });
+    const source = await executeUseCase(
+      check,
+      { paths: [join(ws.root, "source/global/src/fluent/r.now.ts")] },
+      ws.context,
     );
-    expect(text).toBe("warn SN-MNT-001 a.js:3 m (fix: r)\ncheck passed");
-  });
-
-  it("renders a missing record file as a failure with what to do", () => {
-    const text = check.render(
-      {
-        protected: [],
-        missing: ["instances/pdi/metadata/global/x.yaml"],
-        findings: [],
-        passed: false,
-      },
-      "text",
-    );
-    expect(text).toBe(
-      "missing: instances/pdi/metadata/global/x.yaml: no such record file; deleting records is not supported: restore the file and set active to false\ncheck failed",
-    );
+    expect(source).toMatchObject({ output: { protected: [], passed: true }, exitCode: 0 });
+    expect(check.render(source.output as never, "text")).toBe("check passed");
   });
 });

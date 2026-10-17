@@ -1,6 +1,6 @@
 {
   "name": "@snagentic/cli",
-  "version": "1.8.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -17,7 +17,7 @@
     "@snagentic/core": "workspace:*",
     "@snagentic/rules-basic": "workspace:*",
     "commander": "^15.0.0",
-    "playwright-core": "^1.64.0",
+    "fast-xml-parser": "5.7.2",
     "yaml": "^2.9.1",
     "zod": "^4.6.5"
   }

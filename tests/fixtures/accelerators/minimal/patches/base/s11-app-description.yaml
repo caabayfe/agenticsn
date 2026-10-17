@@ -1,5 +1,0 @@
-# A patch to a record the pack does not own: the spike S11 scratch application on pdi2.
-table: sys_app
-sys_id: 489da54ae67c4a3e9f1e1e4347e9119b
-fields:
-  short_description: Spike S11 scratch application (described by the minimal test pack)

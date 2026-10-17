@@ -4,13 +4,15 @@ import { join } from "node:path";
 import { createProfile, InstanceName, instancePaths, type Row } from "@snagentic/core";
 import { fakeInstance } from "../../../core/test/support/fake-instance";
 import { GitDeliveryWorkspace } from "../../src/adapters/delivery/git-delivery-workspace";
+import { loadFluentRuntime } from "../../src/adapters/fluent/fluent-runtime-loader";
+import { WorkspaceFluentProjects } from "../../src/adapters/fluent/workspace-fluent-projects";
 import { fsWorkspaceFiles } from "../../src/adapters/fs/fs-workspace-files";
 import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { gitInventoryReader } from "../../src/adapters/git/git-inventory-reader";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
 import { EslintScriptChecker } from "../../src/adapters/governance/eslint-script-checker";
-import { GitChangedRecords } from "../../src/adapters/governance/git-changed-records";
+import { GitMirrorState } from "../../src/adapters/governance/git-mirror-state";
 import { GitMirrorFiles } from "../../src/adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "../../src/adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
@@ -28,7 +30,7 @@ export async function instanceWorkspace(
 ) {
   const base = await mkdtemp(join(tmpdir(), "snagentic-workspace-"));
   const root = join(base, "w");
-  await new FsWorkspaceStore().create(root, { layout: 1, createdWith: "test" });
+  await new FsWorkspaceStore().create(root, { layout: 2, createdWith: "test" });
   const profiles = new YamlProfileStore();
   await profiles.write(
     root,
@@ -69,13 +71,14 @@ export async function instanceWorkspace(
     }),
     pushJournal: (r, name) => new JsonPushJournalStore(join(r, instancePaths(name).localState)),
     governance: (r, name, options = {}) => ({
-      records: new GitChangedRecords(
+      mirror: new GitMirrorState(
         r,
         instancePaths(name).metadata,
         instancePaths(name).remoteBranch,
         options,
       ),
       checker: new EslintScriptChecker(),
+      fluent: new WorkspaceFluentProjects(r, loadFluentRuntime, options),
     }),
     files: {
       create: async (path, content) => {

@@ -88,28 +88,6 @@ export class IdentityMismatchError extends SnagenticError {
   }
 }
 
-export class SecurityAdminRequiredError extends SnagenticError {
-  constructor(name: string, username: string) {
-    super(
-      "security-admin-required",
-      "precondition",
-      `${username} does not hold security_admin on ${name}, so it cannot write ACLs even elevated`,
-      `give ${username} the security_admin role on the instance, then log in again with --allow-elevation`,
-    );
-  }
-}
-
-export class ElevationUnsupportedError extends SnagenticError {
-  constructor(name: string) {
-    super(
-      "elevation-unsupported",
-      "precondition",
-      `${name} signs in with an OAuth client, which cannot sign in to the login form to elevate`,
-      "elevated writes need a profile with Basic authentication for now (ADR-0024); log in without --allow-elevation",
-    );
-  }
-}
-
 export class IdentityUnverifiedError extends SnagenticError {
   constructor(name: string) {
     super(

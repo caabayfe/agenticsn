@@ -12,7 +12,7 @@ import { captureIo, echoUseCase, FAKE_CONTEXT } from "../support/fakes";
 describe("use-case registry", () => {
   it("gives the CLI and MCP identical JSON output for the same input", async () => {
     const io = captureIo();
-    await runCli(["doctor", "--format", "json"], USE_CASES, FAKE_CONTEXT, io, {
+    await runCli(["accelerator", "check", "--format", "json"], USE_CASES, FAKE_CONTEXT, io, {
       version: "test",
       serveMcp: async () => {},
     });
@@ -21,7 +21,7 @@ describe("use-case registry", () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: "test-client", version: "1.0.0" });
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
-    const result = await client.callTool({ name: "doctor", arguments: {} });
+    const result = await client.callTool({ name: "accelerator", arguments: {} });
 
     expect(JSON.parse(io.out())).toEqual(result.structuredContent);
   });

@@ -14,7 +14,8 @@ import { GhPullRequests } from "./adapters/delivery/gh-pull-requests";
 import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
 import { fluentProbe } from "./adapters/fluent/fluent-probe";
 import { loadFluentRuntime } from "./adapters/fluent/fluent-runtime-loader";
-import { WorkspaceFluentPackages } from "./adapters/fluent/workspace-fluent-packages";
+import { SdkToolchain } from "./adapters/fluent/fluent-toolchain";
+import { WorkspaceAuthoring } from "./adapters/fluent/workspace-authoring";
 import { WorkspaceFluentProjects } from "./adapters/fluent/workspace-fluent-projects";
 import { createTextFile } from "./adapters/fs/create-text-file";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
@@ -24,13 +25,12 @@ import { gitInventoryReader } from "./adapters/git/git-inventory-reader";
 import { GitMirror } from "./adapters/git/git-mirror";
 import { gitProbe } from "./adapters/git-probe";
 import { EslintScriptChecker } from "./adapters/governance/eslint-script-checker";
-import { GitChangedRecords } from "./adapters/governance/git-changed-records";
+import { GitMirrorState } from "./adapters/governance/git-mirror-state";
 import { keychainProbe } from "./adapters/keychain-probe";
 import { GitMirrorFiles } from "./adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "./adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
-import { BrowserElevatedSessions } from "./adapters/servicenow/elevation/browser-elevated-sessions";
 import { fetchTransport } from "./adapters/servicenow/fetch-transport";
 import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
@@ -73,8 +73,6 @@ const context: UseCaseContext = {
     open: (profile, secret) =>
       new ServiceNowClient(profile, secret, new RequestScheduler(fetchTransport()), versionLine()),
   },
-  elevatedSessions: (profile, secret) =>
-    new BrowserElevatedSessions(profile, secret, versionLine()),
   syncState: (root, instance) =>
     new JsonSyncStateStore(join(root, instancePaths(instance).localState)),
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
@@ -89,7 +87,7 @@ const context: UseCaseContext = {
     };
   },
   governance: (root, instance, options = {}) => ({
-    records: new GitChangedRecords(
+    mirror: new GitMirrorState(
       root,
       instancePaths(instance).metadata,
       instancePaths(instance).remoteBranch,
@@ -97,6 +95,10 @@ const context: UseCaseContext = {
     ),
     checker: new EslintScriptChecker(),
     fluent: new WorkspaceFluentProjects(root, loadFluentRuntime, options),
+  }),
+  authoring: (root) => ({
+    workspace: new WorkspaceAuthoring(root, loadFluentRuntime),
+    toolchain: new SdkToolchain(root, loadFluentRuntime),
   }),
   fluentProjects: (root, options = {}) =>
     new WorkspaceFluentProjects(root, loadFluentRuntime, options),
@@ -108,12 +110,6 @@ const context: UseCaseContext = {
   packWorkspace: (root, instance) => new GitPackWorkspace(root, instance),
   dataTemplates: new CsvDataTemplates(),
   packs: new LazyPackSource(loadPackSource),
-  fluentPackages: (root) =>
-    new WorkspaceFluentPackages(
-      root,
-      new WorkspaceFluentProjects(root, loadFluentRuntime),
-      loadFluentRuntime,
-    ),
   pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),

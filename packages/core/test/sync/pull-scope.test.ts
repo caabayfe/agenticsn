@@ -7,6 +7,7 @@ import {
   childGrouper,
   classesToPull,
   ownerOfBase,
+  variableModelOf,
 } from "@snagentic/core";
 
 const catalog = new Catalog({
@@ -126,5 +127,21 @@ describe("childFamily", () => {
 
   it("is empty for a table that is not a child table", () => {
     expect(childFamily("sys_script")).toEqual([]);
+  });
+});
+
+describe("variableModelOf", () => {
+  const model = "0123456789abcdef0123456789abcdef";
+
+  it("names the record that defines a variable table", () => {
+    expect(variableModelOf(`var__m_sys_hub_action_output_${model}`)).toBe(model);
+    expect(variableModelOf(`var__m_atf_input_variable_${model}`)).toBe(model);
+    expect(variableModelOf(`var__m_${model}`)).toBe(model);
+  });
+
+  it("names no record for an ordinary table or a malformed name", () => {
+    expect(variableModelOf("incident")).toBeNull();
+    expect(variableModelOf("var__m_sys_hub_flow_input")).toBeNull();
+    expect(variableModelOf(`var__m_sys_hub_flow_input_${model.toUpperCase()}`)).toBeNull();
   });
 });

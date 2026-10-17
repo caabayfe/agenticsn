@@ -10,6 +10,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   records and child rows outside the session's domain, because the instance hides them from any
   listing with a condition (ADR-0030 #9, spec 009 mirror plan M4). `pull --verify` or the next
   full pull of a domain-separated instance adds the missing ones.
+- Pulls keep the choices of flow, action and test step variables, attached to the record that
+  defines the variable (`<record>.children.sys_choice.yaml`). They were dropped as orphans: about
+  3,500 choices on a PDI. Choices of flow snapshots are still left out, as snapshots are (spec 009
+  mirror plan M3).
 
 ## [2.0.0] - 2026-10-17
 

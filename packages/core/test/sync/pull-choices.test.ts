@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { Row } from "@snagentic/core";
-import { BEFORE, pulledInstance, sid, touch } from "../support/incremental-fixture";
+import { BEFORE, CHANGED, FLOW, pulledInstance, sid, touch } from "../support/incremental-fixture";
 
 // Tables become records of their own (sys_db_object is sys_metadata on an instance), so choices
 // have a file to attach to.
@@ -77,5 +77,74 @@ describe("pull: choices (ADR-0025)", () => {
     }
     await incremental();
     expect(files.get(SCRIPT_CHOICES)).toHaveLength(2);
+  });
+});
+
+// Variables of a flow, an action or a test step live in tables named var__m_<variable table>_
+// <model sys_id>, which have no table record; their choices belong to the model's record.
+const flowInput = `var__m_sys_hub_flow_input_${sid(3)}`;
+const flowOutput = `var__m_sys_hub_flow_output_${sid(3)}`;
+const FLOW_CHOICES = `${FLOW}.children.sys_choice.yaml`;
+
+function withVariableChoices(tables: Record<string, Row[]>): void {
+  tablesAsRecords(tables);
+  tables["sys_choice"]?.push(
+    choice("vc2", flowOutput, "result", "ok"),
+    choice("vc1", flowInput, "priority", "1"),
+    // A flow snapshot's variable: snapshots are not mirrored, so it has no owner.
+    choice("vc3", `var__m_sys_hub_flow_input_${sid(99)}`, "priority", "1"),
+  );
+}
+
+describe("pull: choices of flow, action and test step variables", () => {
+  it("attaches a variable's choices to the record that defines the variable", async () => {
+    const { files } = await pulledInstance(withVariableChoices);
+    expect(files.get(FLOW_CHOICES)).toEqual([
+      expect.objectContaining({ sys_id: "vc1", name: flowInput }),
+      expect.objectContaining({ sys_id: "vc2", name: flowOutput }),
+    ]);
+  });
+
+  it("leaves out the choices of a variable whose record is not mirrored", async () => {
+    const { files } = await pulledInstance(withVariableChoices);
+    const attached = [...files.entries()]
+      .filter(([path]) => path.endsWith(".children.sys_choice.yaml"))
+      .flatMap(([, rows]) => (Array.isArray(rows) ? rows : []));
+    expect(attached).not.toContainEqual(expect.objectContaining({ sys_id: "vc3" }));
+  });
+
+  it("refreshes a flow's variable choices whole when one of them changed", async () => {
+    const { incremental, tables, files } = await pulledInstance(withVariableChoices);
+    touch(
+      tables["sys_choice"]?.find((row) => row["sys_id"] === "vc1"),
+      { label: "High" },
+    );
+    await incremental();
+    expect(files.get(FLOW_CHOICES)).toEqual([
+      expect.objectContaining({ sys_id: "vc1", label: "High" }),
+      expect.objectContaining({ sys_id: "vc2" }),
+    ]);
+  });
+
+  it("adds the choices of a variable added to a flow", async () => {
+    const { incremental, tables, files } = await pulledInstance(withVariableChoices);
+    tables["sys_choice"]?.push({
+      ...choice("vc4", `var__m_sys_hub_flow_logic_input_${sid(3)}`, "mode", "fast"),
+      sys_updated_on: CHANGED,
+    });
+    await incremental();
+    expect(files.get(FLOW_CHOICES)).toEqual([
+      expect.objectContaining({ sys_id: "vc1" }),
+      expect.objectContaining({ sys_id: "vc2" }),
+      expect.objectContaining({ sys_id: "vc4" }),
+    ]);
+  });
+
+  it("removes a flow's choice file when its variables' choices are all deleted", async () => {
+    const { incremental, tables, files } = await pulledInstance(withVariableChoices);
+    tables["sys_choice"] =
+      tables["sys_choice"]?.filter((row) => !String(row["name"]).startsWith("var__m_")) ?? [];
+    await incremental();
+    expect(files.has(FLOW_CHOICES)).toBe(false);
   });
 });

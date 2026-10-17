@@ -10,6 +10,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   protection: the SDK would mark them read-only, changing who may edit the role's grants. It
   reported an unexplained difference and asked for a bug report. Refusals by design now have
   their own error, which says to leave those records on the instance.
+- Plans list what a load sets beyond the source apart from what the source changes, with the
+  value: `also sets: sys_app_application.order = 100` instead of the loss's name mixed in with
+  the changes.
+- `adopt` brings in application menus with an empty order (96 of 217 on a PDI, all baseline).
+  The SDK writes order 100 for them; accepted by the product owner as a known loss, so a push
+  that loads such a menu shows `also sets: sys_app_application.order = 100` in its plan.
 - Plans and adopt read the built XML's character references as text: the build writes a
   carriage return as `&#13;`, which was compared literally, so any text with Windows line
   endings (a role's description, a script) showed as a difference that wasn't there.

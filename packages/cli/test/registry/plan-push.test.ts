@@ -164,6 +164,7 @@ describe("plan-push rendering", () => {
             operation: "load",
             changes: ["sys_script.order"],
             losses: ["api-default"],
+            alsoSets: ["sys_script.priority = 100"],
           },
         ],
         problems: [],
@@ -187,7 +188,7 @@ describe("plan-push rendering", () => {
       "text",
     );
     expect(text.split("\n")).toEqual([
-      "load   sys_script_x  source/global  (sys_script.order)  also sets: api-default",
+      "load   sys_script_x  source/global  (sys_script.order)  also sets: sys_script.priority = 100",
       "waived:  SN-MNT-006 p (pat: legacy)",
       "waivers.yaml entry 1: expired",
       'held:    sys_script_x in "Other" (sam)',

@@ -37,6 +37,12 @@ export const PlanOutput = z.object({
           .array(z.string())
           .readonly()
           .describe("known SDK losses the load also sets (not written in source)"),
+        alsoSets: z
+          .array(z.string())
+          .readonly()
+          .describe(
+            "what those losses set, as table.field = value: the load sets it beyond source",
+          ),
       }),
     )
     .readonly(),
@@ -110,7 +116,7 @@ export const planPush = defineUseCase({
     const lines = [
       ...output.units.map(
         (u) =>
-          `${u.operation.padEnd(6)} ${u.updateName}  ${u.project}${u.changes.length > 0 ? `  (${u.changes.join(", ")})` : ""}${u.losses.length > 0 ? `  also sets: ${u.losses.join(", ")}` : ""}`,
+          `${u.operation.padEnd(6)} ${u.updateName}  ${u.project}${u.changes.length > 0 ? `  (${u.changes.join(", ")})` : ""}${u.alsoSets.length > 0 ? `  also sets: ${u.alsoSets.join(", ")}` : ""}`,
       ),
       ...output.problems.map((p) => `problem: ${p.updateName || p.project}: ${p.reason}`),
       ...output.gate.blocking.map(

@@ -16,6 +16,7 @@ import { bunMarkdown } from "./adapters/documentation/bun-markdown";
 import { FsDocumentationSources } from "./adapters/documentation/fs-documentation-sources";
 import { FsMirrorRecords } from "./adapters/documentation/fs-mirror-records";
 import { FsSiteOutput } from "./adapters/documentation/fs-site-output";
+import { mediaTools } from "./adapters/documentation/media-tools";
 import { serveSite } from "./adapters/documentation/static-site-server";
 import { fluentProbe } from "./adapters/fluent/fluent-probe";
 import { loadFluentRuntime } from "./adapters/fluent/fluent-runtime-loader";
@@ -103,6 +104,7 @@ const context: UseCaseContext = {
       },
       markdown: bunMarkdown,
       output: new FsSiteOutput(site),
+      media: mediaTools(root, process.env, homedir()),
       serve: (port, signal, ready) => serveSite(site, port, signal, ready),
     };
   },

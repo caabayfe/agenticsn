@@ -39,6 +39,21 @@ function context(): UseCaseContext {
         new FsMirrorRecords(join(workspace, "instances/pdi2/metadata"), async () => null),
       markdown: bunMarkdown,
       output: new FsSiteOutput(join(workspace, ".snagentic/site")),
+      media: {
+        codec: {
+          available: async () => true,
+          decode: async () => new Float32Array(0),
+          encodeMp3: async (samples) => new Uint8Array([samples.length > 0 ? 1 : 0, 2, 3]),
+        },
+        voices: [
+          {
+            name: "fake",
+            available: async () => true,
+            speak: async () => new Float32Array(48_000).fill(0.2),
+          },
+        ],
+        assets: { bed: async () => null, sound: async () => null },
+      },
       serve: async (port, _signal, ready) => {
         served = { port };
         ready(`http://127.0.0.1:${port}/`);
@@ -111,7 +126,7 @@ describe("snagentic docs", () => {
       PAGE,
       readFileSync(join(root, PAGE), "utf8").replace("    how:", "    hash: old\n    how:"),
     );
-    const built = await docsBuild.handle({}, context(), run);
+    const built = await docsBuild.handle({ audio: false, voice: "none" }, context(), run);
     expect(built.files).toBe(4);
     expect(built.ok).toBe(false);
     expect(docsBuild.render(built, "text")).toContain("some pages are out of date");
@@ -122,11 +137,35 @@ describe("snagentic docs", () => {
   });
 
   it("serve builds the site, then serves it on the requested port", async () => {
-    const result = await docsServe.handle({ port: 4999 }, context(), run);
+    const result = await docsServe.handle(
+      { audio: false, voice: "none", port: 4999 },
+      context(),
+      run,
+    );
     expect(served).toEqual({ port: 4999 });
     expect(result.url).toBe("http://127.0.0.1:4999/");
     expect(progress[0]).toContain("serving 4 files at http://127.0.0.1:4999/");
     expect(docsServe.render(result, "text")).toBe("stopped serving http://127.0.0.1:4999/");
     expect(docsServe.exitCode(result)).toBe(0);
+  });
+
+  it("build --voice gives each animation a narrated track, embedded and as an MP3", async () => {
+    write(
+      "documentation/animations/asg/animation.json",
+      '{"name":"asg","mix":{"cues":[[0,0.5,"nope_1",-24]]}}',
+    );
+    write("documentation/animations/asg/scene.svg", '<svg><g id="cam"></g></svg>');
+    write("documentation/animations/asg/steps.json", '[{"t":"A","c":"B","say":"Hello there."}]');
+    const built = await docsBuild.handle({ audio: false, voice: "fake" }, context(), run);
+    expect(built.narrated).toEqual(["asg"]);
+    expect(built.missingSounds).toEqual(["nope_1"]);
+    expect(docsBuild.render(built, "text")).toContain("audio tracks: asg");
+    expect(docsBuild.render(built, "text")).toContain("cue sounds not found (left out): nope_1");
+    expect(readFileSync(join(root, ".snagentic/site/animations/asg.mp3"))).toEqual(
+      Buffer.from([1, 2, 3]),
+    );
+    expect(readFileSync(join(root, ".snagentic/site/animations/asg.html"), "utf8")).toContain(
+      'src="data:audio/mpeg;base64,AQID"',
+    );
   });
 });

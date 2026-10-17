@@ -106,6 +106,16 @@ const scene: SceneSource = {
   steps: [{ t: "Saved", c: "The incident is saved.", say: "The incident is saved." }],
 };
 
+const NO_MEDIA = {
+  codec: {
+    available: async () => false,
+    decode: async () => new Float32Array(0),
+    encodeMp3: async () => new Uint8Array(0),
+  },
+  voices: [],
+  assets: { bed: async () => null, sound: async () => null },
+};
+
 const record: MirrorRecord = { hash: "aaa", fields: { script: SCRIPT, name: "Set group" } };
 const mirrored = () => fakeMirror({ [`sys_script/${RULE}`]: record });
 const run = { root: "/ws", signal: new AbortController().signal };
@@ -254,7 +264,7 @@ describe("docs pin", () => {
 describe("docs build", () => {
   async function build(pages: PageSource[]) {
     const { sources } = fakeSources(pages, [scene]);
-    let written: readonly { path: string; content: string }[] = [];
+    let written: readonly { path: string; content: string | Uint8Array }[] = [];
     const result = await buildSite({
       ...run,
       sources,
@@ -267,8 +277,10 @@ describe("docs build", () => {
         },
       },
       clock: () => new Date("2026-10-17T10:00:00Z"),
+      media: NO_MEDIA,
     });
-    const file = (path: string) => written.find((item) => item.path === path)?.content ?? "";
+    const file = (path: string) =>
+      String(written.find((item) => item.path === path)?.content ?? "");
     return { result, written, file };
   }
 

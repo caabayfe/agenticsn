@@ -10,12 +10,33 @@ export const DocsBuildOutput = z.object({
   ok: z.boolean(),
   evidence: z.array(EvidenceResultSchema),
   problems: z.array(DocsProblemSchema),
+  narrated: z.array(z.string()),
+  missingSounds: z.array(z.string()),
 });
 
-export async function buildDocs(context: UseCaseContext, signal: AbortSignal) {
+export const AudioInput = {
+  audio: z
+    .boolean()
+    .default(false)
+    .describe("give each animation an audio track: music and sound effects (needs ffmpeg)"),
+  voice: z
+    .string()
+    .default("none")
+    .describe("narrate the steps with a voice: piper, system or none (implies --audio)"),
+};
+
+export async function buildDocs(
+  context: UseCaseContext,
+  signal: AbortSignal,
+  input: { readonly audio: boolean; readonly voice: string } = { audio: false, voice: "none" },
+) {
   const root = await workspaceRoot(context);
   const docs = context.documentation(root);
-  const built = await buildSite({ ...docs, root, signal, clock: context.clock });
+  const audio = input.audio || input.voice !== "none" ? { voice: input.voice } : undefined;
+  const built = await buildSite(
+    { ...docs, root, signal, clock: context.clock },
+    audio === undefined ? {} : { audio },
+  );
   return {
     root: built.root,
     files: built.files,
@@ -27,6 +48,8 @@ export async function buildDocs(context: UseCaseContext, signal: AbortSignal) {
       status,
     })),
     problems: [...built.check.problems],
+    narrated: [...built.narrated],
+    missingSounds: [...built.missingSounds],
   };
 }
 
@@ -36,17 +59,27 @@ export const docsBuild = defineUseCase({
   description:
     "Build the documentation as a static site (HTML, CSS, self-contained animations) in " +
     ".snagentic/site/, for any web server. Each page shows its evidence status against the mirror; " +
-    "a stale page is built and says so (docs check is the gate).",
-  input: z.object({}),
+    "a stale page is built and says so (docs check is the gate). --audio adds music and sound " +
+    "effects to the animations, --voice piper|system also narrates them.",
+  input: z.object(AudioInput),
   output: DocsBuildOutput,
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: false,
-  handle: (_input, context, run) => buildDocs(context, run.signal),
+  handle: (input, context, run) => buildDocs(context, run.signal, input),
   render(output) {
     const state = output.ok ? "" : " (some pages are out of date)";
-    return [`built ${output.files} files in ${output.root}${state}`, ...checkLines(output)].join(
-      "\n",
-    );
+    const audio =
+      output.narrated.length === 0 ? [] : [`audio tracks: ${output.narrated.join(", ")}`];
+    const missing =
+      output.missingSounds.length === 0
+        ? []
+        : [`cue sounds not found (left out): ${output.missingSounds.join(", ")}`];
+    return [
+      `built ${output.files} files in ${output.root}${state}`,
+      ...audio,
+      ...missing,
+      ...checkLines(output),
+    ].join("\n");
   },
   exitCode: () => 0,
 });

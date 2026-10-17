@@ -1,7 +1,7 @@
 import type { EvidenceStatus } from "./evidence";
 import { escapeHtml } from "./html";
 import type { DocPage } from "./page";
-import { playerHtml } from "./player";
+import { type PlayerMedia, playerHtml } from "./player";
 import { OVERVIEW, type Process, type ProcessCapability } from "./process";
 import { expandProse } from "./prose";
 import type { Scene } from "./scene";
@@ -12,7 +12,7 @@ import { SITE_STYLE } from "./site-style";
 export interface SiteFile {
   // Relative to the site's root folder.
   readonly path: string;
-  readonly content: string;
+  readonly content: string | Uint8Array;
 }
 
 export interface SiteInput {
@@ -26,6 +26,8 @@ export interface SiteInput {
   // When the site was built and the mirror commit it was checked against.
   readonly builtAt: string;
   readonly mirrorCommit: string | null;
+  // Audio tracks by animation name (phase 2); animations without one are silent.
+  readonly media?: ReadonlyMap<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>;
 }
 
 const PREFIX = "../../";
@@ -207,7 +209,14 @@ export function siteFiles(input: SiteInput): readonly SiteFile[] {
     }
   }
   for (const scene of input.scenes) {
-    files.push({ path: `animations/${scene.name}.html`, content: playerHtml(scene) });
+    const media = input.media?.get(scene.name);
+    files.push({
+      path: `animations/${scene.name}.html`,
+      content: playerHtml(scene, media?.player),
+    });
+    if (media !== undefined) {
+      files.push({ path: `animations/${scene.name}.mp3`, content: media.mp3 });
+    }
   }
   return files;
 }

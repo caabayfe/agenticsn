@@ -20,6 +20,7 @@ import type {
   InventoryReader,
   KnowledgeStore,
   MarkdownRenderer,
+  MediaTools,
   MirrorFiles,
   MirrorInspector,
   MirrorIntegrator,
@@ -150,6 +151,7 @@ export interface UseCaseContext {
     readonly mirror: (instance: string) => MirrorRecords;
     readonly markdown: MarkdownRenderer;
     readonly output: SiteOutput;
+    readonly media: MediaTools;
     // Serves the built site on 127.0.0.1 until the signal is cancelled.
     serve(port: number, signal: AbortSignal, ready: (url: string) => void): Promise<void>;
   };

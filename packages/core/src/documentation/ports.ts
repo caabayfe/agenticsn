@@ -41,5 +41,36 @@ export interface MarkdownRenderer {
 // Where a built site goes. Replaces the previous build.
 export interface SiteOutput {
   readonly root: string;
-  replace(files: readonly { readonly path: string; readonly content: string }[]): Promise<void>;
+  replace(
+    files: readonly { readonly path: string; readonly content: string | Uint8Array }[],
+  ): Promise<void>;
+}
+
+// ffmpeg: decodes any audio file to mono float samples at SAMPLE_RATE, encodes the mix.
+export interface AudioCodec {
+  available(): Promise<boolean>;
+  decode(path: string, signal: AbortSignal): Promise<Float32Array>;
+  // Loudness-normalised MP3 of mono samples at SAMPLE_RATE.
+  encodeMp3(samples: Float32Array, signal: AbortSignal): Promise<Uint8Array>;
+}
+
+// A text-to-speech engine (Piper, the operating system's voice…), returning mono samples at
+// SAMPLE_RATE. Adapters may cache by text.
+export interface VoiceSynthesizer {
+  readonly name: string;
+  available(): Promise<boolean>;
+  speak(text: string, signal: AbortSignal): Promise<Float32Array>;
+}
+
+// A workspace's own sounds (documentation/audio/): bed.<ext> and sounds/<name>.<ext>. Null
+// when absent: the synthesised default is used.
+export interface AudioAssets {
+  bed(signal: AbortSignal): Promise<Float32Array | null>;
+  sound(name: string, signal: AbortSignal): Promise<Float32Array | null>;
+}
+
+export interface MediaTools {
+  readonly codec: AudioCodec;
+  readonly voices: readonly VoiceSynthesizer[];
+  readonly assets: AudioAssets;
 }

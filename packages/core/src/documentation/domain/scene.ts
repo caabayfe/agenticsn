@@ -14,6 +14,15 @@ export interface SceneStep {
   readonly on?: string;
 }
 
+// An extra sound in the audio track: at `offset` seconds after the start of step `step`
+// (0-based), at `db`.
+export interface Cue {
+  readonly step: number;
+  readonly offset: number;
+  readonly sound: string;
+  readonly db: number;
+}
+
 export const TAG_KINDS = ["obs", "con", "src"] as const;
 export type TagKind = (typeof TAG_KINDS)[number];
 
@@ -27,6 +36,8 @@ export interface Scene {
   readonly svg: string;
   readonly css: string;
   readonly steps: readonly SceneStep[];
+  // Extra sounds for the audio track (animation.json mix.cues: [step, offset, sound, dB]).
+  readonly cues: readonly Cue[];
 }
 
 export interface Timeline {
@@ -92,6 +103,31 @@ function tags(path: string, raw: unknown): Scene["tags"] {
   });
 }
 
+function cues(path: string, raw: unknown): readonly Cue[] {
+  const list = fieldsOf(raw)["cues"];
+  if (list === undefined) {
+    return [];
+  }
+  if (!Array.isArray(list)) {
+    throw new DocumentationSourceError(
+      path,
+      "mix.cues must be a list of [step, offset, sound, dB]",
+    );
+  }
+  return list.map((cue) => {
+    const [step, offset, sound, db] = Array.isArray(cue) ? cue : [];
+    if (
+      typeof step !== "number" ||
+      typeof offset !== "number" ||
+      typeof sound !== "string" ||
+      typeof db !== "number"
+    ) {
+      throw new DocumentationSourceError(path, "each cue is [step, offset seconds, sound, dB]");
+    }
+    return { step, offset, sound, db };
+  });
+}
+
 // `path` is the animation's folder relative to documentation/ (animations/<name>).
 export function parseScene(
   path: string,
@@ -128,13 +164,14 @@ export function parseScene(
     svg: files.svg,
     css: files.css ?? "",
     steps: files.steps.map((raw, index) => step(path, index, raw)),
+    cues: cues(path, meta["mix"]),
   };
 }
 
 const words = (text: string) => text.split(/\s+/).filter((word) => word !== "").length;
 
 // The player's clock without narration (the original engine's estimate).
-export function estimateTimeline(steps: readonly SceneStep[]): Timeline {
+export function estimateTimeline(steps: readonly { readonly say: string }[]): Timeline {
   const starts: number[] = [];
   let at = 0.6;
   for (const item of steps) {

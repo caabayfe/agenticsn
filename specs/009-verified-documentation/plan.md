@@ -1,6 +1,6 @@
 # 009. Verified documentation site: plan
 
-- Status: P1 done (2026-10-17): verify passes; checked by hand against copies of three pdi2 rules, served by a plain static server. P2 next
+- Status: P1 and P2 done (2026-10-17); P3 in progress
 - Date: 2026-10-17
 - Decision: ADR-0034
 - Requirements: G2, G3, ASR-01, ASR-08, ASR-09, ASR-10, ASR-13, ASR-15
@@ -114,6 +114,27 @@ Rules kept from the original:
 | **P2 Audio** | ffmpeg adapter; the mix in pure TypeScript (timeline, RMS levels, ducking, fades, limiter) with the original parameters; synthesised default effects and bed, or configured assets; voice port with Piper and OS voice adapters; `--audio`, `--voice` | Without voice: music and effects follow the estimated timeline. With voice: timing comes from the clips. Golden test on the timeline and the sample arithmetic |
 | **P3 Video** | `docs video <animation>`: the player rendered in a headless browser (system Chrome over CDP), frames to ffmpeg, muxed with the P2 track, MP4 H.264 | Spike S20 first: deterministic frame stepping versus screencast |
 | **P4 Gate** | Doc findings in `validate` (CI, pre-commit, push gate); coverage of customisations without pages; Steward drafts page updates | A pull request that changes an anchored record shows the stale page |
+
+## 4a. Audio (P2, done)
+
+`snagentic docs build --audio` adds music and sound effects to every animation; `--voice
+piper|system` also narrates each step (`say`). The track is embedded in the animation page
+(data URI) and written beside it as `animations/<name>.mp3`.
+
+- The mix is pure TypeScript (`domain/mix.ts`) with the SNDOC parameters: voice at -19 dB RMS,
+  0.7 s lead, voice 0.35 s after each step start, 0.95 s gap, 2.2 s tail; whoosh -21 dB before and
+  pop -25 dB after each step; cues from `animation.json` `mix.cues` ([step, offset, sound, dB]);
+  closing sound at the end -3.2 s; bed at -21 dB RMS, ducked -9.5 dB under the voice (attack
+  0.25 s, release 0.7 s), fades 1.2 s and 2.6 s, summed at -3 dB; tanh soft limiter at 0.97.
+- Without voice the steps follow the player's estimate, so the silent visuals and the track agree.
+- Sounds and the bed are synthesised (deterministic) unless the workspace provides
+  `documentation/audio/bed.<ext>` or `documentation/audio/sounds/<name>.<ext>`.
+- ffmpeg decodes and encodes (loudnorm -16 LUFS, 64 kbit/s mono MP3). Missing ffmpeg or voice is
+  a precondition error naming the fix.
+- Voices: Piper (`SNAGENTIC_PIPER`, `SNAGENTIC_PIPER_MODEL`, or `~/.local/share/snagentic/piper/`
+  with `.venv/bin/piper` and `voices/*.onnx`; it must live under a short path, its espeak-ng
+  data fails to load from long ones), and the system voice (macOS `say`, `espeak-ng` elsewhere).
+  Each spoken line is cached in `.snagentic/docs-cache/voices/` by voice and text.
 
 ## 5. Safety
 

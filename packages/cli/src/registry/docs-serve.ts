@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { buildDocs } from "./docs-build";
+import { AudioInput, buildDocs } from "./docs-build";
 import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
@@ -12,6 +12,7 @@ export const docsServe = defineUseCase({
     "Build the documentation site and serve it on http://127.0.0.1:<port>/ for preview, until " +
     "stopped with Ctrl-C. Local only; publishing is copying .snagentic/site/ to a web server.",
   input: z.object({
+    ...AudioInput,
     port: z
       .number()
       .int()
@@ -24,7 +25,7 @@ export const docsServe = defineUseCase({
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: false,
   async handle(input, context, run) {
-    const built = await buildDocs(context, run.signal);
+    const built = await buildDocs(context, run.signal, input);
     const docs = context.documentation(await workspaceRoot(context));
     let url = "";
     await docs.serve(input.port ?? DEFAULT_PORT, run.signal, (address) => {

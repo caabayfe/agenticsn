@@ -217,7 +217,7 @@ mirrored records were compared with the table's dictionary columns, ancestors in
 
 | Gap | Why | Matters for |
 |---|---|---|
-| ES-latest mode of a script include (`sys_es_latest_script`) | not a `sys_metadata` class, so never pulled | knowing how a script runs |
+| ES-latest mode of a script include (`sys_es_latest_script`) | not a `sys_metadata` class, so never pulled | knowing how a script runs; fixed by M1 |
 | Property values (`sys_properties.value`) | every value redacted, one allow-listed | behaviour switches, e.g. inbound email on or off |
 | Mail accounts (`sys_email_account`) | not metadata; holds credentials | whether inbound email can work at all |
 | Labels, hints, help, plurals (`sys_documentation`) | skipped on purpose (ADR-0033); `column_label` is on the dictionary | form wording |

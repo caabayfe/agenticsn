@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- Pulls keep whether a script runs on the latest ECMAScript engine (`sys_es_latest_script`),
+  beside the script include, business rule or other script it belongs to
+  (`<record>.children.sys_es_latest_script.yaml`; spec 009 mirror plan M1). Existing mirrors gain
+  the rows on their next pull.
+
 ### Fixed
 
 - Pulls list records in every domain. A full pull, an incremental pull and `pull --verify` missed

@@ -33,36 +33,37 @@ one branch and one pull request, test-first, `bun run verify` green before every
 
 ## 3. Milestones
 
-### M1. ES-latest rows
+### M1. ES-latest rows (done 2026-10-17)
 
 **Facts.** `sys_es_latest_script` has `id` (the owning script's sys_id), `table` (its class) and
-`use_es_latest`. The SDK emits it as its own update, `sys_es_latest_script_<sys_id>`, next to the
-script include (seen in an offline SDK build during the spec 009 analysis).
+`use_es_latest`. On pdi2: 4,970 rows over 79 script classes, 1,224 of them for script includes.
 
-**Change.**
-- Add `{ table: "sys_es_latest_script", parentField: "id", ownerClasses: ["sys_script_include"] }`
-  to `CHILD_TABLES` (`packages/core/src/metadata/domain/child-tables.ts`). The file is
-  `<script include>.children.sys_es_latest_script.yaml`. Rows whose `id` names another mirrored
-  record attach to it too; the rest are orphans, as for any child table.
-- Full and incremental pulls already handle child tables; the incremental pull gains one
-  fingerprint for the new table.
+**Change, as built.** `{ table: "sys_es_latest_script", parentField: "id", ownerClasses:
+["sys_script_include"] }` in `CHILD_TABLES`. The file is `<record>.children.sys_es_latest_script
+.yaml`. A row attaches to whichever mirrored record its `id` names, so business rules and REST
+operations get theirs too. Its fingerprint makes 22 change sources (ASR-16 text updated); an
+existing mirror lists the table on its first incremental pull, as for any child table it never
+read.
 
-**Tests (failing first).**
-- `it("keeps a script include's ES-latest row beside it")` (full pull, fake instance).
-- `it("refreshes a changed ES-latest row in an incremental pull")`.
-- `it("removes the ES-latest file when the row is deleted")`.
-- Golden file for the child file's layout.
+**Open question, answered without writing (read-only, pdi2).** The plan feared that a build gives
+the row a new sys_id and the load creates a second row. It doesn't:
+- the platform's unload export (`/api/sn_glider/metadata/unload/<sys_id>`), which `adopt` reads,
+  holds the ES-latest row with its real sys_id, inside the script include's update;
+- the SDK keys the row as a composite on `id` and `table` (its `EsLatestScriptPlugin`), so the
+  adopted source keeps that sys_id in `keys.ts`;
+- the SDK writes the row inside the script include's update file, as the platform does: it is
+  part of the script include's unit (ADR-0033), not a unit of its own.
 
-**Open question, checked before merging.** ADR-0033 reads a unit's live copy by sys_id or by
-the keys the platform coalesces on. The SDK gives the row its own sys_id, which won't match the
-instance's existing row. If the platform doesn't coalesce `sys_es_latest_script` on `id` and
-`table`, an adopted script include whose mode is changed would create a second row. M1 checks it
-on pdi2 (one read and one load in a scratch application) and, if needed,
-adds the coalescing keys to the plan's live read. If the platform doesn't coalesce, push refuses
-an ES-latest change on an existing script include, with a hint, until a route is found.
+The write check planned in section 4 is therefore not needed. What remains is bug B1
+(`analysis.md`): the comparison ignores the nested row, so a change to `useEsLatest` alone is not
+seen as a change. It is fixed with B1, not here.
 
-**Done when:** pdi2's script includes have their ES-latest files after a pull; an incremental
-pull with no changes still meets ASR-16 (measured, reported in the pull request).
+**Tests.** `packages/core/test/sync/pull-es-latest.test.ts`:
+- `it("keeps a script include's ES-latest row beside it")`;
+- `it("refreshes a changed ES-latest row in an incremental pull")`;
+- `it("removes the ES-latest file when the row is deleted")`;
+- `it("attaches the ES-latest row of a script include created since the last pull")`;
+- `it("lists every ES-latest row on the first pull after an upgrade")`.
 
 ### M2. Typed property values (ADR-0034)
 
@@ -196,7 +197,7 @@ before writing (pushes switch the user's application and update set). Never touc
 
 | Check | Milestone | Writes |
 |---|---|---|
-| ES-latest coalescing: read one row, load a changed mode for one scratch script include | M1 | yes, scratch scope |
+| ES-latest rows: counts and the unload export (read-only, done 2026-10-17) | M1 | no |
 | Pull with no changes still meets ASR-16 | M1 | no |
 | Property values kept and redacted, counts match section M2 | M2 | no |
 | Variable-table aggregate query (run 2026-10-17) | M3 | no |
@@ -206,8 +207,7 @@ before writing (pushes switch the user's application and update set). Never touc
 
 - **A secret in a kept property.** Mitigated by five independent checks (ADR-0034 #1); the
   property-based test and the secret scan guard regressions.
-- **ES-latest duplicates** if the platform doesn't coalesce: found by M1's live check before
-  merging; push refuses until resolved.
+- **ES-latest duplicates**: ruled out by M1's read-only check; the remaining gap is B1.
 - **Mirror churn**: M2 changes about 2,650 files once, M3 adds choice files, M4 adds records. Each
   lands in its own pull commit, named in the changelog.
 - **Incremental pull cost**: one more fingerprint (M1). Measured against ASR-16, not assumed.

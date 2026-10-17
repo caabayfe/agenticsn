@@ -7,11 +7,19 @@ import { fromYamlStrings } from "../yaml/own-style";
 const isMap = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-// A long field's file: <base>.<field>.<ext> (ADR-0017); children files are not fields.
-function fieldOfFile(base: string, file: string): string | null {
-  const rest = file.slice(base.length + 1);
-  const parts = rest.split(".");
-  return parts.length === 2 && parts[0] !== undefined && parts[0] !== "children" ? parts[0] : null;
+// A long field's file: <base>.<field>.<ext>; a children file: <base>.children.<table>.yaml
+// (ADR-0017).
+function partOfFile(
+  base: string,
+  file: string,
+): { readonly field: string } | { readonly children: string } | null {
+  const parts = file.slice(base.length + 1).split(".");
+  if (parts.length === 3 && parts[0] === "children" && parts[1] !== undefined) {
+    return { children: parts[1] };
+  }
+  return parts.length === 2 && parts[0] !== undefined && parts[0] !== "children"
+    ? { field: parts[0] }
+    : null;
 }
 
 // Records of one instance's mirror, found by table and sys_id (instances/<name>/metadata/
@@ -53,13 +61,20 @@ export class FsMirrorRecords implements MirrorRecords {
     }
     const folder = base.slice(0, base.lastIndexOf("/"));
     const leaf = base.slice(base.lastIndexOf("/") + 1);
+    const children: Record<string, string> = {};
     for await (const file of new Bun.Glob(`${leaf}.*`).scan({ cwd: join(this.metadata, folder) })) {
-      const field = fieldOfFile(leaf, file);
-      if (field !== null) {
-        fields[field] = await readFile(join(this.metadata, folder, file), "utf8");
+      const part = partOfFile(leaf, file);
+      if (part === null) {
+        continue;
+      }
+      const text = await readFile(join(this.metadata, folder, file), "utf8");
+      if ("field" in part) {
+        fields[part.field] = text;
+      } else {
+        children[part.children] = text;
       }
     }
     const hash = meta["hash"];
-    return { hash: typeof hash === "string" ? hash : "", fields };
+    return { hash: typeof hash === "string" ? hash : "", fields, children };
   }
 }

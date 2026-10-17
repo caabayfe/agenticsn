@@ -1,6 +1,6 @@
 # 010a. Three audiences: users, operators, platform team
 
-- Status: Proposed (2026-10-17), awaiting the product owner
+- Status: Accepted (product owner, 2026-10-17); A1 in progress
 - Amends: ADR-0034 decision 2 (page layout), spec 010 §2 (sources) and §3 (site)
 - Requirements: G2, ASR-01, ASR-13
 - Origin: product owner review of the pdi2 incident documentation (2026-10-17). End users,
@@ -101,10 +101,11 @@ behind it (`employee-center: sp_portal/70cd9f3b734b13001fdae9c54cf6a72f`).
 
 ```
 index.html                         processes
-processes/incident/index.html      four doors: "I need help", "I work on incidents",
-                                   "I configure it", and "How incident management works"
-processes/incident/use/…           Understand (user view) + Use capabilities, in order
-processes/incident/operate/…       Understand (operator view) + Operate capabilities, in order
+processes/incident/index.html      the summary, the lifecycle, and three doors: for end users
+                                   (with their surfaces), for operators, for the platform team
+processes/incident/use/…           Understand (user view, in use/understand/) + Use capabilities
+processes/incident/operate/…       Understand (operator view, in operate/understand/) + Operate
+                                   capabilities, in order
 processes/incident/configure/…     Configure pages + the configuration index
 ```
 
@@ -136,7 +137,7 @@ exists, the list shows every uncited record, with its last updater and update da
 | A counterpart that doesn't exist or doesn't point back | error |
 | A `{for=…}` heading on a page outside `understand/` | error |
 | An Operate page without a Configure page (own or shared) | error |
-| A Configure page without evidence (as today) | error |
+| A Configure page without evidence (as today) | warning |
 | A Use or Operate page that cites no evidence from its audience's surface tables (the steps weren't checked on the reader's screen) | warning |
 | Platform words in Use pages: table or field names (`incident.state`, `sys_id`, `snake_case` words), state codes (`state=3`), and a per-site list (`work notes`, `assignment group`, …) | warning |
 | A role with no capability | warning |
@@ -187,15 +188,28 @@ There is no compatibility layer for the old `guide`/`technical` paths: nothing h
 yet (PR #67 isn't merged), and the only workspace using them is `spaces/pdi2-docs`, which A2
 migrates.
 
-## 7. Decisions for the product owner
+## 7. Decisions (product owner, 2026-10-17)
 
-1. **Understand: one source with two views** (proposed) or one page shown to both readers
-   unchanged.
-2. **Operator surface on pdi2:** Service Operations Workspace, the classic form, or both.
-   Proposed: the workspace first, with classic differences noted.
-3. **Screen checks the mirror can't prove** (a label rendered by a widget's script, a phone
-   procedure): allow evidence marked `seen` with a date and the person who checked it, which
-   `docs check` reports as unanchored and asks to recheck after 90 days? Proposed: yes.
-4. **Screenshots in Use pages:** not in this plan. Taking them means signing in to an instance
-   and an image that goes stale unnoticed. Possible later as a person's step, with the image's
-   date shown.
+1. **Understand is one source with two views.** The user view and the operator view are built
+   from the same page; `{for=…}` headings differ.
+2. **Operators on pdi2 use both surfaces**: the Service Operations Workspace and the classic
+   form. Operate pages describe the workspace and note where the classic form differs.
+3. **Screen checks are allowed** as `seen` evidence: who checked, on which date, and where (a
+   portal page, a phone script). `docs check` reports them as unanchored and asks to recheck them
+   after 90 days; they never count as fresh mirror evidence.
+4. **No screenshots** in this plan.
+
+### Seen evidence
+
+```yaml
+evidence:
+  E07:
+    seen: { by: Fernando Caamaño, on: 2026-10-17, where: Employee Center › Get help }
+    how: opened the portal menu
+    result: the menu item reads "Get help"
+```
+
+| Status | When |
+|---|---|
+| `seen` | checked within the last 90 days |
+| `recheck` | older than 90 days: a warning naming the page, never a blocking error |

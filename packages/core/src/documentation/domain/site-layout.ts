@@ -1,18 +1,31 @@
 import { anchorOf, type Evidence, type EvidenceStatus } from "./evidence";
 import { escapeHtml } from "./html";
-import type { DocPage } from "./page";
-import { OVERVIEW } from "./process";
+import type { DocPage, Section } from "./page";
 import type { SiteConfig } from "./site-config";
+import type { View } from "./views";
 
-// Where each page lands in the site, relative to its root.
-export function pageFile(page: Pick<DocPage, "process" | "capability" | "audience">): string {
+// The section an Understand page is shown in, for each reader.
+const VIEW_FOLDER: Readonly<Record<View, Section>> = { user: "use", operator: "operate" };
+
+// Where each page lands in the site, relative to its root. An Understand page lands twice, once
+// in each reader's section.
+export function pageFile(
+  page: Pick<DocPage, "process" | "section" | "topic">,
+  view: View = "user",
+): string {
   const folder = `processes/${page.process}`;
-  if (page.audience === "technical") {
-    return `${folder}/${page.capability}.technical.html`;
-  }
-  return page.capability === OVERVIEW
-    ? `${folder}/index.html`
-    : `${folder}/${page.capability}.html`;
+  return page.section === "understand"
+    ? `${folder}/${VIEW_FOLDER[view]}/understand/${page.topic}.html`
+    : `${folder}/${page.section}/${page.topic}.html`;
+}
+
+export function sectionHome(process: string, section: Section): string {
+  return `processes/${process}/${section}/index.html`;
+}
+
+// From a file to the site root: "" for index.html, "../../" for processes/<p>/index.html…
+export function prefixOf(file: string): string {
+  return "../".repeat(file.split("/").length - 1);
 }
 
 // Shown to the embedding page by the player's height messages; nothing else is accepted.
@@ -20,15 +33,22 @@ const RESIZE_SCRIPT =
   "<script>addEventListener('message',function(e){document.querySelectorAll('iframe.player').forEach(function(f){" +
   "if(e.source===f.contentWindow&&e.data&&e.data.snagenticAnimH){f.style.height=e.data.snagenticAnimH+'px';}});});</script>";
 
+export interface Crumb {
+  // Relative to the site root.
+  readonly href: string;
+  readonly text: string;
+}
+
 export function layout(
   config: SiteConfig,
   title: string,
-  prefix: string,
-  crumbs: readonly { readonly href: string; readonly text: string }[],
+  file: string,
+  crumbs: readonly Crumb[],
   main: string,
 ): string {
+  const prefix = prefixOf(file);
   const trail = crumbs
-    .map((crumb) => `<a href="${crumb.href}">${escapeHtml(crumb.text)}</a>`)
+    .map((crumb) => `<a href="${prefix}${crumb.href}">${escapeHtml(crumb.text)}</a>`)
     .join(" › ");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title><link rel="stylesheet" href="${prefix}assets/site.css"></head><body>
@@ -71,11 +91,12 @@ export function staleIds(
     .map(([id]) => id);
 }
 
-export function staleNotice(ids: readonly string[], audience: DocPage["audience"]): string {
+// Readers of a guide get a plain notice; the platform team gets the evidence that changed.
+export function staleNotice(ids: readonly string[], kind: "guide" | "technical"): string {
   if (ids.length === 0) {
     return "";
   }
-  if (audience === "guide") {
+  if (kind === "guide") {
     return '<div class="stale">The platform changed since this guide was checked. Some steps may be out of date; the platform team has been told.</div>';
   }
   const links = ids.map((id) => `<a href="#${id}">${id}</a>`).join(", ");

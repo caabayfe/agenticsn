@@ -486,7 +486,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic docs check [options]
 ```
 
-Check the workspace's documentation (documentation/) against the instance's mirror: evidence whose record changed or is gone, citations of unknown evidence, missing animations or pair pages. Exits 1 when a page is no longer true. Reads only the mirror.
+Check the workspace's documentation (documentation/) against the instance's mirror: evidence whose record changed or is gone, citations of unknown evidence, missing animations, and the sections: shared pages, end user and operator guides, configure pages. Exits 1 when a page is no longer true or a source has an error. Reads only the mirror.
 
 Changes the instance: no. MCP tool: none.
 
@@ -498,7 +498,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic docs pin [page] [options]
 ```
 
-Record the mirror's current hash in the evidence of the documentation pages (all, or one page by path or code). Run it only after re-verifying the claims the evidence supports. Lists evidence whose record is gone: those claims must be rewritten.
+Record the mirror's current hash in the evidence of the documentation pages (all, or a page by path, a process, or <process>/<topic>). Run it only after re-verifying the claims the evidence supports. Lists evidence whose record is gone: those claims must be rewritten.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

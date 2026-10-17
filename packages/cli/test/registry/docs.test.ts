@@ -17,7 +17,7 @@ import { FAKE_CONTEXT } from "../support/fakes";
 
 const RULE = "0c1345dd0783f01028ef0a701ad300fa";
 const RECORD = `instances/pdi2/metadata/global/sys_script/set-group--${RULE}.yaml`;
-const PAGE = "documentation/processes/incident/assign.technical.md";
+const PAGE = "documentation/processes/incident/configure/assign.md";
 
 let base: string;
 let root: string;
@@ -98,14 +98,14 @@ describe("snagentic docs", () => {
     expect(first.ok).toBe(true);
     expect(docsCheck.exitCode(first)).toBe(0);
     expect(docsCheck.render(first, "text")).toContain(
-      "unpinned  processes/incident/assign.technical.md E01",
+      "unpinned  processes/incident/configure/assign.md E01",
     );
 
     const pinned = await docsPin.handle({}, context(), run);
     expect(pinned.pinned.map((item) => item.id)).toEqual(["E01"]);
     expect(docsPin.exitCode(pinned)).toBe(0);
     expect(docsPin.render(pinned, "text")).toContain(
-      "pinned 1 evidence\n  processes/incident/assign.technical.md E01",
+      "pinned 1 evidence\n  processes/incident/configure/assign.md E01",
     );
     expect(readFileSync(join(root, PAGE), "utf8")).toContain("hash: h1");
 
@@ -130,12 +130,12 @@ describe("snagentic docs", () => {
       readFileSync(join(root, PAGE), "utf8").replace("    how:", "    hash: old\n    how:"),
     );
     const built = await docsBuild.handle({ audio: false, voice: "none" }, context(), run);
-    expect(built.files).toBe(4);
+    expect(built.files).toBe(7);
     expect(built.ok).toBe(false);
     expect(docsBuild.render(built, "text")).toContain("some pages are out of date");
     expect(docsBuild.exitCode(built)).toBe(0);
     expect(
-      readFileSync(join(root, ".snagentic/site/processes/incident/assign.technical.html"), "utf8"),
+      readFileSync(join(root, ".snagentic/site/processes/incident/configure/assign.html"), "utf8"),
     ).toContain("status-changed");
   });
 
@@ -147,7 +147,7 @@ describe("snagentic docs", () => {
     );
     expect(served).toEqual({ port: 4999 });
     expect(result.url).toBe("http://127.0.0.1:4999/");
-    expect(progress[0]).toContain("serving 4 files at http://127.0.0.1:4999/");
+    expect(progress[0]).toContain("serving 7 files at http://127.0.0.1:4999/");
     expect(docsServe.render(result, "text")).toBe("stopped serving http://127.0.0.1:4999/");
     expect(docsServe.exitCode(result)).toBe(0);
   });

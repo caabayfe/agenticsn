@@ -27,7 +27,7 @@ async function list(root: string, pattern: string): Promise<string[]> {
 }
 
 // documentation/ in the workspace: site.yaml, processes/<id>/process.yaml and its pages
-// (<capability>.guide.md, <capability>.technical.md), animations/<name>/ (ADR-0034).
+// (<section>/<topic>.md), animations/<name>/ (ADR-0034, spec 010a).
 export class FsDocumentationSources implements DocumentationSources {
   private readonly root: string;
 
@@ -50,7 +50,7 @@ export class FsDocumentationSources implements DocumentationSources {
 
   async pages(): Promise<readonly PageSource[]> {
     const pages: PageSource[] = [];
-    for (const path of await list(this.root, "processes/*/*.md")) {
+    for (const path of await list(this.root, "processes/*/*/*.md")) {
       const split = splitFrontMatter(await readFile(join(this.root, path), "utf8"));
       pages.push({
         path,

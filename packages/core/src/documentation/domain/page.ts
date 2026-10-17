@@ -1,17 +1,21 @@
 import { DocumentationSourceError } from "./errors";
 import { type Evidence, parseEvidence } from "./evidence";
 import { type Fields, fieldsOf } from "./fields";
+import { isView, viewMarks } from "./views";
 
-export const AUDIENCES = ["guide", "technical"] as const;
-export type Audience = (typeof AUDIENCES)[number];
+// The sections of a process (spec 010a): Understand is shared by end users and operators and
+// shown to each in their own view; Use is for end users, Operate for operators, Configure for
+// the platform team.
+export const SECTIONS = ["understand", "use", "operate", "configure"] as const;
+export type Section = (typeof SECTIONS)[number];
 
 export interface DocPage {
-  // Relative to documentation/: processes/<process>/<capability>.<audience>.md.
+  // Relative to documentation/: processes/<process>/<section>/<topic>.md.
   readonly path: string;
   readonly process: string;
-  // A capability of the process, or "overview" for the process's own page.
-  readonly capability: string;
-  readonly audience: Audience;
+  readonly section: Section;
+  // A shared topic (understand), a capability (use, operate), or any configured subject.
+  readonly topic: string;
   readonly title: string;
   readonly reviewed?: string;
   readonly evidence: readonly Evidence[];
@@ -19,7 +23,12 @@ export interface DocPage {
 }
 
 export interface PageProblem {
-  readonly kind: "unknown-citation" | "uncited-evidence" | "no-evidence";
+  readonly kind:
+    | "unknown-citation"
+    | "uncited-evidence"
+    | "no-evidence"
+    | "misplaced-view"
+    | "unknown-view";
   readonly page: string;
   readonly detail: string;
 }
@@ -57,28 +66,28 @@ function optional(fields: Fields, name: string): string | undefined {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
 }
 
-function isAudience(value: string): value is Audience {
-  return (AUDIENCES as readonly string[]).includes(value);
+function isSection(value: string): value is Section {
+  return (SECTIONS as readonly string[]).includes(value);
 }
 
-const PAGE_PATH = /^processes\/([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*)\.(guide|technical)\.md$/;
+const PAGE_PATH = /^processes\/([a-z][a-z0-9-]*)\/([a-z]+)\/([a-z][a-z0-9-]*)\.md$/;
 
 export function parseDocPage(
   path: string,
   source: { readonly frontMatter: unknown; readonly body: string },
 ): DocPage {
   const match = PAGE_PATH.exec(path);
-  const audience = match?.[3];
+  const section = match?.[2];
   if (
     match === null ||
     match[1] === undefined ||
-    match[2] === undefined ||
-    audience === undefined ||
-    !isAudience(audience)
+    match[3] === undefined ||
+    section === undefined ||
+    !isSection(section)
   ) {
     throw new DocumentationSourceError(
       path,
-      "pages are processes/<process>/<capability>.guide.md or .technical.md",
+      `pages are processes/<process>/<section>/<topic>.md, the section one of ${SECTIONS.join(", ")}`,
     );
   }
   const fields = fieldsOf(source.frontMatter);
@@ -86,8 +95,8 @@ export function parseDocPage(
   return {
     path,
     process: match[1],
-    capability: match[2],
-    audience,
+    section,
+    topic: match[3],
     title: required(path, fields, "title"),
     ...(reviewed === undefined ? {} : { reviewed }),
     evidence: parseEvidence(path, fields["evidence"]),
@@ -116,8 +125,15 @@ export function pageProblems(page: DocPage): readonly PageProblem[] {
       problems.push({ kind: "uncited-evidence", page: page.path, detail: item.id });
     }
   }
-  if (page.audience === "technical" && page.evidence.length === 0) {
-    problems.push({ kind: "no-evidence", page: page.path, detail: page.capability });
+  if (page.section === "configure" && page.evidence.length === 0) {
+    problems.push({ kind: "no-evidence", page: page.path, detail: page.topic });
+  }
+  for (const mark of viewMarks(proseOf(page.body))) {
+    if (!isView(mark)) {
+      problems.push({ kind: "unknown-view", page: page.path, detail: mark });
+    } else if (page.section !== "understand") {
+      problems.push({ kind: "misplaced-view", page: page.path, detail: mark });
+    }
   }
   return problems;
 }

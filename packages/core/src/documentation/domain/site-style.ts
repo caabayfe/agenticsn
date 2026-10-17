@@ -55,4 +55,12 @@ a.config{font-size:13px}
 .verified summary{cursor:pointer;color:var(--mute)}
 .tip,.note,.warning{margin:12px 0;padding:10px 12px;border-radius:0 6px 6px 0;border-left:4px solid var(--blue);background:var(--blueL)}
 .warning{border-left-color:var(--amber);background:var(--amberL)}
+.status-seen{background:var(--blueL);color:var(--blue)}
+.status-recheck{background:var(--amberL);color:var(--amber)}
+.doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:16px 0}
+.door{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);text-decoration:none}
+.door:hover{border-color:var(--blue)}
+.door strong{display:block;font-size:18px;color:var(--blue)}
+.door span{display:block;font-size:14px;color:var(--ink2);margin-top:4px}
+.counterpart{margin:20px 0;padding:10px 12px;border-left:4px solid var(--purple);background:var(--purpleL);border-radius:0 6px 6px 0;font-size:15px}
 `;

@@ -9,10 +9,15 @@ export const docsPin = defineUseCase({
   group: "docs",
   name: "pin",
   description:
-    "Record the mirror's current hash in the evidence of the documentation pages (all, or one page " +
-    "by path or code). Run it only after re-verifying the claims the evidence supports. Lists " +
+    "Record the mirror's current hash in the evidence of the documentation pages (all, or a page " +
+    "by path, a process, or <process>/<topic>). Run it only after re-verifying the claims the evidence supports. Lists " +
     "evidence whose record is gone: those claims must be rewritten.",
-  input: z.object({ page: z.string().optional().describe("a page path or code (default: all)") }),
+  input: z.object({
+    page: z
+      .string()
+      .optional()
+      .describe("a page path, a process or <process>/<topic> (default: all)"),
+  }),
   output: z.object({ pinned: z.array(Item), missing: z.array(Item) }),
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: false,
@@ -20,7 +25,7 @@ export const docsPin = defineUseCase({
   async handle(input, context, run) {
     const root = await workspaceRoot(context);
     const result = await pinDocs(
-      { ...context.documentation(root), root, signal: run.signal },
+      { ...context.documentation(root), root, signal: run.signal, clock: context.clock },
       input.page === undefined ? {} : { page: input.page },
     );
     return { pinned: [...result.pinned], missing: [...result.missing] };

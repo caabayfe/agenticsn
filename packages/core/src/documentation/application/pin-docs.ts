@@ -1,10 +1,11 @@
 import type { DocsCheck } from "./check-docs";
-import { assessDocumentation, type CheckDocsDependencies } from "./check-docs";
+import { assessDocumentation, type CheckDocsDependencies, todayOf } from "./check-docs";
 import { loadDocumentation } from "./load-documentation";
 
 export interface PinDocsQuery {
-  // Only this page (its path under documentation/), or the pages of a process or of one
-  // capability (<process> or <process>/<capability>); all pages when absent.
+  // Only this page (its path under documentation/), or the pages of a process, of one topic in
+  // every section, or of one section's topic (<process>, <process>/<topic>,
+  // <process>/<section>/<topic>); all pages when absent.
   readonly page?: string;
 }
 
@@ -39,11 +40,13 @@ export async function pinDocs(
           (page) =>
             page.path === query.page ||
             page.process === query.page ||
-            `${page.process}/${page.capability}` === query.page,
+            `${page.process}/${page.topic}` === query.page ||
+            `${page.process}/${page.section}/${page.topic}` === query.page,
         );
   const check = await assessDocumentation(
     { ...docs, pages: selected },
     deps.mirror(docs.config.instance),
+    todayOf(deps.clock),
     deps.signal,
   );
   const toPin = pinnable(check);

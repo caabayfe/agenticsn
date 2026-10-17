@@ -42,7 +42,7 @@ describe("documentation sources on disk", () => {
   it("reads site.yaml, the processes, their pages and the animations", async () => {
     write("documentation/site.yaml", "title: Docs\ninstance: pdi2\n");
     write("documentation/processes/incident/process.yaml", "title: Incident management\n");
-    write("documentation/processes/incident/assign.technical.md", PAGE);
+    write("documentation/processes/incident/configure/assign.md", PAGE);
     write("documentation/animations/asg/animation.json", '{"name":"asg"}');
     write("documentation/animations/asg/scene.svg", '<svg><g id="cam"></g></svg>');
     write("documentation/animations/asg/steps.json", '[{"t":"A","c":"B","say":"C"}]');
@@ -52,7 +52,7 @@ describe("documentation sources on disk", () => {
       { path: "processes/incident/process.yaml", process: { title: "Incident management" } },
     ]);
     const [page] = await sources.pages();
-    expect(page?.path).toBe("processes/incident/assign.technical.md");
+    expect(page?.path).toBe("processes/incident/configure/assign.md");
     expect(page?.body).toBe("## Rules\n\nThe rule sets the group. [E01]\n");
     const [scene] = await sources.scenes();
     expect(scene).toMatchObject({ path: "animations/asg", css: null, steps: [{ t: "A" }] });
@@ -63,16 +63,16 @@ describe("documentation sources on disk", () => {
   });
 
   it("pins hashes in the front matter and keeps comments, order and the body as written", async () => {
-    write("documentation/processes/incident/assign.technical.md", PAGE);
+    write("documentation/processes/incident/configure/assign.md", PAGE);
     await new FsDocumentationSources(root).pinHashes(
-      "processes/incident/assign.technical.md",
+      "processes/incident/configure/assign.md",
       new Map([
         ["E01", "abc123"],
         ["E09", "not listed"],
       ]),
     );
     const after = readFileSync(
-      join(root, "documentation/processes/incident/assign.technical.md"),
+      join(root, "documentation/processes/incident/configure/assign.md"),
       "utf8",
     );
     expect(after).toBe(
@@ -88,7 +88,7 @@ describe("mirror records on disk", () => {
   const BASE =
     "instances/pdi2/metadata/global/sys_script/set-group--0c1345dd0783f01028ef0a701ad300fa";
 
-  it("reads a record's hash and fields, long fields from their own files", async () => {
+  it("reads a record's hash and fields, long fields and children from their own files", async () => {
     write(`${BASE}.yaml`, "_meta:\n  hash: 3d9d\n  sys_id: 0c13\nname: Set group\nwhen: before\n");
     write(`${BASE}.script.js`, "current.assignment_group = g;\n");
     write(`${BASE}.children.sys_x.yaml`, "rows: []\n");
@@ -97,6 +97,7 @@ describe("mirror records on disk", () => {
     expect(record).toEqual({
       hash: "3d9d",
       fields: { name: "Set group", when: "before", script: "current.assignment_group = g;\n" },
+      children: { sys_x: "rows: []\n" },
     });
     expect(await mirror.head()).toBe("c0ffee");
   });

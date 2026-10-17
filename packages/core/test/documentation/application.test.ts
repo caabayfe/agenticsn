@@ -1,201 +1,70 @@
 import { describe, expect, it } from "bun:test";
-import { createHash } from "node:crypto";
+import { checkDocs, NoDocumentationError, pinDocs } from "@snagentic/core";
 import {
-  buildSite,
-  checkDocs,
-  type DocumentationSources,
-  type MediaTools,
-  type MirrorRecord,
-  type MirrorRecords,
-  NoDocumentationError,
-  type PageSource,
-  pinDocs,
-  type SceneSource,
-} from "@snagentic/core";
+  ALL,
+  fakeMirror,
+  fakeSources,
+  PROCESS,
+  pages,
+  RULE,
+  run,
+  SCRIPT,
+  sha256Hex,
+  withPage,
+} from "../support/docs-fixtures";
 
-const sha256Hex = (text: string) => createHash("sha256").update(text).digest("hex");
-
-const RULE = "0c1345dd0783f01028ef0a701ad300fa";
-const SCRIPT = "function onBefore() { current.assignment_group = group; }";
-
-const PROCESS = {
-  path: "processes/incident/process.yaml",
-  process: {
-    title: "Incident management",
-    summary: "Get people working again as fast as possible.",
-    roles: [
-      { id: "caller", name: "Caller", description: "anyone who reports a problem" },
-      { id: "agent", name: "Service desk agent" },
-    ],
-    lifecycle: [
-      { state: "New", meaning: "logged, nobody working on it yet" },
-      { state: "In Progress", meaning: "someone is working on it" },
-    ],
-    capabilities: [
-      {
-        id: "report",
-        title: "Report an incident",
-        summary: "Tell us what is wrong.",
-        roles: ["caller"],
-      },
-      {
-        id: "assign",
-        title: "Assign an incident",
-        summary: "Get it to the right team.",
-        roles: ["agent"],
-      },
-    ],
-  },
+const without = (...paths: string[]) => ALL.filter((page) => !paths.includes(page.path));
+const problemsOf = async (list = ALL, options = {}) => {
+  const { sources } = fakeSources(list, options);
+  return checkDocs({ ...run, sources });
 };
-
-function fakeSources(pages: PageSource[], scenes: SceneSource[] = [], site: unknown = undefined) {
-  const pinned = new Map<string, Map<string, string>>();
-  const sources: DocumentationSources = {
-    site: async () =>
-      site === undefined
-        ? { title: "Incident docs", instance: "pdi2", footer: "Prepared with snagentic." }
-        : site,
-    processes: async () => [PROCESS],
-    pages: async () => pages,
-    scenes: async () => scenes,
-    pinHashes: async (path, hashes) => {
-      pinned.set(path, new Map(hashes));
-    },
-  };
-  return { sources, pinned };
-}
-
-function fakeMirror(records: Record<string, MirrorRecord>): MirrorRecords {
-  return {
-    read: async (table, sysId) => records[`${table}/${sysId}`] ?? null,
-    head: async () => "4db7753abcdef0123456789",
-  };
-}
-
-const technical = (
-  evidence: Record<string, unknown>,
-  body = "The rule sets the group. [E01]",
-): PageSource => ({
-  path: "processes/incident/assign.technical.md",
-  frontMatter: { title: "Assignment configuration", evidence },
-  body,
+const process = (change: (capabilities: typeof PROCESS.capabilities) => unknown[]) => ({
+  ...PROCESS,
+  capabilities: change(PROCESS.capabilities),
 });
 
-const assignGuide: PageSource = {
-  path: "processes/incident/assign.guide.md",
-  frontMatter: { title: "Assign an incident" },
-  body: "## Who gets the incident {label=NEW}\n\nThe group is set for you. [E01]\n\n{{animation:asg}}\n",
-};
-
-const reportGuide: PageSource = {
-  path: "processes/incident/report.guide.md",
-  frontMatter: { title: "Report an incident" },
-  body: "Open the portal.",
-};
-
-const overview: PageSource = {
-  path: "processes/incident/overview.guide.md",
-  frontMatter: { title: "Incident management" },
-  body: "An incident is anything that stops you working.",
-};
-
-const scene: SceneSource = {
-  path: "animations/asg",
-  animation: { name: "asg", title: "Assignment", heading: "How a group is chosen" },
-  svg: '<svg viewBox="0 0 960 440"><g id="cam"></g></svg>',
-  css: null,
-  steps: [{ t: "Saved", c: "The incident is saved.", say: "The incident is saved." }],
-};
-
-const NO_MEDIA: MediaTools = {
-  codec: {
-    available: async () => false,
-    decode: async () => new Float32Array(0),
-    encodeMp3: async () => new Uint8Array(0),
-  },
-  voices: [],
-  assets: { bed: async () => null, sound: async () => null },
-  video: { available: async () => false, render: async () => new Uint8Array(0) },
-  videos: { write: async (name) => `/videos/${name}.mp4` },
-};
-
-const record: MirrorRecord = { hash: "aaa", fields: { script: SCRIPT, name: "Set group" } };
-const mirrored = () => fakeMirror({ [`sys_script/${RULE}`]: record });
-const run = { root: "/ws", signal: new AbortController().signal };
-const evidence = (extra: Record<string, unknown>) => ({
-  E01: { record: `sys_script/${RULE}`, how: "read it", result: "sets the group", ...extra },
-});
-
-describe("docs check", () => {
-  it("passes when every piece of evidence still matches the mirror", async () => {
-    const { sources } = fakeSources([
-      reportGuide,
-      { ...assignGuide, body: "Done for you." },
-      technical(evidence({ field: "script", hash: sha256Hex(SCRIPT) })),
-    ]);
-    const check = await checkDocs({ ...run, sources, mirror: mirrored });
+describe("docs check: evidence", () => {
+  it("passes a complete process: shared pages, guides for both readers, configure pages", async () => {
+    const check = await problemsOf();
+    expect(check.problems).toEqual([]);
     expect(check.ok).toBe(true);
-    expect(check.processes).toBe(1);
-    expect(check.evidence.map((item) => item.status)).toEqual(["fresh"]);
+    expect(check.pages).toBe(8);
+    expect(new Set(check.evidence.map((item) => item.status))).toEqual(new Set(["fresh", "seen"]));
   });
 
   it("fails when the anchored field changed in the mirror", async () => {
-    const { sources } = fakeSources([
-      technical(evidence({ field: "script", hash: sha256Hex("old") })),
-    ]);
-    const check = await checkDocs({ ...run, sources, mirror: mirrored });
+    const changed = { hash: "aaa", fields: { script: "new()" } };
+    const { sources } = fakeSources(ALL);
+    const check = await checkDocs({
+      ...run,
+      sources,
+      mirror: () => fakeMirror({ [`sys_script/${RULE}`]: changed }),
+    });
     expect(check.ok).toBe(false);
-    expect(check.evidence[0]).toMatchObject({
+    expect(check.evidence.find((item) => item.page === pages.configureAssign.path)).toMatchObject({
       status: "changed",
       anchor: `sys_script/${RULE}#script`,
     });
   });
 
-  it("fails when the record is gone from the mirror", async () => {
-    const { sources } = fakeSources([technical(evidence({ hash: "aaa" }))]);
+  it("fails when a record is gone from the mirror", async () => {
+    const { sources } = fakeSources(ALL);
     const check = await checkDocs({ ...run, sources, mirror: () => fakeMirror({}) });
     expect(check.ok).toBe(false);
-    expect(check.evidence[0]?.status).toBe("missing");
+    expect(check.evidence.filter((item) => item.status === "missing")).toHaveLength(5);
   });
 
-  it("passes unpinned evidence but reports it", async () => {
-    const { sources } = fakeSources([technical(evidence({}))]);
-    const check = await checkDocs({ ...run, sources, mirror: mirrored });
-    expect(check.ok).toBe(true);
-    expect(check.evidence[0]?.status).toBe("unpinned");
-  });
-
-  it("reports capabilities without a user guide, without failing", async () => {
-    const { sources } = fakeSources([reportGuide]);
-    const check = await checkDocs({ ...run, sources, mirror: mirrored });
+  it("asks for a person's check of a screen to be redone after 90 days, without failing", async () => {
+    const { sources } = fakeSources(ALL);
+    const check = await checkDocs({ ...run, sources, clock: () => new Date("2027-01-15") });
     expect(check.ok).toBe(true);
     expect(check.problems).toEqual([
-      { kind: "missing-guide", page: "processes/incident/process.yaml", detail: "assign" },
-    ]);
-  });
-
-  it("fails on unknown citations, animations, capabilities and processes", async () => {
-    const { sources } = fakeSources([
-      reportGuide,
-      assignGuide,
       {
-        path: "processes/incident/escalate.guide.md",
-        frontMatter: { title: "Escalate" },
-        body: "",
+        kind: "recheck-seen",
+        severity: "warning",
+        page: pages.confirm.path,
+        detail: "E01 seen by A. Reviewer on 2026-10-01: Employee Center › My Requests",
       },
-      { path: "processes/problem/overview.guide.md", frontMatter: { title: "Problem" }, body: "" },
-    ]);
-    const check = await checkDocs({ ...run, sources, mirror: mirrored });
-    expect(check.ok).toBe(false);
-    expect(check.problems).toEqual([
-      { kind: "unknown-citation", page: "processes/incident/assign.guide.md", detail: "E01" },
-      { kind: "unknown-animation", page: "processes/incident/assign.guide.md", detail: "asg" },
-      {
-        kind: "unknown-capability",
-        page: "processes/incident/escalate.guide.md",
-        detail: "escalate",
-      },
-      { kind: "unknown-process", page: "processes/problem/overview.guide.md", detail: "problem" },
     ]);
   });
 
@@ -207,45 +76,168 @@ describe("docs check", () => {
       sources,
       mirror: (instance) => {
         asked.push(instance);
-        return fakeMirror({});
+        return fakeMirror();
       },
     });
     expect(asked).toEqual(["pdi2"]);
   });
 
   it("explains how to start when the workspace has no documentation", async () => {
-    const { sources } = fakeSources([], [], null);
-    await expect(checkDocs({ ...run, sources, mirror: mirrored })).rejects.toThrow(
-      NoDocumentationError,
-    );
+    const { sources } = fakeSources([], { site: null });
+    await expect(checkDocs({ ...run, sources })).rejects.toThrow(NoDocumentationError);
+  });
+});
+
+describe("docs check: sections and readers", () => {
+  it("fails a capability whose roles are both end users and operators", async () => {
+    const check = await problemsOf(ALL, {
+      process: process((list) =>
+        list.map((item) => (item.id === "assign" ? { ...item, roles: ["agent", "caller"] } : item)),
+      ),
+    });
+    expect(check.ok).toBe(false);
+    expect(check.problems).toContainEqual({
+      kind: "mixed-audience",
+      severity: "error",
+      page: "processes/incident/process.yaml",
+      detail: "assign",
+    });
+  });
+
+  it("fails an operator's capability written as an end user's page", async () => {
+    const check = await problemsOf([
+      ...ALL,
+      withPage(pages.assign, { path: "processes/incident/use/assign.md" }),
+    ]);
+    expect(check.ok).toBe(false);
+    expect(check.problems).toContainEqual({
+      kind: "wrong-section",
+      severity: "error",
+      page: "processes/incident/use/assign.md",
+      detail: "assign is for operators",
+    });
+  });
+
+  it("fails a counterpart that doesn't point back", async () => {
+    const check = await problemsOf(ALL, {
+      process: process((list) =>
+        list.map((item) => {
+          if (item.id !== "confirm") {
+            return item;
+          }
+          const { counterpart: _dropped, ...rest } = item;
+          return rest;
+        }),
+      ),
+    });
+    expect(check.problems).toContainEqual({
+      kind: "bad-counterpart",
+      severity: "error",
+      page: "processes/incident/process.yaml",
+      detail: "resolve → confirm",
+    });
+  });
+
+  it("fails an operator's capability with no configure page", async () => {
+    const check = await problemsOf(without(pages.configureAssign.path));
+    expect(check.ok).toBe(false);
+    expect(check.problems).toContainEqual({
+      kind: "missing-configure",
+      severity: "error",
+      page: "processes/incident/process.yaml",
+      detail: "assign → configure/assign.md",
+    });
+  });
+
+  it("fails shared pages that aren't listed, and unknown capabilities and processes", async () => {
+    const check = await problemsOf([
+      ...ALL,
+      { path: "processes/incident/understand/history.md", frontMatter: { title: "H" }, body: "" },
+      { path: "processes/incident/operate/escalate.md", frontMatter: { title: "E" }, body: "" },
+      { path: "processes/problem/use/report.md", frontMatter: { title: "P" }, body: "" },
+    ]);
+    const errors = check.problems.filter((problem) => problem.severity === "error");
+    expect(errors.map((problem) => [problem.kind, problem.detail])).toEqual([
+      ["unknown-topic", "history"],
+      ["unknown-capability", "escalate"],
+      ["unknown-process", "problem"],
+    ]);
+  });
+
+  it("reports missing pages and roles with nothing to do, without failing", async () => {
+    const check = await problemsOf(without(pages.lifecycle.path, pages.report.path), {
+      process: { ...PROCESS, roles: [...PROCESS.roles, { id: "lead", audience: "operator" }] },
+    });
+    expect(check.ok).toBe(true);
+    expect(check.problems.map((problem) => [problem.kind, problem.detail])).toEqual([
+      ["missing-page", "use/report.md"],
+      ["missing-page", "understand/lifecycle.md"],
+      ["unused-role", "lead"],
+    ]);
+  });
+
+  it("warns about platform words in what end users read, including the user view of shared pages", async () => {
+    const check = await problemsOf([
+      ...without(pages.report.path, pages.lifecycle.path),
+      withPage(pages.report, { body: "Set state=3 and fill caller_id; add work notes. [E01]" }),
+      withPage(pages.lifecycle, { body: "The incident_state moves on." }),
+    ]);
+    expect(check.ok).toBe(true);
+    expect(check.problems).toEqual([
+      {
+        kind: "platform-words",
+        severity: "warning",
+        page: pages.report.path,
+        detail: "caller_id, state=3, work notes",
+      },
+      {
+        kind: "platform-words",
+        severity: "warning",
+        page: pages.lifecycle.path,
+        detail: "incident_state",
+      },
+    ]);
+  });
+
+  it("warns about a guide that cites nothing from its reader's screens", async () => {
+    const check = await problemsOf([
+      ...without(pages.assign.path),
+      withPage(pages.assign, {
+        frontMatter: {
+          title: "Assign",
+          evidence: { E01: { record: `sys_script/${RULE}`, how: "h", result: "r" } },
+        },
+        body: "Done for you. [E01]",
+      }),
+    ]);
+    expect(check.problems).toEqual([
+      {
+        kind: "unchecked-surface",
+        severity: "warning",
+        page: pages.assign.path,
+        detail: "no evidence from the operator's screens",
+      },
+    ]);
   });
 });
 
 describe("docs pin", () => {
+  const technical = withPage(pages.configureAssign, {
+    frontMatter: {
+      title: "Assignment configuration",
+      evidence: {
+        E01: { record: `sys_script/${RULE}`, field: "script", hash: "old", how: "h", result: "r" },
+        E02: { record: `sys_script/${RULE}`, how: "h", result: "r" },
+        E03: { record: "sys_script/ffff0000000000000000000000000000", hash: "x", how: "h" },
+      },
+    },
+    body: "[E01] [E02] [E03]",
+  });
+
   it("records the mirror's current hash for changed and unpinned evidence, and lists what is gone", async () => {
-    const { sources, pinned } = fakeSources([
-      technical(
-        {
-          E01: {
-            record: `sys_script/${RULE}`,
-            field: "script",
-            hash: "old",
-            how: "h",
-            result: "r",
-          },
-          E02: { record: `sys_script/${RULE}`, how: "h", result: "r" },
-          E03: {
-            record: "sys_script/ffff0000000000000000000000000000",
-            hash: "x",
-            how: "h",
-            result: "r",
-          },
-        },
-        "[E01] [E02] [E03]",
-      ),
-    ]);
-    const result = await pinDocs({ ...run, sources, mirror: mirrored }, {});
-    expect(pinned.get("processes/incident/assign.technical.md")).toEqual(
+    const { sources, pinned } = fakeSources([technical]);
+    const result = await pinDocs({ ...run, sources }, {});
+    expect(pinned.get(pages.configureAssign.path)).toEqual(
       new Map([
         ["E01", sha256Hex(SCRIPT)],
         ["E02", "aaa"],
@@ -255,113 +247,26 @@ describe("docs pin", () => {
     expect(result.missing.map((item) => item.id)).toEqual(["E03"]);
   });
 
-  it("pins the pages of one capability, or nothing when none match", async () => {
-    const { sources, pinned } = fakeSources([technical(evidence({}))]);
-    await pinDocs({ ...run, sources, mirror: mirrored }, { page: "incident/report" });
+  it("never pins a person's check of a screen", async () => {
+    const { sources, pinned } = fakeSources([pages.confirm]);
+    const result = await pinDocs({ ...run, sources }, {});
+    expect(result.pinned).toEqual([]);
     expect(pinned.size).toBe(0);
-    await pinDocs({ ...run, sources, mirror: mirrored }, { page: "incident/assign" });
-    expect(pinned.size).toBe(1);
   });
-});
 
-describe("docs build", () => {
-  async function build(pages: PageSource[]) {
-    const { sources } = fakeSources(pages, [scene]);
-    let written: readonly { path: string; content: string | Uint8Array }[] = [];
-    const result = await buildSite({
-      ...run,
-      sources,
-      mirror: mirrored,
-      markdown: { html: (md) => `<md>${md}</md>` },
-      output: {
-        root: "/ws/.snagentic/site",
-        replace: async (files) => {
-          written = files;
-        },
+  it("pins a topic in every section, one section's topic, or nothing when none match", async () => {
+    const unpinned = withPage(pages.resolve, {
+      frontMatter: {
+        title: "Resolve",
+        evidence: { E01: { record: `sys_script/${RULE}`, how: "h", result: "r" } },
       },
-      clock: () => new Date("2026-10-17T10:00:00Z"),
-      media: NO_MEDIA,
     });
-    const file = (path: string) =>
-      String(written.find((item) => item.path === path)?.content ?? "");
-    return { result, written, file };
-  }
-
-  const all = [
-    overview,
-    reportGuide,
-    { ...assignGuide, body: assignGuide.body.replace(" [E01]", "") },
-    technical(evidence({ hash: "old" })),
-  ];
-
-  it("writes the index, a page per process, each capability's pages, animations and the stylesheet", async () => {
-    const { result, written } = await build(all);
-    expect(written.map((item) => item.path).sort()).toEqual([
-      "animations/asg.html",
-      "assets/site.css",
-      "index.html",
-      "processes/incident/assign.html",
-      "processes/incident/assign.technical.html",
-      "processes/incident/index.html",
-      "processes/incident/report.html",
-    ]);
-    expect(result.files).toBe(7);
-  });
-
-  it("presents the process to its consumers: roles, where each starts, lifecycle and numbered capabilities", async () => {
-    const { file } = await build(all);
-    const process = file("processes/incident/index.html");
-    expect(process).toContain("Get people working again as fast as possible.");
-    expect(process).toContain("<strong>Caller</strong> — anyone who reports a problem");
-    expect(process).toContain('What you do:</span> <a href="report.html">Report an incident</a>');
-    expect(process).toContain("<strong>In Progress</strong><span>someone is working on it</span>");
-    expect(process).toContain("An incident is anything that stops you working.");
-    expect(process).toContain(
-      '<span class="num">2.</span> <a href="assign.html">Assign an incident</a>',
-    );
-    expect(file("index.html")).toContain(
-      '<a href="processes/incident/index.html">Incident management</a>',
-    );
-  });
-
-  it("gives each guide its audience, its place in the process and the way to the next step", async () => {
-    const { file } = await build(all);
-    const guide = file("processes/incident/assign.html");
-    expect(guide).toContain('<span class="num">2.</span> Assign an incident');
-    expect(guide).toContain("For: Service desk agent");
-    expect(guide).toContain('<a rel="prev" href="report.html">← Report an incident</a>');
-    expect(guide).toContain('href="assign.technical.html">How it is configured</a>');
-    expect(guide).toContain('<span class="label label-new">NEW</span>');
-    expect(guide).toContain('src="../../animations/asg.html" sandbox="allow-scripts"');
-    expect(guide).toContain("The platform changed since this guide was checked");
-  });
-
-  it("keeps configuration evidence on the technical page and links back to the guide", async () => {
-    const { file } = await build(all);
-    const page = file("processes/incident/assign.technical.html");
-    expect(page).toContain('<a class="cite" href="#E01">E01</a>');
-    expect(page).toContain('<span class="status status-changed">changed</span>');
-    expect(page).toContain("The instance changed since this page was reviewed");
-    expect(page).toContain(
-      'href="../../processes/incident/assign.html">User guide: Assign an incident</a>',
-    );
-    expect(file("index.html")).toContain(
-      "Checked against pdi2 on 2026-10-17 (mirror 4db7753abcde)",
-    );
-  });
-
-  it("shows a guide's own evidence folded, for readers who want to know how it was checked", async () => {
-    const { file } = await build([
-      {
-        ...reportGuide,
-        frontMatter: { title: "Report", evidence: evidence({ hash: "aaa" }) },
-        body: "Use the portal. [E01]",
-      },
-    ]);
-    const guide = file("processes/incident/report.html");
-    expect(guide).toContain(
-      '<details class="verified"><summary>How this guide was checked (1 records)</summary>',
-    );
-    expect(guide).toContain('<a class="cite" href="#E01">E01</a>');
+    const { sources, pinned } = fakeSources([technical, unpinned]);
+    await pinDocs({ ...run, sources }, { page: "incident/report" });
+    expect(pinned.size).toBe(0);
+    await pinDocs({ ...run, sources }, { page: "incident/operate/resolve" });
+    expect([...pinned.keys()]).toEqual([pages.resolve.path]);
+    await pinDocs({ ...run, sources }, { page: "incident/assign" });
+    expect([...pinned.keys()]).toEqual([pages.resolve.path, pages.configureAssign.path]);
   });
 });

@@ -1,19 +1,25 @@
 import { DocumentationSourceError } from "./errors";
 import { fieldsOf, textOf } from "./fields";
+import { isView, VIEWS, type View } from "./views";
 
-// Who consumes a process: the people the user guide is written for.
+// Who consumes a process, and whether they are an end user or an operator.
 export interface ProcessRole {
   readonly id: string;
   readonly name: string;
   readonly description: string;
+  readonly audience: View;
 }
 
-// One thing people do in the process (report, assign, resolve…), in the order they meet it.
+// One thing one reader does in the process (report, assign, resolve…), in the order they meet
+// it. Work both sides take part in is two capabilities, each the other's counterpart.
 export interface ProcessCapability {
   readonly id: string;
   readonly title: string;
   readonly summary: string;
   readonly roles: readonly string[];
+  readonly counterpart?: string;
+  // The Configure page that explains it, when it isn't configure/<id>.md.
+  readonly configure?: string;
 }
 
 export interface LifecycleState {
@@ -30,6 +36,10 @@ export interface Process {
   readonly roles: readonly ProcessRole[];
   readonly lifecycle: readonly LifecycleState[];
   readonly capabilities: readonly ProcessCapability[];
+  // The shared Understand topics, in order.
+  readonly understand: readonly string[];
+  // The tables the process lives on, for the configuration index.
+  readonly tables: readonly string[];
 }
 
 export const OVERVIEW = "overview";
@@ -56,13 +66,25 @@ function id(path: string, value: unknown, what: string): string {
   return text;
 }
 
+function optionalId(path: string, value: unknown, what: string): string | undefined {
+  return value === undefined || value === null ? undefined : id(path, value, what);
+}
+
 function role(path: string, raw: unknown): ProcessRole {
   const fields = fieldsOf(raw);
   const roleId = id(path, fields["id"], "each role");
+  const audience = textOf(fields["audience"]) ?? "";
+  if (!isView(audience)) {
+    throw new DocumentationSourceError(
+      path,
+      `role ${roleId} needs an audience: ${VIEWS.join(" or ")}`,
+    );
+  }
   return {
     id: roleId,
     name: textOf(fields["name"]) ?? roleId,
     description: textOf(fields["description"]) ?? "",
+    audience,
   };
 }
 
@@ -83,11 +105,19 @@ function capability(path: string, raw: unknown, roles: ReadonlySet<string>): Pro
       `capability ${capabilityId} names unknown roles: ${unknown.join(", ")}`,
     );
   }
+  const counterpart = optionalId(
+    path,
+    fields["counterpart"],
+    `capability ${capabilityId} counterpart`,
+  );
+  const configure = optionalId(path, fields["configure"], `capability ${capabilityId} configure`);
   return {
     id: capabilityId,
     title: textOf(fields["title"]) ?? capabilityId,
     summary: textOf(fields["summary"]) ?? "",
     roles: used,
+    ...(counterpart === undefined ? {} : { counterpart }),
+    ...(configure === undefined ? {} : { configure }),
   };
 }
 
@@ -121,5 +151,9 @@ export function parseProcess(path: string, raw: unknown): Process {
       return { state: textOf(state["state"]) ?? "", meaning: textOf(state["meaning"]) ?? "" };
     }),
     capabilities,
+    understand: list(path, fields["understand"], "understand").map((item) =>
+      id(path, item, "each understand topic"),
+    ),
+    tables: list(path, fields["tables"], "tables").map(String),
   };
 }

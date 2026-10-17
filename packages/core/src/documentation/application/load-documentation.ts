@@ -1,16 +1,12 @@
 import { NoDocumentationError } from "../domain/errors";
-import { type DocPage, parseDocPage } from "../domain/page";
-import { type Process, parseProcess } from "../domain/process";
-import { parseScene, type Scene } from "../domain/scene";
-import { parseSiteConfig, type SiteConfig } from "../domain/site-config";
+import { parseDocPage } from "../domain/page";
+import { parseProcess } from "../domain/process";
+import { parseScene } from "../domain/scene";
+import { parseSiteConfig } from "../domain/site-config";
+import type { DocSet } from "../domain/structure";
 import type { DocumentationSources } from "../ports";
 
-export interface Documentation {
-  readonly config: SiteConfig;
-  readonly processes: readonly Process[];
-  readonly pages: readonly DocPage[];
-  readonly scenes: readonly Scene[];
-}
+export type Documentation = DocSet;
 
 export async function loadDocumentation(
   sources: DocumentationSources,

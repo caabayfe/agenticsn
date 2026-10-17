@@ -3,13 +3,17 @@ import type { PlayerMedia } from "../domain/player";
 import { siteFiles } from "../domain/site";
 import type { MarkdownRenderer, MediaTools, SiteOutput } from "../ports";
 import { type AudioOptions, audioTrack } from "./audio-tracks";
-import { assessDocumentation, type CheckDocsDependencies, type DocsCheck } from "./check-docs";
+import {
+  assessDocumentation,
+  type CheckDocsDependencies,
+  type DocsCheck,
+  todayOf,
+} from "./check-docs";
 import { loadDocumentation } from "./load-documentation";
 
 export interface BuildSiteDependencies extends CheckDocsDependencies {
   readonly markdown: MarkdownRenderer;
   readonly output: SiteOutput;
-  readonly clock: () => Date;
   readonly media: MediaTools;
 }
 
@@ -45,7 +49,7 @@ export async function buildSite(
 ): Promise<BuildSiteResult> {
   const docs = await loadDocumentation(deps.sources, deps.root);
   const mirror = deps.mirror(docs.config.instance);
-  const check = await assessDocumentation(docs, mirror, deps.signal);
+  const check = await assessDocumentation(docs, mirror, todayOf(deps.clock), deps.signal);
   const media = new Map<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>();
   const missing = new Set<string>();
   if (options.audio !== undefined) {
@@ -64,7 +68,7 @@ export async function buildSite(
     scenes: docs.scenes,
     statuses: statusesByPage(check),
     markdown: (source) => deps.markdown.html(source),
-    builtAt: deps.clock().toISOString().slice(0, 10),
+    builtAt: todayOf(deps.clock),
     mirrorCommit: await mirror.head(),
     media,
   });

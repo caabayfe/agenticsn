@@ -14,6 +14,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Plans and adopt treat a role or view reference that holds the instance's own sys_id as the
+  same reference even when its name can't be read: the `maint` role is hidden from the admin
+  user, and 41 UI action and ACL roles on a PDI showed a difference that wasn't there.
+- `adopt` names more refusals by design: a protected UI action whose roles or views the SDK
+  would change, records with legacy values the SDK doesn't accept (protection `read-only` or
+  `true`, access `private`), and UI actions whose workspace settings it can't express.
 - `adopt` brings in more UI policies: an empty script builds the SDK's empty condition function,
   an action with no visibility builds `ignore`, and an action with no table builds its policy's
   table, each accepted only against the empty value (no change in behaviour).

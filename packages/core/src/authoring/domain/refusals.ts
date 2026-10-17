@@ -30,6 +30,16 @@ const REFUSALS: readonly Refusal[] = [
     reason: (built, instance) =>
       `a protected UI policy: the SDK would change its actions' protection from ${instance || "none"} to ${built || "none"}, which changes who may edit them; leave the policy on the instance`,
   },
+  // The same for a protected UI action's roles and views (25 on pdi2).
+  ...["sys_ui_action_role", "sys_ui_action_view"].map(
+    (table): Refusal => ({
+      table,
+      field: "sys_policy",
+      applies: (built, instance) => built !== instance,
+      reason: (built, instance) =>
+        `a protected UI action: the SDK would change the protection of its ${table === "sys_ui_action_role" ? "roles" : "views"} from ${instance || "none"} to ${built || "none"}, which changes who may edit them; leave the action on the instance`,
+    }),
+  ),
   // UiPolicy drops the UI type of a policy that runs no scripts and builds desktop (29 on pdi2).
   {
     table: "sys_ui_policy",
@@ -47,6 +57,19 @@ const CONVERSION_REFUSALS: readonly { readonly error: RegExp; readonly reason: s
     error: /^Cannot coerce value to number/,
     reason:
       "the SDK can't convert a number field left empty (a UI policy that runs scripts: its UI type); set it on the instance, then adopt again",
+  },
+  // Legacy values the SDK's types reject: protection read-only or true (modules, UI actions,
+  // script includes) and script include access private (6 on pdi2).
+  {
+    error: /Type '"(read-only|true|private)"' is not assignable/,
+    reason:
+      "the record holds a legacy value the SDK doesn't accept (protection read-only or true, or access private): set a current value on the instance, then adopt again",
+  },
+  // A combination of a UI action's workspace settings the SDK can't build (6 on pdi2).
+  {
+    error: /showFormButtonV2 or workspace\.showFormMenuButtonV2 must be true/,
+    reason:
+      "a UI action whose workspace settings the SDK can't express (a workspace action with neither form button nor form menu): adjust them on the instance, then adopt again",
   },
   // The SDK requires a UI policy's short description; 12 on pdi2 have none.
   {

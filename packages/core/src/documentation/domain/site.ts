@@ -3,6 +3,7 @@ import { playerHtml } from "./player";
 import type { Process } from "./process";
 import { built, type SiteInput } from "./site-context";
 import { configureHomeHtml, indexHtml, processHtml, viewHomeHtml } from "./site-homes";
+import { recordsFile, recordsHtml } from "./site-index";
 import { pageFile, sectionHome } from "./site-layout";
 import { configureHtml, guideHtml, understandHtml } from "./site-pages";
 import { SITE_STYLE } from "./site-style";
@@ -36,7 +37,11 @@ function pageFiles(b: Build, process: Process, page: DocPage): readonly SiteFile
 }
 
 function processFiles(b: Build, process: Process): readonly SiteFile[] {
+  const index = b.input.indexes?.get(process.id);
   return [
+    ...(index === undefined
+      ? []
+      : [{ path: recordsFile(process.id), content: recordsHtml(b, process, index) }]),
     { path: `processes/${process.id}/index.html`, content: processHtml(b, process) },
     ...VIEWS.map((view) => ({
       path: sectionHome(process.id, view === "user" ? "use" : "operate"),

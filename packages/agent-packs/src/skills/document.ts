@@ -3,29 +3,29 @@ import type { Skill } from "../skill";
 export const DOCUMENT: Skill = {
   name: "servicenow-document",
   description:
-    "Write or revise the user guide of a ServiceNow process (incident, request, change…) for the people who use it, capability by capability, verified against the instance's records, with a technical page behind each capability. Use when asked to document a process, write a user guide or training material, or update documentation after a change.",
+    "Write or revise the documentation of a ServiceNow process (incident, request, change…) for its three readers: end users on the portal, operators on the workspace or form, and the platform team, capability by capability, verified against the instance's records. Use when asked to document a process, write a user or operator guide or training material, or update documentation after a change.",
   when: "Documentation of how people use the platform. To change behavior, use servicenow-design.",
   steps: [
-    "Start from the consumer, not the code. Name the process's roles (who reports, who works, who approves, who watches) and its lifecycle from the table's state choices (`describe` the table).",
-    "Find what each role touches with `find`: modules (sys_app_module), form sections (sys_ui_section), buttons (sys_ui_action), mandatory and hidden fields (sys_ui_policy, sys_script_client), notifications (sysevent_email_action), SLAs (contract_sla), portal pages and catalog items. Rules and scripts explain what happens after they act.",
-    "Write documentation/processes/<process>/process.yaml: title, summary in plain words, roles (id, name, description), lifecycle (state, meaning), capabilities in the order people meet them (id, title, summary, roles).",
-    "Write overview.guide.md (what the process is for, when to use it, words people need) and, per capability, <capability>.guide.md for its roles: before you start, step by step (where to click, what to fill, which button), what happens next (state, who is told, SLA), if something goes wrong, tips. Plain words, second person, no table or script names.",
-    "Write <capability>.technical.md for the platform owner: the records behind each step, in execution order. Both pages carry evidence E01, E02, … (record <table>/<sys_id>, optional field, how, result) and cite claims as [E01].",
-    "Label sections that differ from earlier documentation {label=NEW}, CORRECTED, RESTORED, CHANGED, DOCUMENTED-ONLY or OPEN-QUESTION. For a lifecycle or decision, add an animation (documentation/animations/<name>/) and {{animation:<name>}} on its own line.",
-    "Run `snagentic docs pin`, then `snagentic docs check` until it passes, then `snagentic docs build`; `snagentic docs serve` to preview.",
+    "Start from the readers, not the code; `describe` the table for its states and fields, and use `find` for every record below. Write documentation/processes/<process>/process.yaml: title, summary, roles (id, name, description, audience user or operator), lifecycle, understand topics, and capabilities in the order people meet them (id, title, summary, roles of one audience). Work both sides take part in is two capabilities, each the other's counterpart; the end user's may share the operator's configure page (configure: <id>).",
+    "Understand pages (understand/<topic>.md: overview, lifecycle, priority and deadlines, who is told, glossary) are shared. Write the common text once; put what differs under headings marked {for=user} or {for=operator}.",
+    "End users (use/<capability>.md): start at the portal named in site.yaml surfaces. Find the menus (sp_rectangle_menu_item), topics, the record producer and its questions (sc_cat_item_producer, item_option_new), the ticket page, Virtual Agent topics, email actions and the emails they get. Use the portal's words: no field, table or state names.",
+    "Operators (operate/<capability>.md): start at the workspace list (sys_ux_list), then the form layout (sys_ui_section and its sys_ui_element children), actions (sys_declarative_action_assignment, sys_ui_action), policies, choices and notifications. Describe the workspace; note where the classic form differs.",
+    "Platform team (configure/<topic>.md): the records behind each operator capability, in execution order, with scripts read for what they do. Every operator capability needs one.",
+    "Every page carries evidence E01, E02, … (record <table>/<sys_id>, optional field or children, how, result) and cites claims as [E01]. A label the mirror can't prove: seen (by, on, where), checked on screen by a person. Label changes {label=NEW}, CORRECTED, RESTORED, CHANGED, DOCUMENTED-ONLY or OPEN-QUESTION; add {{animation:<name>}} for what moves.",
+    "Run `snagentic docs pin`, then `snagentic docs check` until it has no errors and you have read every warning, then `snagentic docs build`; `snagentic docs serve` to preview.",
   ],
   decide: [
     "A role exists in the code but you cannot tell what it does for people: ask, or mark OPEN-QUESTION.",
-    "`snagentic docs check` lists changed evidence: re-read the record, fix the guide and the technical page, then pin.",
-    "Behavior that depends on data you cannot see (assignment data, schedules, user roles): say what decides it, label DOCUMENTED-ONLY.",
+    "`snagentic docs check` lists changed evidence: re-read the record, fix every page that cites it, then pin.",
+    "A platform-words warning on an end user's page: rewrite in the portal's words, or move the sentence under {for=operator}.",
   ],
   output:
-    "The process, its capabilities and pages, the `snagentic docs check` result, and the open questions for the process owner.",
+    "The process, its pages per section, the `snagentic docs check` result, and the open questions for the process owner.",
   stopAndAsk:
-    "If the process's roles or scope are not clear from the instance (customised states, several portals), ask the process owner before writing guides.",
+    "If the readers or their surfaces are not clear (several portals, workspace or classic form), ask the process owner before writing guides.",
   never: [
-    "Never write the user guide as a list of configuration; that belongs on the technical page.",
-    "Never pin evidence you did not re-read after a change.",
+    "Never write a guide as a list of configuration; that belongs on the configure page.",
+    "Never pin evidence you did not re-read after a change, and never write seen evidence for a screen nobody looked at.",
     "Never put business records, customer names or values the mirror redacted on a page, and never publish the site yourself.",
   ],
   prompt: {

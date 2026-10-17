@@ -11,6 +11,7 @@ import {
   understandPages,
   VIEW_SECTION,
 } from "./site-context";
+import { recordsFile } from "./site-index";
 import { layout, pageFile, prefixOf, sectionHome } from "./site-layout";
 import type { View } from "./views";
 
@@ -99,7 +100,8 @@ export function configureHomeHtml(b: Built, process: Process): string {
   );
   const main = `<h1>${escapeHtml(process.title)}: ${escapeHtml(SECTION_TITLES.configure.toLowerCase())}</h1>
 <div class="banner"><span class="kind">Technical reference</span><span>${checked(b)}</span></div>
-<ul class="pages">${items.join("")}</ul>`;
+<ul class="pages">${items.join("")}</ul>
+${b.input.indexes?.has(process.id) === true ? `<p>${link(prefix, recordsFile(process.id), "Configuration index: every record behind this process, and what isn't documented yet")}</p>` : ""}`;
   return layout(
     b.input.config,
     `${process.title}: ${SECTION_TITLES.configure}`,

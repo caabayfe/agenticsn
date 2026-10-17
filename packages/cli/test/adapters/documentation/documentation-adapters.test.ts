@@ -102,6 +102,29 @@ describe("mirror records on disk", () => {
     expect(await mirror.head()).toBe("c0ffee");
   });
 
+  it("lists a table's records from their own files, with who changed them last", async () => {
+    write(
+      `${BASE}.yaml`,
+      "_meta:\n  hash: 3d9d\n  sys_updated_by: admin\n  sys_updated_on: 2026-05-01 10:00:00\nname: Set group\ncollection: incident\n",
+    );
+    write(`${BASE}.script.js`, "current.assignment_group = g;\n");
+    write(`${BASE}.children.sys_x.yaml`, "rows: []\n");
+    write("instances/pdi2/metadata/global/sys_script/notes.txt", "not a record");
+    const mirror = new FsMirrorRecords(join(root, "instances/pdi2/metadata"), async () => null);
+    const signal = new AbortController().signal;
+    expect(await mirror.list("sys_script", signal)).toEqual([
+      {
+        sysId: "0c1345dd0783f01028ef0a701ad300fa",
+        fields: { name: "Set group", collection: "incident" },
+        updatedBy: "admin",
+        updatedOn: "2026-05-01 10:00:00",
+      },
+    ]);
+    expect(
+      await new FsMirrorRecords(join(root, "missing"), async () => null).list("sys_script", signal),
+    ).toEqual([]);
+  });
+
   it("finds nothing for a record that is not mirrored", async () => {
     const mirror = new FsMirrorRecords(join(root, "missing"), async () => null);
     expect(await mirror.read("sys_script", "0c1345dd0783f01028ef0a701ad300fa")).toBeNull();

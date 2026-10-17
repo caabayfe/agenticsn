@@ -1,11 +1,26 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { MirrorRecord, MirrorRecords } from "@snagentic/core";
+import type { MirrorListing, MirrorRecord, MirrorRecords } from "@snagentic/core";
 import { fromYamlStrings } from "../yaml/own-style";
 
 const isMap = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+// A record's own file, <slug>--<sys_id>.yaml; not a long field's or a children file.
+const RECORD_FILE = /--([A-Za-z0-9_]{1,64})\.yaml$/;
+
+function textFields(record: Record<string, unknown>): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const [name, value] of Object.entries(record)) {
+    if (name !== "_meta" && typeof value === "string") {
+      fields[name] = value;
+    }
+  }
+  return fields;
+}
+
+const text = (value: unknown) => (typeof value === "string" ? value : undefined);
 
 // A long field's file: <base>.<field>.<ext>; a children file: <base>.children.<table>.yaml
 // (ADR-0017).
@@ -53,12 +68,7 @@ export class FsMirrorRecords implements MirrorRecords {
     const parsed = fromYamlStrings(await readFile(join(this.metadata, `${base}.yaml`), "utf8"));
     const record = isMap(parsed) ? parsed : {};
     const meta = isMap(record["_meta"]) ? record["_meta"] : {};
-    const fields: Record<string, string> = {};
-    for (const [name, value] of Object.entries(record)) {
-      if (name !== "_meta" && typeof value === "string") {
-        fields[name] = value;
-      }
-    }
+    const fields = textFields(record);
     const folder = base.slice(0, base.lastIndexOf("/"));
     const leaf = base.slice(base.lastIndexOf("/") + 1);
     const children: Record<string, string> = {};
@@ -76,5 +86,32 @@ export class FsMirrorRecords implements MirrorRecords {
     }
     const hash = meta["hash"];
     return { hash: typeof hash === "string" ? hash : "", fields, children };
+  }
+
+  async list(table: string, signal: AbortSignal): Promise<readonly MirrorListing[]> {
+    if (!existsSync(this.metadata)) {
+      return [];
+    }
+    const listings: MirrorListing[] = [];
+    for await (const path of new Bun.Glob(`*/${table}/*.yaml`).scan({ cwd: this.metadata })) {
+      signal.throwIfAborted();
+      const leaf = path.slice(path.lastIndexOf("/") + 1);
+      const sysId = RECORD_FILE.exec(leaf)?.[1];
+      if (sysId === undefined || leaf.slice(0, -`--${sysId}.yaml`.length).includes(".")) {
+        continue;
+      }
+      const parsed = fromYamlStrings(await readFile(join(this.metadata, path), "utf8"));
+      const record = isMap(parsed) ? parsed : {};
+      const meta = isMap(record["_meta"]) ? record["_meta"] : {};
+      const updatedBy = text(meta["sys_updated_by"]);
+      const updatedOn = text(meta["sys_updated_on"]);
+      listings.push({
+        sysId,
+        fields: textFields(record),
+        ...(updatedBy === undefined ? {} : { updatedBy }),
+        ...(updatedOn === undefined ? {} : { updatedOn }),
+      });
+    }
+    return listings;
   }
 }

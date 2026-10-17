@@ -28,9 +28,20 @@ export interface DocumentationSources {
   pinHashes(path: string, hashes: ReadonlyMap<string, string>): Promise<void>;
 }
 
+// One record of a table as listed: its main fields only (no long-field files), and who changed
+// it last.
+export interface MirrorListing {
+  readonly sysId: string;
+  readonly fields: Readonly<Record<string, string>>;
+  readonly updatedBy?: string;
+  readonly updatedOn?: string;
+}
+
 // The instance's mirror, read only.
 export interface MirrorRecords {
   read(table: string, sysId: string): Promise<MirrorRecord | null>;
+  // Every record of a table, for the configuration index.
+  list(table: string, signal: AbortSignal): Promise<readonly MirrorListing[]>;
   head(): Promise<string | null>;
 }
 

@@ -1,3 +1,4 @@
+import type { ConfigIndex } from "../domain/config-index";
 import type { EvidenceStatus } from "../domain/evidence";
 import type { PlayerMedia } from "../domain/player";
 import { siteFiles } from "../domain/site";
@@ -9,6 +10,7 @@ import {
   type DocsCheck,
   todayOf,
 } from "./check-docs";
+import { configIndex } from "./config-index";
 import { loadDocumentation } from "./load-documentation";
 
 export interface BuildSiteDependencies extends CheckDocsDependencies {
@@ -61,6 +63,10 @@ export async function buildSite(
       }
     }
   }
+  const indexes = new Map<string, ConfigIndex>();
+  for (const process of docs.processes) {
+    indexes.set(process.id, await configIndex(docs, process, mirror, check, deps.signal));
+  }
   const files = siteFiles({
     config: docs.config,
     processes: docs.processes,
@@ -71,6 +77,7 @@ export async function buildSite(
     builtAt: todayOf(deps.clock),
     mirrorCommit: await mirror.head(),
     media,
+    indexes,
   });
   await deps.output.replace(files);
   return {

@@ -63,6 +63,7 @@ describe("docs build: the site's sections", () => {
       "index.html",
       "processes/incident/configure/assign.html",
       "processes/incident/configure/index.html",
+      "processes/incident/configure/records.html",
       "processes/incident/configure/resolve.html",
       "processes/incident/index.html",
       "processes/incident/operate/assign.html",
@@ -76,7 +77,7 @@ describe("docs build: the site's sections", () => {
       "processes/incident/use/understand/lifecycle.html",
       "processes/incident/use/understand/overview.html",
     ]);
-    expect(result.files).toBe(17);
+    expect(result.files).toBe(18);
   });
 
   it("opens each process with its lifecycle and a door for each reader, naming where they work", async () => {
@@ -174,6 +175,22 @@ describe("docs build: guides and configure pages", () => {
     expect(page).toContain('<h2 id="evidence">Evidence</h2>');
     expect(file("processes/incident/use/confirm.html")).toContain(
       'href="../../../processes/incident/configure/resolve.html">How it is configured</a>',
+    );
+  });
+
+  it("writes the configuration index: what is documented, by type, and what isn't yet", async () => {
+    const { file } = await build(ALL, { ...PROCESS, tables: ["incident"] });
+    const records = file("processes/incident/configure/records.html");
+    expect(records).toContain("<h2>Documented (4)</h2>");
+    expect(records).toContain("<h3>Business rules (1)</h3>");
+    expect(records).toContain(
+      'href="../../../processes/incident/configure/assign.html">Assignment configuration</a>',
+    );
+    expect(records).toContain("<h2>Not documented yet (2)</h2>");
+    expect(records).toContain("Mark VIP");
+    expect(records).toContain("admin, 2026-05-01 10:00:00");
+    expect(file("processes/incident/configure/index.html")).toContain(
+      'href="../../../processes/incident/configure/records.html">Configuration index',
     );
   });
 

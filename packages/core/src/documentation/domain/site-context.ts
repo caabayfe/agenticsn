@@ -1,3 +1,4 @@
+import type { ConfigIndex } from "./config-index";
 import type { EvidenceStatus } from "./evidence";
 import { escapeHtml } from "./html";
 import type { DocPage, Section } from "./page";
@@ -23,6 +24,8 @@ export interface SiteInput {
   readonly mirrorCommit: string | null;
   // Audio tracks by animation name (phase 2); animations without one are silent.
   readonly media?: ReadonlyMap<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>;
+  // The configuration index of each process, by process id (spec 010a, A3).
+  readonly indexes?: ReadonlyMap<string, ConfigIndex>;
 }
 
 export interface Built {

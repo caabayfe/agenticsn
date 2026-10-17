@@ -14,6 +14,7 @@ export {
   type DocsCheck,
   type EvidenceResult,
 } from "./application/check-docs";
+export { configIndex } from "./application/config-index";
 export { type Documentation, loadDocumentation } from "./application/load-documentation";
 export { type PinDocsQuery, type PinDocsResult, pinDocs } from "./application/pin-docs";
 export {
@@ -28,6 +29,17 @@ export {
   SURFACE_TABLES,
 } from "./domain/audience-checks";
 export { base64 } from "./domain/base64";
+export {
+  appliesTo,
+  CONFIG_RECORD_TYPES,
+  type ConfigIndex,
+  type ConfigRecordType,
+  groupByType,
+  type IndexEntry,
+  recordDetails,
+  recordName,
+  worstStatus,
+} from "./domain/config-index";
 export { DocumentationSourceError, NoDocumentationError } from "./domain/errors";
 export {
   anchorHash,
@@ -114,6 +126,7 @@ export type {
   DocumentationSources,
   MarkdownRenderer,
   MediaTools,
+  MirrorListing,
   MirrorRecords,
   PageSource,
   SceneSource,

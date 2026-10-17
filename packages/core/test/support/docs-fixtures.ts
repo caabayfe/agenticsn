@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type {
   DocumentationSources,
   MediaTools,
+  MirrorListing,
   MirrorRecord,
   MirrorRecords,
   PageSource,
@@ -191,9 +192,41 @@ const MIRROR: Record<string, MirrorRecord> = {
   [`sys_ui_action/${ACTION}`]: { hash: "a1", fields: { name: "Resolve" } },
 };
 
+// Records only the configuration index lists, by table.
+export const LISTED: Record<string, MirrorListing[]> = {
+  sys_script: [
+    { sysId: RULE, fields: { name: "Set group", collection: "incident", when: "before" } },
+    {
+      sysId: "aa000000000000000000000000000001",
+      fields: { name: "Mark VIP", collection: "incident", when: "after", order: "100" },
+      updatedBy: "admin",
+      updatedOn: "2026-05-01 10:00:00",
+    },
+    {
+      sysId: "aa000000000000000000000000000002",
+      fields: { name: "Old", collection: "incident", active: "false" },
+    },
+    {
+      sysId: "aa000000000000000000000000000003",
+      fields: { name: "Problem rule", collection: "problem" },
+    },
+  ],
+  sys_security_acl: [
+    {
+      sysId: "aa000000000000000000000000000004",
+      fields: { name: "incident.close_code", operation: "write" },
+    },
+    {
+      sysId: "aa000000000000000000000000000005",
+      fields: { name: "incident_task", operation: "read" },
+    },
+  ],
+};
+
 export function fakeMirror(records: Record<string, MirrorRecord> = MIRROR): MirrorRecords {
   return {
     read: async (table, sysId) => records[`${table}/${sysId}`] ?? null,
+    list: async (table) => LISTED[table] ?? [],
     head: async () => "4db7753abcdef0123456789",
   };
 }

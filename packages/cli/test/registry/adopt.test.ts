@@ -17,7 +17,7 @@ afterEach(async () => {
   await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
 });
 
-const FIXTURE = join(import.meta.dir, "../../../../tests/fixtures/fluent/units");
+const FIXTURE = join(import.meta.dir, "../../../../tests/fixtures/sdk/units");
 const SI_FILE = "sys_script_include_123833b4d97d48be8e9ec5ea16f27764.xml";
 const SI_ID = "123833b4d97d48be8e9ec5ea16f27764";
 const SCOPE_ID = "489da54ae67c4a3e9f1e1e4347e9119b";

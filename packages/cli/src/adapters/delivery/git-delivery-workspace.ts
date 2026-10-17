@@ -66,7 +66,15 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
 
   async commitFiles(paths: readonly string[], message: string): Promise<string> {
     await runGitOrThrow(["add", "--", ...paths], this.root);
-    await runGitOrThrow(["commit", "--quiet", "-m", message, "--", ...paths], this.root);
+    // A machine (or CI runner) with no git identity still records the ledger, as integrate does.
+    const configured = (await runGit(["config", "user.email"], this.root)).stdout.trim() !== "";
+    const identity = configured
+      ? []
+      : ["-c", "user.name=snagentic", "-c", "user.email=snagentic@localhost"];
+    await runGitOrThrow(
+      [...identity, "commit", "--quiet", "-m", message, "--", ...paths],
+      this.root,
+    );
     return (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
   }
 

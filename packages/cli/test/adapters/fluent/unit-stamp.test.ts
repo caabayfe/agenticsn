@@ -6,7 +6,7 @@ import { builtUnitOf } from "../../../src/adapters/fluent/built-units";
 
 // The stamp push gives each loaded unit's head record (ADR-0030 item 5), on files the embedded
 // SDK built on pdi2.
-const FIXTURES = join(import.meta.dir, "../../../../../tests/fixtures/fluent/units");
+const FIXTURES = join(import.meta.dir, "../../../../../tests/fixtures/sdk/units");
 const NOW = new Date(Date.UTC(2026, 9, 16, 12, 30, 0));
 
 function stamped(name: string) {

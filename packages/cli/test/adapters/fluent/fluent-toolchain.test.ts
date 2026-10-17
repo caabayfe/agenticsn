@@ -13,7 +13,7 @@ const SCOPE = { name: "x_2222332_s11", sysId: "489da54ae67c4a3e9f1e1e4347e9119b"
 const project = { path: `source/${SCOPE.name}`, scope: SCOPE.name, scopeId: SCOPE.sysId };
 const RECORDING = join(
   import.meta.dir,
-  "../../../../../tests/fixtures/fluent/transform/script-include-pdi2.json",
+  "../../../../../tests/fixtures/sdk/transform/script-include-pdi2.json",
 );
 
 function workspace(source?: string) {

@@ -53,7 +53,16 @@ describe("workspace Fluent projects", () => {
       expect(await projects.buildAt(project, head)).toMatchObject({ built: true, keys: null });
       const empty = (
         await runGitOrThrow(
-          ["commit-tree", "-m", "empty", "4b825dc642cb6eb9a060e54bf8d69288fbee4904"],
+          [
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit-tree",
+            "-m",
+            "empty",
+            "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+          ],
           root,
         )
       ).trim();

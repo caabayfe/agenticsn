@@ -14,7 +14,7 @@ import { SDK_BUILD_TIMEOUT } from "../../support/sdk-contract";
 // (spike S17). Fails when an SDK upgrade asks the instance something else.
 const RECORDING = join(
   import.meta.dir,
-  "../../../../../tests/fixtures/fluent/transform/script-include-pdi2.json",
+  "../../../../../tests/fixtures/sdk/transform/script-include-pdi2.json",
 );
 
 interface Exchange {

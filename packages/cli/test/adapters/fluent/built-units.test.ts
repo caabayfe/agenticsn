@@ -5,7 +5,7 @@ import { UnreadableBuildError } from "@snagentic/core";
 import { builtUnitOf } from "../../../src/adapters/fluent/built-units";
 
 // Files the embedded SDK (4.13.6) built on pdi2 in spikes S16 and S17.
-const FIXTURES = join(import.meta.dir, "../../../../../tests/fixtures/fluent/units");
+const FIXTURES = join(import.meta.dir, "../../../../../tests/fixtures/sdk/units");
 const unit = (name: string) => builtUnitOf(name, readFileSync(join(FIXTURES, name), "utf8"));
 
 describe("builtUnitOf (ADR-0033 item 1)", () => {

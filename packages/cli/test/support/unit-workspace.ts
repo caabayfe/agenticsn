@@ -14,10 +14,10 @@ import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { instanceWorkspace } from "./instance-workspace";
 
 // A workspace whose Fluent source (source/x_2222332_s11) adopted the S11 script include from an
-// in-memory instance: the built file is the SDK's own (tests/fixtures/fluent/units), its
+// in-memory instance: the built file is the SDK's own (tests/fixtures/sdk/units), its
 // description edited in source.
 
-const FIXTURE = join(import.meta.dir, "../../../../tests/fixtures/fluent/units");
+const FIXTURE = join(import.meta.dir, "../../../../tests/fixtures/sdk/units");
 export const SI_FILE = "sys_script_include_123833b4d97d48be8e9ec5ea16f27764.xml";
 export const SI_UNIT = "sys_script_include_123833b4d97d48be8e9ec5ea16f27764";
 const SCOPE = { name: "x_2222332_s11", sysId: "489da54ae67c4a3e9f1e1e4347e9119b" };

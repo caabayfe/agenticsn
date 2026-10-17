@@ -16,7 +16,7 @@ export const DOCUMENT: Skill = {
   ],
   decide: [
     "A role exists in the code but you cannot tell what it does for people: ask, or mark OPEN-QUESTION.",
-    "`snagentic docs check` lists changed evidence: re-read the record, fix every page that cites it, then pin.",
+    "`snagentic docs check` lists changed evidence, or `validate` reports SN-MNT-014 or SN-MNT-015: re-read the record, fix every page that cites it in the same change, then pin.",
     "A platform-words warning on an end user's page: rewrite in the portal's words, or move the sentence under {for=operator}.",
   ],
   output:

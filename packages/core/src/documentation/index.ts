@@ -15,6 +15,10 @@ export {
   type EvidenceResult,
 } from "./application/check-docs";
 export { configIndex } from "./application/config-index";
+export {
+  type DocumentationLookup,
+  documentationLookup,
+} from "./application/documented-records";
 export { type Documentation, loadDocumentation } from "./application/load-documentation";
 export { type PinDocsQuery, type PinDocsResult, pinDocs } from "./application/pin-docs";
 export {

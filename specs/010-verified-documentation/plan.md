@@ -1,6 +1,6 @@
 # 010. Verified documentation site: plan
 
-- Status: P1, P2 and P3 done (2026-10-17); three audiences done (`audiences.md`, A1–A4); P4 next
+- Status: P1–P3, the three audiences (`audiences.md`, A1–A4) and P4 done (2026-10-17); the Steward's drafting waits for the Steward
 - Date: 2026-10-17
 - Decision: ADR-0035
 - Requirements: G2, G3, ASR-01, ASR-08, ASR-09, ASR-10, ASR-13, ASR-15
@@ -114,7 +114,7 @@ Rules kept from the original:
 | **P2 Audio** | ffmpeg adapter; the mix in pure TypeScript (timeline, RMS levels, ducking, fades, limiter) with the original parameters; synthesised default effects and bed, or configured assets; voice port with Piper and OS voice adapters; `--audio`, `--voice` | Without voice: music and effects follow the estimated timeline. With voice: timing comes from the clips. Golden test on the timeline and the sample arithmetic |
 | **P3 Video** | `docs video <animation>`: the player rendered in a headless browser (system Chrome over CDP), frames to ffmpeg, muxed with the P2 track, MP4 H.264 | Spike S20 first: deterministic frame stepping versus screencast |
 | **A1–A4 Audiences** | Understand, Use, Operate and Configure sections (`audiences.md`, done) | See `audiences.md` §6 |
-| **P4 Gate** | Doc findings in `validate` (CI, pre-commit, push gate); coverage of customisations without pages; Steward drafts page updates | A pull request that changes an anchored record shows the stale page |
+| **P4 Gate** | Doc findings in `validate` (CI, pre-commit, push gate); coverage of customisations without pages; Steward drafts page updates | A pull request that changes an anchored record shows the stale page (done, §4c) |
 
 ## 4a. Audio (P2, done)
 
@@ -154,6 +154,31 @@ subtitles with a voice.
 - The browser is `SNAGENTIC_CHROME`, or Chrome or Chromium at their usual paths. The DevTools
   client is a small WebSocket client in the adapter (no npm dependency).
 - CI installs ffmpeg; the runner image has Chrome, so the recording test runs there.
+
+## 4c. Gate (P4, done)
+
+`validate` names the documentation a change may make wrong, through the governance port
+`DocumentedRecords`, which the documentation context implements (`documentationLookup`). Both
+rules warn: the change may be right and the page wrong, and `docs check` stays the strict gate.
+
+| Rule | When | Finding's file |
+|---|---|---|
+| **SN-MNT-014** The change edits a documented record | a unit the change adds or edits is cited by a page | the page, naming its evidence ids and the source file that changes |
+| **SN-MNT-015** Documentation no longer matches the instance | cited evidence is changed in the mirror, or gone | the page, naming the evidence |
+
+Because they are `validate` findings, they reach CI, the pre-commit hook and the push plan's gate
+without new wiring. The pre-commit hook reads pages from the working tree, not the index.
+
+Tried end to end (2026-10-17) on a scratch clone of the pdi2 workspace: a page citing an adopted
+script include, an edit to its `.server.js`, `validate` reported SN-MNT-014 at the page, and a
+stale pin added SN-MNT-015.
+
+**Coverage** of customisations without pages is the configuration index's "not documented yet"
+list (A3), per process.
+
+**The Steward drafting page updates** waits for the Steward itself (product vision, roadmap R4,
+not yet decided). Until then the `servicenow-document` skill tells the agent making the change to
+fix the pages SN-MNT-014 names in the same pull request.
 
 ## 5. Safety
 

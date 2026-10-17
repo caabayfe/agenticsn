@@ -12,7 +12,8 @@ export const validate = defineUseCase({
     "Build the Fluent source the change touched and check what it adds or edits against the " +
     "platform rules (security, performance, upgradability, manageability, user experience), " +
     "reporting only what the change introduced, with rule id, file, line, why and " +
-    "remediation; edits to the read-only mirror are refused. By default checks every project " +
+    "remediation; edits to the read-only mirror are refused, and documentation pages citing a " +
+    "changed record, or out of date with the mirror, are named. By default checks every project " +
     "changed since HEAD; give paths to check those projects, or base=origin/main to check a " +
     "branch. Fix every block finding before delivering; never silence one.",
   input: z.object({
@@ -71,6 +72,7 @@ export const validate = defineUseCase({
     const result = await validateSource(governance, {
       base: input.base,
       ...(input.paths === undefined ? {} : { paths }),
+      signal: run.signal,
     });
     return { instance, ...result };
   },

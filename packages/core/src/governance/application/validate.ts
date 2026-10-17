@@ -1,7 +1,8 @@
 import { UnknownBaseError } from "../domain/errors";
 import { type Finding, type FindingSeverity, introduced, ordered } from "../domain/findings";
 import { type FluentBuild, type FluentProject, fluentFindings } from "../domain/fluent-findings";
-import type { FluentProjects, MirrorState, ScriptChecker } from "../ports";
+import type { DocumentedRecords, FluentProjects, MirrorState, ScriptChecker } from "../ports";
+import { documentationFindings, type TouchedRecord } from "./documentation-checks";
 import {
   aclFindings,
   checkVersion,
@@ -21,6 +22,7 @@ export interface ValidateQuery {
   // Source files to check, relative to the workspace: only the projects holding them are built.
   // Every project changed since `base` when absent.
   readonly paths?: readonly string[];
+  readonly signal?: AbortSignal;
 }
 
 export interface Validation {
@@ -40,6 +42,8 @@ export interface ValidateDependencies {
   readonly mirror: MirrorState;
   readonly checker: ScriptChecker;
   readonly fluent: FluentProjects;
+  // The workspace's documentation, when it has any (ADR-0035): pages citing what changed.
+  readonly documentation?: DocumentedRecords;
 }
 
 // Rules no check covers yet, said rather than silently passed.
@@ -64,6 +68,7 @@ interface ProjectCheck {
   readonly units: number;
   readonly findings: Finding[];
   readonly skipped: Skipped[];
+  readonly touched: TouchedRecord[];
 }
 
 async function checkUnits(
@@ -80,9 +85,12 @@ async function checkUnits(
   const privileges = await privilegesOf(project.scope);
   const findings: Finding[] = [];
   const skipped: Skipped[] = [];
+  const touched: TouchedRecord[] = [];
   const units = { now: builds.now.units, base: base?.units ?? [] };
   for (const item of changed) {
     const path = `${project.path}/${item.unit.updateName}`;
+    const source = Object.values(item.now.files)[0] ?? path;
+    touched.push({ table: item.unit.head.table, sysId: item.unit.head.sysId, source });
     findings.push(...aclFindings(item, path, units));
     if (item.unit.head.action === "DELETE") continue;
     const current = checkVersion(deps.checker, item.now, privileges);
@@ -94,7 +102,7 @@ async function checkUnits(
   }
   // Paths name source files and units, relative to the workspace.
   const inWorkspace = findings.map((f): Finding => ({ ...f, root: "workspace" }));
-  return { units: changed.length, findings: inWorkspace, skipped };
+  return { units: changed.length, findings: inWorkspace, skipped, touched };
 }
 
 // The project folder is named after its scope (source/<scope>).
@@ -112,7 +120,7 @@ async function checkProject(
     build,
     await deps.fluent.sdkVersion(),
   ).flatMap((hit) => withRule(hit.ruleId, { ...hit, root: "workspace", field: null }));
-  if (!build.built) return { units: 0, findings, skipped: [] };
+  if (!build.built) return { units: 0, findings, skipped: [], touched: [] };
   const base = await deps.fluent.buildAt(project, commit);
   const scope = { path: project.path, scope: scopeOf(project) };
   const units = await checkUnits(deps, privilegesOf, scope, { now: build, base });
@@ -134,7 +142,8 @@ async function mirrorEdits(mirror: MirrorState): Promise<Finding[]> {
 }
 
 // Checks what the change did to the workspace's Fluent source against the rules, reporting only
-// what it introduced since `base`, and refuses edits to the mirror.
+// what it introduced since `base`, refuses edits to the mirror, and names the documentation pages
+// the change may make wrong.
 export async function validate(
   deps: ValidateDependencies,
   query: ValidateQuery,
@@ -153,7 +162,15 @@ export async function validate(
     checked.push(await checkProject(deps, privilegesOf, project, resolved));
   }
   const edits = query.paths === undefined ? await mirrorEdits(deps.mirror) : [];
-  const findings = ordered([...edits, ...checked.flatMap((c) => c.findings)]);
+  const documented =
+    deps.documentation === undefined
+      ? []
+      : await documentationFindings(
+          deps.documentation,
+          checked.flatMap((c) => c.touched),
+          query.signal ?? new AbortController().signal,
+        );
+  const findings = ordered([...edits, ...checked.flatMap((c) => c.findings), ...documented]);
   const counts = { block: 0, warn: 0, info: 0 };
   for (const item of findings) {
     counts[item.severity] += 1;

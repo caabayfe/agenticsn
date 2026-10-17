@@ -3,7 +3,14 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { INSTRUCTIONS, PROMPTS } from "@snagentic/agent-packs";
-import { InstanceName, instancePaths, noticeAllowed, updateNotice, VERSION } from "@snagentic/core";
+import {
+  documentationLookup,
+  InstanceName,
+  instancePaths,
+  noticeAllowed,
+  updateNotice,
+  VERSION,
+} from "@snagentic/core";
 import { CsvDataTemplates } from "./adapters/accelerators/csv-data-templates";
 import { GitPackWorkspace } from "./adapters/accelerators/git-pack-workspace";
 import { LazyPackSource, loadPackSource } from "./adapters/accelerators/pack-source-loader";
@@ -55,6 +62,12 @@ import { USE_CASES } from "./registry/registry";
 import type { UseCaseContext } from "./registry/use-case";
 import { versionLine } from "./version-line";
 
+// The mirror documentation pages are verified against, read only (ADR-0035).
+const docsMirror = (root: string) => (instance: string) => {
+  const metadata = instancePaths(InstanceName.parse(instance)).metadata;
+  return new FsMirrorRecords(join(root, metadata), () => new GitMirrorFiles(root, metadata).head());
+};
+
 // First Ctrl-C cancels the running operation cleanly; a second one exits immediately.
 const cancellation = new AbortController();
 process.on("SIGINT", () => {
@@ -96,12 +109,7 @@ const context: UseCaseContext = {
     const site = join(root, ".snagentic", "site");
     return {
       sources: new FsDocumentationSources(root),
-      mirror: (instance) => {
-        const metadata = instancePaths(InstanceName.parse(instance)).metadata;
-        return new FsMirrorRecords(join(root, metadata), () =>
-          new GitMirrorFiles(root, metadata).head(),
-        );
-      },
+      mirror: docsMirror(root),
       markdown: bunMarkdown,
       output: new FsSiteOutput(site),
       media: mediaTools(root, process.env, homedir()),
@@ -117,6 +125,12 @@ const context: UseCaseContext = {
     ),
     checker: new EslintScriptChecker(),
     fluent: new WorkspaceFluentProjects(root, loadFluentRuntime, options),
+    documentation: documentationLookup({
+      sources: new FsDocumentationSources(root),
+      mirror: docsMirror(root),
+      root,
+      clock: () => new Date(),
+    }),
   }),
   authoring: (root) => ({
     workspace: new WorkspaceAuthoring(root, loadFluentRuntime),

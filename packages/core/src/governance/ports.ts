@@ -66,3 +66,30 @@ export interface FluentProjects {
   writeKeys(project: FluentProject, keys: string): Promise<void>;
   sdkVersion(): Promise<string>;
 }
+
+// A record a change touched, by its table and sys_id.
+export interface RecordRef {
+  readonly table: string;
+  readonly sysId: string;
+}
+
+// A page that cites a record: the page (workspace-relative) and the evidence ids that do.
+export interface RecordCitation extends RecordRef {
+  readonly page: string;
+  readonly evidence: readonly string[];
+}
+
+// Evidence whose record changed in the mirror, or is gone, since the page was verified.
+export interface StaleCitation {
+  readonly page: string;
+  readonly evidence: string;
+  readonly anchor: string;
+  readonly status: "changed" | "missing";
+}
+
+// The workspace's documentation as validate sees it (ADR-0035, spec 010 P4). Both are empty
+// when the workspace has no documentation.
+export interface DocumentedRecords {
+  citing(records: readonly RecordRef[], signal: AbortSignal): Promise<readonly RecordCitation[]>;
+  stale(signal: AbortSignal): Promise<readonly StaleCitation[]>;
+}

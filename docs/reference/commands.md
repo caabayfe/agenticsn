@@ -510,7 +510,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic docs build [options]
 ```
 
-Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate). --audio adds music and sound effects to the animations, --voice piper|system also narrates them.
+Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate). --audio adds music and sound effects to the animations, --voice piper|system also narrates them, --video renders every animation as an MP4 on its page and names any it could not make.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
@@ -518,6 +518,7 @@ Options:
 
 - `--audio`: give each animation an audio track: music and sound effects (needs ffmpeg)
 - `--voice <value>`: narrate the steps with a voice: piper, system or none (implies --audio)
+- `--video`: also render every animation as an MP4 on its page (needs ffmpeg and Chrome)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -535,6 +536,7 @@ Options:
 
 - `--audio`: give each animation an audio track: music and sound effects (needs ffmpeg)
 - `--voice <value>`: narrate the steps with a voice: piper, system or none (implies --audio)
+- `--video`: also render every animation as an MP4 on its page (needs ffmpeg and Chrome)
 - `--port <number>`: the port (default 4173)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.

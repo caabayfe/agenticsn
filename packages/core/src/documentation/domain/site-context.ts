@@ -27,6 +27,8 @@ export interface SiteInput {
   readonly media?: ReadonlyMap<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>;
   // The configuration index of each process, by process id (spec 010a, A3).
   readonly indexes?: ReadonlyMap<string, ConfigIndex>;
+  // Each animation rendered as MP4, by animation name (spec 010c).
+  readonly videos?: ReadonlyMap<string, Uint8Array>;
 }
 
 export interface Built {
@@ -147,6 +149,7 @@ export function bodyHtml(b: Built, page: DocPage, file: string, view?: View): st
       scenes: b.scenes,
       prefix,
       link: linkFor(b, page, prefix, view),
+      videos: new Set(b.input.videos?.keys() ?? []),
     }),
   );
 }

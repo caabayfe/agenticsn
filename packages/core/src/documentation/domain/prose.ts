@@ -51,14 +51,23 @@ export function transcriptHtml(scene: Scene): string {
   return `<details class="transcript"><summary>Transcript (${scene.steps.length} steps)</summary><ol>${items.join("")}</ol></details>`;
 }
 
-function animationHtml(scene: Scene | undefined, name: string, prefix: string): string {
+function animationHtml(
+  scene: Scene | undefined,
+  name: string,
+  prefix: string,
+  video: boolean,
+): string {
   if (scene === undefined) {
     return `<p class="missing">Animation ${escapeHtml(name)} is missing.</p>`;
   }
   const title = escapeHtml(`Animation: ${scene.title}`);
   return (
     `<div class="animation"><iframe class="player" data-animation="${name}" src="${prefix}animations/${name}.html" ` +
-    `sandbox="allow-scripts" loading="lazy" title="${title}"></iframe>${transcriptHtml(scene)}</div>`
+    `sandbox="allow-scripts" loading="lazy" title="${title}"></iframe>${transcriptHtml(scene)}` +
+    (video
+      ? `<p class="video"><a href="${prefix}animations/${name}.mp4" download>Download the video (MP4)</a></p>`
+      : "") +
+    "</div>"
   );
 }
 
@@ -71,6 +80,8 @@ export interface ProseContext {
   readonly prefix: string;
   // The address of a see: link's target, or null when it leads nowhere (spec 010b).
   readonly link?: (target: string) => string | null;
+  // Animations rendered as MP4 beside the site (spec 010c).
+  readonly videos?: ReadonlySet<string>;
 }
 
 function cite(id: string, context: ProseContext): string {
@@ -95,7 +106,8 @@ export function expandProse(markdown: string, context: ProseContext): string {
       .replace(SEE_LINK, (_, target: string) => `](${context.link?.(target) ?? "#unknown-link"})`)
       .replace(
         /^\{\{animation:([a-z0-9]+)\}\}\s*$/gm,
-        (_, name: string) => `\n${animationHtml(context.scenes.get(name), name, context.prefix)}\n`,
+        (_, name: string) =>
+          `\n${animationHtml(context.scenes.get(name), name, context.prefix, context.videos?.has(name) === true)}\n`,
       ),
   );
 }

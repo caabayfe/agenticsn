@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildSite,
   loadDocumentation,
+  type MediaTools,
   type PageSource,
   parseScene,
   siteFiles,
@@ -287,5 +288,61 @@ describe("docs build: defaults and media", () => {
       new Uint8Array([1]),
     );
     expect(parseScene(scene.path, scene).name).toBe("asg");
+  });
+});
+
+describe("docs build: videos", () => {
+  const media = (browser: boolean): MediaTools => ({
+    ...NO_MEDIA,
+    codec: {
+      available: async () => true,
+      decode: async () => new Float32Array(10),
+      encodeMp3: async () => new Uint8Array([1, 2]),
+    },
+    video: { available: async () => browser, render: async () => new Uint8Array([9]) },
+  });
+
+  async function buildWith(browser: boolean) {
+    const { sources } = fakeSources(ALL);
+    let written: readonly { path: string; content: string | Uint8Array }[] = [];
+    const result = await buildSite(
+      {
+        ...run,
+        sources,
+        markdown: { html: (md) => md },
+        output: {
+          root: "/ws/site",
+          replace: async (files) => {
+            written = files;
+          },
+        },
+        media: media(browser),
+      },
+      { video: { fps: 30 } },
+    );
+    return { result, written };
+  }
+
+  it("renders every animation as an MP4 and links it under the player", async () => {
+    const { result, written } = await buildWith(true);
+    expect(result.videos).toEqual(["asg"]);
+    expect(written.find((file) => file.path === "animations/asg.mp4")?.content).toEqual(
+      new Uint8Array([9]),
+    );
+    const page = String(
+      written.find((file) => file.path === "processes/incident/operate/assign.html")?.content,
+    );
+    expect(page).toContain(
+      'href="../../../animations/asg.mp4" download>Download the video (MP4)</a>',
+    );
+  });
+
+  it("names every animation it could not render, and links no video", async () => {
+    const { result, written } = await buildWith(false);
+    expect(result.videos).toEqual([]);
+    expect(result.videosNotMade).toEqual([
+      { animation: "asg", reason: "no Chrome or Chromium browser" },
+    ]);
+    expect(written.some((file) => file.path.endsWith(".mp4"))).toBe(false);
   });
 });

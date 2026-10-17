@@ -76,6 +76,10 @@ export function siteFiles(input: SiteInput): readonly SiteFile[] {
     if (media !== undefined) {
       files.push({ path: `animations/${scene.name}.mp3`, content: media.mp3 });
     }
+    const video = input.videos?.get(scene.name);
+    if (video !== undefined) {
+      files.push({ path: `animations/${scene.name}.mp4`, content: video });
+    }
   }
   return files;
 }

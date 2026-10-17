@@ -92,4 +92,6 @@ export interface StaleCitation {
 export interface DocumentedRecords {
   citing(records: readonly RecordRef[], signal: AbortSignal): Promise<readonly RecordCitation[]>;
   stale(signal: AbortSignal): Promise<readonly StaleCitation[]>;
+  // Guides that don't show their capability as an animation (spec 010c).
+  unanimated(signal: AbortSignal): Promise<readonly string[]>;
 }

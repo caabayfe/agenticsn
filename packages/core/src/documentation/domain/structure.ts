@@ -28,6 +28,7 @@ const ERRORS = [
   "bad-counterpart",
   "missing-configure",
   "unknown-reference",
+  "missing-animation",
 ] as const;
 const WARNINGS = [
   "uncited-evidence",
@@ -172,6 +173,10 @@ function audienceProblems(docs: DocSet, page: DocPage): readonly DocsProblem[] {
   const problems =
     words.length === 0 ? [] : [docsProblem("platform-words", page.path, words.join(", "))];
   const view = SECTION_VIEW[page.section];
+  // Every capability is shown, not only told (spec 010c): a guide without an animation fails.
+  if (view !== undefined && animationsOf(page.body).length === 0) {
+    problems.push(docsProblem("missing-animation", page.path, page.topic));
+  }
   if (view !== undefined && !checkedOnSurface(page.evidence, view)) {
     problems.push(
       docsProblem("unchecked-surface", page.path, `no evidence from the ${view}'s screens`),

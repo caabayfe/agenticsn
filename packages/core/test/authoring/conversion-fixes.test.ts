@@ -44,3 +44,36 @@ describe("knownLoss: empty values the SDK writes as its default", () => {
     expect(knownLoss(difference("none", "error"))).toBeNull();
   });
 });
+
+describe("knownLoss: values the SDK recomputes where the instance holds nothing", () => {
+  const field = (table: string, name: string, built: string, instance: string) => ({
+    kind: "field" as const,
+    table,
+    row: "",
+    field: name,
+    built,
+    instance,
+  });
+
+  it("accepts a global role's suffix the build sets to its name, where the instance has none", () => {
+    expect(knownLoss(field("sys_user_role", "suffix", "itil", ""))).toBe("api-default");
+  });
+
+  it("does not accept a role suffix the instance holds", () => {
+    expect(knownLoss(field("sys_user_role", "suffix", "pd_shared.admin", "admin"))).toBeNull();
+  });
+
+  it("accepts desktop for a UI policy whose UI type is empty", () => {
+    expect(knownLoss(field("sys_ui_policy", "ui_type", "0", ""))).toBe("api-default");
+  });
+
+  it("does not accept desktop for a UI policy that applies everywhere", () => {
+    expect(knownLoss(field("sys_ui_policy", "ui_type", "0", "10"))).toBeNull();
+  });
+
+  it("accepts record_action for an inbound action whose type is empty, as the SDK reads it", () => {
+    expect(knownLoss(field("sysevent_in_email_action", "action", "record_action", ""))).toBe(
+      "api-default",
+    );
+  });
+});

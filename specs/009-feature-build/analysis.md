@@ -90,12 +90,12 @@ unmodelled columns are dropped and left unmanaged: `includes_roles`, `sys_policy
 | Class | Defect | pdi2 records |
 |---|---|---|
 | UI policy | action `field_message_type: ''` → type error; *fixed: source says `none`, a named loss (11 of 11 checked live adopt)* | 2,285 of 3,035 policies |
-| Role (global) | `suffix` recomputed as the whole name | 632 of 646 global roles |
-| UI policy | `ui_type` dropped when `run_scripts=false` | 176 |
+| Role (global) | `suffix` recomputed as the whole name; *now a loss against an empty suffix (10 of 10 live)* | 632 of 646 global roles |
+| UI policy | `ui_type` dropped when `run_scripts=false`; *empty type (144) now a loss; `all` (37) still refused by compare* | 176 |
 | Script include | `access: ''` → type error; *now refused with what to set (all 47 are global)* | 47 |
-| ACL | `advanced=true` with no script → `false` | 56 |
+| ACL | `advanced=true` with no script → `false`; *still refused by compare (equivalence unproven)* | 56 |
 | UI action | workspace flag combination → build error | 6 |
-| Inbound action | `action: ''` → `record_action` | 1 |
+| Inbound action | `action: ''` → `record_action`; *now a loss, as the SDK reads it* | 1 |
 | Script include | `protected` → empty script, which a push would write | 273 protected |
 
 → an adapter-level **pre-transform normalization** catalogue tied to the SDK version (like

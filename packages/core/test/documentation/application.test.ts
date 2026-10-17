@@ -313,7 +313,7 @@ describe("docs build", () => {
     const process = file("processes/incident/index.html");
     expect(process).toContain("Get people working again as fast as possible.");
     expect(process).toContain("<strong>Caller</strong> — anyone who reports a problem");
-    expect(process).toContain('Start with:</span> <a href="report.html">Report an incident</a>');
+    expect(process).toContain('What you do:</span> <a href="report.html">Report an incident</a>');
     expect(process).toContain("<strong>In Progress</strong><span>someone is working on it</span>");
     expect(process).toContain("An incident is anything that stops you working.");
     expect(process).toContain(

@@ -3,7 +3,7 @@
 export const PLAYER_STYLE = `:root{--ink:#172B4D;--ink2:#44546F;--mute:#8590A2;--line:#DCDFE4;--bg:#FFFFFF;--panel:#F7F8F9;
 --blue:#0C66E4;--blueL:#E9F2FF;--navy:#0B2545;--teal:#1F845A;--tealL:#DCFFF1;--amber:#B65C02;--amberL:#FFF7D6;
 --red:#C9372C;--redL:#FFECEB;--purple:#6E5DC6;--purpleL:#F3F0FF;--grey:#626F86;--greyL:#F1F2F4;
---ease:cubic-bezier(.22,.8,.24,1)}
+--ease:cubic-bezier(.22,.8,.24,1);color-scheme:only light}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",-apple-system,Roboto,Helvetica,Arial,sans-serif}
 .wrap{max-width:1000px;margin:0 auto;padding:10px 12px 8px}

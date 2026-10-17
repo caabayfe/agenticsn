@@ -1,7 +1,7 @@
 // The site's CSS: readable pages, light and dark, phone width without horizontal scroll.
 export const SITE_STYLE = `:root{--ink:#172B4D;--ink2:#44546F;--mute:#626F86;--line:#DCDFE4;--bg:#FFFFFF;--panel:#F7F8F9;
 --blue:#0C66E4;--green:#1F845A;--greenL:#DCFFF1;--amber:#B65C02;--amberL:#FFF7D6;--red:#C9372C;--redL:#FFECEB;
---purple:#6E5DC6;--purpleL:#F3F0FF;--blueL:#E9F2FF;--greyL:#F1F2F4}
+--purple:#6E5DC6;--purpleL:#F3F0FF;--blueL:#E9F2FF;--greyL:#F1F2F4;color-scheme:light dark}
 @media (prefers-color-scheme: dark){:root{--ink:#DEE4EA;--ink2:#B6C2CF;--mute:#9FADBC;--line:#38414A;--bg:#1D2125;
 --panel:#22272B;--blue:#579DFF;--green:#4BCE97;--greenL:#1C3329;--amber:#F5CD47;--amberL:#332E1B;--red:#F87168;
 --redL:#42221F;--purple:#9F8FEF;--purpleL:#2B273F;--blueL:#1C2B41;--greyL:#2C333A}}

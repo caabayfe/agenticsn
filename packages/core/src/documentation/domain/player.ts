@@ -55,7 +55,7 @@ export function playerHtml(scene: Scene, media?: PlayerMedia): string {
     media === undefined ? "" : ` src="data:${media.audio.mimeType};base64,${media.audio.base64}"`;
   const timing = media === undefined ? "" : `window.TIMING=${scriptJson(media.timeline)};`;
   const steps = scene.steps.map(stepLiteral).join(",\n ");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(scene.title)}</title>
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="only light"><title>${escapeHtml(scene.title)}</title>
 <style>${PLAYER_STYLE}</style>
 <style>${SCENE_BASE_STYLE}${scene.css}${revealCss(scene.steps.length)}</style><script>${timing}</script></head><body><div class="wrap">
 <div class="hdr">${header(scene)}</div>

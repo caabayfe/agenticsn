@@ -106,6 +106,7 @@ describe("player page", () => {
     expect(html).toContain("on:()=>{flow('tk0','p_in',1500,500,true)}");
     expect(html).toContain("Player({vb:[960,600],steps:");
     expect(html).not.toMatch(/(src|href)="https?:/);
+    expect(html).toContain('<meta name="color-scheme" content="only light">');
   });
 
   it("is silent when it has no audio track: no source on the audio element", () => {

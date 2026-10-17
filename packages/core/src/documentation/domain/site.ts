@@ -138,7 +138,7 @@ function processHtml(built: Built, process: Process): string {
     const links = mine
       .map((capability) => `<a href="${capability.id}.html">${escapeHtml(capability.title)}</a>`)
       .join(", ");
-    return `<li><strong>${escapeHtml(role.name)}</strong>${role.description === "" ? "" : ` — ${escapeHtml(role.description)}`}${links === "" ? "" : `<br><span class="mute">Start with:</span> ${links}`}</li>`;
+    return `<li><strong>${escapeHtml(role.name)}</strong>${role.description === "" ? "" : ` — ${escapeHtml(role.description)}`}${links === "" ? "" : `<br><span class="mute">What you do:</span> ${links}`}</li>`;
   });
   const states = process.lifecycle.map(
     (state) =>

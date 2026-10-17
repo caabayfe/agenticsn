@@ -267,6 +267,16 @@ fix.
 5. **Second instance** `pdi3` for L6-5.
 6. **Test users** `snfx.itil` and `snfx.approver` on pdi2, created once by the harness.
 
+## 8b. Decisions taken while running phases 1–2 (2026-10-17)
+
+- Menus with an empty order: accepted as a known loss, order 100, named in every plan (B).
+- Protected roles and UI policies whose child rows' protection the SDK would change: refused,
+  named.
+- **D. The gate's scope:** a plan's gate judges what the change introduced since each project's
+  ledger commit; findings an edited record already had are inherited, shown, never blocking
+  (option 3). `validate` on its own (CI on pull requests) still judges against the base it is
+  given.
+
 ## 9. What this plan does not cover
 
 - Production and test instances (write use cases are absent there by design, ADR-0012).

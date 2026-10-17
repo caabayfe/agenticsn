@@ -15,11 +15,13 @@ import { unitSecrets } from "../../../packages/core/src/authoring/domain/unit-se
 import {
   type BuiltUnit,
   compareUnit,
+  conversionRefusal,
   DEFAULT_REDACTION,
   type InstanceCopy,
   knownLoss,
   knownRefusal,
   readUnits,
+  unitSpec,
 } from "../../../packages/core/src/index";
 import { liveClient } from "./live-connection";
 import { MirrorReader } from "./mirror-reader";
@@ -100,7 +102,9 @@ function unitVerdict(
     };
   }
   if (copy.foreignRows > 0) return { kind: "refused", reason: "rows in a domain the SDK drops" };
-  for (const difference of compareUnit(unit, copy)) {
+  // As adopt does: units the platform compiles after a load (flows) aren't compared.
+  const differences = unitSpec(unit.head.table).comparable ? compareUnit(unit, copy) : [];
+  for (const difference of differences) {
     const loss = knownLoss(difference);
     if (loss !== null) {
       losses.add(loss);
@@ -187,10 +191,12 @@ async function census(
       return;
     }
   } else if (ids.length === 1) {
-    const refused = /can't express|Accessible from/.test(draft.message);
+    // As adopt does: a conversion fix's refusal, or a conversion the SDK can't make (named).
+    const named = conversionRefusal(draft.message);
+    const refused = named !== null || /can't express|Accessible from/.test(draft.message);
     out.set(ids[0] ?? "", {
       kind: refused ? "refused" : "failing",
-      reason: draft.message.slice(0, 200),
+      reason: (named ?? draft.message).slice(0, 200),
     });
     return;
   }

@@ -423,7 +423,7 @@ describe("adopt (ADR-0031 item 3)", () => {
       { instance: "pdi2", records: [{ table: "sys_user_role_contains", sysId: id }] },
     );
     await expect(adopting).rejects.toBeInstanceOf(AdoptRefusedError);
-    await expect(adopting).rejects.toThrow("the SDK would mark its containment rows read-only");
+    await expect(adopting).rejects.toThrow("containment rows' protection from none to read");
     expect(written.size).toBe(0);
   });
 });

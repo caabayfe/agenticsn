@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A change to a script include's `protectionPolicy` or `useEsLatest` alone is now delivered.
+  Plans ignored `sys_policy` and never compared the ES-latest row the SDK writes inside the
+  script include's update, so they recorded the ledger and loaded nothing (spec 009 B1). The
+  ES-latest row is compared only when the source sets a mode; otherwise the instance's stays.
+
 ## [2.1.0] - 2026-10-17
 
 A mirror complete enough to build a feature (spec 009, ADR-0034), and the security fixes from

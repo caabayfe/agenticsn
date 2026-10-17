@@ -20,7 +20,8 @@ const IGNORED: ReadonlySet<string> = new Set([
   "sys_domain_path",
   "sys_name",
   "sys_tags",
-  "sys_policy",
+  // sys_policy is authored (protectionPolicy) and compared: the SDK writes it only when the
+  // source sets it (B1).
   // The platform's own size bucket for a table (its collection entry), never authored.
   "sizeclass",
 ]);
@@ -88,7 +89,12 @@ function childDifferences(
     spec,
     built.map((row) => row.fields),
   );
-  const instanceKeys = keysOf(spec, instance);
+  // A partial child's rows the build doesn't carry are left as they are by a load.
+  const carried = new Set(builtKeys);
+  const instanceKeys = keysOf(
+    spec,
+    spec.partial === true ? instance.filter((row) => carried.has(rowKey(spec, row))) : instance,
+  );
   const differences: Difference[] = sameList(builtKeys, instanceKeys)
     ? []
     : [{ kind: "rows", table: spec.table, built: builtKeys, instance: instanceKeys }];

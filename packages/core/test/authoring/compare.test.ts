@@ -232,3 +232,68 @@ describe("unit helpers", () => {
     ).toBe("u2");
   });
 });
+
+// B1 (spec 009): a change to protectionPolicy or useEsLatest alone must be seen as a change.
+describe("compareUnit: protection policy and ES-latest mode (B1)", () => {
+  const SI = "123833b4d97d48be8e9ec5ea16f27764";
+  const withHead = (fields: Record<string, string>) => {
+    const base = scriptInclude("Helpers for the E2E probe.");
+    return { ...base, head: { ...base.head, fields: { ...base.head.fields, ...fields } } };
+  };
+  const esRow = (useEsLatest: string) =>
+    record("sys_es_latest_script", "e".repeat(32), {
+      sys_id: "e".repeat(32),
+      id: SI,
+      table: "sys_script_include",
+      use_es_latest: useEsLatest,
+    });
+  const instanceEs = (useEsLatest: string) => ({
+    sys_id: "e".repeat(32),
+    id: SI,
+    table: "sys_script_include",
+    use_es_latest: useEsLatest,
+  });
+
+  it("names a protection policy the source changed", () => {
+    const built = withHead({ sys_policy: "read" });
+    expect(compareUnit(built, copy({ ...INSTANCE_SCRIPT_INCLUDE, sys_policy: "" }))).toEqual([
+      expect.objectContaining({ field: "sys_policy", built: "read", instance: "" }),
+    ]);
+  });
+
+  it("leaves the protection policy alone when the source sets none", () => {
+    const built = scriptInclude("Helpers for the E2E probe.");
+    expect(compareUnit(built, copy({ ...INSTANCE_SCRIPT_INCLUDE, sys_policy: "read" }))).toEqual(
+      [],
+    );
+  });
+
+  it("names an ES-latest mode the source changed", () => {
+    const built = { ...scriptInclude("Helpers for the E2E probe."), children: [esRow("true")] };
+    expect(compareUnit(built, copy(INSTANCE_SCRIPT_INCLUDE, [instanceEs("false")]))).toEqual([
+      expect.objectContaining({
+        table: "sys_es_latest_script",
+        field: "use_es_latest",
+        built: "true",
+        instance: "false",
+      }),
+    ]);
+  });
+
+  it("finds nothing when the ES-latest mode agrees", () => {
+    const built = { ...scriptInclude("Helpers for the E2E probe."), children: [esRow("true")] };
+    expect(compareUnit(built, copy(INSTANCE_SCRIPT_INCLUDE, [instanceEs("true")]))).toEqual([]);
+  });
+
+  it("leaves the instance's ES-latest row alone when the source sets no mode", () => {
+    const built = scriptInclude("Helpers for the E2E probe.");
+    expect(compareUnit(built, copy(INSTANCE_SCRIPT_INCLUDE, [instanceEs("true")]))).toEqual([]);
+  });
+
+  it("names an ES-latest row the load would create", () => {
+    const built = { ...scriptInclude("Helpers for the E2E probe."), children: [esRow("true")] };
+    expect(compareUnit(built, copy(INSTANCE_SCRIPT_INCLUDE))).toEqual([
+      expect.objectContaining({ kind: "rows", table: "sys_es_latest_script" }),
+    ]);
+  });
+});

@@ -5,7 +5,7 @@ import { KeysetPager } from "../../sync/application/keyset-pager";
 import type { BuiltUnit, Fields, InstanceCopy } from "../domain/unit";
 import { type ChildSpec, childLink, coalesceValues, unitSpec } from "../domain/unit-specs";
 import { VERSION_FIELDS, versionOf } from "../domain/unit-version";
-import { NAMED_REFERENCES } from "../domain/values";
+import { isNamedReference } from "../domain/values";
 
 // Reads the instance's copy of each unit (ADR-0033 item 1): heads by sys_id, then by the keys
 // the platform coalesces on, then the composites' rows. Every request is a keyset listing on
@@ -20,13 +20,13 @@ const chunks = <T>(items: readonly T[]): T[][] =>
 
 // The fields to ask for: what the build wrote (named references by name too), the version
 // fields, the domain, and what identifies the row.
-function fieldsFor(records: readonly Fields[], extra: readonly string[]): string[] {
+function fieldsFor(table: string, records: readonly Fields[], extra: readonly string[]): string[] {
   // sys_update_name ties a Now.del found by its keys to the ledger entry it removes.
   const fields = new Set<string>([...VERSION_FIELDS, "sys_domain", "sys_update_name", ...extra]);
   for (const record of records) {
     for (const field of Object.keys(record)) {
       fields.add(field);
-      if (NAMED_REFERENCES.has(field)) fields.add(`${field}.name`);
+      if (isNamedReference(table, field)) fields.add(`${field}.name`);
     }
   }
   return [...fields].sort();
@@ -62,6 +62,7 @@ async function headsById(pager: KeysetPager, units: readonly BuiltUnit[], signal
   // Listings run together; the instance's request scheduler sets the pace (ADR-0016).
   const listings = [...byTable].flatMap(([table, group]) => {
     const fields = fieldsFor(
+      table,
       group.map((u) => u.head.fields),
       unitSpec(table).coalesce ?? [],
     );
@@ -110,6 +111,7 @@ async function readGroup(
     group.length === 1 ? condition(lastField, lastValue) : `${lastField}IN${lasts.join(",")}`;
   const base = [...entries.slice(0, -1).map(([f, v]) => condition(f, v)), last].join("^");
   const fields = fieldsFor(
+    first.unit.head.table,
     group.map(({ unit }) => unit.head.fields),
     Object.keys(first.values),
   );
@@ -142,6 +144,7 @@ async function rowsOf(
     .map(([field, value]) => condition(field, value))
     .join("^");
   const fields = fieldsFor(
+    spec.table,
     unit.children.map((c) => c.fields),
     [...spec.key, ...Object.keys(spec.link), ...(spec.ordered ? ["position"] : [])],
   );

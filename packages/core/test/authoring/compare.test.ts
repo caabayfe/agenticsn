@@ -297,3 +297,76 @@ describe("compareUnit: protection policy and ES-latest mode (B1)", () => {
     ]);
   });
 });
+
+// B3 (spec 009): a role or view named in source builds as a placeholder sys_id with the name
+// beside it; the instance holds the real sys_id. They are the same reference.
+describe("compareUnit: roles and views named in source (B3)", () => {
+  const PLACEHOLDER = "9e13c6b60dd04727b160d3e4569b4947";
+  const REAL = "2831a114c611228501d4ea6c309d626d";
+  const aclRole = (value: string, names: Record<string, string>) =>
+    unit(
+      "sys_security_acl_role_x",
+      record("sys_security_acl_role", "a".repeat(32), { sys_user_role: value }, names),
+    );
+
+  it("compares an ACL's role by the role's name", () => {
+    const built = aclRole(PLACEHOLDER, { sys_user_role: "admin" });
+    const instance = copy({ sys_user_role: REAL, "sys_user_role.name": "admin" });
+    expect(compareUnit(built, instance)).toEqual([]);
+  });
+
+  it("names a role the source changed", () => {
+    const built = aclRole(PLACEHOLDER, { sys_user_role: "itil" });
+    const instance = copy({ sys_user_role: REAL, "sys_user_role.name": "admin" });
+    expect(compareUnit(built, instance)).toEqual([
+      expect.objectContaining({ field: "sys_user_role", built: "itil", instance: "admin" }),
+    ]);
+  });
+
+  it("compares by sys_id when the build names no role (keys.ts knew it)", () => {
+    const built = aclRole(REAL, {});
+    expect(
+      compareUnit(built, copy({ sys_user_role: REAL, "sys_user_role.name": "admin" })),
+    ).toEqual([]);
+  });
+
+  it("compares both sides of a role containment by name", () => {
+    const built = unit(
+      "sys_user_role_contains_x",
+      record(
+        "sys_user_role_contains",
+        "b".repeat(32),
+        { role: PLACEHOLDER, contains: "c".repeat(32) },
+        { role: "x_app.approver", contains: "itil" },
+      ),
+    );
+    const instance = copy({
+      role: REAL,
+      "role.name": "x_app.approver",
+      contains: "d".repeat(32),
+      "contains.name": "itil",
+    });
+    expect(compareUnit(built, instance)).toEqual([]);
+  });
+
+  it("compares a UI action's view by the view's name", () => {
+    const built = unit(
+      "sys_ui_action_view_x",
+      record(
+        "sys_ui_action_view",
+        "e".repeat(32),
+        { sys_ui_view: PLACEHOLDER },
+        { sys_ui_view: "sys_ref_list" },
+      ),
+    );
+    const instance = copy({ sys_ui_view: REAL, "sys_ui_view.name": "sys_ref_list" });
+    expect(compareUnit(built, instance)).toEqual([]);
+  });
+
+  it("compares a field named role on another table as it is", () => {
+    const built = unit("x_t_x", record("x_t", "f".repeat(32), { role: "admin" }));
+    expect(compareUnit(built, copy({ role: "itil" }))).toEqual([
+      expect.objectContaining({ field: "role", built: "admin", instance: "itil" }),
+    ]);
+  });
+});

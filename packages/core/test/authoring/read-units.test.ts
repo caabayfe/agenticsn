@@ -76,6 +76,17 @@ describe("readUnits (ADR-0033 item 1)", () => {
     expect(fake.queries[0]?.fields).toContain("description");
   });
 
+  it("asks for the name of a role a child row takes by name (B3)", async () => {
+    const fake = instance();
+    const role = unit(
+      "sys_security_acl_role_x",
+      record("sys_security_acl_role", "a".repeat(32), { sys_user_role: "b".repeat(32) }),
+    );
+    await readUnits(fake.reader, [role], signal);
+    const read = fake.queries.find((q) => String(q.table) === "sys_security_acl_role");
+    expect(read?.fields).toContain("sys_user_role.name");
+  });
+
   it("finds columns by table and column in one listing when the build gave them new sys_ids", async () => {
     const fake = instance();
     const copies = await readUnits(

@@ -13,6 +13,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - Removing a role, view or action from a typed array still deletes nothing by itself (the SDK
   emits no deletion for the child row), and plan still refuses it; the refusal now names the
   line to add, such as `Now.del('sys_ui_action_role', '<sys_id>')` (spec 009 B2).
+- Roles and views named in source no longer show as a permanent difference. The build writes a
+  placeholder sys_id with the name beside it; plans now compare UI action roles and views, ACL
+  roles and role containment by name, and by sys_id when the build knew it (spec 009 B3).
 
 ## [2.1.0] - 2026-10-17
 

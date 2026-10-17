@@ -40,6 +40,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0032](0032-the-sdk-runs-behind-snagentics-connector.md) | The SDK runs in-process, behind snagentic's connector | Accepted |
 | [0033](0033-plans-compare-the-build-with-the-instance.md) | Plans compare the build with the instance; owned records have a base | Accepted |
 | [0034](0034-the-mirror-keeps-typed-property-values-and-names-what-it-leaves-out.md) | The mirror keeps typed property values and names what it leaves out | Accepted |
+| [0035](0035-pulls-scan-what-they-write-for-secrets.md) | Pulls scan what they write for secrets | Proposed |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

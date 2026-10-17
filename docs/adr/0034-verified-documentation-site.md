@@ -7,7 +7,7 @@
 - Amends: 0010 (adds verified documentation to scope)
 - Relates to: 0002 (agent interface), 0011 (enforcement layers), 0012 (production read-only),
   0016 (instance load), 0017 (mirror paths)
-- Plan: `specs/009-verified-documentation/plan.md`
+- Plan: `specs/010-verified-documentation/plan.md`
 - Assessment: `specs/prodvision/documentation.md` (branch `docs/product-vision`)
 
 ## Context

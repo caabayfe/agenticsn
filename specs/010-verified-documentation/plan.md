@@ -1,4 +1,4 @@
-# 009. Verified documentation site: plan
+# 010. Verified documentation site: plan
 
 - Status: P1, P2 and P3 done (2026-10-17); P4 next
 - Date: 2026-10-17

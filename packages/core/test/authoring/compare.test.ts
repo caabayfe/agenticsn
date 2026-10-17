@@ -370,3 +370,30 @@ describe("compareUnit: roles and views named in source (B3)", () => {
     ]);
   });
 });
+
+// A role hidden from the integration user (maint): the instance answers its sys_id but no name,
+// while the build names it. The same sys_id is the same reference (spec 009 L1, pdi2).
+describe("compareUnit: a named reference with the instance's own sys_id", () => {
+  const REAL = "b05947ca0a0a0aa700fdef030c6bca07";
+  const role = unit(
+    "sys_security_acl_role_y",
+    record(
+      "sys_security_acl_role",
+      "c".repeat(32),
+      { sys_user_role: REAL },
+      { sys_user_role: "maint" },
+    ),
+  );
+
+  it("is the same reference whatever the names say", () => {
+    expect(compareUnit(role, copy({ sys_user_role: REAL, "sys_user_role.name": "" }))).toEqual([]);
+  });
+
+  it("still names a different role", () => {
+    expect(
+      compareUnit(role, copy({ sys_user_role: "d".repeat(32), "sys_user_role.name": "admin" })),
+    ).toEqual([
+      expect.objectContaining({ field: "sys_user_role", built: "maint", instance: "admin" }),
+    ]);
+  });
+});

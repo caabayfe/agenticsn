@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadFluentRuntime } from "../../../src/adapters/fluent/fluent-runtime-loader";
 import {
@@ -52,6 +52,48 @@ describe("embedded Fluent build", () => {
       );
       const codes = new Set(outcome.errors.map((e) => e.code));
       expect([...codes].sort()).toEqual(["fluent213", "ts2339", "ts2345", "ts2551", "ts2769"]);
+    },
+    BUILD_TIMEOUT,
+  );
+
+  // A project's build scripts would run inside snagentic, which holds the instance's
+  // credentials (security finding S1): snagentic refuses the build and never runs them.
+  const MARKER = "script-ran.txt";
+  const script = `import { writeFileSync } from "node:fs";\nwriteFileSync(new URL("./${MARKER}", import.meta.url), "x");\nexport default [];\n`;
+
+  for (const name of ["now.prebuild.mjs", "now.postbuild.mjs"]) {
+    it(
+      `refuses to build a project with ${name}, without running it`,
+      async () => {
+        const project = copyFixture(join(FLUENT_FIXTURES, "server-modules"));
+        writeFileSync(join(project, name), script);
+        const outcome = await (await loadFluentRuntime()).build(project);
+        expect(outcome).toEqual({
+          success: false,
+          errors: [expect.objectContaining({ file: name, code: "snagentic-project-script" })],
+        });
+        expect(existsSync(join(project, MARKER))).toBe(false);
+      },
+      BUILD_TIMEOUT,
+    );
+  }
+
+  it(
+    "refuses a build script named in now.config.json, without running it",
+    async () => {
+      const project = copyFixture(join(FLUENT_FIXTURES, "server-modules"));
+      const configPath = join(project, "now.config.json");
+      const config = JSON.parse(readFileSync(configPath, "utf8"));
+      writeFileSync(configPath, JSON.stringify({ ...config, scripts: { prebuild: "./b.mjs" } }));
+      writeFileSync(join(project, "b.mjs"), script);
+      const outcome = await (await loadFluentRuntime()).build(project);
+      expect(outcome).toEqual({
+        success: false,
+        errors: [
+          expect.objectContaining({ file: "now.config.json", code: "snagentic-project-script" }),
+        ],
+      });
+      expect(existsSync(join(project, MARKER))).toBe(false);
     },
     BUILD_TIMEOUT,
   );

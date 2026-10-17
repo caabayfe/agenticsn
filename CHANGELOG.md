@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- A plan's gate judges what the change introduced since each project last agreed with the
+  instance (its ledger commit: the adoption or the last push), not since the last pull. Adopted
+  code no longer blocks unrelated pushes; findings an edited record already had are listed as
+  inherited, never blocking (product owner's decision D, 2026-10-17). A project with no ledger
+  is checked as before.
+
 ### Fixed
 
 - `adopt` brings in more UI policies: an empty script builds the SDK's empty condition function,

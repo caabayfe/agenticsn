@@ -56,6 +56,8 @@ export interface ProjectBuilds {
   readonly now: readonly BuiltUnit[] | { readonly errors: FluentBuildErrorLike[] };
   // The build at the base commit; null: the project did not exist then.
   readonly base?: readonly BuiltUnit[] | null;
+  // Builds at other commits, by commit (a project's ledger commit).
+  readonly at?: Readonly<Record<string, readonly BuiltUnit[]>>;
   readonly scripts?: ReadonlyMap<string, string>;
   readonly keys?: { readonly committed: string | null; readonly built: string } | null;
   readonly declaredSdk?: string | null;
@@ -97,8 +99,11 @@ export function fakeProjects(projects: Record<string, ProjectBuilds>, sdkVersion
         ? { built: false, errors: builds.now.errors }
         : build(builds.now, builds);
     },
-    buildAt: async (project) => {
+    buildAt: async (project, commit) => {
       const builds = projects[project.path];
+      const other = builds?.at?.[commit];
+      if (builds !== undefined && other !== undefined)
+        return build(other, { ...builds, keys: null });
       const base = builds?.base;
       return builds === undefined || base === undefined || base === null
         ? null
@@ -115,7 +120,7 @@ export function fakeMirror(
 ) {
   let asked = 0;
   const mirror: MirrorState = {
-    resolve: async (ref) => (ref === "nope" ? null : "c0ffee"),
+    resolve: async (ref) => (ref === "nope" ? null : ref === "HEAD" ? "c0ffee" : ref),
     edited: async () => options.edited ?? [],
     privileges: async (scope) => {
       asked += 1;

@@ -62,6 +62,13 @@ export const PlanOutput = z.object({
     waived: z.array(GateFinding.extend({ reason: z.string(), approver: z.string() })).readonly(),
     warnings: z.number(),
     waiverProblems: z.array(z.object({ index: z.number(), reason: z.string() })).readonly(),
+    inherited: z
+      .array(GateFinding)
+      .readonly()
+      .optional()
+      .describe(
+        "findings the changed units already held where they last agreed with the instance: shown, never blocking",
+      ),
   }),
   collisions: z
     .array(
@@ -124,6 +131,9 @@ export const planPush = defineUseCase({
       ),
       ...output.gate.waived.map(
         (f) => `waived:  ${f.ruleId} ${f.path} (${f.approver}: ${f.reason})`,
+      ),
+      ...(output.gate.inherited ?? []).map(
+        (f) => `inherited (not blocking): ${f.ruleId} ${f.path}:${f.line ?? ""} ${f.message}`,
       ),
       ...output.gate.waiverProblems.map((w) =>
         w.index < 0 ? w.reason : `waivers.yaml entry ${w.index + 1}: ${w.reason}`,

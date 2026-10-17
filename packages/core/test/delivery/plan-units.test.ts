@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { computeUnitPlan, deletionFor, unitDigest, unitPlanId } from "@snagentic/core";
+import { governanceOf, unitOf } from "../support/fake-governance";
 import {
   QUERY,
   SCOPE_ID,
@@ -133,5 +134,34 @@ describe("deletionFor", () => {
 
   it("names nothing for a unit named by its keys", () => {
     expect(deletionFor("sys_dictionary_x_app_task_u_status")).toBeNull();
+  });
+});
+
+// Decision D (2026-10-17): the gate judges what the change introduced since the project last
+// agreed with the instance (its ledger commit), so adopted code doesn't block unrelated pushes.
+describe("plan's gate on adopted code", () => {
+  const legacy = unitOf("sys_script_include", {
+    description: "Baseline helper",
+    script: "eval(a); /*SN-SEC-001*/",
+  });
+
+  it("doesn't block on what an adopted project already held", async () => {
+    const { deps, project } = unitSetup();
+    const governance = governanceOf({
+      [project.path]: { now: [legacy], base: null, at: { adopted: [legacy] } },
+    });
+    const workspace = { ...deps.authoring.workspace, ledgerCommit: async () => "adopted" };
+    const { plan } = await computeUnitPlan(
+      { ...deps, governance, authoring: { ...deps.authoring, workspace } },
+      QUERY,
+    );
+    expect(plan.gate.passed).toBe(true);
+  });
+
+  it("still blocks a project with no ledger on everything it holds", async () => {
+    const { deps, project } = unitSetup();
+    const governance = governanceOf({ [project.path]: { now: [legacy], base: null } });
+    const { plan } = await computeUnitPlan({ ...deps, governance }, QUERY);
+    expect(plan.gate.passed).toBe(false);
   });
 });

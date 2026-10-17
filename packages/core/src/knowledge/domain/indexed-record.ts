@@ -15,6 +15,8 @@ const KEY_FIELDS = [
   "mandatory",
   "operation",
   "reference",
+  // "protected": the platform withholds the code (ADR-0034 #3).
+  "sys_policy",
   "type",
   "ui_type",
   "when",

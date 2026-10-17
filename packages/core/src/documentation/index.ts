@@ -1,4 +1,4 @@
-// Public API of the documentation context: verified pages and the static site (ADR-0035).
+// Public API of the documentation context: verified pages and the static site (ADR-0036).
 
 export { type AudioOptions, type AudioTrack, audioTrack } from "./application/audio-tracks";
 export {

@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import {
   type AuthoringWorkspace,
   FLUENT_SOURCE_DIR,
@@ -9,6 +9,7 @@ import {
   LedgerUncommittedError,
   ledgerDocument,
   ledgerOf,
+  PathOutsideProjectError,
   type SourceProject,
 } from "@snagentic/core";
 import { runGit, runGitOrThrow } from "../git/run-git";
@@ -30,6 +31,16 @@ function configOf(text: string | null): { scope: string; scopeId: string } | nul
   return typeof scope === "string" && typeof scopeId === "string" ? { scope, scopeId } : null;
 }
 
+// `path` under `folder`, refusing one that resolves anywhere else ("..", absolute paths).
+function inside(folder: string, path: string): string {
+  const file = resolve(folder, path);
+  const within = relative(resolve(folder), file);
+  if (within === "" || within.startsWith("..") || resolve(folder, within) !== file) {
+    throw new PathOutsideProjectError(path, folder);
+  }
+  return file;
+}
+
 // The workspace's Fluent projects, one per scope under source/<scope>/ (ADR-0031).
 export class WorkspaceAuthoring implements AuthoringWorkspace {
   constructor(
@@ -49,12 +60,14 @@ export class WorkspaceAuthoring implements AuthoringWorkspace {
 
   async project(scope: string): Promise<SourceProject | null> {
     const path = `${FLUENT_SOURCE_DIR}/${scope}`;
-    const config = configOf(await readText(join(this.workspace, path, "now.config.json")));
+    const folder = inside(join(this.workspace, FLUENT_SOURCE_DIR), scope);
+    const config = configOf(await readText(join(folder, "now.config.json")));
     return config === null ? null : { path, scope: config.scope, scopeId: config.scopeId };
   }
 
   async scaffold(scope: { readonly name: string; readonly sysId: string }): Promise<SourceProject> {
     const path = `${FLUENT_SOURCE_DIR}/${scope.name}`;
+    inside(join(this.workspace, FLUENT_SOURCE_DIR), scope.name);
     const sdk = (await this.load()).sdkVersion;
     const config = {
       scope: scope.name,
@@ -90,7 +103,7 @@ export class WorkspaceAuthoring implements AuthoringWorkspace {
 
   async writeFiles(project: SourceProject, files: ReadonlyMap<string, string>): Promise<void> {
     for (const [path, text] of files) {
-      const file = join(this.workspace, project.path, path);
+      const file = inside(join(this.workspace, project.path), path);
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, text);
     }
@@ -117,7 +130,7 @@ export class WorkspaceAuthoring implements AuthoringWorkspace {
     const scratch = await mkdtemp(join(tmpdir(), "snagentic-merge-"));
     try {
       for (const [path, text] of theirs) {
-        const file = join(this.workspace, project.path, path);
+        const file = inside(join(this.workspace, project.path), path);
         const shown = await runGit(["show", `${base}:${project.path}/${path}`], this.workspace);
         // A file deleted locally is the empty text: git then reports the instance's change.
         const ours = join(scratch, "local");

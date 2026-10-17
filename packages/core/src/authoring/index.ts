@@ -10,12 +10,15 @@ export {
 export { readUnits } from "./application/read-units";
 export {
   AdoptRecordsNotFoundError,
+  AdoptSecretError,
   AdoptStoreApplicationError,
   AdoptTransformFailedError,
   AdoptUnexplainedDifferenceError,
   InvalidRecordReferenceError,
+  InvalidScopeNameError,
   LedgerUncommittedError,
   NothingAdoptedError,
+  PathOutsideProjectError,
   SdkUnavailableError,
 } from "./domain/adopt-errors";
 export { compareUnit, type Difference } from "./domain/compare";

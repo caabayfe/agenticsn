@@ -1,4 +1,5 @@
-import { relative, resolve, sep } from "node:path";
+import { existsSync } from "node:fs";
+import { join, relative, resolve, sep } from "node:path";
 import { Orchestrator, Project } from "@servicenow/sdk-api";
 import { type Diagnostic, NoOpTelemetry, NowConfig } from "@servicenow/sdk-build-core";
 import { OverlayFileSystem } from "./overlay-file-system";
@@ -86,8 +87,41 @@ function projectAt(rootDir: string, typeFiles: TypeFiles): Project {
   });
 }
 
+// The scripts the SDK's build imports and runs: those named in now.config.json, else
+// now.<name>.mjs beside it.
+const BUILD_SCRIPTS = ["prebuild", "postbuild"] as const;
+
+// A build script would run inside snagentic, with the instance's credentials in reach (S1).
+// snagentic builds metadata only; a project with build scripts is refused before the SDK runs.
+function buildScripts(project: Project, rootDir: string): FluentBuildError[] {
+  const declared: Readonly<Record<string, string>> = project.getConfig().scripts ?? {};
+  return BUILD_SCRIPTS.flatMap((name) => {
+    const file =
+      declared[name] !== undefined
+        ? "now.config.json"
+        : existsSync(join(rootDir, `now.${name}.mjs`))
+          ? `now.${name}.mjs`
+          : null;
+    return file === null
+      ? []
+      : [
+          {
+            file,
+            line: 1,
+            column: 1,
+            code: "snagentic-project-script",
+            message: `the project has a ${name} script; snagentic doesn't run project scripts, which would run with its access to the instance: remove it`,
+          },
+        ];
+  });
+}
+
 async function build(rootDir: string, typeFiles: TypeFiles): Promise<FluentBuildOutcome> {
   const project = projectAt(rootDir, typeFiles);
+  const scripts = buildScripts(project, rootDir);
+  if (scripts.length > 0) {
+    return { success: false, errors: scripts };
+  }
   // The SDK throws after reporting diagnostics; the diagnostics are the answer.
   const result = await new Orchestrator(project).build({}).catch(() => undefined);
   if (result?.success) {

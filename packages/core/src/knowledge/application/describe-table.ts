@@ -2,6 +2,7 @@ import { Catalog } from "../../metadata/domain/catalog";
 import type { Phase } from "../domain/behavior";
 import { fitted } from "../domain/budget";
 import type { IndexedRecord } from "../domain/indexed-record";
+import { isProtected, tableOmissions } from "../domain/omissions";
 import { freshness } from "./freshness";
 import type { Freshness, KnowledgeDependencies, NextCall } from "./knowledge-dependencies";
 
@@ -188,6 +189,9 @@ export async function describeTable(
     .sort((a, b) => a.name.localeCompare(b.name));
   const phase = options.phase;
   const inScope = phase === undefined ? records : records.filter((r) => r.phase === phase);
+  const protectedItems = inScope.filter(
+    (r) => r.phase !== null && r.phase !== "field" && r.active && isProtected(r.fields),
+  ).length;
   const build = (limit: number): TableDescription => {
     const { behavior, omitted, counts } = grouped(
       inScope,
@@ -208,6 +212,7 @@ export async function describeTable(
       notCovered: [
         "flows and workflows triggered by this table",
         "business rules on the global table, which run on every table",
+        ...tableOmissions(protectedItems),
       ],
       next: nextCalls(table, behavior, counts),
     };

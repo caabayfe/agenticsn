@@ -42,7 +42,7 @@ export interface ValidateDependencies {
   readonly mirror: MirrorState;
   readonly checker: ScriptChecker;
   readonly fluent: FluentProjects;
-  // The workspace's documentation, when it has any (ADR-0035): pages citing what changed.
+  // The workspace's documentation, when it has any (ADR-0036): pages citing what changed.
   readonly documentation?: DocumentedRecords;
 }
 

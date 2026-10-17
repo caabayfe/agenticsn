@@ -92,3 +92,46 @@ export class LedgerUncommittedError extends SnagenticError {
     );
   }
 }
+
+// Security finding S2: the adopted source would hold a value a pull keeps out of the mirror (a
+// password, a secret-named field, a redacted property value) or a class the mirror never holds.
+// Names the units and fields, never the values.
+export class AdoptSecretError extends SnagenticError {
+  readonly findings: readonly string[];
+
+  constructor(findings: readonly string[]) {
+    super(
+      "adopt-secret",
+      "not-permitted",
+      `adopting would put secrets in source: ${findings.join("; ")}`,
+      "leave these records on the instance and adopt the rest; snagentic keeps secrets out of source as it keeps them out of the mirror",
+    );
+    this.findings = findings;
+  }
+}
+
+// A scope name from the instance becomes the folder source/<scope>: anything but a ServiceNow
+// scope name could point elsewhere in the workspace.
+export class InvalidScopeNameError extends SnagenticError {
+  constructor(scope: string) {
+    super(
+      "invalid-scope-name",
+      "precondition",
+      `the instance names the records' application ${JSON.stringify(scope)}, which is not a ServiceNow scope name`,
+      "check the application's scope on the instance; snagentic adopts only scopes made of lowercase letters, digits, underscores and hyphens",
+    );
+  }
+}
+
+// A path from the instance or the SDK that would land outside its folder. Never expected:
+// sourceScopeName and the SDK's own file names keep paths inside; this is the last check.
+export class PathOutsideProjectError extends SnagenticError {
+  constructor(path: string, folder: string) {
+    super(
+      "path-outside-project",
+      "not-permitted",
+      `refused to write ${JSON.stringify(path)}: it is outside ${folder}`,
+      "nothing was written; report it, naming the records adopted and the SDK version (snagentic doctor)",
+    );
+  }
+}

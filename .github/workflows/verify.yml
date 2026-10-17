@@ -22,7 +22,7 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
-      # Documentation media (ADR-0035): ffmpeg encodes audio and video; the runner image has
+      # Documentation media (ADR-0036): ffmpeg encodes audio and video; the runner image has
       # Google Chrome for the video recording test.
       - name: ffmpeg
         run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg

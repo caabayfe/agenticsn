@@ -6,6 +6,7 @@ import {
   AdoptUnexplainedDifferenceError,
   adopt,
   type BuiltUnit,
+  InvalidScopeNameError,
   NothingAdoptedError,
 } from "@snagentic/core";
 import { fakeInstance } from "../support/fake-instance";
@@ -351,4 +352,27 @@ describe("adopt (ADR-0031 item 3)", () => {
       `sys_script_include:${SCRIPT_INCLUDE_ID}`,
     ]);
   });
+
+  it.each(["../../outside", "x_app/../../outside", "X App", ""])(
+    "refuses a scope name that is not a ServiceNow scope, writing nothing (%p)",
+    async (scope) => {
+      const fake = fakeInstance({
+        sys_script_include: [instanceRecord],
+        sys_scope: [{ sys_id: SCOPE_ID, scope, sys_class_name: "sys_app" }],
+      });
+      const { workspace, written } = memoryWorkspace();
+      const adopting = adopt(
+        {
+          reader: fake.reader,
+          workspace,
+          toolchain: toolchain([scriptInclude("Helpers for the E2E probe.")]).chain,
+          access,
+          signal,
+        },
+        { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
+      );
+      await expect(adopting).rejects.toBeInstanceOf(InvalidScopeNameError);
+      expect(written.size).toBe(0);
+    },
+  );
 });

@@ -62,7 +62,7 @@ import { USE_CASES } from "./registry/registry";
 import type { UseCaseContext } from "./registry/use-case";
 import { versionLine } from "./version-line";
 
-// The mirror documentation pages are verified against, read only (ADR-0035).
+// The mirror documentation pages are verified against, read only (ADR-0036).
 const docsMirror = (root: string) => (instance: string) => {
   const metadata = instancePaths(InstanceName.parse(instance)).metadata;
   return new FsMirrorRecords(join(root, metadata), () => new GitMirrorFiles(root, metadata).head());

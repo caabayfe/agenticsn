@@ -10,7 +10,7 @@ interface EvidenceBase {
 
 // A fact a page rests on, anchored to a mirror record: the record, one of its fields, or its
 // children (a form section's fields, a choice set's choices), and the hash the author verified
-// the claim against (ADR-0035).
+// the claim against (ADR-0036).
 export interface RecordEvidence extends EvidenceBase {
   readonly kind: "record";
   readonly table: string;

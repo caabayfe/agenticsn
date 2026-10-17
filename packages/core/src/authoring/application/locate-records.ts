@@ -3,6 +3,7 @@ import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
 import { KeysetPager } from "../../sync/application/keyset-pager";
 import { AdoptRecordsNotFoundError, AdoptStoreApplicationError } from "../domain/adopt-errors";
+import { sourceScopeName } from "../domain/source-scope";
 import type { TransformTarget } from "../ports";
 
 // Where records live on the instance before adopt converts them: their class and application.
@@ -63,7 +64,7 @@ export async function locate(
     const scope = scopes.find((s) => s["sys_id"] === scopeId);
     return {
       target: { table: record["sys_class_name"] ?? "", sysId: record["sys_id"] ?? "" },
-      scope: { name: scope?.["scope"] ?? "global", sysId: scopeId },
+      scope: { name: sourceScopeName(scope?.["scope"] ?? "global"), sysId: scopeId },
     };
   });
 }

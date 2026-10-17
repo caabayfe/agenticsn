@@ -11,6 +11,7 @@ import {
   type PluginActivator,
   type Row,
   type SdkAccess,
+  SdkRouteRefusedError,
   type ServerCost,
   type ServerCostReader,
   type TableFingerprint,
@@ -206,6 +207,10 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     signal: AbortSignal,
   ): Promise<{ readonly status: number; readonly contentType: string; readonly text: string }> {
     const url = new URL(request.url, this.profile.url);
+    // The request carries this client's credentials: it never leaves the instance's origin.
+    if (url.origin !== new URL(this.profile.url).origin) {
+      throw new SdkRouteRefusedError(request.method, url.href);
+    }
     const type = request.method === "POST" ? { "Content-Type": "application/json" } : {};
     const body = request.body === undefined ? {} : { body: request.body };
     const send = { method: request.method, url: url.href, headers: { ...this.headers, ...type } };

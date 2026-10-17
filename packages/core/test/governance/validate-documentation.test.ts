@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { type DocumentedRecords, validate } from "@snagentic/core";
 import { governanceOf, unitOf } from "../support/fake-governance";
 
-// validate names the documentation a change may make wrong (ADR-0035, spec 010 P4).
+// validate names the documentation a change may make wrong (ADR-0036, spec 010 P4).
 
 const GLOBAL = "source/global";
 const RULE_ID = "0c1345dd0783f01028ef0a701ad300fa";

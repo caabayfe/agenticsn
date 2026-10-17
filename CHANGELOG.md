@@ -4,6 +4,34 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-17
+
+A mirror complete enough to build a feature (spec 009, ADR-0034), and the security fixes from
+the 2.0 audit. Upgrading needs no new workspace: the first pull reads properties and choices
+again once, and the local index is rebuilt once.
+
+Not in this release: the mirror secret scan ASR-08 calls for (proposed in ADR-0035). Kept
+property values are checked against credential patterns meanwhile.
+
+### Security
+
+- A Fluent build no longer runs the project's build scripts (`now.prebuild.mjs`,
+  `now.postbuild.mjs`, or scripts named in `now.config.json`). The SDK ran them inside
+  snagentic, with the instance's credentials in reach, so a source change could run code during
+  `check` or a plan. A project with build scripts is now refused with an error naming the file
+  (S1).
+- `adopt` refuses records whose source would hold a value a pull keeps out of the mirror: a
+  password or secret-named field, a redacted property value, or a credential class. It wrote
+  them into source unredacted. The error names the records and fields, never the values, and
+  nothing is written (S2).
+- The SDK's requests can't leave the instance: a request it built for another host, scheme or
+  port is refused before anything is sent. An absolute URL would have been sent to its own host
+  with snagentic's credentials. Checked in the SDK's connector and again in the client.
+- `adopt` refuses an application whose scope name, read from the instance, isn't a ServiceNow
+  scope name (lowercase letters, digits, underscores and hyphens). It became the folder
+  `source/<scope>`, so a crafted name could write elsewhere in the workspace. Files the SDK
+  converts are also refused if their path leaves the project.
+
 ### Added
 
 - Pulls keep whether a script runs on the latest ECMAScript engine (`sys_es_latest_script`),
@@ -17,6 +45,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   The pull reports values redacted for not having their type's shape.
 - The first pull after upgrading reads properties and choices again once, so existing mirrors
   gain these values and the choices below without a full pull. Expect one large mirror commit.
+- `describe` says what the mirror leaves out on purpose where it matters (ADR-0034): a protected
+  record's code is not readable; an inbound email action depends on mail accounts, which are not
+  mirrored, and on `glide.email.read.active`, whose value it gives; a flow or action that takes a
+  connection alias depends on aliases and connections, which are not mirrored. A table's
+  description counts its behaviour with protected code. The local index is rebuilt once.
 
 ### Fixed
 

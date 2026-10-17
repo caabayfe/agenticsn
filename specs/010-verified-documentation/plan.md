@@ -2,7 +2,7 @@
 
 - Status: P1–P3, the three audiences (`audiences.md`, A1–A4) and P4 done (2026-10-17); the Steward's drafting waits for the Steward
 - Date: 2026-10-17
-- Decision: ADR-0035
+- Decision: ADR-0036
 - Requirements: G2, G3, ASR-01, ASR-08, ASR-09, ASR-10, ASR-13, ASR-15
 - Origin: the SNDOC revision method and pipeline (NTT, September 2026), rewritten in TypeScript
   for snagentic. Kept: the method (evidence, A and B pages, labels), the scene format, the

@@ -38,7 +38,7 @@ async function list(root: string, pattern: string): Promise<string[]> {
 }
 
 // documentation/ in the workspace: site.yaml, processes/<id>/process.yaml and its pages
-// (<section>/<topic>.md), animations/<name>/ (ADR-0035, spec 010a).
+// (<section>/<topic>.md), animations/<name>/ (ADR-0036, spec 010a).
 export class FsDocumentationSources implements DocumentationSources {
   private readonly root: string;
 

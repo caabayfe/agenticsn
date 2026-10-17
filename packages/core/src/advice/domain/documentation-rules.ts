@@ -1,6 +1,6 @@
 import type { Rule } from "./rule-types";
 
-// Checks of the workspace's documentation (ADR-0035, spec 010 P4): pages cite mirror records as
+// Checks of the workspace's documentation (ADR-0036, spec 010 P4): pages cite mirror records as
 // evidence, so a change to one of those records, or a mirror that moved on, makes the page
 // worth a look. Warnings: the change may be right and the page wrong, and `docs check` is the
 // strict gate.

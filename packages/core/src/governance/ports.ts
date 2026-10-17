@@ -87,7 +87,7 @@ export interface StaleCitation {
   readonly status: "changed" | "missing";
 }
 
-// The workspace's documentation as validate sees it (ADR-0035, spec 010 P4). Both are empty
+// The workspace's documentation as validate sees it (ADR-0036, spec 010 P4). Both are empty
 // when the workspace has no documentation.
 export interface DocumentedRecords {
   citing(records: readonly RecordRef[], signal: AbortSignal): Promise<readonly RecordCitation[]>;

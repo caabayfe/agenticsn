@@ -2,7 +2,7 @@ import { NoDocumentationError } from "../domain/errors";
 import { assessDocumentation, type CheckDocsDependencies, todayOf } from "./check-docs";
 import { type Documentation, loadDocumentation } from "./load-documentation";
 
-// The documentation as other contexts ask about it (validate, ADR-0035 P4): which pages cite a
+// The documentation as other contexts ask about it (validate, ADR-0036 P4): which pages cite a
 // record, and which evidence no longer matches the mirror. Pages are workspace-relative.
 export interface DocumentationLookup {
   citing(

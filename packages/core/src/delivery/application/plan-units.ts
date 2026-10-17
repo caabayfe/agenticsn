@@ -18,6 +18,7 @@ import {
 import { batchUpdateSets, inBatch } from "../domain/batch";
 import type { GateResult } from "../domain/gate";
 import {
+  deletionFor,
   type PlannedUnit,
   plannedOrProblem,
   type UnitProblem,
@@ -109,14 +110,18 @@ function removedWithoutDeletion(
   const built = new Set(units.map((unit) => unit.updateName));
   return [...entries.keys()]
     .filter((name) => !built.has(name) && !deleting.has(name))
-    .map((name) =>
-      problem(
+    .map((name) => {
+      const line = deletionFor(name);
+      const add = line === null ? "add a Now.del" : `add ${line}`;
+      // A removed entry of a typed array (a UI action's role) is a unit of its own: the SDK
+      // emits no deletion for it (spec 009 B2).
+      return problem(
         project.path,
         "removed",
-        "its definition was removed: add a Now.del to delete it on the instance, or restore it",
+        `its definition was removed: ${add} to delete it on the instance, or restore it`,
         name,
-      ),
-    );
+      );
+    });
 }
 
 // The platform refuses to publish a flow its publishing user's domain cannot see (spike S11),

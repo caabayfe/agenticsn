@@ -45,10 +45,13 @@ Fixing them once, in snagentic, fixes most classes. Three of them are product bu
 
 - **B1** a change to `protectionPolicy` or `useEsLatest` alone is never delivered: `sys_policy` is
   ignored by the comparison (`compare.ts:23`), so plan records the ledger and loads nothing (C);
+  *fixed after 2.1.0: `sys_policy` compared, the ES-latest row a partial child*;
 - **B2** removing a role, view or action from a typed array deletes nothing on the instance: the
   child row is its own unit and survives, so the instance grants more than source says (C, build);
+  *after 2.1.0 plan's refusal names the `Now.del` to add; emitting it is decision 2*;
 - **B3** a role or view named in source compares as a placeholder sys_id against the real one, a
-  permanent unexplained difference (`values.ts:7` covers only `view` and `super_class`) (C).
+  permanent unexplained difference (`values.ts:7` covers only `view` and `super_class`) (C);
+  *fixed after 2.1.0: named per table, by sys_id when the build knew it*.
 
 **Adopt cannot bring in most existing UI policies today:** 4,776 of 5,350 policy actions on pdi2
 have `field_message_type: ''`, which transforms to a value the SDK's own type rejects, so 75% of

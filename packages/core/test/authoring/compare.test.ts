@@ -232,3 +232,141 @@ describe("unit helpers", () => {
     ).toBe("u2");
   });
 });
+
+// B1 (spec 009): a change to protectionPolicy or useEsLatest alone must be seen as a change.
+describe("compareUnit: protection policy and ES-latest mode (B1)", () => {
+  const SI = "123833b4d97d48be8e9ec5ea16f27764";
+  const withHead = (fields: Record<string, string>) => {
+    const base = scriptInclude("Helpers for the E2E probe.");
+    return { ...base, head: { ...base.head, fields: { ...base.head.fields, ...fields } } };
+  };
+  const esRow = (useEsLatest: string) =>
+    record("sys_es_latest_script", "e".repeat(32), {
+      sys_id: "e".repeat(32),
+      id: SI,
+      table: "sys_script_include",
+      use_es_latest: useEsLatest,
+    });
+  const instanceEs = (useEsLatest: string) => ({
+    sys_id: "e".repeat(32),
+    id: SI,
+    table: "sys_script_include",
+    use_es_latest: useEsLatest,
+  });
+
+  it("names a protection policy the source changed", () => {
+    const built = withHead({ sys_policy: "read" });
+    expect(compareUnit(built, copy({ ...INSTANCE_SCRIPT_INCLUDE, sys_policy: "" }))).toEqual([
+      expect.objectContaining({ field: "sys_policy", built: "read", instance: "" }),
+    ]);
+  });
+
+  it("leaves the protection policy alone when the source sets none", () => {
+    const built = scriptInclude("Helpers for the E2E probe.");
+    expect(compareUnit(built, copy({ ...INSTANCE_SCRIPT_INCLUDE, sys_policy: "read" }))).toEqual(
+      [],
+    );
+  });
+
+  it("names an ES-latest mode the source changed", () => {
+    const built = { ...scriptInclude("Helpers for the E2E probe."), children: [esRow("true")] };
+    expect(compareUnit(built, copy(INSTANCE_SCRIPT_INCLUDE, [instanceEs("false")]))).toEqual([
+      expect.objectContaining({
+        table: "sys_es_latest_script",
+        field: "use_es_latest",
+        built: "true",
+        instance: "false",
+      }),
+    ]);
+  });
+
+  it("finds nothing when the ES-latest mode agrees", () => {
+    const built = { ...scriptInclude("Helpers for the E2E probe."), children: [esRow("true")] };
+    expect(compareUnit(built, copy(INSTANCE_SCRIPT_INCLUDE, [instanceEs("true")]))).toEqual([]);
+  });
+
+  it("leaves the instance's ES-latest row alone when the source sets no mode", () => {
+    const built = scriptInclude("Helpers for the E2E probe.");
+    expect(compareUnit(built, copy(INSTANCE_SCRIPT_INCLUDE, [instanceEs("true")]))).toEqual([]);
+  });
+
+  it("names an ES-latest row the load would create", () => {
+    const built = { ...scriptInclude("Helpers for the E2E probe."), children: [esRow("true")] };
+    expect(compareUnit(built, copy(INSTANCE_SCRIPT_INCLUDE))).toEqual([
+      expect.objectContaining({ kind: "rows", table: "sys_es_latest_script" }),
+    ]);
+  });
+});
+
+// B3 (spec 009): a role or view named in source builds as a placeholder sys_id with the name
+// beside it; the instance holds the real sys_id. They are the same reference.
+describe("compareUnit: roles and views named in source (B3)", () => {
+  const PLACEHOLDER = "9e13c6b60dd04727b160d3e4569b4947";
+  const REAL = "2831a114c611228501d4ea6c309d626d";
+  const aclRole = (value: string, names: Record<string, string>) =>
+    unit(
+      "sys_security_acl_role_x",
+      record("sys_security_acl_role", "a".repeat(32), { sys_user_role: value }, names),
+    );
+
+  it("compares an ACL's role by the role's name", () => {
+    const built = aclRole(PLACEHOLDER, { sys_user_role: "admin" });
+    const instance = copy({ sys_user_role: REAL, "sys_user_role.name": "admin" });
+    expect(compareUnit(built, instance)).toEqual([]);
+  });
+
+  it("names a role the source changed", () => {
+    const built = aclRole(PLACEHOLDER, { sys_user_role: "itil" });
+    const instance = copy({ sys_user_role: REAL, "sys_user_role.name": "admin" });
+    expect(compareUnit(built, instance)).toEqual([
+      expect.objectContaining({ field: "sys_user_role", built: "itil", instance: "admin" }),
+    ]);
+  });
+
+  it("compares by sys_id when the build names no role (keys.ts knew it)", () => {
+    const built = aclRole(REAL, {});
+    expect(
+      compareUnit(built, copy({ sys_user_role: REAL, "sys_user_role.name": "admin" })),
+    ).toEqual([]);
+  });
+
+  it("compares both sides of a role containment by name", () => {
+    const built = unit(
+      "sys_user_role_contains_x",
+      record(
+        "sys_user_role_contains",
+        "b".repeat(32),
+        { role: PLACEHOLDER, contains: "c".repeat(32) },
+        { role: "x_app.approver", contains: "itil" },
+      ),
+    );
+    const instance = copy({
+      role: REAL,
+      "role.name": "x_app.approver",
+      contains: "d".repeat(32),
+      "contains.name": "itil",
+    });
+    expect(compareUnit(built, instance)).toEqual([]);
+  });
+
+  it("compares a UI action's view by the view's name", () => {
+    const built = unit(
+      "sys_ui_action_view_x",
+      record(
+        "sys_ui_action_view",
+        "e".repeat(32),
+        { sys_ui_view: PLACEHOLDER },
+        { sys_ui_view: "sys_ref_list" },
+      ),
+    );
+    const instance = copy({ sys_ui_view: REAL, "sys_ui_view.name": "sys_ref_list" });
+    expect(compareUnit(built, instance)).toEqual([]);
+  });
+
+  it("compares a field named role on another table as it is", () => {
+    const built = unit("x_t_x", record("x_t", "f".repeat(32), { role: "admin" }));
+    expect(compareUnit(built, copy({ role: "itil" }))).toEqual([
+      expect.objectContaining({ field: "role", built: "admin", instance: "itil" }),
+    ]);
+  });
+});

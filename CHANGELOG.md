@@ -4,6 +4,19 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A change to a script include's `protectionPolicy` or `useEsLatest` alone is now delivered.
+  Plans ignored `sys_policy` and never compared the ES-latest row the SDK writes inside the
+  script include's update, so they recorded the ledger and loaded nothing (spec 009 B1). The
+  ES-latest row is compared only when the source sets a mode; otherwise the instance's stays.
+- Removing a role, view or action from a typed array still deletes nothing by itself (the SDK
+  emits no deletion for the child row), and plan still refuses it; the refusal now names the
+  line to add, such as `Now.del('sys_ui_action_role', '<sys_id>')` (spec 009 B2).
+- Roles and views named in source no longer show as a permanent difference. The build writes a
+  placeholder sys_id with the name beside it; plans now compare UI action roles and views, ACL
+  roles and role containment by name, and by sys_id when the build knew it (spec 009 B3).
+
 ## [2.1.0] - 2026-10-17
 
 A mirror complete enough to build a feature (spec 009, ADR-0034), and the security fixes from

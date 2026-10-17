@@ -52,6 +52,17 @@ export function unitName(unit: BuiltUnit): string {
   return unit.updateName;
 }
 
+// A record unit is named <table>_<sys_id>; units named by their keys (dictionary entries,
+// layouts) are not.
+const RECORD_UNIT = /^([a-z0-9_]+)_([0-9a-f]{32})$/;
+
+// The line that deletes a removed unit's record, by sys_id: deleting by keys gives the deletion
+// a sys_id of its own (S16 F3). Null for a unit named by its keys.
+export function deletionFor(updateName: string): string | null {
+  const match = RECORD_UNIT.exec(updateName);
+  return match === null ? null : `Now.del('${match[1]}', '${match[2]}')`;
+}
+
 export const changesOf = (differences: readonly Difference[]): string[] => [
   ...new Set(
     differences.map((d) => (d.kind === "field" ? `${d.table}.${d.field}` : `${d.table} rows`)),

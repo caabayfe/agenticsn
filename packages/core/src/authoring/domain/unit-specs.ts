@@ -12,6 +12,9 @@ export interface ChildSpec {
   readonly key: readonly string[];
   // Rows whose order is part of the layout, by position.
   readonly ordered: boolean;
+  // Rows the load sets only when the build carries them, never replaces as a whole: instance
+  // rows the build leaves out are unmanaged (a script's ES-latest row, B1).
+  readonly partial?: true;
 }
 
 export interface UnitSpec {
@@ -67,6 +70,18 @@ const SPECS: Readonly<Record<string, UnitSpec>> = {
       link: { sys_ui_form: "sys_id" },
       key: ["sys_ui_section"],
       ordered: true,
+    },
+    comparable: true,
+  },
+  // The SDK writes a script include's ES-latest row inside its update when the source sets
+  // useEsLatest, keyed by the script's sys_id and class (M1).
+  sys_script_include: {
+    children: {
+      table: "sys_es_latest_script",
+      link: { id: "sys_id" },
+      key: ["table"],
+      ordered: false,
+      partial: true,
     },
     comparable: true,
   },

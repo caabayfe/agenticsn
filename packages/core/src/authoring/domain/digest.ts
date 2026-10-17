@@ -1,14 +1,16 @@
 import { canonicalJson } from "../../kernel/canonical-json";
 import { sha256Hex } from "../../kernel/sha256";
 import type { BuiltUnit, UnitRecord } from "./unit";
-import { comparedValue, NAMED_REFERENCES } from "./values";
+import { comparedValue, isNamedReference } from "./values";
 
 // A built unit's content digest: equal for two builds of the same source. Named references are
 // taken by name, because the build gives them a new placeholder sys_id every time (S16 F2).
 function stable(record: UnitRecord): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const [field, value] of Object.entries(record.fields)) {
-    fields[field] = NAMED_REFERENCES.has(field) ? `name:${comparedValue(record, field)[0]}` : value;
+    fields[field] = isNamedReference(record.table, field)
+      ? `name:${comparedValue(record, field)[0]}`
+      : value;
   }
   return { ...fields, "@table": record.table, "@sys_id": record.sysId, "@action": record.action };
 }

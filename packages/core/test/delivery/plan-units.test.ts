@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { computeUnitPlan, unitDigest, unitPlanId } from "@snagentic/core";
+import { computeUnitPlan, deletionFor, unitDigest, unitPlanId } from "@snagentic/core";
 import {
   QUERY,
   SCOPE_ID,
@@ -72,6 +72,14 @@ describe("plan on built units (ADR-0031, ADR-0033)", () => {
     expect(plan.problems).toMatchObject([{ updateName: SI_UNIT, kind: "removed" }]);
   });
 
+  it("names the Now.del that deletes a removed definition (B2)", async () => {
+    const { deps, builds, project } = unitSetup();
+    builds.set(project.path, []);
+    const { plan } = await computeUnitPlan(deps, QUERY);
+    const id = SI_UNIT.slice(-32);
+    expect(plan.problems[0]?.reason).toContain(`Now.del('sys_script_include', '${id}')`);
+  });
+
   it("records a unit the instance already holds as built, without loading it", async () => {
     const { deps } = unitSetup({ source: "Same on both.", instance: "Same on both." });
     const { plan } = await computeUnitPlan(deps, QUERY);
@@ -111,5 +119,19 @@ describe("unitPlanId", () => {
     const waived = { ...gate, waived: [{ ...finding, reason: "r", approver: "pat" }] };
     const ids = new Set([unitPlanId([], gate), unitPlanId([], blocked), unitPlanId([], waived)]);
     expect(ids.size).toBe(3);
+  });
+});
+
+// A removed child of a typed array (a UI action's role) is its own unit: the SDK emits no
+// deletion, so the plan names the line that deletes it (spec 009 B2).
+describe("deletionFor", () => {
+  const id = "0123456789abcdef0123456789abcdef";
+
+  it("names the table and sys_id of a record unit", () => {
+    expect(deletionFor(`sys_ui_action_role_${id}`)).toBe(`Now.del('sys_ui_action_role', '${id}')`);
+  });
+
+  it("names nothing for a unit named by its keys", () => {
+    expect(deletionFor("sys_dictionary_x_app_task_u_status")).toBeNull();
   });
 });

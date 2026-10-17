@@ -41,7 +41,7 @@ function chooseVoice(tools: MediaTools, name: string): VoiceSynthesizer | null {
   return voice;
 }
 
-// One animation's audio track (phase 2, ADR-0034): music and effects always, the voice when
+// One animation's audio track (phase 2, ADR-0035): music and effects always, the voice when
 // asked. The workspace's own bed and sounds replace the synthesised ones.
 export async function audioTrack(
   tools: MediaTools,

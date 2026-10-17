@@ -91,6 +91,8 @@ export {
 export {
   DEFAULT_REDACTION,
   fieldsToRedact,
+  type PropertyValueVerdict,
+  propertyValueVerdict,
   type RedactionPolicy,
 } from "./metadata/domain/redaction";
 export type { RecordStore, StoredRecord } from "./metadata/ports";
@@ -155,6 +157,7 @@ export {
   childGrouper,
   classesToPull,
   ownerOfBase,
+  variableModelOf,
 } from "./sync/domain/pull-scope";
 export {
   chunks,
@@ -163,6 +166,11 @@ export {
   type RecordChanges,
   unexplainedLoss,
 } from "./sync/domain/record-changes";
+export {
+  FIRST_REDACTION_VERSION,
+  type Rereads,
+  rereadsBetween,
+} from "./sync/domain/redaction-upgrades";
 export {
   minutesSince,
   nextCommand,

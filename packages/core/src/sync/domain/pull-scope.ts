@@ -50,14 +50,30 @@ export interface AttachedChildren {
   readonly orphans: number;
 }
 
+// The variables of a flow, an action or a test step live in a table named
+// var__m_<variable table>_<model sys_id>, which has no table record. Rows keyed by such a name
+// (choices) belong to the model's record.
+export const VARIABLE_TABLE_PREFIX = "var__m_";
+const VARIABLE_TABLE = /^var__m_(?:[a-z0-9_]+_)?([0-9a-f]{32})$/;
+
+export function variableModelOf(tableName: string): string | null {
+  return VARIABLE_TABLE.exec(tableName)?.[1] ?? null;
+}
+
 // Groups child rows by owning record as they stream in. `owners` maps sys_id -> record base
 // and is extended with each attached row, so later child tables resolve through earlier ones.
-export function childGrouper(parentField: string, owners: Map<string, string>) {
+// `alias` names a second key to try when the parent field's own value has no owner.
+export function childGrouper(
+  parentField: string,
+  owners: Map<string, string>,
+  alias: (key: string) => string | null = () => null,
+) {
   const attached = new Map<string, Row[]>();
   let orphans = 0;
   return {
     add(row: Row): void {
-      const base = owners.get(row[parentField] ?? "");
+      const key = row[parentField] ?? "";
+      const base = owners.get(key) ?? owners.get(alias(key) ?? "");
       if (base === undefined) {
         orphans += 1;
         return;

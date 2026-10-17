@@ -14,6 +14,8 @@ export interface PullCheckpoint {
   // Taken when the pull started, so changes made while it ran are seen by the next pull.
   readonly fingerprints?: Fingerprints;
   readonly inventory?: Readonly<Record<string, string>>;
+  // The redaction policy version the pull started under; absent means 1 (ADR-0034 #2).
+  readonly redactionVersion?: number;
 }
 
 export interface SyncState {
@@ -28,6 +30,8 @@ export interface SyncState {
   readonly unreadable?: readonly string[];
   // pull --verify: rows counted per part but not listable by this user (verify-buckets).
   readonly hiddenCounts?: Readonly<Record<string, number>>;
+  // The redaction policy version the mirror was pulled with; absent means 1 (ADR-0034 #2).
+  readonly redactionVersion?: number;
 }
 
 // Local, per-instance sync state (.snagentic/<name>/, never committed).

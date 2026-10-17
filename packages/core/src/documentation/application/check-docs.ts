@@ -68,7 +68,7 @@ async function verify(page: DocPage, mirror: MirrorRecords, today: string, signa
 }
 
 // Are the pages still true? Every piece of evidence against the mirror, and the sources'
-// structure: citations, animations, sections, audiences, counterparts (ADR-0034, spec 010a).
+// structure: citations, animations, sections, audiences, counterparts (ADR-0035, spec 010a).
 export async function assessDocumentation(
   docs: Documentation,
   mirror: MirrorRecords,

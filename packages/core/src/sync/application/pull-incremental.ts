@@ -3,21 +3,17 @@ import { Catalog } from "../../metadata/domain/catalog";
 import { changesSince, type FingerprintChange } from "../domain/fingerprint";
 import type { InventorySource } from "../domain/inventory";
 import { CHILD_TABLES } from "../domain/pull-scope";
-import { unexplainedLoss } from "../domain/record-changes";
 import type { Fingerprints, SyncState } from "../ports";
-import { applyWithCatalog } from "./apply-with-catalog";
 import { detectChanges } from "./detect-changes";
 import { applyChildChanges, type ChildOutcome } from "./incremental-children";
 import type { IncrementalDependencies } from "./incremental-dependencies";
-import { type ChangeWindow, type RecordOutcome, readRecordChanges } from "./incremental-records";
+import { type RecordStep, recordPhase } from "./incremental-record-phase";
+import type { RecordOutcome } from "./incremental-records";
 import { pullApplications } from "./pull-applications";
 import { type PullProgress, rawTimestamp } from "./pull-dependencies";
 import { pullOperational } from "./pull-operational";
-import {
-  type RecordVerification,
-  type VerifiedRecords,
-  verifyAndRepairRecords,
-} from "./verify-records";
+import type { RedactionReread } from "./redaction-reread";
+import type { RecordVerification, VerifiedRecords } from "./verify-records";
 
 export class FullPullRequiredError extends SnagenticError {
   constructor(instance: string) {
@@ -38,6 +34,10 @@ export interface IncrementalSummary {
   readonly renamed: number;
   readonly deleted: number;
   readonly skippedRows: number;
+  // Property values redacted because they don't have their type's shape (ADR-0034).
+  readonly malformedValues: number;
+  // Classes and child tables read again because the redaction policy changed (ADR-0034 #2).
+  readonly rereadForRedaction: readonly string[];
   readonly childFiles: number;
   readonly removedChildFiles: number;
   // Records gone from the instance without a deletion record; still in the mirror.
@@ -52,70 +52,16 @@ export interface IncrementalSummary {
   readonly next: SyncState;
 }
 
-const NO_RECORD_CHANGES: RecordOutcome = {
-  created: [],
-  written: 0,
-  renamed: 0,
-  deleted: 0,
-  skippedRows: 0,
-  unreadable: [],
-  unwritten: [],
-};
-
-interface RecordStep {
-  readonly catalog: Catalog;
-  readonly catalogRefreshed: boolean;
-  readonly lostRecords: number;
-  readonly records: RecordOutcome;
-}
-
-// Reads the record feeds, refreshes the catalog when they show it is stale, and applies them.
-async function pullRecordChanges(
-  deps: IncrementalDependencies,
-  catalog: Catalog,
-  window: ChangeWindow,
-  counts: { before: number | undefined; after: number | undefined },
-  signal: AbortSignal,
-  progress: (event: PullProgress) => void,
-): Promise<RecordStep> {
-  progress({ message: "records" });
-  const changes = await readRecordChanges(deps, window, signal);
-  const lostRecords =
-    counts.before === undefined || counts.after === undefined
-      ? 0
-      : unexplainedLoss(counts.before, counts.after, changes);
-  return { ...(await applyWithCatalog(deps, catalog, changes, signal, progress)), lostRecords };
-}
-
 export interface PullOptions {
   // Also compare the mirror with the instance by counts and repair what differs.
   readonly verify?: boolean;
-}
-
-async function recordStep(
-  deps: IncrementalDependencies,
-  state: SyncState,
-  catalog: Catalog,
-  current: Fingerprints,
-  change: FingerprintChange,
-  window: ChangeWindow,
-  signal: AbortSignal,
-  progress: (event: PullProgress) => void,
-): Promise<RecordStep> {
-  if (change === "unchanged") {
-    return { catalog, catalogRefreshed: false, lostRecords: 0, records: NO_RECORD_CHANGES };
-  }
-  const counts = {
-    before: state.fingerprints?.["sys_metadata"]?.count,
-    after: current["sys_metadata"]?.count,
-  };
-  return pullRecordChanges(deps, catalog, window, counts, signal, progress);
 }
 
 function summarize(
   changes: ReadonlyMap<string, FingerprintChange>,
   step: RecordStep,
   verified: VerifiedRecords | null,
+  reread: RedactionReread,
   children: ChildOutcome,
   unreadable: readonly string[],
 ): Omit<IncrementalSummary, "watermark" | "next" | "inventoryRefreshed"> {
@@ -123,10 +69,13 @@ function summarize(
   return {
     changedSources: [...changes].filter(([, change]) => change !== "unchanged").map(([t]) => t),
     catalogRefreshed: step.catalogRefreshed || (verified?.catalogRefreshed ?? false),
-    records: records.written,
+    records: records.written + reread.records,
     renamed: records.renamed,
     deleted: records.deleted,
     skippedRows: records.skippedRows,
+    malformedValues:
+      records.malformedValues + (verified?.records.malformedValues ?? 0) + reread.malformedValues,
+    rereadForRedaction: reread.tables,
     childFiles: children.childFiles,
     removedChildFiles: children.removedChildFiles,
     lostRecords: step.lostRecords,
@@ -159,6 +108,7 @@ async function applicationsIfMoved(
 
 function nextState(
   state: SyncState,
+  redactionVersion: number,
   startedAt: string,
   fingerprints: Fingerprints,
   inventory: Readonly<Record<string, string>>,
@@ -167,6 +117,7 @@ function nextState(
 ): SyncState {
   return {
     ...state,
+    redactionVersion,
     watermark: startedAt,
     fingerprints,
     // A signal not read this time keeps the signature it had.
@@ -186,13 +137,16 @@ async function pullBesideRecords(
     readonly stale: readonly InventorySource[];
     readonly since: string;
     readonly created: RecordOutcome["created"];
+    // Child tables to list again whole, as if never read (ADR-0034 #2).
+    readonly relist: readonly string[];
   },
   signal: AbortSignal,
 ) {
   const { state, changes, stale, since, created } = moved;
-  const neverRead = new Set(
-    CHILD_TABLES.map((child) => child.table).filter((table) => !state.fingerprints?.[table]),
-  );
+  const neverRead = new Set([
+    ...CHILD_TABLES.map((child) => child.table).filter((table) => !state.fingerprints?.[table]),
+    ...moved.relist,
+  ]);
   const children = await applyChildChanges(
     deps,
     catalog,
@@ -227,35 +181,36 @@ export async function pullIncremental(
     signal,
   );
   const since = changesSince(state.watermark);
-  const window = { since, previous: state.watermark, current: startedAt };
-  const metadataChange = changes.get("sys_metadata") ?? "changed";
-  const step = await recordStep(
-    deps,
+  const run = {
     state,
-    new Catalog(stored),
-    current.fingerprints,
-    metadataChange,
-    window,
-    signal,
-    progress,
-  );
-  const previous = { unreadable: state.unreadable ?? [], hidden: state.hiddenCounts ?? {} };
-  const verified = verify
-    ? await verifyAndRepairRecords(deps, step.catalog, previous, signal, progress)
-    : null;
+    catalog: new Catalog(stored),
+    fingerprints: current.fingerprints,
+    change: changes.get("sys_metadata") ?? "changed",
+    window: { since, previous: state.watermark, current: startedAt },
+    verify,
+  };
+  const records = await recordPhase(deps, run, signal, progress);
+  const { step, reread, verified } = records;
   progress({ message: "child rows" });
   const rest = await pullBesideRecords(
     deps,
     verified?.catalog ?? step.catalog,
-    { state, changes, stale, since, created: step.records.created },
+    { state, changes, stale, since, created: step.records.created, relist: reread.childTables },
     signal,
   );
-  const recordUnreadable = [...step.records.unreadable, ...(verified?.records.unreadable ?? [])];
-  const unreadable = [...current.unreadable, ...recordUnreadable, ...rest.unreadable];
+  const unreadable = [...current.unreadable, ...records.unreadable, ...rest.unreadable];
   return {
-    ...summarize(fingerprintChanges, step, verified, rest.children, unreadable),
+    ...summarize(fingerprintChanges, step, verified, reread, rest.children, unreadable),
     inventoryRefreshed: stale.map((source) => source.file),
     watermark: startedAt,
-    next: nextState(state, startedAt, current.fingerprints, inventory, recordUnreadable, verified),
+    next: nextState(
+      state,
+      deps.policy.version,
+      startedAt,
+      current.fingerprints,
+      inventory,
+      records.unreadable,
+      verified,
+    ),
   };
 }

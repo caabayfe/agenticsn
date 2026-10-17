@@ -1,6 +1,7 @@
 import { Catalog } from "../../metadata/domain/catalog";
 import { classesToPull } from "../domain/pull-scope";
-import type { SyncState, SyncStateStore } from "../ports";
+import { FIRST_REDACTION_VERSION } from "../domain/redaction-upgrades";
+import type { PullCheckpoint, SyncState, SyncStateStore } from "../ports";
 import { fetchCatalog } from "./fetch-catalog";
 import { fetchFingerprints } from "./fetch-fingerprints";
 import { pullApplications } from "./pull-applications";
@@ -14,6 +15,9 @@ export interface PullSummary {
   readonly resumedClasses: number;
   readonly records: number;
   readonly skippedRows: number;
+  // Property values redacted because they don't have their type's shape (ADR-0034); counted
+  // for the classes listed in this run.
+  readonly malformedValues: number;
   readonly childRows: number;
   readonly orphanChildRows: number;
   readonly operationalRows: number;
@@ -31,6 +35,43 @@ export interface PullSummary {
   };
 }
 
+// The checkpoint to continue from, or a new one taken before listing anything.
+async function startCheckpoint(
+  deps: PullDependencies,
+  signal: AbortSignal,
+): Promise<PullCheckpoint> {
+  return (
+    (await deps.state.readCheckpoint()) ?? {
+      startedAt: rawTimestamp(deps.now()),
+      completedClasses: [],
+      records: 0,
+      fingerprints: (await fetchFingerprints(deps.statistics, signal)).fingerprints,
+      inventory: await inventorySignatures(deps.statistics, signal),
+      redactionVersion: deps.policy.version,
+    }
+  );
+}
+
+function fullNextState(
+  checkpoint: PullCheckpoint,
+  policyVersion: number,
+  unreadable: readonly string[],
+): SyncState {
+  return {
+    watermark: checkpoint.startedAt,
+    lastFullPull: checkpoint.startedAt,
+    fingerprints: checkpoint.fingerprints ?? {},
+    inventory: checkpoint.inventory ?? {},
+    unreadable,
+    // Classes done before a resume were redacted under the checkpoint's policy: the oldest
+    // version applied stands, so the next pull re-reads what changed since.
+    redactionVersion: Math.min(
+      checkpoint.redactionVersion ?? FIRST_REDACTION_VERSION,
+      policyVersion,
+    ),
+  };
+}
+
 // The first, complete pull of an instance (ADR-0016, ADR-0017). Interrupted pulls resume
 // from their checkpoint; the watermark is the pull's start, so changes made while it ran
 // are picked up by the next incremental pull. The caller commits the mirror, then calls
@@ -45,13 +86,7 @@ export async function pullFull(
   const catalogSeconds = clock.lap();
   await deps.state.writeCatalog(data);
   const catalog = new Catalog(data);
-  const checkpoint = (await deps.state.readCheckpoint()) ?? {
-    startedAt: rawTimestamp(deps.now()),
-    completedClasses: [],
-    records: 0,
-    fingerprints: (await fetchFingerprints(deps.statistics, signal)).fingerprints,
-    inventory: await inventorySignatures(deps.statistics, signal),
-  };
+  const checkpoint = await startCheckpoint(deps, signal);
   await deps.state.writeCheckpoint(checkpoint);
   const classes = classesToPull(catalog);
   const records = await pullRecords(deps, catalog, classes, checkpoint, signal, progress);
@@ -70,17 +105,12 @@ export async function pullFull(
     ...operational.unreadable,
   ];
   return {
-    next: {
-      watermark: checkpoint.startedAt,
-      lastFullPull: checkpoint.startedAt,
-      fingerprints: checkpoint.fingerprints ?? {},
-      inventory: checkpoint.inventory ?? {},
-      unreadable,
-    },
+    next: fullNextState(checkpoint, deps.policy.version, unreadable),
     classes: classes.length,
     resumedClasses: checkpoint.completedClasses.length,
     records: records.records,
     skippedRows: records.skippedRows,
+    malformedValues: records.malformedValues,
     childRows: children.childRows,
     orphanChildRows: children.orphanChildRows,
     operationalRows: operational.operationalRows,

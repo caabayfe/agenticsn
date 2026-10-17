@@ -46,6 +46,13 @@ export const CHILD_TABLES: readonly ChildTable[] = [
     ownedByTableName: true,
     ownerClasses: ["sys_db_object"],
   },
+  // Whether a script runs on the latest ECMAScript engine: not a metadata class, keyed by the
+  // script's sys_id. The SDK writes it as an update of its own (spec 009 mirror plan M1).
+  {
+    table: "sys_es_latest_script",
+    parentField: "id",
+    ownerClasses: ["sys_script_include"],
+  },
   { table: "wf_workflow_version", parentField: "workflow", ownerClasses: ["wf_workflow"] },
   { table: "wf_stage", parentField: "workflow_version", parentTable: "wf_workflow_version" },
   { table: "wf_activity", parentField: "workflow_version", parentTable: "wf_workflow_version" },

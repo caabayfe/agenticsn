@@ -56,6 +56,7 @@ async function changedOwners(
     table: TableName.parse(child.table),
     fields: ["sys_id", "sys_updated_on", child.parentField],
     kind: "change-feed" as const,
+    allDomains: true,
     base: "",
     since,
   };
@@ -99,7 +100,7 @@ async function refreshOwners(
   signal: AbortSignal,
   totals: Totals,
 ): Promise<void> {
-  const redact = fieldsToRedact(catalog, child.table, "", deps.policy);
+  const redact = fieldsToRedact(catalog, child.table, {}, deps.policy);
   for (const batch of ownerBatches(bases, owners)) {
     const rows = new Map<string, Row[]>();
     for (const keys of chunks(
@@ -110,6 +111,7 @@ async function refreshOwners(
         table: TableName.parse(child.table),
         fields: "all" as const,
         kind: "snapshot" as const,
+        allDomains: true,
         base: `${child.parentField}IN${keys.join(",")}`,
       };
       for await (const row of deps.pager.rows(listing, signal)) {

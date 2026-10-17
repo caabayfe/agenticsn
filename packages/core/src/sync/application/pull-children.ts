@@ -10,6 +10,7 @@ import {
   type ChildTable,
   childGrouper,
   ownerOfBase,
+  variableModelOf,
 } from "../domain/pull-scope";
 import type { PullDependencies } from "./pull-dependencies";
 
@@ -76,12 +77,14 @@ export async function groupTable(
   owners: Map<string, string>,
   signal: AbortSignal,
 ): Promise<AttachedChildren | null> {
-  const redact = fieldsToRedact(catalog, child.table, "", deps.policy);
-  const grouper = childGrouper(child.parentField, owners);
+  const redact = fieldsToRedact(catalog, child.table, {}, deps.policy);
+  const alias = child.ownedByTableName === true ? variableModelOf : undefined;
+  const grouper = childGrouper(child.parentField, owners, alias);
   const listing = {
     table: TableName.parse(child.table),
     fields: "all" as const,
     kind: "snapshot" as const,
+    allDomains: true,
     base: "",
   };
   try {

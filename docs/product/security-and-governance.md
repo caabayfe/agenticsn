@@ -33,8 +33,14 @@ flowchart LR
 |---|---|
 | Metadata records (`sys_metadata` classes): scripts, configuration, child rows such as flow steps and layouts | Business records (incidents, users, CMDB data) |
 | Plugin and store app inventory | Password fields: fields of a password type, and fields with secret names, are never written |
-| A local search index, rebuilt from the files at any time | System property values, unless a property is explicitly allow-listed and its name doesn't look like a secret |
+| A local search index, rebuilt from the files at any time | System property values, except switches and limits (below) and explicitly allow-listed properties |
 | Push plans and a push journal (local state, not committed) | Credentials of any kind |
+| | Mail accounts, connection aliases and connections, and the code of protected scripts (ADR-0034) |
+
+A property's value is kept only when the property is a boolean, an integer, a choice, a colour,
+a date or time format or a time zone; it isn't private; its name doesn't look like a secret; and
+the value has the shape of its type (ADR-0034). Every other value, strings and passwords
+included, is redacted.
 
 Redaction happens before anything is written. A field that was redacted can't be pushed back;
 the plan tells the user to set it on the instance. An update set export leaves out the updates

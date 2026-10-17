@@ -1,4 +1,4 @@
-# 0034. Verified documentation: pages anchored to the mirror, published as a static site
+# 0035. Verified documentation: pages anchored to the mirror, published as a static site
 
 - Status: Accepted (product owner, 2026-10-17)
 - Date: 2026-10-17

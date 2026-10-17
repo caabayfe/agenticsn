@@ -99,7 +99,7 @@ describe("fieldsToRedact", () => {
       fieldsToRedact(
         catalog,
         "sys_properties",
-        "glide.appcreator.company.code",
+        { name: "glide.appcreator.company.code" },
         DEFAULT_REDACTION,
       ).has("value"),
     ).toBe(false);
@@ -107,12 +107,14 @@ describe("fieldsToRedact", () => {
 
   it("redacts property values unless the property is allowlisted", () => {
     expect(
-      fieldsToRedact(catalog, "sys_properties", "glide.ui.title", DEFAULT_REDACTION).has("value"),
+      fieldsToRedact(catalog, "sys_properties", { name: "glide.ui.title" }, DEFAULT_REDACTION).has(
+        "value",
+      ),
     ).toBe(true);
     const policy = { ...DEFAULT_REDACTION, propertyValueAllowlist: ["glide.ui.title"] };
-    expect(fieldsToRedact(catalog, "sys_properties", "glide.ui.title", policy).has("value")).toBe(
-      false,
-    );
+    expect(
+      fieldsToRedact(catalog, "sys_properties", { name: "glide.ui.title" }, policy).has("value"),
+    ).toBe(false);
   });
 
   it("keeps secret-looking property values redacted even when allowlisted", () => {
@@ -120,11 +122,13 @@ describe("fieldsToRedact", () => {
       ...DEFAULT_REDACTION,
       propertyValueAllowlist: ["acme.api_key", "acme.client.secret"],
     };
-    expect(fieldsToRedact(catalog, "sys_properties", "acme.api_key", policy).has("value")).toBe(
-      true,
-    );
     expect(
-      fieldsToRedact(catalog, "sys_properties", "acme.client.secret", policy).has("value"),
+      fieldsToRedact(catalog, "sys_properties", { name: "acme.api_key" }, policy).has("value"),
+    ).toBe(true);
+    expect(
+      fieldsToRedact(catalog, "sys_properties", { name: "acme.client.secret" }, policy).has(
+        "value",
+      ),
     ).toBe(true);
   });
 });

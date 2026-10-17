@@ -17,7 +17,7 @@ export class NoDocumentationError extends SnagenticError {
       "no-documentation",
       "precondition",
       `${root} has no documentation/site.yaml`,
-      "create documentation/site.yaml with title and instance, then add pages under documentation/pages/",
+      "create documentation/site.yaml with title and instance, then a process under documentation/processes/<process>/ (process.yaml and its pages)",
     );
   }
 }

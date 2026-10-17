@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
+  DocumentationSourceError,
   type DocumentationSources,
   type PageSource,
   type SceneSource,
@@ -10,6 +11,16 @@ import {
 import { isMap, parse, parseDocument } from "yaml";
 
 const FOLDER = "documentation";
+
+// A file's YAML or JSON, or an error naming the file and the line, for the author to fix.
+function parsed(path: string, text: string, as: "yaml" | "json" = "yaml"): unknown {
+  try {
+    return as === "json" ? JSON.parse(text) : parse(text);
+  } catch (error) {
+    const reason = error instanceof Error ? (error.message.split("\n")[0] ?? "") : String(error);
+    throw new DocumentationSourceError(path, `is not valid ${as.toUpperCase()}: ${reason}`);
+  }
+}
 
 async function textIfExists(path: string): Promise<string | null> {
   return existsSync(path) ? readFile(path, "utf8") : null;
@@ -37,13 +48,16 @@ export class FsDocumentationSources implements DocumentationSources {
 
   async site(): Promise<unknown> {
     const text = await textIfExists(join(this.root, "site.yaml"));
-    return text === null ? null : (parse(text) ?? {});
+    return text === null ? null : (parsed("site.yaml", text) ?? {});
   }
 
   async processes() {
     const processes: { path: string; process: unknown }[] = [];
     for (const path of await list(this.root, "processes/*/process.yaml")) {
-      processes.push({ path, process: parse(await readFile(join(this.root, path), "utf8")) ?? {} });
+      processes.push({
+        path,
+        process: parsed(path, await readFile(join(this.root, path), "utf8")) ?? {},
+      });
     }
     return processes;
   }
@@ -54,7 +68,7 @@ export class FsDocumentationSources implements DocumentationSources {
       const split = splitFrontMatter(await readFile(join(this.root, path), "utf8"));
       pages.push({
         path,
-        frontMatter: split.frontMatter === null ? {} : parse(split.frontMatter),
+        frontMatter: split.frontMatter === null ? {} : parsed(path, split.frontMatter),
         body: split.body,
       });
     }
@@ -69,10 +83,10 @@ export class FsDocumentationSources implements DocumentationSources {
       const steps = await read("steps.json");
       scenes.push({
         path,
-        animation: JSON.parse((await read("animation.json")) ?? "{}"),
+        animation: parsed(`${path}/animation.json`, (await read("animation.json")) ?? "{}", "json"),
         svg: (await read("scene.svg")) ?? "",
         css: await read("scene.css"),
-        steps: steps === null ? [] : JSON.parse(steps),
+        steps: steps === null ? [] : parsed(`${path}/steps.json`, steps, "json"),
       });
     }
     return scenes;

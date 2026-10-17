@@ -58,6 +58,21 @@ describe("documentation sources on disk", () => {
     expect(scene).toMatchObject({ path: "animations/asg", css: null, steps: [{ t: "A" }] });
   });
 
+  it("names the file and the reason when a page's front matter or an animation is not valid", async () => {
+    write(
+      "documentation/processes/incident/use/report.md",
+      '---\ntitle: Report\nevidence:\n  E01:\n    result: "quoted" then more\n---\nBody\n',
+    );
+    const sources = new FsDocumentationSources(root);
+    await expect(sources.pages()).rejects.toThrow(
+      /processes\/incident\/use\/report\.md: is not valid YAML/,
+    );
+    write("documentation/animations/asg/animation.json", "{ not json");
+    await expect(sources.scenes()).rejects.toThrow(
+      /animations\/asg\/animation\.json: is not valid JSON/,
+    );
+  });
+
   it("has no site when documentation/site.yaml is absent", async () => {
     expect(await new FsDocumentationSources(root).site()).toBeNull();
   });

@@ -34,6 +34,11 @@ const EMPTY_DEFAULTS: Readonly<Record<string, string>> = {
   "sys_ui_policy.ui_type": "0",
   // The SDK's inbound action plugin reads an empty action as a record action (1 on pdi2).
   "sysevent_in_email_action.action": "record_action",
+  // ApplicationMenu writes order 100 where a menu has none: 96 of 217 menus on pdi2, all
+  // baseline. Accepted by the product owner (2026-10-17): adopt works, and every plan that loads
+  // such a menu says the load also sets its order. Exact alternative: Record() (test plan,
+  // decision 3).
+  "sys_app_application.order": "100",
 };
 
 // Fields the SDK computes from other fields, which only the instance's empty value may differ

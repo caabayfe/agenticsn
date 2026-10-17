@@ -76,4 +76,12 @@ describe("knownLoss: values the SDK recomputes where the instance holds nothing"
       "api-default",
     );
   });
+
+  it("accepts order 100 for a menu whose order is empty, named in every plan", () => {
+    expect(knownLoss(field("sys_app_application", "order", "100", ""))).toBe("api-default");
+  });
+
+  it("does not accept 100 for a menu that holds another order", () => {
+    expect(knownLoss(field("sys_app_application", "order", "100", "50"))).toBeNull();
+  });
 });

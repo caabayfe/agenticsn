@@ -15,6 +15,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   password or secret-named field, a redacted property value, or a credential class. It wrote
   them into source unredacted. The error names the records and fields, never the values, and
   nothing is written (S2).
+- The SDK's requests can't leave the instance: a request it built for another host, scheme or
+  port is refused before anything is sent. An absolute URL would have been sent to its own host
+  with snagentic's credentials. Checked in the SDK's connector and again in the client.
+- `adopt` refuses an application whose scope name, read from the instance, isn't a ServiceNow
+  scope name (lowercase letters, digits, underscores and hyphens). It became the folder
+  `source/<scope>`, so a crafted name could write elsewhere in the workspace. Files the SDK
+  converts are also refused if their path leaves the project.
 
 ### Added
 

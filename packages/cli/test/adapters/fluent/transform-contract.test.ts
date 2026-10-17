@@ -115,6 +115,21 @@ describe("SchedulerConnector", () => {
     );
   });
 
+  it.each([
+    "https://elsewhere.example.com/api/now/table/sys_scope",
+    "//elsewhere.example.com/api/now/table/sys_scope",
+    "http://instance.example.com/api/now/table/sys_scope",
+    "https://instance.example.com:8443/api/now/table/sys_scope",
+  ])("refuses a read of another origin before anything is sent (%p)", async (target) => {
+    const sent: unknown[] = [];
+    const connector = new SchedulerConnector("https://instance.example.com/", async (request) => {
+      sent.push(request);
+      return answer;
+    });
+    await expect(connector.fetch(target)).rejects.toBeInstanceOf(SdkRouteRefusedError);
+    expect(sent).toEqual([]);
+  });
+
   it("refuses a write before anything is sent", async () => {
     const sent: unknown[] = [];
     const connector = new SchedulerConnector("https://instance.example.com/", async (request) => {

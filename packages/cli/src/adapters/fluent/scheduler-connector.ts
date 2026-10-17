@@ -32,6 +32,10 @@ export class SchedulerConnector extends Connector {
     const url = new URL(path, this.getHost());
     if (params !== undefined) url.search = params.toString();
     const method = (init?.method ?? "GET").toUpperCase();
+    // An absolute URL resolves to its own host: only the instance's origin may be read.
+    if (url.origin !== this.getHost().origin) {
+      throw new SdkRouteRefusedError(method, url.href);
+    }
     if (!sdkRouteAllowed(method, url.pathname) || (method !== "GET" && method !== "POST")) {
       throw new SdkRouteRefusedError(method, url.pathname);
     }

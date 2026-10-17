@@ -81,6 +81,22 @@ describe("ServiceNowClient", () => {
     });
   });
 
+  it.each([
+    "https://elsewhere.example.com/api/now/table/sys_scope",
+    "//elsewhere.example.com/api/now/table/sys_scope",
+  ])("never sends the SDK's request, or its credentials, to another host (%p)", async (url) => {
+    const { client, sent } = clientWith(async () => response(200, '{"result":[]}'));
+    const exchange = client.sdkAccess(LIVE).exchange({ method: "GET", url });
+    await expect(exchange).rejects.toThrow(/not a read snagentic allows/);
+    expect(sent).toEqual([]);
+  });
+
+  it("sends the SDK's request on the instance's own origin", async () => {
+    const { client, sent } = clientWith(async () => response(200, '{"result":[]}'));
+    await client.sdkAccess(LIVE).exchange({ method: "GET", url: "/api/now/table/sys_scope" });
+    expect(sent[0]?.url).toBe("https://dev312411.service-now.com/api/now/table/sys_scope");
+  });
+
   it.each([[[]], [["sys_id", ""]]])(
     "refuses a query without explicit fields (%p)",
     async (fields) => {

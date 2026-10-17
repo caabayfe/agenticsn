@@ -1,7 +1,10 @@
 # Verified documentation: how to bring sndoc into snagentic
 
 - Date: 2026-10-17
-- Status: assessment for the product owner, before an ADR
+- Status: assessment for the product owner, before an ADR. **Followed up on 2026-10-17:** the product
+  owner chose a process-then-capability structure written for consumers, a static HTML site, ffmpeg
+  audio and video with optional voice. Built as ADR-0034 and spec 010 (PR #67); the pdi2 incident
+  process was documented with it (20 pages, 140 evidence items, all anchored to mirror records)
 - Inputs: `NTTMCIS/sndoc-revision` (read on 2026-10-17, 3 commits, 17 revised pages), ADR-0002,
   ADR-0010, ADR-0011, ADR-0012, ADR-0016, ADR-0026, `design.md` (this folder), market check of
   2026-10-17
@@ -31,7 +34,7 @@
    describes, and flagging it when that record changes, is not. That's the part only a mirror with
    content hashes can do cheaply, and the part to build first.
 4. **Before any code:**
-   - a spike (S19) to measure how much of a real page can be anchored;
+   - a spike (the documentation spike) to measure how much of a real page can be anchored;
    - one ADR for the new context and the server-per-person rule;
    - a written agreement with NTT on the method and the pipeline.
 
@@ -94,7 +97,7 @@ the check of 2026-10-17 found.
 | Old page to revise | None | Import of a Confluence storage body as **untrusted input** |
 | Behaviour that only running proves | Nothing in production, by design | Stays DOCUMENTED ONLY, as in sndoc |
 
-By my reading of B4, about 80% of what it cites is mirrored today (an estimate; S19 measures it). The rest is three artifact types, a count, and an
+By my reading of B4, about 80% of what it cites is mirrored today (an estimate; the spike measures it). The rest is three artifact types, a count, and an
 import.
 
 ## 5. Packaging options
@@ -265,7 +268,7 @@ figures as "not measured".
 
 | Phase | Delivers | Exit test |
 |---|---|---|
-| **S19 spike** | One out-of-box subject on pdi2 (incident assignment), written to the method from the mirror; then one deliberate configuration change | Share of claims anchorable (target ≥ 80%); `docs check` catches the change; cost and time per page |
+| **Documentation spike** | One out-of-box subject on pdi2 (incident assignment), written to the method from the mirror; then one deliberate configuration change | Share of claims anchorable (target ≥ 80%); `docs check` catches the change; cost and time per page |
 | **P1 Verify** | `documentation` context, page format, `docs check`, rules SN-DOC-001 to 004, `document` skill | `validate` fails a pull request that makes a page stale |
 | **P2 Cover and export** | `docs coverage`, export to Markdown, Confluence storage and bundle; the three artifact types | A full A/B pair exported and published by hand |
 | **P3 Render** | Tomasz's renderer reads the bundle; optional docs MCP server | An animation built from a bundle with no hand edits |
@@ -286,5 +289,5 @@ figures as "not measured".
 1. Accept the three-layer split (verify in core, author as skill, render as a separate package)?
 2. Accept "one MCP server per person" as the ADR direction, with the docs server deferred until a
    pilot needs it?
-3. Run S19 on pdi2 now?
+3. Run the documentation spike on pdi2 now? (Done differently: see the status line.)
 4. Who asks NTT for the written OK (section 8), and before which phase?

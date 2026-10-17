@@ -54,24 +54,33 @@ export class PiperVoice implements VoiceSynthesizer {
 export class SystemVoice implements VoiceSynthesizer {
   readonly name = "system";
 
-  constructor(private readonly codec: AudioCodec) {}
+  constructor(
+    private readonly codec: AudioCodec,
+    private readonly platform: string = process.platform,
+    // Overrides the program (tests); default /usr/bin/say on macOS, espeak-ng elsewhere.
+    private readonly program?: string,
+  ) {}
+
+  private get darwin(): boolean {
+    return this.platform === "darwin";
+  }
 
   private command(textFile: string, out: string): string[] {
-    return process.platform === "darwin"
-      ? ["say", "-f", textFile, "-o", out]
-      : ["espeak-ng", "-f", textFile, "-w", out];
+    return this.darwin
+      ? [this.program ?? "/usr/bin/say", "-f", textFile, "-o", out]
+      : [this.program ?? "espeak-ng", "-f", textFile, "-w", out];
   }
 
   available(): Promise<boolean> {
-    return process.platform === "darwin"
-      ? Promise.resolve(existsSync("/usr/bin/say"))
-      : toolAvailable(["espeak-ng", "--version"]);
+    return this.darwin
+      ? Promise.resolve(existsSync(this.program ?? "/usr/bin/say"))
+      : toolAvailable([this.program ?? "espeak-ng", "--version"]);
   }
 
   speak(text: string, signal: AbortSignal): Promise<Float32Array> {
     return withTemp(async (dir) => {
       const textFile = join(dir, "line.txt");
-      const out = join(dir, process.platform === "darwin" ? "line.aiff" : "line.wav");
+      const out = join(dir, this.darwin ? "line.aiff" : "line.wav");
       await writeFile(textFile, text);
       const result = await runTool(this.command(textFile, out), signal);
       if (result.exitCode !== 0) {

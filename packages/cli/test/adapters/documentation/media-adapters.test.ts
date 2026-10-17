@@ -86,6 +86,53 @@ describe.skipIf(!HAS_FFMPEG)("ffmpeg", () => {
   });
 });
 
+// Stand-ins for the voice programs: write a short tone where the real one writes speech.
+function fakeProgram(name: string, outFlag: string, failing = false): string {
+  const path = join(dir, name);
+  writeFileSync(
+    path,
+    failing
+      ? "#!/bin/sh\necho 'no voice' >&2\nexit 3\n"
+      : `#!/bin/sh\n[ "$1" = "--help" ] || [ "$1" = "--version" ] && exit 0\nout=""\nwhile [ $# -gt 0 ]; do [ "$1" = "${outFlag}" ] && out="$2"; shift; done\nexec ffmpeg -v error -y -f lavfi -i sine=frequency=300:duration=0.5 "$out"\n`,
+    { mode: 0o755 },
+  );
+  return path;
+}
+
+describe.skipIf(!HAS_FFMPEG)("voice programs", () => {
+  const codec = new FfmpegCodec();
+
+  it("runs Piper with the model and decodes what it writes", async () => {
+    const model = join(dir, "voice.onnx");
+    writeFileSync(model, "");
+    const voice = new PiperVoice(codec, fakeProgram("piper", "-f"), model);
+    expect(await voice.available()).toBe(true);
+    expect((await voice.speak("Hello.", signal)).length).toBeGreaterThan(SAMPLE_RATE * 0.4);
+  });
+
+  it("runs the system voice as espeak-ng off macOS", async () => {
+    const voice = new SystemVoice(codec, "linux", fakeProgram("espeak-ng", "-w"));
+    expect(await voice.available()).toBe(true);
+    expect((await voice.speak("Hello.", signal)).length).toBeGreaterThan(SAMPLE_RATE * 0.4);
+  });
+
+  it("reports a voice program that fails", async () => {
+    const model = join(dir, "voice.onnx");
+    writeFileSync(model, "");
+    const failing = fakeProgram("broken", "-f", true);
+    await expect(new PiperVoice(codec, failing, model).speak("x", signal)).rejects.toThrow(
+      /piper failed: no voice/,
+    );
+    await expect(new SystemVoice(codec, "linux", failing).speak("x", signal)).rejects.toThrow(
+      /system failed/,
+    );
+  });
+
+  it("looks for say on macOS", async () => {
+    expect(await new SystemVoice(codec, "darwin", join(dir, "no-say")).available()).toBe(false);
+  });
+});
+
 describe("voices", () => {
   it("are unavailable without a model or a program", async () => {
     const codec = new FfmpegCodec("snagentic-no-ffmpeg");

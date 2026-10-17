@@ -135,3 +135,19 @@ export class PathOutsideProjectError extends SnagenticError {
     );
   }
 }
+
+// Records adopt refuses by design: what the SDK would change on the instance was judged too
+// much to accept (refusals.ts). Not a gap to report.
+export class AdoptRefusedError extends SnagenticError {
+  readonly refusals: readonly string[];
+
+  constructor(refusals: readonly string[]) {
+    super(
+      "adopt-refused",
+      "not-permitted",
+      `these records can't be adopted: ${refusals.slice(0, 5).join("; ")}${refusals.length > 5 ? ` and ${refusals.length - 5} more` : ""}`,
+      "nothing was written; adopt the other records, and leave these on the instance",
+    );
+    this.refusals = refusals;
+  }
+}

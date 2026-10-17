@@ -2,6 +2,7 @@ import type { InstanceReader } from "../../connection/ports";
 import type { CatalogData } from "../../metadata/domain/catalog";
 import { DEFAULT_REDACTION } from "../../metadata/domain/redaction";
 import {
+  AdoptRefusedError,
   AdoptSecretError,
   AdoptTransformFailedError,
   AdoptUnexplainedDifferenceError,
@@ -11,6 +12,7 @@ import { compareUnit, type Difference } from "../domain/compare";
 import { unitDigest } from "../domain/digest";
 import { type LedgerEntry, withEntries } from "../domain/ledger";
 import { knownLoss, type LossId } from "../domain/losses";
+import { knownRefusal } from "../domain/refusals";
 import type { BuiltUnit, InstanceCopy } from "../domain/unit";
 import { unitSecrets } from "../domain/unit-secrets";
 import { unitSpec } from "../domain/unit-specs";
@@ -83,6 +85,7 @@ function entryFor(
   unit: BuiltUnit,
   copy: InstanceCopy | null,
   problems: string[],
+  refusals: string[],
 ): LedgerEntry | null {
   if (copy === null) {
     problems.push(describe(unit, "the build makes a record the instance does not hold"));
@@ -99,7 +102,9 @@ function entryFor(
   const losses = new Set<LossId>();
   for (const difference of differences) {
     const loss = knownLoss(difference);
+    const refusal = loss === null ? knownRefusal(difference) : null;
     if (loss !== null) losses.add(loss);
+    else if (refusal !== null) refusals.push(describe(unit, refusal));
     else problems.push(describe(unit, explain(difference)));
   }
   return { build: unitDigest(unit), instance: copy.version, losses: [...losses].sort() };
@@ -116,12 +121,16 @@ interface Adoption {
 async function checkedEntries(dependencies: AdoptDependencies, units: readonly BuiltUnit[]) {
   const copies = await readUnits(dependencies.reader, units, dependencies.signal);
   const problems: string[] = [];
+  const refusals: string[] = [];
   const entries = new Map<string, LedgerEntry>();
   for (const unit of units) {
-    const entry = entryFor(unit, copies.get(unit.updateName) ?? null, problems);
-    if (entry !== null) entries.set(unit.updateName, entry);
+    const entry = entryFor(unit, copies.get(unit.updateName) ?? null, problems, refusals);
+    if (entry !== null && !refusals.some((r) => r.startsWith(`${unit.updateName}:`))) {
+      entries.set(unit.updateName, entry);
+    }
   }
-  if (problems.length > 0) throw new AdoptUnexplainedDifferenceError(problems);
+  if (problems.length > 0) throw new AdoptUnexplainedDifferenceError([...problems, ...refusals]);
+  if (refusals.length > 0) throw new AdoptRefusedError(refusals);
   return entries;
 }
 

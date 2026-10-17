@@ -6,6 +6,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- `adopt` names why it refuses a protected ServiceNow role whose containment rows have no
+  protection: the SDK would mark them read-only, changing who may edit the role's grants. It
+  reported an unexplained difference and asked for a bug report. Refusals by design now have
+  their own error, which says to leave those records on the instance.
 - Plans list what a load sets beyond the source apart from what the source changes, with the
   value: `also sets: sys_app_application.order = 100` instead of the loss's name mixed in with
   the changes.

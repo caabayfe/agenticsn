@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   AdoptRecordsNotFoundError,
+  AdoptRefusedError,
   AdoptStoreApplicationError,
   AdoptTransformFailedError,
   AdoptUnexplainedDifferenceError,
@@ -375,4 +376,33 @@ describe("adopt (ADR-0031 item 3)", () => {
       expect(written.size).toBe(0);
     },
   );
+
+  it("refuses by design, naming why, a protected role whose containments the SDK would protect", async () => {
+    const id = "c".repeat(32);
+    const fake = fakeInstance({
+      sys_user_role_contains: [
+        {
+          sys_id: id,
+          sys_class_name: "sys_user_role_contains",
+          sys_scope: SCOPE_ID,
+          sys_policy: "",
+          sys_mod_count: "0",
+          sys_updated_on: "2026-10-16 06:30:48",
+        },
+      ],
+      sys_scope: [{ sys_id: SCOPE_ID, scope: "x_2222332_s11", sys_class_name: "sys_app" }],
+    });
+    const contains = unit(
+      `sys_user_role_contains_${id}`,
+      record("sys_user_role_contains", id, { sys_id: id, sys_policy: "read" }),
+    );
+    const { workspace, written } = memoryWorkspace();
+    const adopting = adopt(
+      { reader: fake.reader, workspace, toolchain: toolchain([contains]).chain, access, signal },
+      { instance: "pdi2", records: [{ table: "sys_user_role_contains", sysId: id }] },
+    );
+    await expect(adopting).rejects.toBeInstanceOf(AdoptRefusedError);
+    await expect(adopting).rejects.toThrow("the SDK would mark its containment rows read-only");
+    expect(written.size).toBe(0);
+  });
 });

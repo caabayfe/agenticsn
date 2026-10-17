@@ -17,6 +17,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   The pull reports values redacted for not having their type's shape.
 - The first pull after upgrading reads properties and choices again once, so existing mirrors
   gain these values and the choices below without a full pull. Expect one large mirror commit.
+- `describe` says what the mirror leaves out on purpose where it matters (ADR-0034): a protected
+  record's code is not readable; an inbound email action depends on mail accounts, which are not
+  mirrored, and on `glide.email.read.active`, whose value it gives; a flow or action that takes a
+  connection alias depends on aliases and connections, which are not mirrored. A table's
+  description counts its behaviour with protected code. The local index is rebuilt once.
 
 ### Fixed
 

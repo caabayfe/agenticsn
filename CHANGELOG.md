@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Pulls list records in every domain. A full pull, an incremental pull and `pull --verify` missed
+  records and child rows outside the session's domain, because the instance hides them from any
+  listing with a condition (ADR-0030 #9, spec 009 mirror plan M4). `pull --verify` or the next
+  full pull of a domain-separated instance adds the missing ones.
+
 ## [2.0.0] - 2026-10-17
 
 Changes are authored in **Fluent**, the ServiceNow SDK's TypeScript, and every write is loaded

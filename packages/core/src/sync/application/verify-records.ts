@@ -79,6 +79,7 @@ async function listPart(walk: Walk, part: Part): Promise<void> {
       table: SYS_METADATA,
       fields: ["sys_id", "sys_class_name"],
       kind: "snapshot" as const,
+      allDomains: true,
       base: partQuery(walk, scopeId, part.prefix),
     };
     for await (const row of walk.deps.pager.rows(listing, walk.signal)) {

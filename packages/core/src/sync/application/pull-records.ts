@@ -26,6 +26,7 @@ async function pullClass(
     table: TableName.parse(table),
     fields: "all" as const,
     kind: "snapshot" as const,
+    allDomains: true,
     base: `sys_class_name=${table}`,
   };
   for await (const row of deps.pager.rows(listing, signal)) {

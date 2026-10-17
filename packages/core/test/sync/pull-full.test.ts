@@ -211,12 +211,14 @@ describe("pullFull", () => {
     expect(state.saved.checkpoint).not.toBeNull();
     expect(state.saved.state).toBeNull();
     // A checkpoint from before fingerprints existed: the next pull treats everything as changed.
+    // It predates redaction versions too, so its classes count as redacted under version 1.
     expect(summary.next).toEqual({
       watermark: "2026-10-05 11:00:00",
       lastFullPull: "2026-10-05 11:00:00",
       fingerprints: {},
       inventory: {},
       unreadable: [],
+      redactionVersion: 1,
     });
   });
 

@@ -39,6 +39,7 @@ export const PullOutput = z.object({
       childRows: z.number(),
       operationalRows: z.number(),
       skippedRows: z.number(),
+      malformedValues: z.number(),
       phaseSeconds: z.object({
         catalog: z.number(),
         records: z.number(),
@@ -55,6 +56,8 @@ export const PullOutput = z.object({
       renamed: z.number(),
       deleted: z.number(),
       skippedRows: z.number(),
+      malformedValues: z.number(),
+      rereadForRedaction: z.array(z.string()),
       childFiles: z.number(),
       removedChildFiles: z.number(),
       lostRecords: z.number(),
@@ -120,6 +123,7 @@ export function fullOutput(facts: RunFacts, summary: PullSummary): PullOutput {
       childRows: summary.childRows,
       operationalRows: summary.operationalRows,
       skippedRows: summary.skippedRows,
+      malformedValues: summary.malformedValues,
       phaseSeconds: {
         ...summary.phaseSeconds,
         commit: tenths(performance.now() - facts.committing),
@@ -139,6 +143,8 @@ export function incrementalOutput(facts: RunFacts, summary: IncrementalSummary):
       renamed: summary.renamed,
       deleted: summary.deleted,
       skippedRows: summary.skippedRows,
+      malformedValues: summary.malformedValues,
+      rereadForRedaction: [...summary.rereadForRedaction],
       childFiles: summary.childFiles,
       removedChildFiles: summary.removedChildFiles,
       lostRecords: summary.lostRecords,
@@ -169,9 +175,17 @@ function renderFull(output: PullOutput, full: NonNullable<PullOutput["full"]>): 
   return [
     `pulled ${output.instance}${output.resumed ? " (resumed)" : ""} in ${output.seconds} s -> ${output.commit.slice(0, 10)} on servicenow-remote/${output.instance}`,
     `  ${output.records} records in ${full.classes} classes, ${full.childRows} child rows, ${full.operationalRows} inventory rows, ${full.skippedRows} skipped`,
+    ...malformedLine(full.malformedValues),
     load(output),
     `  time: catalog ${phases.catalog} s, records ${phases.records} s, child rows ${phases.children} s, inventory ${phases.operational} s, commit ${phases.commit} s; ${output.requestSeconds} s in requests; peak memory ${output.peakMemoryMb} MB`,
   ];
+}
+
+// Property values kept only when shaped like their type (ADR-0034): say how many were not.
+function malformedLine(count: number): string[] {
+  return count === 0
+    ? []
+    : [`  ${count} property values redacted: not shaped like their property's type`];
 }
 
 // Records deleted on the instance without a deletion record stay in the mirror; say so
@@ -212,6 +226,10 @@ function renderIncremental(
     `pulled ${output.instance} changes in ${output.seconds} s -> ${output.commit.slice(0, 10)} on servicenow-remote/${output.instance}`,
     `  records: ${output.records} written, ${changes.renamed} renamed, ${changes.deleted} deleted, ${changes.skippedRows} skipped${changes.catalogRefreshed ? "; catalog read again" : ""}`,
     `  child rows: ${changes.childFiles} files refreshed, ${changes.removedChildFiles} removed`,
+    ...(changes.rereadForRedaction.length > 0
+      ? [`  read again for the new redaction rules: ${changes.rereadForRedaction.join(", ")}`]
+      : []),
+    ...malformedLine(changes.malformedValues),
     ...(changes.inventoryRefreshed.length > 0
       ? [`  inventory listed again: ${changes.inventoryRefreshed.join(", ")}`]
       : []),

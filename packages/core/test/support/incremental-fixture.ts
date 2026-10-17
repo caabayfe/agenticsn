@@ -135,6 +135,7 @@ export async function pulledInstance(shape: (tables: Record<string, Row[]>) => v
   const full = await pullFull(deps, LIVE);
   state.saved.state = full.next;
   return {
+    full,
     tables: instance.tables,
     files,
     state,

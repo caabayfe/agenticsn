@@ -65,32 +65,37 @@ seen as a change. It is fixed with B1, not here.
 - `it("attaches the ES-latest row of a script include created since the last pull")`;
 - `it("lists every ES-latest row on the first pull after an upgrade")`.
 
-### M2. Typed property values (ADR-0034)
+### M2. Typed property values (ADR-0034) (done 2026-10-17)
 
-**Change.**
-- `fieldsToRedact` (`packages/core/src/metadata/domain/redaction.ts`) takes the record's row, not
-  only its name, and keeps `value` under ADR-0034 #1: kept type, `is_private` false, name not
-  secret-like, value shaped like its type. The allow-list route is unchanged.
-- The shape checks are a small pure table, one entry per kept type.
-- `RedactionPolicy` gains a `version`. The pull state stores the version it last applied. On a
-  mismatch the next pull re-reads the classes whose redaction changed (`sys_properties`), then
-  stores the new version. The first version change also re-lists `sys_choice` once, so existing
-  mirrors gain the variable choices M3 attaches.
-- The pull report counts values redacted because they failed their shape check.
+**Change, as built.**
+- `propertyValueVerdict(row, policy)` (`packages/core/src/metadata/domain/redaction.ts`) answers
+  `kept`, `redacted` or `malformed`. `fieldsToRedact` now takes the row, not only its name. Kept
+  types and their shapes are one table. A kept value must also pass `redactSecrets` unchanged.
+  `is_private` must be exactly `false`: an unknown privacy redacts.
+- `RedactionPolicy.version` is 2. The full pull's checkpoint and the sync state record the
+  version applied; a full pull resumed from an older checkpoint keeps the older version, so its
+  early classes are re-read too.
+- When the state's version is older (absent means 1), the next incremental pull lists
+  `sys_properties` again whole and lists `sys_choice` again as never read (M3's choices), once
+  (`packages/core/src/sync/domain/redaction-upgrades.ts`, `application/redaction-reread.ts`).
+- The record part of the incremental pull moved to `incremental-record-phase.ts` (size limits).
+- Both pull summaries count malformed values; the CLI prints them, and the tables read again,
+  only when there are any.
 
-**Tests (failing first).**
-- `it("keeps the value of a boolean property")`, and one per kept type.
-- `it("redacts a string property's value")`, `it("redacts a password2 property's value")`.
-- `it("redacts a private property's value even when it is a boolean")`.
-- `it("redacts a value named like a secret even when it is an integer")`.
-- `it("redacts an integer property whose value is not a number")`.
-- `it("re-reads properties once when the redaction policy changes")`, and
-  `it("does not re-read them on the next pull")`.
-- Property (fast-check): no value of a non-kept type is ever written, whatever its content.
-- The mirror secret-scan test runs over kept values.
+**Found while building: no mirror secret scan exists.** ASR-08's fit criterion ("secret scan of
+the mirror is a mandatory pull step") isn't implemented anywhere. M2 doesn't depend on it (see
+the ADR's implementation note). Recommended follow-up, outside this plan: a pull step that scans
+the files a pull writes with the same patterns and refuses to commit a match.
 
-**Done when:** a pull of pdi2 keeps about 2,650 values and no string, password, image or private
-value (counted from the mirror); the secret scan is clean; the changelog names the one-time diff.
+**Tests.** `packages/core/test/metadata/property-values.test.ts` (every kept type, every redacted
+type, private, unknown privacy, secret names, shapes, credential-like values, exact type match,
+allow-list, and a fast-check property: no value of another type is ever kept) and
+`packages/core/test/sync/pull-property-values.test.ts` (values in the mirror, malformed counts in
+full and incremental pulls, the one-time re-read, older state, unreadable properties).
+
+**Live check (pdi2, read-only, values never printed).** 4,254 properties: 2,645 kept (1,583
+boolean, 830 integer, 166 choice, 53 colour, 12 formats and zones, 1 allow-listed string), 1,602
+redacted (every string, password, image and private value), 7 malformed (4 choices, 3 integers).
 
 ### M3. Choices of flow, action and test step variables (done 2026-10-17)
 
@@ -199,7 +204,7 @@ before writing (pushes switch the user's application and update set). Never touc
 |---|---|---|
 | ES-latest rows: counts and the unload export (read-only, done 2026-10-17) | M1 | no |
 | Pull with no changes still meets ASR-16 | M1 | no |
-| Property values kept and redacted, counts match section M2 | M2 | no |
+| Property verdicts on all 4,254 properties (done 2026-10-17) | M2 | no |
 | Variable-table aggregate query (run 2026-10-17) | M3 | no |
 | A record in another domain is listed (passed 2026-10-17) | M4 | no |
 

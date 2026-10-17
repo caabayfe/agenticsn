@@ -4,6 +4,7 @@ import { TableName } from "../../kernel/table-name";
 import { artifactFromRow } from "../../metadata/domain/artifact";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { renderRecord } from "../../metadata/domain/record-layout";
+import { propertyValueVerdict } from "../../metadata/domain/redaction";
 import { classesToPull } from "../domain/pull-scope";
 import { chunks, isChildRowFile, type RecordChanges } from "../domain/record-changes";
 import { forEachConcurrently } from "./concurrently";
@@ -18,6 +19,8 @@ export interface RecordOutcome {
   readonly renamed: number;
   readonly deleted: number;
   readonly skippedRows: number;
+  // Property values redacted because they don't have their type's shape (ADR-0034).
+  readonly malformedValues: number;
   readonly unreadable: readonly string[];
   // Changed records that could not be written: unreadable or unknown class, invalid sys_id,
   // or not returned by their class table.
@@ -151,6 +154,7 @@ type DownloadOutcome = {
   written: number;
   renamed: number;
   skipped: number;
+  malformed: number;
   received: string[];
   stored: string[];
   created: { base: string; className: string }[];
@@ -165,6 +169,9 @@ async function storeRow(
   outcome: DownloadOutcome,
 ) {
   outcome.received.push(row["sys_id"] ?? "");
+  if (table === "sys_properties" && propertyValueVerdict(row, deps.policy) === "malformed") {
+    outcome.malformed += 1;
+  }
   try {
     const replaced = await replaceRecord(deps, catalog, row);
     outcome[replaced.kind] += 1;
@@ -191,6 +198,7 @@ async function downloadClass(
     written: 0,
     renamed: 0,
     skipped: 0,
+    malformed: 0,
     received: [],
     stored: [],
     created: [],
@@ -235,7 +243,7 @@ export async function applyRecordChanges(
   const received = new Set<string>();
   const stored = new Set<string>();
   const unreadable: string[] = [];
-  const totals = { written: 0, renamed: 0, deleted: 0, skippedRows: 0 };
+  const totals = { written: 0, renamed: 0, deleted: 0, skippedRows: 0, malformedValues: 0 };
   const created: { base: string; className: string }[] = [];
   const classes = [...changes.changed.keys()].filter((table) => mirrored.has(table)).sort();
   await forEachConcurrently(classes, deps.classConcurrency ?? 4, async (table) => {
@@ -245,6 +253,7 @@ export async function applyRecordChanges(
       totals.written += outcome.written;
       totals.renamed += outcome.renamed;
       totals.skippedRows += outcome.skipped;
+      totals.malformedValues += outcome.malformed;
       created.push(...outcome.created);
       for (const id of outcome.received) {
         received.add(id);

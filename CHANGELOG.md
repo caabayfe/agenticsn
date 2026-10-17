@@ -6,6 +6,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- `adopt` brings in more UI policies: an empty script builds the SDK's empty condition function,
+  an action with no visibility builds `ignore`, and an action with no table builds its policy's
+  table, each accepted only against the empty value (no change in behaviour).
+- `adopt` names, as refusals by design, UI policies the SDK would limit to desktop, protected UI
+  policies whose actions' protection it would change, and conversions the SDK can't make (a UI
+  policy that runs scripts with no UI type, or with no short description), each with what to do.
+- `adopt` no longer treats translations as secrets: its credential check (S2) refused every
+  class the mirror skips; it now refuses credential classes only.
 - `adopt` names why it refuses a protected ServiceNow role whose containment rows have no
   protection: the SDK would mark them read-only, changing who may edit the role's grants. It
   reported an unexplained difference and asked for a bug report. Refusals by design now have

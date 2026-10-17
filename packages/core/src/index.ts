@@ -154,6 +154,7 @@ export {
   childGrouper,
   classesToPull,
   ownerOfBase,
+  variableModelOf,
 } from "./sync/domain/pull-scope";
 export {
   chunks,

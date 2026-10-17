@@ -19,7 +19,7 @@ flows. What the mirror holds is complete. What it leaves out, it says it leaves 
 |---|---|---|---|
 | M1 | Pull ES-latest rows as child rows of script includes | addition | ADR-0017 |
 | M2 | Keep the values of typed, non-private properties | safety rule loosened | ADR-0034 #1, #2 |
-| M3 | Keep the choices of multi-row variable sets | bug | ADR-0025 |
+| M3 | Keep the choices of flow, action and test step variables | bug | ADR-0025 |
 | M4 | List other domains' records in a full pull | bug | ADR-0030 #9 |
 | M5 | `describe` names what the mirror leaves out | addition | ADR-0034 #3 |
 
@@ -73,7 +73,8 @@ pull with no changes still meets ASR-16 (measured, reported in the pull request)
 - The shape checks are a small pure table, one entry per kept type.
 - `RedactionPolicy` gains a `version`. The pull state stores the version it last applied. On a
   mismatch the next pull re-reads the classes whose redaction changed (`sys_properties`), then
-  stores the new version.
+  stores the new version. The first version change also re-lists `sys_choice` once, so existing
+  mirrors gain the variable choices M3 attaches.
 - The pull report counts values redacted because they failed their shape check.
 
 **Tests (failing first).**
@@ -90,28 +91,45 @@ pull with no changes still meets ASR-16 (measured, reported in the pull request)
 **Done when:** a pull of pdi2 keeps about 2,650 values and no string, password, image or private
 value (counted from the mirror); the secret scan is clean; the changelog names the one-time diff.
 
-### M3. Choices of multi-row variable sets
+### M3. Choices of flow, action and test step variables (done 2026-10-17)
 
-**Facts.** About 6,200 of 21,710 choices are dropped as orphans, because their `name` is not a
-mirrored table. 530 of the 537 unmatched names are `var__m_*`: the tables behind multi-row
-variable sets, which have no mirrored `sys_db_object`.
+**Facts, established before coding.** The analysis guessed these were catalog multi-row variable
+sets; they are not. A `var__m_*` name is `var__m_<variable table>_<model sys_id>`: the table
+behind the variables of a flow, an action, an ATF step and similar models. On pdi2 (530 names,
+5,994 choices):
 
-**Change.**
-- Step 1, offline: establish from the mirror what a `var__m_*` name points to (the variable set,
-  `item_option_new_set`, by internal name or sys_id) and what the other 7 names are. Record it in
-  this plan before writing code.
-- Step 2: give those choices an owner. Preferred: the variable set record, through a second
-  owner lookup for names that are not tables. Fallback: keep them under their own
-  `sys_choice` files keyed by name, if no owner is mirrored.
-- The pull report already counts orphans; it then names the unowned tables (at most ten) so the
-  next gap is visible.
+| Owner | Names | Choices |
+|---|---|---|
+| A mirrored record (flow, action type, ATF step config, step definition, UX component…) | 327 | 3,456 |
+| A flow or action snapshot (pull skips them as derived) | 185 | 2,538 (with the next row) |
+| A record that no longer exists | 18 | |
 
-**Tests (failing first).**
-- `it("keeps a multi-row variable set's choices with the set")`.
-- `it("names the tables whose choices had no owner")`.
+The other 7 unmatched names (`ata`, `bsas`, `eta`, `fsas`, `hybrid`, `xata`, `xsas`) are stray
+values, not tables. Dropping the snapshot and stray choices is correct.
 
-**Done when:** orphan choices on pdi2 drop from about 6,200 to the unexplained remainder, which
-the report names.
+**Change, as built.**
+- `variableModelOf(name)` (`packages/core/src/sync/domain/pull-scope.ts`) reads the model's sys_id
+  from a variable table name. A choice whose name has no table record falls back to the record
+  with that sys_id, in the file `<record>.children.sys_choice.yaml`.
+- Incremental pulls refresh such a record's choices under all of its variable table names, which
+  one aggregate (`sys_choice` grouped by `name`, `nameSTARTSWITHvar__m_`) gives. It is made only
+  when choices changed, so a pull with no changes costs nothing more (ASR-16). The query was run
+  read-only on pdi2.
+
+**Dropped from the plan:** naming the unowned tables in the pull report. The remaining orphans are
+snapshot choices, by design; naming them would be noise.
+
+**Existing mirrors** gain a record's variable choices when that record's choices next change, or
+on a full pull. M2's re-read on a version change also re-lists choices once, so every mirror
+converges without a manual full pull.
+
+**Tests.** `packages/core/test/sync/pull-choices.test.ts` and `pull-scope.test.ts`:
+- `it("attaches a variable's choices to the record that defines the variable")`;
+- `it("leaves out the choices of a variable whose record is not mirrored")`;
+- `it("refreshes a flow's variable choices whole when one of them changed")`;
+- `it("adds the choices of a variable added to a flow")`;
+- `it("removes a flow's choice file when its variables' choices are all deleted")`;
+- `variableModelOf` names the model for well-formed names only.
 
 ### M4. Other domains in pulls (done 2026-10-17)
 
@@ -181,7 +199,7 @@ before writing (pushes switch the user's application and update set). Never touc
 | ES-latest coalescing: read one row, load a changed mode for one scratch script include | M1 | yes, scratch scope |
 | Pull with no changes still meets ASR-16 | M1 | no |
 | Property values kept and redacted, counts match section M2 | M2 | no |
-| Choice orphans after M3 | M3 | no |
+| Variable-table aggregate query (run 2026-10-17) | M3 | no |
 | A record in another domain is listed (passed 2026-10-17) | M4 | no |
 
 ## 5. Risks

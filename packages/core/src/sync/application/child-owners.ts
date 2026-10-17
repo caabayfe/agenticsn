@@ -1,5 +1,11 @@
 import { TableName } from "../../kernel/table-name";
-import { CHILD_TABLES, type ChildTable, ownerOfBase } from "../domain/pull-scope";
+import {
+  CHILD_TABLES,
+  type ChildTable,
+  ownerOfBase,
+  VARIABLE_TABLE_PREFIX,
+  variableModelOf,
+} from "../domain/pull-scope";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { tableIds } from "./pull-children";
 
@@ -12,9 +18,33 @@ export interface ChildOwners {
   keysOf(base: string): readonly string[];
 }
 
-// Rows keyed by table name (choices): each table's record owns the rows that name it.
+// The variable tables that hold rows now, per owning record, in one aggregate request made
+// only when the child table changed: a record's rows are refreshed under all of its names.
+async function variableTables(
+  deps: IncrementalDependencies,
+  child: ChildTable,
+  signal: AbortSignal,
+): Promise<Map<string, string[]>> {
+  const table = TableName.parse(child.table);
+  const query = `${child.parentField}STARTSWITH${VARIABLE_TABLE_PREFIX}`;
+  const byBase = new Map<string, string[]>();
+  for (const name of (
+    await deps.statistics.countBy(table, child.parentField, signal, query)
+  ).keys()) {
+    const model = variableModelOf(name);
+    const base = model === null ? undefined : deps.records.baseOf(deps.metadataRoot, model);
+    if (base !== undefined) {
+      byBase.set(base, [...(byBase.get(base) ?? []), name]);
+    }
+  }
+  return byBase;
+}
+
+// Rows keyed by table name (choices): each table's record owns the rows that name it, and a
+// flow's, action's or test step's record owns the rows of its variable tables.
 async function tableNameOwners(
   deps: IncrementalDependencies,
+  child: ChildTable,
   signal: AbortSignal,
 ): Promise<ChildOwners> {
   const byName = new Map<string, string>();
@@ -26,11 +56,16 @@ async function tableNameOwners(
       names.set(base, name);
     }
   }
+  const variables = await variableTables(deps, child, signal);
+  const modelOf = (key: string) => {
+    const model = variableModelOf(key);
+    return model === null ? undefined : deps.records.baseOf(deps.metadataRoot, model);
+  };
   return {
-    baseOf: (key) => byName.get(key),
+    baseOf: (key) => byName.get(key) ?? modelOf(key),
     keysOf: (base) => {
       const name = names.get(base);
-      return name === undefined ? [] : [name];
+      return [...(name === undefined ? [] : [name]), ...(variables.get(base) ?? [])];
     },
   };
 }
@@ -41,7 +76,7 @@ export async function childOwners(
   signal: AbortSignal,
 ): Promise<ChildOwners> {
   if (child.ownedByTableName === true) {
-    return tableNameOwners(deps, signal);
+    return tableNameOwners(deps, child, signal);
   }
   const root = deps.metadataRoot;
   const earlier = CHILD_TABLES.slice(0, CHILD_TABLES.indexOf(child)).map((table) => table.table);

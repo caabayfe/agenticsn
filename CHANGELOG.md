@@ -6,6 +6,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Plans list what a load sets beyond the source apart from what the source changes, with the
+  value: `also sets: sys_app_application.order = 100` instead of the loss's name mixed in with
+  the changes.
 - Plans and adopt read the built XML's character references as text: the build writes a
   carriage return as `&#13;`, which was compared literally, so any text with Windows line
   endings (a role's description, a script) showed as a difference that wasn't there.

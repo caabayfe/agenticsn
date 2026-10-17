@@ -1,5 +1,5 @@
 import type { Difference } from "../../authoring/domain/compare";
-import type { LossId } from "../../authoring/domain/losses";
+import { knownLoss, type LossId } from "../../authoring/domain/losses";
 import type { UnitDecision } from "../../authoring/domain/plan-unit";
 import type { BuiltUnit } from "../../authoring/domain/unit";
 import { canonicalJson } from "../../kernel/canonical-json";
@@ -25,6 +25,8 @@ export interface PlannedUnit {
   readonly changes: readonly string[];
   // Known SDK losses the load also sets.
   readonly losses: readonly LossId[];
+  // What those losses set, as table.field = value (or table rows): shown in every plan.
+  readonly alsoSets: readonly string[];
   readonly digest: string;
   // The ledger's instance version, and the instance's now (null for a unit it does not hold).
   readonly ledger: string | null;
@@ -63,6 +65,17 @@ export function deletionFor(updateName: string): string | null {
   return match === null ? null : `Now.del('${match[1]}', '${match[2]}')`;
 }
 
+// The differences the source makes, and what the SDK sets beyond it (its known losses).
+const authored = (differences: readonly Difference[]) =>
+  differences.filter((difference) => knownLoss(difference) === null);
+
+function setsOf(differences: readonly Difference[]): string[] {
+  const sets = differences
+    .filter((difference) => knownLoss(difference) !== null)
+    .map((d) => (d.kind === "field" ? `${d.table}.${d.field} = ${d.built}` : `${d.table} rows`));
+  return [...new Set(sets)].sort();
+}
+
 export const changesOf = (differences: readonly Difference[]): string[] => [
   ...new Set(
     differences.map((d) => (d.kind === "field" ? `${d.table}.${d.field}` : `${d.table} rows`)),
@@ -82,7 +95,15 @@ export function plannedOrProblem(
   unit: BuiltUnit,
   context: Omit<
     PlannedUnit,
-    "updateName" | "file" | "table" | "sysId" | "name" | "operation" | "changes" | "losses"
+    | "updateName"
+    | "file"
+    | "table"
+    | "sysId"
+    | "name"
+    | "operation"
+    | "changes"
+    | "losses"
+    | "alsoSets"
   >,
 ): PlannedUnit | UnitProblem | null {
   const problem = (kind: UnitProblemKind, reason: string): UnitProblem => ({
@@ -105,8 +126,9 @@ export function plannedOrProblem(
     sysId: unit.head.sysId,
     name: unitName(unit),
     operation: decision.kind,
-    changes: decision.kind === "load" ? changesOf(decision.differences) : [],
+    changes: decision.kind === "load" ? changesOf(authored(decision.differences)) : [],
     losses: decision.kind === "load" ? decision.losses : [],
+    alsoSets: decision.kind === "load" ? setsOf(decision.differences) : [],
   };
 }
 

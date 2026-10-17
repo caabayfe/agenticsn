@@ -77,7 +77,7 @@ export async function groupTable(
   owners: Map<string, string>,
   signal: AbortSignal,
 ): Promise<AttachedChildren | null> {
-  const redact = fieldsToRedact(catalog, child.table, "", deps.policy);
+  const redact = fieldsToRedact(catalog, child.table, {}, deps.policy);
   const alias = child.ownedByTableName === true ? variableModelOf : undefined;
   const grouper = childGrouper(child.parentField, owners, alias);
   const listing = {

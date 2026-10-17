@@ -100,7 +100,7 @@ async function refreshOwners(
   signal: AbortSignal,
   totals: Totals,
 ): Promise<void> {
-  const redact = fieldsToRedact(catalog, child.table, "", deps.policy);
+  const redact = fieldsToRedact(catalog, child.table, {}, deps.policy);
   for (const batch of ownerBatches(bases, owners)) {
     const rows = new Map<string, Row[]>();
     for (const keys of chunks(

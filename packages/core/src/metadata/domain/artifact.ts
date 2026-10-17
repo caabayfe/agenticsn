@@ -27,7 +27,7 @@ export interface Artifact {
 
 export function artifactFromRow(row: Row, catalog: Catalog, policy: RedactionPolicy): Artifact {
   const className = TableName.parse(row["sys_class_name"] ?? "");
-  const redact = fieldsToRedact(catalog, className, row["name"] ?? "", policy);
+  const redact = fieldsToRedact(catalog, className, row, policy);
   const meta: Record<string, string> = {};
   const fields: Record<string, string> = {};
   const redacted: string[] = [];

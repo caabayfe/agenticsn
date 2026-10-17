@@ -10,6 +10,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   beside the script include, business rule or other script it belongs to
   (`<record>.children.sys_es_latest_script.yaml`; spec 009 mirror plan M1). Existing mirrors gain
   the rows on their next pull.
+- Pulls keep the values of system properties that are switches and limits: boolean, integer,
+  choice, colour, date or time format and time zone properties that aren't private, whose name
+  doesn't look like a secret and whose value has the shape of its type (ADR-0034). Strings,
+  passwords, images and private values stay redacted. On a PDI, about 2,650 of 4,250 values.
+  The pull reports values redacted for not having their type's shape.
+- The first pull after upgrading reads properties and choices again once, so existing mirrors
+  gain these values and the choices below without a full pull. Expect one large mirror commit.
 
 ### Fixed
 

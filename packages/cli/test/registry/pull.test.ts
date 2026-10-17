@@ -194,6 +194,7 @@ describe("pull and integrate", () => {
           childRows: 2,
           operationalRows: 4,
           skippedRows: 0,
+          malformedValues: 0,
           phaseSeconds: { catalog: 0.1, records: 1, children: 0.2, operational: 0.1, commit: 0.1 },
         },
         unreadable: ["sys_x"],
@@ -281,6 +282,8 @@ describe("pull and integrate", () => {
       renamed: 1,
       deleted: 1,
       skippedRows: 0,
+      malformedValues: 0,
+      rereadForRedaction: [] as string[],
       childFiles: 3,
       removedChildFiles: 0,
       lostRecords: 0,
@@ -292,6 +295,23 @@ describe("pull and integrate", () => {
     expect(changed).toContain("records: 2 written, 1 renamed, 1 deleted, 0 skipped");
     expect(changed).toContain("child rows: 3 files refreshed, 0 removed");
     expect(changed).toContain("inventory listed again: plugins");
+    expect(changed).not.toContain("redaction");
+    const upgraded = pull.render(
+      {
+        ...base,
+        changed: true,
+        incremental: {
+          ...incremental,
+          malformedValues: 2,
+          rereadForRedaction: ["sys_properties", "sys_choice"],
+        },
+      },
+      "text",
+    );
+    expect(upgraded).toContain(
+      "read again for the new redaction rules: sys_properties, sys_choice",
+    );
+    expect(upgraded).toContain("2 property values redacted: not shaped like their property's type");
     expect(changed).toContain("next: snagentic integrate pdi");
     const idle = pull.render({ ...base, changed: false, incremental }, "text");
     expect(idle).toStartWith("pdi is up to date (3.2 s)");

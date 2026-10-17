@@ -108,6 +108,17 @@ being reconsidered. Both are decided here.
 - An agent still can't see mail account settings, alias targets or protected code. It is told so,
   and can ask a person.
 
+## Note on implementation (2026-10-17)
+
+The mirror-wide secret scan this ADR relies on (ASR-08's fit criterion) doesn't exist in the code.
+Rather than depend on it, a kept value is also checked against the credential patterns
+snagentic uses to clean logs and errors (`redactSecrets`): a value they would change is redacted
+and counted as malformed. The decision is unchanged. The missing scan is a separate gap against
+ASR-08, recorded in `specs/009-feature-build/mirror-plan.md`.
+
+Measured on pdi2 with the rule as built (read-only, values not printed): 2,645 of 4,254 values
+kept (one of them the allow-listed vendor prefix), 1,602 redacted, 7 redacted as malformed.
+
 ## Alternatives considered
 
 - **Keep redacting every value.** Rejected: the most common question about a feature ("is it on?")

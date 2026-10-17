@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-17
+
+A mirror complete enough to build a feature (spec 009, ADR-0034), and the security fixes from
+the 2.0 audit. Upgrading needs no new workspace: the first pull reads properties and choices
+again once, and the local index is rebuilt once.
+
+Not in this release: the mirror secret scan ASR-08 calls for (proposed in ADR-0035). Kept
+property values are checked against credential patterns meanwhile.
+
 ### Security
 
 - A Fluent build no longer runs the project's build scripts (`now.prebuild.mjs`,

@@ -84,4 +84,23 @@ describe("knownLoss: values the SDK recomputes where the instance holds nothing"
   it("does not accept 100 for a menu that holds another order", () => {
     expect(knownLoss(field("sys_app_application", "order", "100", "50"))).toBeNull();
   });
+
+  it("accepts the SDK's empty condition function where a UI policy has no script", () => {
+    const empty = "function onCondition() {\n\n}";
+    expect(knownLoss(field("sys_ui_policy", "script_true", empty, ""))).toBe("api-default");
+    expect(knownLoss(field("sys_ui_policy", "script_false", empty, ""))).toBe("api-default");
+    expect(knownLoss(field("sys_ui_policy", "script_true", "doThings();", ""))).toBeNull();
+  });
+
+  it("accepts ignore for a policy action whose visibility is empty", () => {
+    expect(knownLoss(field("sys_ui_policy_action", "visible", "ignore", ""))).toBe("api-default");
+    expect(knownLoss(field("sys_ui_policy_action", "visible", "true", ""))).toBeNull();
+  });
+
+  it("accepts the policy's table for a policy action whose table is empty", () => {
+    expect(knownLoss(field("sys_ui_policy_action", "table", "sys_dictionary", ""))).toBe(
+      "api-default",
+    );
+    expect(knownLoss(field("sys_ui_policy_action", "table", "incident", "task"))).toBeNull();
+  });
 });

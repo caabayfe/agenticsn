@@ -316,6 +316,27 @@ describe("adopt (ADR-0031 item 3)", () => {
     await expect(adopting).rejects.toBeInstanceOf(AdoptTransformFailedError);
   });
 
+  it("names a conversion the SDK can't make as a refusal, with what to set", async () => {
+    const failing = {
+      ...toolchain([]).chain,
+      draftTransform: async () => ({
+        ok: false as const,
+        message: "Cannot coerce value to number: ",
+      }),
+    };
+    const adopting = adopt(
+      {
+        reader: instance().reader,
+        workspace: memoryWorkspace().workspace,
+        toolchain: failing,
+        access,
+        signal,
+      },
+      { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
+    );
+    await expect(adopting).rejects.toBeInstanceOf(AdoptRefusedError);
+  });
+
   it("adopts each scope's records into its own project, in scope order", async () => {
     const OTHER = "b".repeat(32);
     const fake = fakeInstance({

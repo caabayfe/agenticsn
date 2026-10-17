@@ -12,7 +12,7 @@ import { compareUnit, type Difference } from "../domain/compare";
 import { unitDigest } from "../domain/digest";
 import { type LedgerEntry, withEntries } from "../domain/ledger";
 import { knownLoss, type LossId } from "../domain/losses";
-import { knownRefusal } from "../domain/refusals";
+import { conversionRefusal, knownRefusal } from "../domain/refusals";
 import type { BuiltUnit, InstanceCopy } from "../domain/unit";
 import { unitSecrets } from "../domain/unit-secrets";
 import { unitSpec } from "../domain/unit-specs";
@@ -146,7 +146,11 @@ async function adoptInto(
   const base = input.refresh === true ? await workspace.ledgerCommit(project) : null;
   if (input.refresh === true && base === null) throw new NothingAdoptedError(project.path);
   const outcome = await toolchain.draftTransform(project, targets, access, base ?? undefined);
-  if (!outcome.ok) throw new AdoptTransformFailedError(project.scope, outcome.message);
+  if (!outcome.ok) {
+    const refusal = conversionRefusal(outcome.message);
+    if (refusal !== null) throw new AdoptRefusedError([`${project.scope}: ${refusal}`]);
+    throw new AdoptTransformFailedError(project.scope, outcome.message);
+  }
   const units = adoptedUnits(outcome.draft);
   const catalog = await unitCatalog(dependencies, units);
   const secrets = unitSecrets(units, catalog, DEFAULT_REDACTION);

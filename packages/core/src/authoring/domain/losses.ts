@@ -39,12 +39,21 @@ const EMPTY_DEFAULTS: Readonly<Record<string, string>> = {
   // such a menu says the load also sets its order. Exact alternative: Record() (test plan,
   // decision 3).
   "sys_app_application.order": "100",
+  // A UI policy with no script builds the SDK's empty condition function, which does nothing
+  // either (26 on pdi2); an action with no visibility builds ignore, which empty means (1).
+  "sys_ui_policy.script_true": "function onCondition() {\n\n}",
+  "sys_ui_policy.script_false": "function onCondition() {\n\n}",
+  "sys_ui_policy_action.visible": "ignore",
 };
 
 // Fields the SDK computes from other fields, which only the instance's empty value may differ
 // from: a global role's suffix becomes its name (632 of 646 global roles on pdi2 have none; 7
 // already hold their name, so the platform accepts it).
-const EMPTY_RECOMPUTED: ReadonlySet<string> = new Set(["sys_user_role.suffix"]);
+// A policy action with no table builds its policy's table, which is what empty means (5 on pdi2).
+const EMPTY_RECOMPUTED: ReadonlySet<string> = new Set([
+  "sys_user_role.suffix",
+  "sys_ui_policy_action.table",
+]);
 
 const SPLIT_MARKERS = /^(\.begin_split|\.split|\.end_split)\|/;
 const SYS_ID = /^[0-9a-f]{32}$/;

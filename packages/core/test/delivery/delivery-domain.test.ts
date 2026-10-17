@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type Finding, gateOf, globMatches, readWaivers } from "@snagentic/core";
+import { type Finding, gateOf, globMatches, plannedOrProblem, readWaivers } from "@snagentic/core";
 
 describe("waivers", () => {
   const today = new Date("2026-10-06T12:00:00Z");
@@ -96,6 +96,56 @@ describe("the gate", () => {
       passed: true,
       blocking: [],
       waived: [{ ruleId: "SN-SEC-001", approver: "lead" }],
+    });
+  });
+});
+
+// A plan says what the load sets beyond the source, field and value (owner's choice B, menu
+// order): never hidden among the changes the source makes.
+describe("plannedOrProblem: what the load also sets", () => {
+  const menu = {
+    updateName: `sys_app_application_${"a".repeat(32)}`,
+    file: "m.xml",
+    head: {
+      table: "sys_app_application",
+      sysId: "a".repeat(32),
+      action: "INSERT_OR_UPDATE" as const,
+      fields: { title: "Connections", order: "100" },
+      referenceNames: {},
+    },
+    children: [],
+  };
+  const context = {
+    project: "source/global",
+    scope: "global",
+    scopeId: "global",
+    digest: "d",
+    ledger: "1",
+    version: "1",
+    removes: null,
+  };
+  const field = (name: string, built: string, instance: string) => ({
+    kind: "field" as const,
+    table: "sys_app_application",
+    row: "",
+    field: name,
+    built,
+    instance,
+  });
+
+  it("lists the source's changes apart from the SDK's defaults, with their values", () => {
+    const decision = {
+      kind: "load" as const,
+      differences: [
+        field("title", "Connections", "Connections & Credentials"),
+        field("order", "100", ""),
+      ],
+      losses: ["api-default" as const],
+    };
+    expect(plannedOrProblem(decision, menu, context)).toMatchObject({
+      changes: ["sys_app_application.title"],
+      alsoSets: ["sys_app_application.order = 100"],
+      losses: ["api-default"],
     });
   });
 });

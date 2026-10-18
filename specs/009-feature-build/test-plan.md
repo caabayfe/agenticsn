@@ -292,6 +292,13 @@ global), then its records were authored in `source/x_2222332_snfx`.
 | A6 a role containing `admin` | **blocked after fix** | passed every check: SN-SEC-009, #108 |
 | A6 an unrestricted read ACL; a flow as system with no reason | not covered | no rule; SN-SEC-006 covers write, create and delete only |
 | A6 update set validation | **not built** | goal 3 and ADR-0010 item 5 name it; the roadmap in `docs/product/overview.md` still says 1.3 and calls 1.1 "this release" |
+| A7 Q1 why can't itil edit the impact note on incident | pass | `find u_snfx_impact_note`: the field's write ACL and its role row (approver). The first query after an integrate rebuilds the index: 4 min 17 s on 490k records |
+| A7 Q2 why did a hardware request go to Hardware, not the flow's Service Desk | pass, partly | `describe` lists the planted before rule among 13 before rules in order, beside a decoy; it says flows triggered by the table are not covered (a limit since 1.1) |
+| A7 Q3 what is unused | pass | `describe` of a script include lists who uses it, with lines; the planted one lists nobody |
+| A7 Q4 what breaks if the agent role goes | **partly** | lists 2 ACL roles and the containment; misses the menu and 3 modules, which name roles in a comma-separated `roles` field the graph doesn't read |
+| A7 the modules' roles on the instance | **defect found, blocked after fix** | `Record()` data with a `Role` object built `roles: '[object Object]'`; build and instance agreed, so no plan showed it, and the modules required a role nobody holds. SN-MNT-019, #109 |
+| A3 removal: business rule, script include, a global ACL and its role | pass | plan names each `Now.del`; deleted (404) and captured as DELETE, the ACL through the elevated session |
+| Integrate of a day's pull (pdi2-v21) | **unconfirmed hang** | committed, then the process waited for over 10 minutes without exiting; a re-run was a no-op in 0.7 s |
 
 Also found, not fixed:
 

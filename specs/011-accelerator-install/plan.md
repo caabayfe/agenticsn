@@ -272,3 +272,34 @@ gate rule (I2) waits for S-E; generated module sheet sections (I8).
   groups;
 - every switch is a documented property with a default and its variations;
 - every module reinstalls with nothing changed, and its sheet says what it does with a data flow.
+
+### Results of the first slice (2026-10-18)
+
+| Step | Result |
+|---|---|
+| 1. S-G | Passed on pdi2: the minimal pack added, validated, planned and pushed on the Fluent route into its own batch, demo data loaded from the pack. Its records already existed from spec 005's M7, so creation was proven by step 5 |
+| 2–3. Format 2, pack paths | Built (`211789a`). `ntt-accelerators/packs` is read from the workspace's `accelerators.paths`; store applications are checked against the store application inventory |
+| 4. S-D | Passed: `tools/spikes/s-d-anchors/README.md`. Anchors are created with their fixed sys_id by the transform's map script (`setNewGuidValue`), matched on it when reloaded or renamed; other rows match on their business key. Found and fixed: a new table's collection row was refused on the next plan (`1d98d22`) |
+| 5. foundation | `ntt-accelerators` module with 11 entities: 262 units pushed (2 min 9 s), 156 demo rows loaded in 58 s, a second load changes nothing. Roles reach users through groups; offerings carry support group, schedule and criticality |
+| 6. install | Built (`4bc6e77`): plan document, plan id, journal, lock, resume |
+| 7. install live | `accelerator install itsm pdi2 --profile incident --demo`: plan `d4bab70c992a5db6`, then confirmed: foundation skipped (already as built), incident-core 0.1.0 created (5 units into its own update set), data unchanged, mirror refreshed, plan and report committed in 2 min 41 s. The storyline's incidents INC0010024–26 were routed by offering, raised for a VIP and fell back to the Service Desk as the sheet says |
+
+Found on the way, for the next steps:
+
+- **Choices are checked only on the instance.** A demo row with an inactive time zone was rejected
+  by the transform (correctly, with its reason) but only at load time. `validate-data` could check
+  choice values against the mirror before any load.
+- **`install` needs the keys step.** After `add`, the build's IDs must be committed (SN-MNT-010);
+  install does it through `fluent-keys` for the files the module copied.
+- **Activation of an inactive plugin** is wired and unit-tested but not exercised live: every
+  component was already active on pdi2.
+- **Left on pdi2:** the S-D probe table and transform map (update set "acc-sd probe"), the minimal
+  pack's update sets, three demo incidents.
+
+| Milestone | Status |
+|---|---|
+| I1 modules, components, profiles, pack paths | Done |
+| I4 install plan and plan id | Done |
+| I5 orchestrator, journal, lock (development) | Done |
+| I7 anchors and the demo data exception | Done, except the finding for metadata that references a non-anchor record |
+| I2, I3, I6, I8, I9 | Open (I6 waits for ADR-0038's acceptance; I3 for S-F; I2 for S-E) |

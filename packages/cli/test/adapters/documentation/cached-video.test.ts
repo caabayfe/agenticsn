@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { VideoRenderer } from "@snagentic/core";
@@ -57,5 +57,31 @@ describe("a video cache", () => {
   it("is available when its browser is", async () => {
     expect(await new CachedVideoRenderer(counting(false).inner, dir).available()).toBe(false);
     expect(await new CachedVideoRenderer(counting(true).inner, dir).available()).toBe(true);
+  });
+});
+
+describe("cleaning the video cache", () => {
+  it("keeps only the recordings the last build used", async () => {
+    const { inner, calls } = counting();
+    const first = new CachedVideoRenderer(inner, dir);
+    await first.render("<old page>", null, OPTIONS, signal);
+    await first.render("<page>", null, OPTIONS, signal);
+    const next = new CachedVideoRenderer(inner, dir);
+    await next.render("<page>", null, OPTIONS, signal);
+    expect(await next.prune(signal)).toBe(1);
+    expect(readdirSync(dir)).toHaveLength(1);
+    await new CachedVideoRenderer(inner, dir).render("<page>", null, OPTIONS, signal);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("removes nothing when the build recorded nothing, or the cache doesn't exist yet", async () => {
+    const { inner } = counting();
+    await new CachedVideoRenderer(inner, dir).render("<page>", null, OPTIONS, signal);
+    expect(await new CachedVideoRenderer(inner, dir).prune(signal)).toBe(0);
+    expect(readdirSync(dir)).toHaveLength(1);
+    const absent = new CachedVideoRenderer(inner, join(dir, "none"));
+    await absent.render("<page>", null, OPTIONS, signal);
+    rmSync(join(dir, "none"), { recursive: true });
+    expect(await absent.prune(signal)).toBe(0);
   });
 });

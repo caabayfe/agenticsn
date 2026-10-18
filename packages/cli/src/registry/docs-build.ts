@@ -14,6 +14,7 @@ export const DocsBuildOutput = z.object({
   missingSounds: z.array(z.string()),
   videos: z.array(z.string()),
   videosNotMade: z.array(z.object({ animation: z.string(), reason: z.string() })),
+  videosPruned: z.number(),
 });
 
 export const AudioInput = {
@@ -60,6 +61,7 @@ export async function buildDocs(
     missingSounds: [...built.missingSounds],
     videos: [...built.videos],
     videosNotMade: built.videosNotMade.map((item) => ({ ...item })),
+    videosPruned: built.videosPruned,
   };
 }
 
@@ -96,6 +98,9 @@ export const docsBuild = defineUseCase({
       ...audio,
       ...videos,
       ...notMade,
+      ...(output.videosPruned === 0
+        ? []
+        : [`removed ${output.videosPruned} old recordings from the video cache`]),
       ...missing,
       ...checkLines(output),
     ].join("\n");

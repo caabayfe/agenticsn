@@ -340,6 +340,33 @@ describe("docs build: videos", () => {
     );
   });
 
+  it("cleans the video cache after recording, and reports what it removed", async () => {
+    let pruned = 0;
+    const { sources } = fakeSources(ALL);
+    const result = await buildSite(
+      {
+        ...run,
+        sources,
+        markdown: { html: (md) => md },
+        output: { root: "/ws/site", replace: async () => {} },
+        media: {
+          ...media(true),
+          video: {
+            available: async () => true,
+            render: async () => new Uint8Array([9]),
+            prune: async () => {
+              pruned += 1;
+              return 3;
+            },
+          },
+        },
+      },
+      { video: { fps: 30 } },
+    );
+    expect(result.videosPruned).toBe(3);
+    expect(pruned).toBe(1);
+  });
+
   it("names every animation it could not render, and links no video", async () => {
     const { result, written } = await buildWith(false);
     expect(result.videos).toEqual([]);
@@ -347,6 +374,7 @@ describe("docs build: videos", () => {
       { animation: "asg", reason: "no Chrome or Chromium browser" },
     ]);
     expect(written.some((file) => file.path.endsWith(".mp4"))).toBe(false);
+    expect(result.videosPruned).toBe(0);
   });
 });
 

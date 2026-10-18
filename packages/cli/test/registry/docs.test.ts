@@ -209,10 +209,31 @@ describe("snagentic docs", () => {
         missingSounds: [],
         videos: [],
         videosNotMade: [{ animation: "asg", reason: "no Chrome or Chromium browser" }],
+        videosPruned: 0,
       },
       "text",
     );
     expect(text).toContain("video not made: asg (no Chrome or Chromium browser)");
+    expect(text).not.toContain("old recordings");
+  });
+
+  it("build says how many old recordings it removed from the video cache", () => {
+    const text = docsBuild.render(
+      {
+        root: "/s",
+        files: 1,
+        ok: true,
+        evidence: [],
+        problems: [],
+        narrated: ["asg"],
+        missingSounds: [],
+        videos: ["asg"],
+        videosNotMade: [],
+        videosPruned: 2,
+      },
+      "text",
+    );
+    expect(text).toContain("removed 2 old recordings from the video cache");
   });
 
   it("serve builds the site, then serves it on the requested port", async () => {

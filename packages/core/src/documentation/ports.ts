@@ -105,6 +105,9 @@ export interface VideoRenderer {
     options: VideoOptions,
     signal: AbortSignal,
   ): Promise<Uint8Array>;
+  // A renderer that keeps recordings: after a build that recorded every animation, drop the ones
+  // it didn't use. Returns how many were removed.
+  prune?(signal: AbortSignal): Promise<number>;
 }
 
 // Where videos go: .snagentic/videos/<name>.mp4; returns the path written.

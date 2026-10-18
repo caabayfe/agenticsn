@@ -38,6 +38,8 @@ export interface BuildSiteResult {
   // Animations rendered as video, and why the others couldn't be.
   readonly videos: readonly string[];
   readonly videosNotMade: readonly { readonly animation: string; readonly reason: string }[];
+  // Old recordings removed from the video cache.
+  readonly videosPruned: number;
 }
 
 function statusesByPage(check: DocsCheck): Map<string, Map<string, EvidenceStatus>> {
@@ -61,7 +63,7 @@ async function renderVideos(
 ) {
   const videos = new Map<string, Uint8Array>();
   const notMade: { animation: string; reason: string }[] = [];
-  if (video === undefined) return { videos, notMade };
+  if (video === undefined) return { videos, notMade, pruned: 0 };
   const browser = await deps.media.video.available();
   for (const scene of scenes) {
     const track = media.get(scene.name);
@@ -84,7 +86,8 @@ async function renderVideos(
       ),
     );
   }
-  return { videos, notMade };
+  const pruned = browser ? ((await deps.media.video.prune?.(deps.signal)) ?? 0) : 0;
+  return { videos, notMade, pruned };
 }
 
 // Media as people ask for it, on the command line or in site.yaml: a voice or a video implies
@@ -130,7 +133,13 @@ export async function buildSite(
       }
     }
   }
-  const { videos, notMade } = await renderVideos(deps, docs.scenes, media, audio, options.video);
+  const { videos, notMade, pruned } = await renderVideos(
+    deps,
+    docs.scenes,
+    media,
+    audio,
+    options.video,
+  );
   const indexes = new Map<string, ConfigIndex>();
   for (const process of docs.processes) {
     indexes.set(process.id, await configIndex(docs, process, mirror, check, deps.signal));
@@ -157,5 +166,6 @@ export async function buildSite(
     missingSounds: [...missing],
     videos: [...videos.keys()],
     videosNotMade: notMade,
+    videosPruned: pruned,
   };
 }

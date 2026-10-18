@@ -32,10 +32,19 @@ export function prefixOf(file: string): string {
   return "../".repeat(file.split("/").length - 1);
 }
 
-// Shown to the embedding page by the player's height messages; nothing else is accepted.
-const RESIZE_SCRIPT =
-  "<script>addEventListener('message',function(e){document.querySelectorAll('iframe.player').forEach(function(f){" +
-  "if(e.source===f.contentWindow&&e.data&&e.data.snagenticAnimH){f.style.height=e.data.snagenticAnimH+'px';}});});</script>";
+// Talks to the players on the page; nothing else is accepted. Sizes each from its height message,
+// remembers the reader's sound choice across pages (localStorage; a sandboxed player can't), and
+// tells the players about the reader's first click, after which browsers allow sound.
+const PLAYERS_SCRIPT =
+  "<script>(function(){var K='snagentic-sound',on=false,act=false;try{on=localStorage.getItem(K)==='on';}catch(x){}" +
+  "var all=function(){return document.querySelectorAll('iframe.player');};" +
+  "var send=function(f,m){try{f.contentWindow.postMessage(m,'*');}catch(x){}};" +
+  "addEventListener('message',function(e){all().forEach(function(f){if(e.source!==f.contentWindow||!e.data)return;" +
+  "if(e.data.snagenticAnimH){f.style.height=e.data.snagenticAnimH+'px';send(f,{snagenticSoundPref:on});if(act)send(f,{snagenticActivate:true});}" +
+  "if(typeof e.data.snagenticSound==='boolean'){on=e.data.snagenticSound;try{localStorage.setItem(K,on?'on':'off');}catch(x){}" +
+  "all().forEach(function(g){send(g,{snagenticSoundPref:on});});}});});" +
+  "var go=function(){if(act)return;act=true;all().forEach(function(f){send(f,{snagenticActivate:true});});};" +
+  "addEventListener('pointerdown',go);addEventListener('keydown',go);})();</script>";
 
 export interface Crumb {
   // Relative to the site root.
@@ -61,7 +70,7 @@ export function layout(
 ${main}
 </main>
 <footer class="site">${escapeHtml(config.footer)}</footer>
-${RESIZE_SCRIPT}
+${PLAYERS_SCRIPT}
 </body></html>
 `;
 }

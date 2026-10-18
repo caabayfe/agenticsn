@@ -63,7 +63,7 @@ function animationHtml(
   const title = escapeHtml(`Animation: ${scene.title}`);
   return (
     `<div class="animation"><iframe class="player" data-animation="${name}" src="${prefix}animations/${name}.html" ` +
-    `sandbox="allow-scripts" loading="lazy" title="${title}"></iframe>${transcriptHtml(scene)}` +
+    `sandbox="allow-scripts" allow="autoplay" loading="lazy" title="${title}"></iframe>${transcriptHtml(scene)}` +
     (video
       ? `<p class="video"><a href="${prefix}animations/${name}.mp4" download>Download the video (MP4)</a></p>`
       : "") +

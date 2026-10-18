@@ -391,3 +391,23 @@ describe("docs build: media from site.yaml", () => {
     expect(result.videos).toEqual([]);
   });
 });
+
+describe("docs build: sound by the reader's choice", () => {
+  it("lets each player play with sound, remembers the reader's choice and passes on their first click", async () => {
+    const { file } = await build();
+    const page = file("processes/incident/operate/assign.html");
+    expect(page).toContain('sandbox="allow-scripts" allow="autoplay"');
+    expect(page).toContain("localStorage.getItem(K)==='on'");
+    expect(page).toContain("snagenticSoundPref:on");
+    expect(page).toContain("addEventListener('pointerdown',go)");
+    expect(page).toContain("snagenticActivate:true");
+  });
+
+  it("makes Play and a click on the stage play with sound, and tells the page", async () => {
+    const { file } = await build();
+    const player = file("animations/asg.html");
+    expect(player).toContain('root.addEventListener("click", playButton)');
+    expect(player).toContain("parent.postMessage({ snagenticSound: on }");
+    expect(player).toContain("d.snagenticActivate && !activated");
+  });
+});

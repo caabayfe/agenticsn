@@ -57,6 +57,9 @@ export const validate = defineUseCase({
         }),
       )
       .readonly(),
+    inherited: z
+      .number()
+      .describe("findings the changed units already held at the base: not counted, never blocking"),
     notChecked: z.array(z.object({ path: z.string(), reason: z.string() })).readonly(),
     rulesNotChecked: z.array(z.object({ ruleId: z.string(), reason: z.string() })).readonly(),
   }),
@@ -74,7 +77,7 @@ export const validate = defineUseCase({
       ...(input.paths === undefined ? {} : { paths }),
       signal: run.signal,
     });
-    return { instance, ...result };
+    return { instance, ...result, inherited: result.inherited.length };
   },
   render(output) {
     const lines = output.findings.flatMap((f) => [
@@ -87,7 +90,7 @@ export const validate = defineUseCase({
     const summary =
       output.fluentProjects === 0 && output.findings.length === 0
         ? `no changed source since ${output.base}`
-        : `${output.units} unit(s) in ${output.fluentProjects} project(s) checked against ${output.base}: ${block} block, ${warn} warn, ${info} info`;
+        : `${output.units} unit(s) in ${output.fluentProjects} project(s) checked against ${output.base}: ${block} block, ${warn} warn, ${info} info${output.inherited > 0 ? `; ${output.inherited} inherited (not blocking)` : ""}`;
     return [...lines, ...skipped, summary].join("\n");
   },
   exitCode: (output) => (output.passed ? 0 : EXIT_CODES.findings),

@@ -28,6 +28,10 @@ jobs:
       - name: tag, source version and changelog agree
         if: startsWith(github.ref, 'refs/tags/')
         run: bun scripts/check-release.ts "${GITHUB_REF_NAME}"
+      # As verify.yml: the documentation media tests (ADR-0036) need ffmpeg, and the coverage
+      # gate counts them.
+      - name: ffmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
       - run: bun run verify
 
   binary:

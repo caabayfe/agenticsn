@@ -19,9 +19,11 @@ export interface GateResult {
   })[];
   readonly warnings: number;
   readonly waiverProblems: readonly WaiverProblem[];
+  // Findings the changed units already held before the change (adopted code): never blocking.
+  readonly inherited?: readonly GateFinding[];
 }
 
-const brief = (finding: Finding): GateFinding => ({
+export const brief = (finding: Finding): GateFinding => ({
   ruleId: finding.ruleId,
   severity: finding.severity,
   path: finding.path,

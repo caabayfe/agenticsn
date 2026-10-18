@@ -144,11 +144,13 @@ describe("validate", () => {
         passed: true,
         counts: { block: 0, warn: 0, info: 0 },
         findings: [],
+        inherited: 2,
         notChecked: [{ path: "big.server.js", reason: "over 512000 bytes" }],
         rulesNotChecked: [],
       },
       "text",
     );
     expect(text).toContain("not checked: big.server.js (over 512000 bytes)");
+    expect(text).toContain("2 inherited (not blocking)");
   });
 });

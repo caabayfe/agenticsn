@@ -63,6 +63,35 @@ describe("validate", () => {
     expect(result).toMatchObject({ passed: false, counts: { block: 1, warn: 0, info: 0 } });
   });
 
+  it("names what an edited unit already held as inherited, not as introduced (decision D)", async () => {
+    const old = "eval(a); /*SN-SEC-001*/";
+    const id = "b".repeat(32);
+    const deps = governanceOf({
+      [GLOBAL]: {
+        now: [
+          unitOf(
+            "sys_script_include",
+            { ...DESCRIBED, script: `${old}\nnew(); /*SN-SEC-001*/` },
+            id,
+          ),
+        ],
+        base: [unitOf("sys_script_include", { ...DESCRIBED, script: old }, id)],
+      },
+    });
+    const result = await validate(deps, { base: "HEAD" });
+    expect(result.findings.map((f) => f.line)).toEqual([2]);
+    expect(result.inherited.map((f) => [f.ruleId, f.line])).toEqual([["SN-SEC-001", 1]]);
+  });
+
+  it("compares a project with its own base when given one, such as its adoption", async () => {
+    const unit = unitOf("sys_script_include", { ...DESCRIBED, script: "eval(a); /*SN-SEC-001*/" });
+    const deps = governanceOf({ [GLOBAL]: { now: [unit], base: null, at: { adopted: [unit] } } });
+    const result = await validate(deps, { base: "HEAD", bases: { [GLOBAL]: "adopted" } });
+    expect(result).toMatchObject({ units: 0, findings: [], passed: true });
+    const fromPull = await validate(deps, { base: "HEAD" });
+    expect(fromPull.passed).toBe(false);
+  });
+
   it("checks nothing in units the change left as they were", async () => {
     const unit = unitOf("sys_script_include", { ...DESCRIBED, script: "eval(a); /*SN-SEC-001*/" });
     const result = await validate(governanceOf({ [GLOBAL]: { now: [unit], base: [unit] } }), {

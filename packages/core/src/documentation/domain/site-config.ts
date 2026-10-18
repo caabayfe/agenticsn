@@ -26,6 +26,14 @@ export interface EmployeeGuide {
   readonly tasks: readonly EmployeeTask[];
 }
 
+// The media every build makes unless its caller says otherwise, so a rebuild keeps the narration
+// and the videos.
+export interface SiteMedia {
+  readonly audio: boolean;
+  readonly voice: string;
+  readonly video: boolean;
+}
+
 export interface SiteConfig {
   readonly title: string;
   // The instance whose mirror the pages are verified against.
@@ -35,6 +43,7 @@ export interface SiteConfig {
   // Platform words end users shouldn't meet, in addition to the built-in checks.
   readonly vocabulary: readonly string[];
   readonly employees?: EmployeeGuide;
+  readonly media?: SiteMedia;
 }
 
 function surface(raw: unknown): Surface {
@@ -87,6 +96,15 @@ function employeeGuide(raw: unknown): EmployeeGuide {
   };
 }
 
+function siteMedia(raw: unknown): SiteMedia {
+  const fields = fieldsOf(raw);
+  return {
+    audio: fields["audio"] === true,
+    voice: textOf(fields["voice"]) ?? "none",
+    video: fields["video"] === true,
+  };
+}
+
 export function parseSiteConfig(raw: unknown): SiteConfig {
   const fields = fieldsOf(raw);
   const title = textOf(fields["title"]);
@@ -102,5 +120,6 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     surfaces: surfacesOf(fields["surfaces"]),
     vocabulary: Array.isArray(vocabulary) ? vocabulary.map(String) : [],
     ...(fields["employees"] === undefined ? {} : { employees: employeeGuide(fields["employees"]) }),
+    ...(fields["media"] === undefined ? {} : { media: siteMedia(fields["media"]) }),
   };
 }

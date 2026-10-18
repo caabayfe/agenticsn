@@ -14,6 +14,7 @@ import {
   PROCESS,
   pages,
   run,
+  SITE,
   scene,
   withPage,
 } from "../support/docs-fixtures";
@@ -344,5 +345,49 @@ describe("docs build: videos", () => {
       { animation: "asg", reason: "no Chrome or Chromium browser" },
     ]);
     expect(written.some((file) => file.path.endsWith(".mp4"))).toBe(false);
+  });
+});
+
+describe("docs build: media from site.yaml", () => {
+  const tools: MediaTools = {
+    ...NO_MEDIA,
+    codec: {
+      available: async () => true,
+      decode: async () => new Float32Array(10),
+      encodeMp3: async () => new Uint8Array([1, 2]),
+    },
+    video: { available: async () => true, render: async () => new Uint8Array([9]) },
+  };
+
+  async function buildFor(media: unknown, options?: Parameters<typeof buildSite>[1]) {
+    const { sources } = fakeSources(ALL, { site: { ...SITE, media } });
+    return buildSite(
+      {
+        ...run,
+        sources,
+        markdown: { html: (md) => md },
+        output: { root: "/ws/site", replace: async () => {} },
+        media: tools,
+      },
+      options,
+    );
+  }
+
+  it("narrates and records the animations as site.yaml asks, when no media option is given", async () => {
+    const result = await buildFor({ voice: "none", video: true });
+    expect(result.narrated).toEqual(["asg"]);
+    expect(result.videos).toEqual(["asg"]);
+  });
+
+  it("lets explicit options override site.yaml, down to no media at all", async () => {
+    const result = await buildFor({ video: true }, {});
+    expect(result.narrated).toEqual([]);
+    expect(result.videos).toEqual([]);
+  });
+
+  it("gives an audio track without video when site.yaml asks only for a voice", async () => {
+    const result = await buildFor({ voice: "none", audio: true });
+    expect(result.narrated).toEqual(["asg"]);
+    expect(result.videos).toEqual([]);
   });
 });

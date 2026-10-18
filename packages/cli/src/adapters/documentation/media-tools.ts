@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { MediaTools } from "@snagentic/core";
+import { CachedVideoRenderer } from "./cached-video-renderer";
 import { ChromeVideoRenderer, chromeProgram } from "./chrome-video-renderer";
 import { FfmpegCodec } from "./ffmpeg-codec";
 import { FsAudioAssets } from "./fs-audio-assets";
@@ -27,7 +28,7 @@ export function piperLocation(env: Readonly<Record<string, string | undefined>>,
 }
 
 // ffmpeg, the voices (cached per workspace), the workspace's own sounds, and the browser that
-// records videos into .snagentic/videos/.
+// records videos (cached per workspace) into .snagentic/videos/.
 export function mediaTools(
   workspace: string,
   env: Readonly<Record<string, string | undefined>>,
@@ -43,7 +44,10 @@ export function mediaTools(
       new CachedVoice(new SystemVoice(codec), cache),
     ],
     assets: new FsAudioAssets(join(workspace, "documentation", "audio"), codec),
-    video: new ChromeVideoRenderer(chromeProgram(env)),
+    video: new CachedVideoRenderer(
+      new ChromeVideoRenderer(chromeProgram(env)),
+      join(workspace, ".snagentic", "docs-cache", "videos"),
+    ),
     videos: {
       write: async (name, video) => {
         const folder = join(workspace, ".snagentic", "videos");

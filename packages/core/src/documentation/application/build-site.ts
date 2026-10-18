@@ -3,6 +3,7 @@ import type { EvidenceStatus } from "../domain/evidence";
 import { type PlayerMedia, playerHtml } from "../domain/player";
 import type { Scene } from "../domain/scene";
 import { siteFiles } from "../domain/site";
+import type { SiteMedia } from "../domain/site-config";
 import type { MarkdownRenderer, MediaTools, SiteOutput } from "../ports";
 import { type AudioOptions, audioTrack } from "./audio-tracks";
 import {
@@ -86,13 +87,35 @@ async function renderVideos(
   return { videos, notMade };
 }
 
+// Media as people ask for it, on the command line or in site.yaml: a voice or a video implies
+// an audio track.
+export interface MediaRequest {
+  readonly audio?: boolean | undefined;
+  readonly voice?: string | undefined;
+  readonly video?: boolean | undefined;
+}
+
+export function mediaOptions(request: MediaRequest): BuildSiteOptions {
+  const voice = request.voice ?? "none";
+  const narrated = request.audio === true || voice !== "none" || request.video === true;
+  return {
+    ...(narrated ? { audio: { voice } } : {}),
+    ...(request.video === true ? { video: { fps: 30 } } : {}),
+  };
+}
+
+const fromSite = (media: SiteMedia | undefined): BuildSiteOptions =>
+  media === undefined ? {} : mediaOptions(media);
+
 // `docs build`: the static site, with each page's evidence status as of now. A stale page is
-// built and says so; `docs check` is the gate.
+// built and says so; `docs check` is the gate. Without options it makes the media site.yaml asks
+// for.
 export async function buildSite(
   deps: BuildSiteDependencies,
-  options: BuildSiteOptions = {},
+  given?: BuildSiteOptions,
 ): Promise<BuildSiteResult> {
   const docs = await loadDocumentation(deps.sources, deps.root);
+  const options = given ?? fromSite(docs.config.media);
   const mirror = deps.mirror(docs.config.instance);
   const check = await assessDocumentation(docs, mirror, todayOf(deps.clock), deps.signal);
   const media = new Map<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>();

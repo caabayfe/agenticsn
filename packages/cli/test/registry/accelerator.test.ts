@@ -156,6 +156,7 @@ describe("accelerator use cases", () => {
     const workspace = {
       mirrorCommit: async () => "m1",
       includes: async () => true,
+      present: async () => [],
       parse: (text: string): unknown => parse(text),
       previous: async () => ({ written: [], kept: [] }),
       commit: async () => "c1",

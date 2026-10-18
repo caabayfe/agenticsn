@@ -25,6 +25,8 @@ export interface PackWorkspace {
   includes(commit: string): Promise<boolean>;
   // A YAML document's text, parsed.
   parse(text: string): unknown;
+  // Which of these workspace paths the working branch holds (tracked in git).
+  present(paths: readonly string[]): Promise<readonly string[]>;
   // What the pack's last add wrote and kept; both empty before its first add.
   previous(pack: string): Promise<PreviousAdd>;
   // Commits the files onto the mirror commit as the pack branch's next commit, with the `keep`

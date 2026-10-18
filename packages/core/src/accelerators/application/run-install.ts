@@ -126,11 +126,11 @@ async function deliverAs(
   };
 }
 
-// The modules a previous add already wrote to the workspace: re-installing them is an upgrade.
+// The modules the working branch already holds: re-installing them is an upgrade. Any of its
+// files counts: a module that gained files since is still installed, with stale ones.
 async function installedBefore(deps: InstallRunDependencies, plan: InstallPlan) {
-  const written = new Set((await deps.workspace.previous(plan.pack)).written);
-  // Any of its files: a module that gained files since is still installed, with stale ones.
-  return plan.modules.filter((m) => m.files.some((f) => written.has(f)));
+  const present = new Set(await deps.workspace.present(plan.modules.flatMap((m) => m.files)));
+  return plan.modules.filter((m) => m.files.some((f) => present.has(f)));
 }
 
 // Each new module goes into its own update set, in dependency order. Modules already in the

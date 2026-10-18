@@ -29,6 +29,7 @@ async function installing() {
       packWorkspace: () => ({
         mirrorCommit: async () => "m1",
         includes: async () => true,
+        present: async () => [],
         parse: (text: string) => JSON.parse(text),
         previous: async () => ({ written: [], kept: [] }),
         commit: async () => "c",

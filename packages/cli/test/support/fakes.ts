@@ -66,6 +66,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
   packWorkspace: () => ({
     mirrorCommit: async () => null,
     includes: async () => false,
+    present: async () => [],
     parse: () => null,
     previous: async () => ({ written: [], kept: [] }),
     commit: async () => "",

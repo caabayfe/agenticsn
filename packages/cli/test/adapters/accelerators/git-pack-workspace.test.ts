@@ -113,6 +113,16 @@ describe("git pack workspace (ADR-0026, ADR-0031)", () => {
     );
   });
 
+  it("names which paths the working branch holds", async () => {
+    const { root, packs } = await workspace();
+    const mirror = (await packs.mirrorCommit()) ?? "";
+    await packs.commit("minimal", mirror, files("1"), "add", []);
+    await packs.merge("minimal");
+    expect(await packs.present([APP, PROPERTY])).toEqual([APP]);
+    expect(await packs.present([])).toEqual([]);
+    expect(read(root, APP)).toContain("'1'");
+  });
+
   it("parses an adopt file as YAML", async () => {
     const { packs } = await workspace();
     expect(packs.parse("- table: incident\n  sys_id: x\n")).toEqual([

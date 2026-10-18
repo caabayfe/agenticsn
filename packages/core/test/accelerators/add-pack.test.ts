@@ -57,6 +57,7 @@ function fakeWorkspace(
   const workspace: PackWorkspace = {
     mirrorCommit: async () => (state.mirror === undefined ? "m1" : state.mirror),
     includes: async () => state.integrated ?? true,
+    present: async () => [],
     parse: (text) => JSON.parse(text),
     previous: async () => state.previous ?? { written: [], kept: [] },
     commit: async (_pack, _mirror, files, message, keep) => {

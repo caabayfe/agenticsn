@@ -72,11 +72,12 @@ const templates: DataTemplates = {
   },
 };
 
-const workspace = (mirror = "m1", written: readonly string[] = []): PackWorkspace => ({
+const workspace = (mirror = "m1", held: readonly string[] = []): PackWorkspace => ({
   mirrorCommit: async () => mirror,
   includes: async () => true,
+  present: async (paths) => paths.filter((p) => held.includes(p)),
   parse: (text) => JSON.parse(text),
-  previous: async () => ({ written, kept: [] }),
+  previous: async () => ({ written: [], kept: [] }),
   commit: async () => "c",
   merge: async () => ({ branch: "b", conflicts: [] }),
 });

@@ -71,6 +71,12 @@ export class GitPackWorkspace implements PackWorkspace {
     );
   }
 
+  async present(paths: readonly string[]): Promise<readonly string[]> {
+    if (paths.length === 0) return [];
+    const listed = await runGitOrThrow(["ls-files", "--", ...paths], this.root);
+    return listed.split("\n").filter(Boolean);
+  }
+
   parse(text: string): unknown {
     return fromYamlStrings(text);
   }

@@ -14,6 +14,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- `adopt` brings in existing flows. Rebuilding an adopted flow writes its snapshot as an empty
+  update file, which snagentic read as an unreadable build, so every flow failed to adopt. An
+  update file with no element now holds no unit; any other unreadable file still fails.
 - `adopt` brings in more UI policies: an empty script builds the SDK's empty condition function,
   an action with no visibility builds `ignore`, and an action with no table builds its policy's
   table, each accepted only against the empty value (no change in behaviour).

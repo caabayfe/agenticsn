@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { UnreadableBuildError } from "@snagentic/core";
-import { builtUnitOf } from "../../../src/adapters/fluent/built-units";
+import { builtUnitOf, isEmptyUpdate } from "../../../src/adapters/fluent/built-units";
 
 // Files the embedded SDK (4.13.6) built on pdi2 in spikes S16 and S17.
 const FIXTURES = join(import.meta.dir, "../../../../../tests/fixtures/sdk/units");
@@ -86,6 +86,12 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
 
   it("reads a Now.del as a deletion", () => {
     expect(unit("sys_properties_99171e3ec14343a9b2903cbbe455a95d.xml").head.action).toBe("DELETE");
+  });
+
+  // An adopted flow's rebuild writes its snapshot as a declaration alone (SDK 4.13.6, pdi2).
+  it("knows an update file with no element holds nothing to load", () => {
+    expect(isEmptyUpdate('<?xml version="1.0" encoding="UTF-8"?>\n')).toBe(true);
+    expect(isEmptyUpdate('<?xml version="1.0"?><unload/>')).toBe(false);
   });
 
   it("refuses a file that is not an update record", () => {

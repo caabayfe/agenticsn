@@ -14,7 +14,7 @@ ServiceNow instance ──pull──▶ read-only mirror ──▶ adopt ──�
         └──── push: fluent/load (development only) ◀── plan ◀── validate (platform rules)
 ```
 
-> Status: **v2.1.0**. Sync, knowledge, guardrails, and Fluent authoring delivered to development instances.
+> Status: **v2.2.0**. Sync, knowledge, guardrails, Fluent authoring delivered to development instances, and verified documentation.
 > See the [changelog](CHANGELOG.md) and the [roadmap](docs/product/overview.md#roadmap).
 
 ## Why

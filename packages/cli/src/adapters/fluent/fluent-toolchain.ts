@@ -12,7 +12,7 @@ import type {
 } from "@snagentic/core";
 import { fixConverted } from "@snagentic/core";
 import { fromCommit, fromWorkingTree } from "./build-in-copy";
-import { builtUnitOf } from "./built-units";
+import { builtUnitOf, isEmptyUpdate } from "./built-units";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
 
 const NOT_SOURCE = new Set(["node_modules", "dist", ".now"]);
@@ -48,7 +48,8 @@ export async function builtFiles(project: string): Promise<Map<string, string>> 
   const names = await readdir(output, { recursive: true }).catch(() => []);
   const files = new Map<string, string>();
   for (const name of names.filter((n) => n.endsWith(".xml")).sort()) {
-    files.set(name, await readFile(join(output, name), "utf8"));
+    const xml = await readFile(join(output, name), "utf8");
+    if (!isEmptyUpdate(xml)) files.set(name, xml);
   }
   return files;
 }

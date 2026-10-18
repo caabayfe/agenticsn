@@ -25,6 +25,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   build writes JSON and the platform stores it gzipped, so 13 of 150 flows on a PDI showed a
   difference that wasn't there. When the SDK's conversion of a record doesn't build, `adopt`
   now says it is an SDK limitation to leave on the instance and report, not to pull again.
+- `adopt` brings in existing flows. Rebuilding an adopted flow writes its snapshot as an empty
+  update file, which snagentic read as an unreadable build, so every flow failed to adopt. An
+  update file with no element now holds no unit; any other unreadable file still fails.
 - `adopt` brings in more UI policies: an empty script builds the SDK's empty condition function,
   an action with no visibility builds `ignore`, and an action with no table builds its policy's
   table, each accepted only against the empty value (no change in behaviour).

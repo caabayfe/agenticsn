@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Plan refuses a choice written alone with `Record({ table: 'sys_choice' })` on a field that has a
+  choice list, such as `incident.category`. The build records it under the update name of the
+  field's whole list (`sys_choice_incident_category`), and committing that update replaces the
+  list: the field's other choices would go on every instance it reaches. The refusal says to
+  adopt the field's choice set and add the choice there, which keeps every choice. Found by the
+  spec 009 scenarios (L8 A2, pdi2); nothing was changed on the instance.
+
 ## [2.2.0] - 2026-10-18
 
 ### Added

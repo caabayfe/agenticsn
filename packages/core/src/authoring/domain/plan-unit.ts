@@ -1,3 +1,4 @@
+import { loneChoiceRefusal } from "./choice-list";
 import { compareUnit, type Difference } from "./compare";
 import type { LedgerEntry } from "./ledger";
 import { knownLoss, type LossId } from "./losses";
@@ -23,7 +24,8 @@ export type UnitDecision =
   | { readonly kind: "drift"; readonly differences: readonly Difference[] }
   // The instance holds the unit, and this branch never adopted it from this instance.
   | { readonly kind: "not-adopted"; readonly differences: readonly Difference[] }
-  // The unit has rows in other domains, which a load might replace (S16).
+  // The unit has rows in other domains, which a load might replace (S16), or would replace a
+  // field's choice list with one choice.
   | { readonly kind: "unsafe"; readonly reason: string };
 
 function lossesOf(differences: readonly Difference[], scope: string | undefined): LossId[] {
@@ -50,6 +52,8 @@ export function planUnit(
   entry: LedgerEntry | undefined,
 ): UnitDecision {
   if (isDeletion(unit)) return decideDeletion(copy, entry);
+  const lone = loneChoiceRefusal(unit);
+  if (lone !== null) return { kind: "unsafe", reason: lone };
   if (copy === null) {
     // Adopted and then deleted on the instance: drift, not a silent re-create.
     return entry === undefined ? { kind: "create" } : { kind: "drift", differences: [] };

@@ -128,3 +128,37 @@ describe("planUnit (ADR-0033 item 4)", () => {
     });
   });
 });
+
+// pdi2, 2026-10-18 (spec 009 L8 A2): Record({ table: 'sys_choice' }) on incident.category builds a
+// lone choice named sys_choice_incident_category, the update name of the field's whole choice
+// list. An update of that name replaces the list where it is committed: the field's other
+// choices would go.
+describe("planUnit on a lone choice that carries its list's update name", () => {
+  const lone = unit(
+    "sys_choice_incident_category",
+    record("sys_choice", "c".repeat(32), {
+      name: "incident",
+      element: "category",
+      value: "snfx_training",
+      label: "Training",
+      language: "en",
+    }),
+  );
+
+  it("refuses it, naming the choice set to adopt", () => {
+    const decision = planUnit(lone, unitDigest(lone), null, undefined);
+    expect(decision).toMatchObject({ kind: "unsafe" });
+    expect(decision.kind === "unsafe" && decision.reason).toContain(
+      "adopt the choice set of incident.category",
+    );
+  });
+
+  it("plans a choice set, which carries every choice of the list", () => {
+    const set = unit(
+      "sys_choice_incident_category",
+      record("sys_choice_set", "d".repeat(32), { name: "incident", element: "category" }),
+      [lone.head],
+    );
+    expect(planUnit(set, unitDigest(set), null, undefined)).toEqual({ kind: "create" });
+  });
+});

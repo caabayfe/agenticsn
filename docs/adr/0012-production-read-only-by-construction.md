@@ -108,3 +108,11 @@ go through development, an update set, validation and promotion.
 - Layer 3 is enforced centrally: a use case flagged `requiresDevelopmentInstance` is refused
   for any other kind before its handler runs. Removing such tools from the MCP surface for
   non-development instances comes with M7.
+
+## Amendment (ADR-0038, proposed 2026-10-18)
+
+One write is added for test and production instances: installing **platform components**
+(plugins and store applications) an accelerator needs, only at parity with a completed
+development install, with a separate admin credential supplied at run time and never stored,
+through `accelerator install --components-only`, CLI only. No metadata, records, data or update
+set actions. Every other use case keeps the read-only profile and layers 1 to 5 above.

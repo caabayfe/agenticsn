@@ -280,6 +280,18 @@ global), then its records were authored in `source/x_2222332_snfx`.
 | A1 functional: email to routed request | pass | `sys_email` + `email.read`: request with type, requester and computed priority, routed by the flow |
 | A1 functional: ACLs per role | pass | no role: 404; agent: reads, can't set `urgent`; approver: sets it |
 | A1 functional: UI action, UI policy, menu | not yet run | browser evidence |
+| A3 change: new choice, priority rule, role removed from a UI action (B2), intake script | pass | only the changed units load; the role row is deleted and captured; a training email scores 5 |
+| A2 adopt a baseline business rule and UI policy (22 actions); no-op plan | pass | 6 s; the plan after adoption is empty |
+| A2 edit both; `u_` column on incident by `Record()`; module in the baseline Incident menu | pass | |
+| A2 a choice on `incident.category` by `Record({ table: 'sys_choice' })` | **refused after fix** | the build names a lone choice `sys_choice_incident_category`, the whole list's update name: committed, it would remove the other categories. Plan refuses it, #107; nothing changed on pdi2 |
+| A2 the same choice through the adopted choice set | pass | all 6 baseline categories kept, the new one added |
+| A4 drift after a form edit; refresh keeps both sides (L6-1, L6-2) | pass | a direct edit is refused as drift; `adopt --refresh` merges it |
+| A4 a record in another open update set (L6-3) | pass | the Default set's entry is listed; not ready without `--allow-collisions` |
+| A4 push killed between the two projects' loads (L6-4) | pass | `status` names the stopped push; the next plan records the loaded unit and loads the other; the user's update set and application are restored from the journal |
+| A6 red team: validate, plan gate, push, CI exit code | pass for 7 of 7 existing rules | `eval`, credential (evidence redacted), `Packages.*`, `current.update()` before, GlideRecord and DOM in a client script, unrestricted write ACL; push with the plan id an error reveals still refuses |
+| A6 a role containing `admin` | **blocked after fix** | passed every check: SN-SEC-009, #108 |
+| A6 an unrestricted read ACL; a flow as system with no reason | not covered | no rule; SN-SEC-006 covers write, create and delete only |
+| A6 update set validation | **not built** | goal 3 and ADR-0010 item 5 name it; the roadmap in `docs/product/overview.md` still says 1.3 and calls 1.1 "this release" |
 
 Also found, not fixed:
 

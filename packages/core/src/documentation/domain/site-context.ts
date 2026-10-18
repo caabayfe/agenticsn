@@ -1,6 +1,7 @@
 import type { ConfigIndex } from "./config-index";
 import type { EvidenceStatus } from "./evidence";
 import { escapeHtml } from "./html";
+import { withoutOpenQuestions } from "./open-questions";
 import type { DocPage, Section } from "./page";
 import type { PlayerMedia } from "./player";
 import { OVERVIEW, type Process, type ProcessCapability } from "./process";
@@ -149,8 +150,16 @@ function linkFor(b: Built, page: DocPage, prefix: string, view?: View) {
   };
 }
 
-export function bodyHtml(b: Built, page: DocPage, file: string, view?: View): string {
-  const markdown = view === undefined ? page.body : viewOf(page.body, view);
+// `plain`: for employees, without citations, review labels or open questions (ADR-0037).
+export function bodyHtml(
+  b: Built,
+  page: DocPage,
+  file: string,
+  view?: View,
+  plain = false,
+): string {
+  const viewed = view === undefined ? page.body : viewOf(page.body, view);
+  const markdown = plain ? withoutOpenQuestions(viewed) : viewed;
   const prefix = prefixOf(file);
   return b.input.markdown(
     expandProse(markdown, {
@@ -160,6 +169,7 @@ export function bodyHtml(b: Built, page: DocPage, file: string, view?: View): st
       prefix,
       link: linkFor(b, page, prefix, view),
       videos: new Set(b.input.videos?.keys() ?? []),
+      plain,
     }),
   );
 }

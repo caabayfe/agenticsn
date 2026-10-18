@@ -8,6 +8,7 @@ import {
   guideCrumbs,
   link,
   SECTION_TITLES,
+  separated,
   surfaceNames,
   understandPages,
   VIEW_SECTION,
@@ -113,10 +114,34 @@ const whereBanner = (b: Built, view: View) => {
   return `<div class="banner">${surfaces === "" ? "" : `<span>Where: ${escapeHtml(surfaces)}</span>`}<span>${checked(b)}</span></div>`;
 };
 
+// A process in the employee guide: what it is, how it works and what you can do, in plain words.
+function employeeProcessHtml(b: Built, process: Process, file: string): string {
+  const prefix = prefixOf(file);
+  const topics = understandPages(b, process).map(
+    (page) => `<li>${link(prefix, pageFile(page, "user"), page.title)}</li>`,
+  );
+  const steps = capabilitiesFor(process, "user").flatMap((capability) => {
+    const page = b.page(process.id, "use", capability.id);
+    return page === undefined
+      ? []
+      : [
+          `<li>${link(prefix, pageFile(page), capability.title)}<br><span class="mute">${escapeHtml(capability.summary)}</span></li>`,
+        ];
+  });
+  const main = `<h1>${escapeHtml(process.title)}</h1>
+<p class="lead">${escapeHtml(process.summary)}</p>
+${steps.length === 0 ? "" : `<h2>What you can do</h2><ul class="pages">${steps.join("")}</ul>`}
+${topics.length === 0 ? "" : `<h2>How it works</h2><ul class="pages">${topics.join("")}</ul>`}`;
+  return layout(b.input.config, process.title, file, guideCrumbs(b, "user"), main, navFor(b, file));
+}
+
 // A reader's home: who they are, the shared topics in their view, and their capabilities.
 export function viewHomeHtml(b: Built, process: Process, view: View): string {
   const section = VIEW_SECTION[view];
   const file = sectionHome(process.id, section);
+  if (separated(b, view)) {
+    return employeeProcessHtml(b, process, file);
+  }
   const main = `<h1>${escapeHtml(process.title)}: ${escapeHtml(SECTION_TITLES[section].toLowerCase())}</h1>
 <p class="lead">${escapeHtml(process.summary)}</p>
 ${whereBanner(b, view)}

@@ -1,9 +1,17 @@
-import { employeePage } from "./employee-guide";
+import { employeePage, explained } from "./employee-guide";
 import { escapeHtml } from "./html";
 import { iconSvg } from "./icons";
+import { openQuestionsOf } from "./open-questions";
 import type { Process } from "./process";
 import { type Built, capabilitiesFor, configurePages, understandPages } from "./site-context";
-import { EMPLOYEES_HOME, IT_HOME, pageFile, prefixOf, sectionHome } from "./site-layout";
+import {
+  EMPLOYEES_HOME,
+  IT_HOME,
+  OPEN_QUESTIONS,
+  pageFile,
+  prefixOf,
+  sectionHome,
+} from "./site-layout";
 
 // Which menu a page shows: the site map has none; with an employee guide, its pages (Use pages,
 // the employees' view of Understand pages) show the employee guide; everything else the IT guide.
@@ -69,7 +77,7 @@ const guideLinks = (b: Built, targets: readonly string[]): readonly Link[] =>
 
 const search = (guide: "employee" | "it", label: string) =>
   `<input class="search" type="search" placeholder="Search" data-guide="${guide}" aria-label="Search the ${escapeHtml(label)}">` +
-  '<ol class="results" hidden></ol>';
+  '<p class="count" role="status" aria-live="polite"></p><ol class="results" hidden></ol>';
 
 function employeeSide(b: Built, processes: readonly Process[], prefix: string, current: string) {
   const guide = b.input.config.employees;
@@ -79,7 +87,7 @@ function employeeSide(b: Built, processes: readonly Process[], prefix: string, c
   const tasks = guide.tasks.map((task) =>
     group(prefix, current, task.title, task.icon, guideLinks(b, task.pages)),
   );
-  const how = processes.map((process) =>
+  const how = explained(guide, processes).map((process) =>
     folder(prefix, current, process, understandLinks(b, process, "user")),
   );
   return `<nav class="side" aria-label="${escapeHtml(guide.title)}"><div class="side-h">${escapeHtml(guide.title)}</div>
@@ -106,12 +114,19 @@ function itSide(b: Built, processes: readonly Process[], prefix: string, current
             : []),
         ]);
   });
+  const questions = openQuestionsOf(b.input.pages).length;
+  const open =
+    single || questions === 0
+      ? ""
+      : group(prefix, current, "For the platform team", "alert", [
+          { href: OPEN_QUESTIONS, text: `Open questions (${questions})` },
+        ]);
   const title = single ? b.input.config.title : "IT guide";
   return `<nav class="side" aria-label="${escapeHtml(title)}"><div class="side-h">${escapeHtml(title)}</div>
-${search("it", title)}<div class="groups">${folders.join("")}</div></nav>`;
+${search("it", title)}<div class="groups">${folders.join("")}${open}</div></nav>`;
 }
 
-function rail(b: Built, prefix: string, guide: Guide): string {
+function rail(b: Built, prefix: string, guide: Guide, current: string): string {
   const items: readonly (Link & { readonly icon: string; readonly guide: Guide })[] = [
     { href: "index.html", text: "Site map", icon: "home", guide: "map" },
     ...(b.input.config.employees === undefined
@@ -123,7 +138,7 @@ function rail(b: Built, prefix: string, guide: Guide): string {
   ];
   const links = items.map(
     (item) =>
-      `<a${item.guide === guide ? ' class="on"' : ""} href="${prefix}${item.href}">${iconSvg(item.icon)}<span>${escapeHtml(item.text)}</span></a>`,
+      `<a${item.guide === guide ? ' class="on"' : ""}${item.href === current ? ' aria-current="page"' : ""} href="${prefix}${item.href}">${iconSvg(item.icon)}<span>${escapeHtml(item.text)}</span></a>`,
   );
   return `<nav class="rail" aria-label="Guides">${links.join("")}</nav>`;
 }
@@ -141,5 +156,5 @@ export function navFor(b: Built, file: string): string {
       : guide === "it"
         ? itSide(b, processes, prefix, file)
         : "";
-  return `<aside class="nav">${rail(b, prefix, guide)}${side}</aside>`;
+  return `<aside class="nav" id="menu">${rail(b, prefix, guide, file)}${side}</aside>`;
 }

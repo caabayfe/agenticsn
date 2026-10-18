@@ -99,7 +99,7 @@ describe("docs build: an employee guide and an IT guide", () => {
   it("opens a process in the IT guide on what operators do, without asking which reader you are", async () => {
     const { file } = await build();
     const page = file("processes/incident/index.html");
-    const main = page.slice(page.indexOf("<main>"), page.indexOf("</main>"));
+    const main = page.slice(page.indexOf("<main"), page.indexOf("</main>"));
     expect(main).not.toContain('class="door"');
     expect(main).not.toContain("For end users");
     expect(main).toContain("<h2>What you can do</h2>");
@@ -143,6 +143,19 @@ describe("docs check: the employee guide", () => {
         detail: "incident/nothing",
       },
     ]);
+  });
+
+  it("fails a process named under how that doesn't exist", async () => {
+    const { sources } = fakeSources(ALL, {
+      site: site({ ...GUIDE, how: ["incident", "billing"] }),
+    });
+    const check = await checkDocs({ ...run, sources });
+    expect(check.problems).toContainEqual({
+      kind: "unknown-guide-page",
+      severity: "error",
+      page: "site.yaml",
+      detail: "how: billing",
+    });
   });
 
   it("refuses an employee guide without a title", async () => {

@@ -47,7 +47,7 @@ describe("docs build: the menu", () => {
     const { file } = await build();
     const page = file("processes/incident/use/confirm.html");
     expect(page).toContain(
-      '<button class="navtoggle" type="button" aria-label="Hide or show the menu"',
+      '<button class="navtoggle" type="button" aria-label="Menu" aria-controls="menu"',
     );
     expect(page).toContain('<nav class="rail"');
     expect(page).toContain('href="../../../index.html"');
@@ -154,5 +154,36 @@ describe("docs build: what the IT guide leaves out", () => {
     expect(sidebar(file("processes/incident/operate/assign.html"))).not.toContain("Getting help");
     expect(file("it/index.html")).not.toContain("Getting help");
     expect(file("it/index.html")).toContain("Incident management");
+  });
+});
+
+describe("docs build: the menu for keyboards and screen readers", () => {
+  it("offers a skip link, names the site in the title, marks the guide's home and announces results", async () => {
+    const { file } = await build();
+    const page = file("employees/index.html");
+    expect(page).toContain('<a class="skip" href="#main">Skip to the content</a>');
+    expect(page).toContain('<main id="main">');
+    expect(page).toContain("<title>Employee guide · Incident docs</title>");
+    expect(page).toContain('aria-current="page" href="../employees/index.html">');
+    expect(page).toContain('<p class="count" role="status" aria-live="polite"></p>');
+    expect(page).toContain(
+      "matchMedia('(max-width: 800px)').matches||localStorage.getItem('snagentic-nav')==='hidden'",
+    );
+    expect(file("processes/incident/operate/assign.html")).toContain(
+      '<nav class="crumbs" aria-label="Breadcrumb">',
+    );
+  });
+});
+
+describe("docs build: which processes employees read about", () => {
+  it("lists under How it works only the processes site.yaml names, in its order", async () => {
+    const { file } = await build({ ...GUIDE, how: ["incident"] }, undefined);
+    const side = sidebar(file("employees/index.html"));
+    expect(side).toContain("How incident management works");
+    const none = await build({ ...GUIDE, how: [] }, undefined);
+    expect(sidebar(none.file("employees/index.html"))).not.toContain(
+      "How incident management works",
+    );
+    expect(none.file("index.html")).not.toContain("Each process in plain words.");
   });
 });

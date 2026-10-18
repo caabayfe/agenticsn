@@ -5,8 +5,9 @@ import { built, type SiteInput } from "./site-context";
 import { employeesHomeHtml } from "./site-employees";
 import { configureHomeHtml, processHtml, viewHomeHtml } from "./site-homes";
 import { recordsFile, recordsHtml } from "./site-index";
-import { EMPLOYEES_HOME, IT_HOME, pageFile, sectionHome } from "./site-layout";
+import { EMPLOYEES_HOME, IT_HOME, OPEN_QUESTIONS, pageFile, sectionHome } from "./site-layout";
 import { itHomeHtml, siteMapHtml } from "./site-map";
+import { openQuestionsHtml } from "./site-open-questions";
 import { configureHtml, guideHtml, understandHtml } from "./site-pages";
 import { searchScript } from "./site-search";
 import { SITE_STYLE } from "./site-style";
@@ -87,6 +88,7 @@ export function siteFiles(input: SiteInput): readonly SiteFile[] {
       : [
           { path: EMPLOYEES_HOME, content: employeesHomeHtml(b, guide, processes) },
           { path: IT_HOME, content: itHomeHtml(b, processes) },
+          { path: OPEN_QUESTIONS, content: openQuestionsHtml(b, processes) },
         ]),
   ];
   const files: SiteFile[] = [

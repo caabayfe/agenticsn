@@ -1,4 +1,4 @@
-import { employeePage } from "./employee-guide";
+import { employeePage, explained } from "./employee-guide";
 import { escapeHtml } from "./html";
 import type { DocPage } from "./page";
 import type { Process } from "./process";
@@ -55,6 +55,6 @@ ${guide.intro === "" ? "" : `<p class="lead">${escapeHtml(guide.intro)}</p>`}
 <div class="banner"><span>${checked(b)}</span></div>
 ${guide.start.length === 0 ? "" : `<h2>Start here</h2>${entries(b, guide.start, prefix)}`}
 ${tasks.join("\n")}
-${howItWorks(b, processes, prefix)}`;
+${howItWorks(b, explained(guide, processes), prefix)}`;
   return layout(b.input.config, guide.title, EMPLOYEES_HOME, [], main, navFor(b, EMPLOYEES_HOME));
 }

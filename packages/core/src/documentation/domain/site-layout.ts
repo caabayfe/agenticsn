@@ -24,6 +24,7 @@ export function pageFile(
 // The two guides' homes, when the site has an employee guide (ADR-0037).
 export const EMPLOYEES_HOME = "employees/index.html";
 export const IT_HOME = "it/index.html";
+export const OPEN_QUESTIONS = "it/open-questions.html";
 
 export function sectionHome(process: string, section: Section): string {
   return `processes/${process}/${section}/index.html`;
@@ -54,7 +55,12 @@ export interface Crumb {
   readonly text: string;
 }
 
-const TOGGLE = `<button class="navtoggle" type="button" aria-label="Hide or show the menu" aria-expanded="true">${iconSvg("menu")}</button>`;
+const TOGGLE = `<button class="navtoggle" type="button" aria-label="Menu" aria-controls="menu" aria-expanded="true">${iconSvg("menu")}</button>`;
+
+// Before the page is drawn, so a phone never flashes the menu over the content.
+const EARLY_SCRIPT =
+  "<script>try{if(matchMedia('(max-width: 800px)').matches||localStorage.getItem('snagentic-nav')==='hidden')" +
+  "document.body.classList.add('nav-hidden');}catch(x){}</script>";
 
 // A page: the header, the menu beside the content when there is one (site-nav.ts), the footer.
 export function layout(
@@ -70,10 +76,10 @@ export function layout(
     .map((crumb) => `<a href="${prefix}${crumb.href}">${escapeHtml(crumb.text)}</a>`)
     .join(" › ");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title)}</title><link rel="stylesheet" href="${prefix}assets/site.css"><link rel="stylesheet" href="${prefix}assets/theme/theme.css"></head><body data-prefix="${prefix}">
-<header class="site">${aside === "" ? "" : TOGGLE}<span class="logo" aria-hidden="true"></span><a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs">${trail}</nav>`}</header>
+<title>${escapeHtml(title === config.title ? title : `${title} · ${config.title}`)}</title><link rel="stylesheet" href="${prefix}assets/site.css"><link rel="stylesheet" href="${prefix}assets/theme/theme.css"></head><body data-prefix="${prefix}">${aside === "" ? "" : EARLY_SCRIPT}<a class="skip" href="#main">Skip to the content</a>
+<header class="site">${aside === "" ? "" : TOGGLE}<span class="logo" aria-hidden="true"></span><a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs" aria-label="Breadcrumb">${trail}</nav>`}</header>
 <div class="shell">${aside}<div class="content">
-<main>
+<main id="main">
 ${main}
 </main>
 <footer class="site">${escapeHtml(config.footer)}</footer>

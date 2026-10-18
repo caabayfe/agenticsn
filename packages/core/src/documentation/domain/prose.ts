@@ -82,6 +82,8 @@ export interface ProseContext {
   readonly link?: (target: string) => string | null;
   // Animations rendered as MP4 beside the site (spec 010c).
   readonly videos?: ReadonlySet<string>;
+  // For employees (ADR-0037): no citations and no review labels, which are for the IT readers.
+  readonly plain?: boolean;
 }
 
 function cite(id: string, context: ProseContext): string {
@@ -100,9 +102,12 @@ export function expandProse(markdown: string, context: ProseContext): string {
     prose
       .replace(
         /^(#{1,6} .*?)\s*\{label=([A-Za-z-]+)\}\s*$/gm,
-        (_, heading: string, label: string) => `${heading} ${labelHtml(label)}`,
+        (_, heading: string, label: string) =>
+          context.plain === true ? heading : `${heading} ${labelHtml(label)}`,
       )
-      .replace(/\[(E\d+)\]/g, (_, id: string) => cite(id, context))
+      .replace(/ ?\[(E\d+)\]/g, (all: string, id: string) =>
+        context.plain === true ? "" : all.replace(`[${id}]`, cite(id, context)),
+      )
       .replace(SEE_LINK, (_, target: string) => `](${context.link?.(target) ?? "#unknown-link"})`)
       .replace(
         /^\{\{animation:([a-z0-9]+)\}\}\s*$/gm,

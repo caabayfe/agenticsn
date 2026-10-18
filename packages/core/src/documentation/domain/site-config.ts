@@ -25,6 +25,8 @@ export interface EmployeeGuide {
   readonly intro: string;
   readonly start: readonly string[];
   readonly tasks: readonly EmployeeTask[];
+  // The processes explained under "How it works", in order; all of them when not given.
+  readonly how?: readonly string[];
 }
 
 // The media every build makes unless its caller says otherwise, so a rebuild keeps the narration
@@ -100,6 +102,7 @@ function employeeGuide(raw: unknown): EmployeeGuide {
     intro: textOf(fields["intro"]) ?? "",
     start: textsOf(fields["start"]),
     tasks: Array.isArray(tasks) ? tasks.map(task) : [],
+    ...(Array.isArray(fields["how"]) ? { how: textsOf(fields["how"]) } : {}),
   };
 }
 

@@ -207,5 +207,8 @@ export function structureProblems(docs: DocSet): readonly DocsProblem[] {
     ...unknownGuidePages(docs.config.employees, docs.pages).map((target) =>
       docsProblem("unknown-guide-page", "site.yaml", target),
     ),
+    ...(docs.config.employees?.how ?? [])
+      .filter((id) => !processIds.includes(id))
+      .map((id) => docsProblem("unknown-guide-page", "site.yaml", `how: ${id}`)),
   ];
 }

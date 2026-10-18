@@ -1,4 +1,5 @@
 import type { DocPage } from "./page";
+import type { Process } from "./process";
 import type { EmployeeGuide } from "./site-config";
 
 // A guide entry, <process>/<topic>, names an employee page: a Use page or a shared Understand
@@ -14,6 +15,15 @@ export function employeePage(target: string, pages: readonly DocPage[]): DocPage
       page.topic === topic &&
       (page.section === "use" || page.section === "understand"),
   );
+}
+
+// The processes the guide explains under "How it works": those site.yaml names, in its order, or
+// every process.
+export function explained(guide: EmployeeGuide, processes: readonly Process[]): readonly Process[] {
+  if (guide.how === undefined) {
+    return processes;
+  }
+  return guide.how.flatMap((id) => processes.filter((process) => process.id === id));
 }
 
 // Every entry of the guide, in order, without repeats.

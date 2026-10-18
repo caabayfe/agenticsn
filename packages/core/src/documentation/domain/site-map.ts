@@ -1,4 +1,4 @@
-import { employeePage } from "./employee-guide";
+import { employeePage, explained } from "./employee-guide";
 import { escapeHtml } from "./html";
 import { iconSvg } from "./icons";
 import type { Process } from "./process";
@@ -40,15 +40,19 @@ function employeeCards(b: Built, processes: readonly Process[]): readonly Card[]
       summary: task.summary,
       links: pagesFor(b, task.pages),
     })),
-    {
-      icon: "book",
-      title: "How it works",
-      summary: "Each process in plain words.",
-      links: processes.map((process) => ({
-        href: sectionHome(process.id, "use"),
-        text: process.title,
-      })),
-    },
+    ...(explained(guide, processes).length === 0
+      ? []
+      : [
+          {
+            icon: "book",
+            title: "How it works",
+            summary: "Each process in plain words.",
+            links: explained(guide, processes).map((process) => ({
+              href: sectionHome(process.id, "use"),
+              text: process.title,
+            })),
+          },
+        ]),
   ];
 }
 

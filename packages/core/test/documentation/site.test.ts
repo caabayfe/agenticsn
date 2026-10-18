@@ -105,7 +105,7 @@ describe("docs build: the site's sections", () => {
   it("gives end users their own home: their roles, the shared topics in their view, their capabilities", async () => {
     const { file } = await build();
     const page = file("processes/incident/use/index.html");
-    const home = page.slice(page.indexOf("<main>"), page.indexOf("</main>"));
+    const home = page.slice(page.indexOf("<main"), page.indexOf("</main>"));
     expect(home).toContain("<strong>Caller</strong> — anyone who reports a problem");
     expect(home).not.toContain("Resolver");
     expect(home).toContain(

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { buildSite, checkDocs } from "@snagentic/core";
-import { ALL, fakeSources, NO_MEDIA, run, SITE } from "../support/docs-fixtures";
+import { ALL, fakeSources, NO_MEDIA, PROCESS, run, SITE } from "../support/docs-fixtures";
 
 const GUIDE = {
   title: "Employee guide",
@@ -111,6 +111,34 @@ describe("docs build: an employee guide and an IT guide", () => {
       'href="../../processes/incident/configure/index.html">How it is configured</a>',
     );
     expect(main).toContain("<strong>In Progress</strong><span>someone is working on it</span>");
+  });
+
+  it("opens a process in the IT guide with its summary for IT, when process.yaml has one", async () => {
+    const { sources } = fakeSources(ALL, {
+      site: site(GUIDE),
+      process: { ...PROCESS, it_summary: "Restore service fast and keep callers told." },
+    });
+    let written: readonly { path: string; content: string | Uint8Array }[] = [];
+    await buildSite({
+      ...run,
+      sources,
+      markdown: { html: (md) => md },
+      output: {
+        root: "/ws/site",
+        replace: async (files) => {
+          written = files;
+        },
+      },
+      media: NO_MEDIA,
+    });
+    const file = (path: string) => String(written.find((item) => item.path === path)?.content);
+    expect(file("processes/incident/index.html")).toContain(
+      "Restore service fast and keep callers told.",
+    );
+    expect(file("it/index.html")).toContain("Restore service fast and keep callers told.");
+    expect(file("processes/incident/use/index.html")).toContain(
+      "Get people working again as fast as possible.",
+    );
   });
 
   it("keeps the single site, and its links, when there is no employee guide", async () => {

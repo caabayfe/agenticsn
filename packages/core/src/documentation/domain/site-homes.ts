@@ -54,7 +54,7 @@ export function processHtml(b: Built, process: Process): string {
   if (b.input.config.employees !== undefined) {
     const configured = configurePages(b, process).length > 0;
     const main = `<h1>${escapeHtml(process.title)}</h1>
-<p class="lead">${escapeHtml(process.summary)}</p>
+<p class="lead">${escapeHtml(process.itSummary ?? process.summary)}</p>
 ${whereBanner(b, "operator")}
 ${readerSections(b, process, "operator", file)}
 ${configured ? `<p>${link(prefixOf(file), sectionHome(process.id, "configure"), "How it is configured")}</p>` : ""}

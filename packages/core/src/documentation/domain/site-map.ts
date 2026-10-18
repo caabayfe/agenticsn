@@ -71,7 +71,10 @@ function processCard(b: Built, process: Process): Card {
     icon: process.icon,
     title: process.title,
     href: `processes/${process.id}/index.html`,
-    summary: process.summary,
+    summary:
+      b.input.config.employees === undefined
+        ? process.summary
+        : (process.itSummary ?? process.summary),
     links: [
       ...links,
       ...(configurePages(b, process).length > 0

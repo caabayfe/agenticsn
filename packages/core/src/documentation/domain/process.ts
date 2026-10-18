@@ -43,6 +43,8 @@ export interface Process {
   // The tables the process lives on, for the configuration index.
   readonly tables: readonly string[];
   readonly icon?: string;
+  // The summary for the IT guide, when the main one speaks to employees (ADR-0037).
+  readonly itSummary?: string;
 }
 
 export const OVERVIEW = "overview";
@@ -146,6 +148,7 @@ export function parseProcess(path: string, raw: unknown): Process {
   }
   const order = fields["order"];
   const icon = textOf(fields["icon"]);
+  const itSummary = textOf(fields["it_summary"]);
   return {
     id: processId,
     title,
@@ -162,5 +165,6 @@ export function parseProcess(path: string, raw: unknown): Process {
     ),
     tables: list(path, fields["tables"], "tables").map(String),
     ...(icon === undefined ? {} : { icon }),
+    ...(itSummary === undefined ? {} : { itSummary }),
   };
 }

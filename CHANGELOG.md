@@ -19,7 +19,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   user, and 41 UI action and ACL roles on a PDI showed a difference that wasn't there.
 - `adopt` names more refusals by design: a protected UI action whose roles or views the SDK
   would change, records with legacy values the SDK doesn't accept (protection `read-only` or
-  `true`, access `private`), and UI actions whose workspace settings it can't express.
+  `true`, access `private`), UI actions whose workspace settings it can't express, and columns of
+  baseline tables, which the SDK's `Table()` can't define in global.
 - `adopt` brings in more UI policies: an empty script builds the SDK's empty condition function,
   an action with no visibility builds `ignore`, and an action with no table builds its policy's
   table, each accepted only against the empty value (no change in behaviour).

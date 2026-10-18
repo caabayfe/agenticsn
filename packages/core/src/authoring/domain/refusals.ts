@@ -71,6 +71,13 @@ const CONVERSION_REFUSALS: readonly { readonly error: RegExp; readonly reason: s
     reason:
       "a UI action whose workspace settings the SDK can't express (a workspace action with neither form button nor form menu): adjust them on the instance, then adopt again",
   },
+  // A baseline table's column: Table() defines only u_ tables in global (every sampled baseline
+  // column on pdi2). A Record() route for baseline records is test plan decision 3.
+  {
+    error: /Global table 'name' property should start with custom prefix 'u_'/,
+    reason:
+      "a column of a baseline table, which the SDK's Table() can't define in global: leave it on the instance (a Record() route for baseline records is test plan decision 3)",
+  },
   // The SDK requires a UI policy's short description; 12 on pdi2 have none.
   {
     error: /shortDescription cannot be empty/,

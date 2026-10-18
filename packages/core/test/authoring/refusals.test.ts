@@ -76,4 +76,12 @@ describe("knownRefusal", () => {
       expected,
     );
   });
+
+  it("names a column of a baseline table, which the SDK's Table can't define in global", () => {
+    expect(
+      conversionRefusal(
+        "the converted source does not build: Global table 'name' property should start with custom prefix 'u_'",
+      ),
+    ).toContain("a column of a baseline table");
+  });
 });

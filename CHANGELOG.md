@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- Rule SN-SEC-009 blocks a role that contains `admin`, `security_admin` or `maint`: everyone
+  granted that role would hold the privileged one. Found by the spec 009 scenarios (L8 A6,
+  pdi2), where a scoped role containing `admin` passed every check.
+
 ## [2.3.0] - 2026-10-18
 
 ### Added

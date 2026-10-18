@@ -13,6 +13,7 @@ import {
   aclFindings,
   checkVersion,
   MAX_SCRIPT_BYTES,
+  roleFindings,
   type Skipped,
   undescribed,
   withRule,
@@ -119,7 +120,7 @@ async function checkUnits(
       source,
       ...edited(item),
     });
-    findings.push(...aclFindings(item, path, units));
+    findings.push(...aclFindings(item, path, units), ...roleFindings(item, path));
     if (item.unit.head.action === "DELETE") continue;
     const current = checkVersion(deps.checker, item.now, privileges);
     const previous =

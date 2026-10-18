@@ -1,6 +1,7 @@
 import type { ConfigIndex } from "./config-index";
 import type { EvidenceStatus } from "./evidence";
 import { escapeHtml } from "./html";
+import { withoutOpenQuestions } from "./open-questions";
 import type { DocPage, Section } from "./page";
 import type { PlayerMedia } from "./player";
 import { OVERVIEW, type Process, type ProcessCapability } from "./process";
@@ -8,7 +9,15 @@ import { expandProse } from "./prose";
 import { resolveReference } from "./references";
 import type { Scene } from "./scene";
 import type { SiteConfig } from "./site-config";
-import { evidenceTable, pageFile, prefixOf, staleIds } from "./site-layout";
+import {
+  type Crumb,
+  EMPLOYEES_HOME,
+  evidenceTable,
+  IT_HOME,
+  pageFile,
+  prefixOf,
+  staleIds,
+} from "./site-layout";
 import { capabilityAudience } from "./structure";
 import { type View, viewOf } from "./views";
 
@@ -29,6 +38,8 @@ export interface SiteInput {
   readonly indexes?: ReadonlyMap<string, ConfigIndex>;
   // Each animation rendered as MP4, by animation name (spec 010c).
   readonly videos?: ReadonlyMap<string, Uint8Array>;
+  // The client's theme files, by path inside documentation/theme/.
+  readonly theme?: readonly { readonly path: string; readonly content: Uint8Array }[];
 }
 
 export interface Built {
@@ -139,8 +150,16 @@ function linkFor(b: Built, page: DocPage, prefix: string, view?: View) {
   };
 }
 
-export function bodyHtml(b: Built, page: DocPage, file: string, view?: View): string {
-  const markdown = view === undefined ? page.body : viewOf(page.body, view);
+// `plain`: for employees, without citations, review labels or open questions (ADR-0037).
+export function bodyHtml(
+  b: Built,
+  page: DocPage,
+  file: string,
+  view?: View,
+  plain = false,
+): string {
+  const viewed = view === undefined ? page.body : viewOf(page.body, view);
+  const markdown = plain ? withoutOpenQuestions(viewed) : viewed;
   const prefix = prefixOf(file);
   return b.input.markdown(
     expandProse(markdown, {
@@ -150,6 +169,7 @@ export function bodyHtml(b: Built, page: DocPage, file: string, view?: View): st
       prefix,
       link: linkFor(b, page, prefix, view),
       videos: new Set(b.input.videos?.keys() ?? []),
+      plain,
     }),
   );
 }
@@ -173,4 +193,20 @@ export function staleOf(b: Built, ...pages: readonly (DocPage | undefined)[]): r
 export function link(prefix: string, href: string, text: string, className = ""): string {
   const attribute = className === "" ? "" : ` class="${className}"`;
   return `<a${attribute} href="${prefix}${href}">${escapeHtml(text)}</a>`;
+}
+
+// The guide a reader's page belongs to, as the first breadcrumb; none without an employee guide.
+export function guideCrumbs(b: Built, view: View | "platform"): readonly Crumb[] {
+  const guide = b.input.config.employees;
+  if (guide === undefined) {
+    return [];
+  }
+  return view === "user"
+    ? [{ href: EMPLOYEES_HOME, text: guide.title }]
+    : [{ href: IT_HOME, text: "IT guide" }];
+}
+
+// With an employee guide, employee pages don't lead to the operator's side or to configuration.
+export function separated(b: Built, view: View): boolean {
+  return view === "user" && b.input.config.employees !== undefined;
 }

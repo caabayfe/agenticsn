@@ -7,6 +7,7 @@ import {
   type PageSource,
   type SceneSource,
   splitFrontMatter,
+  type ThemeFile,
 } from "@snagentic/core";
 import { isMap, parse, parseDocument } from "yaml";
 
@@ -73,6 +74,16 @@ export class FsDocumentationSources implements DocumentationSources {
       });
     }
     return pages;
+  }
+
+  // documentation/theme/: every file, as bytes (CSS, images, fonts).
+  async theme(): Promise<readonly ThemeFile[]> {
+    const folder = join(this.root, "theme");
+    const files: ThemeFile[] = [];
+    for (const path of await list(folder, "**/*")) {
+      files.push({ path, content: new Uint8Array(await readFile(join(folder, path))) });
+    }
+    return files;
   }
 
   async scenes(): Promise<readonly SceneSource[]> {

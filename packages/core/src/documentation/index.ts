@@ -6,6 +6,8 @@ export {
   type BuildSiteOptions,
   type BuildSiteResult,
   buildSite,
+  type MediaRequest,
+  mediaOptions,
 } from "./application/build-site";
 export {
   assessDocumentation,
@@ -137,6 +139,7 @@ export type {
   PageSource,
   SceneSource,
   SiteOutput,
+  ThemeFile,
   VideoOptions,
   VideoOutput,
   VideoRenderer,

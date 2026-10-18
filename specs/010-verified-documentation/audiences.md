@@ -245,3 +245,38 @@ extra.
 link under its player, and names each animation it could not render (no browser, no ffmpeg);
 nothing is skipped silently. Shared pages that explain a flow get one too, by the method.
 
+
+## 10. An employee guide and an IT guide (010d, 2026-10-17, ADR-0037)
+
+The product owner found the end-user side too thin: employees enter through channels and the
+portal, not through ITSM processes, and their pages led to operator and configuration pages. The
+site now publishes two guides from the same pages when `site.yaml` has an `employees:` block:
+
+- **Employee guide** (`employees/index.html`): *Start here* (ways to get help, using the portal),
+  then task groups ("Something isn't working", "I need something", "I'm asked to approve"), then
+  each process's Understand pages in the employee's view. Employee pages carry its breadcrumbs and
+  drop the operator counterpart and the configuration link.
+- **IT guide** (`it/index.html`): the process site, for operators and the platform team.
+- `docs check` fails a guide entry that isn't a Use or Understand page (`unknown-guide-page`).
+
+Method, from the pdi2 pilot: a `getting-help` process holds the channels and the portal tour;
+every channel is shown only when a record or a screen proves it enabled; each use page follows one
+frame (what it is for, before you start, steps with what you then see, what happens next, the
+emails quoted exactly, tips, *I want to…*); the catalog is explained by how to use it, with a
+sample table, not a page per item. The screen pass is done as an ordinary employee
+(impersonation), because an administrator sees more.
+
+### Review of 2026-10-18 (pdi2, 104 pages)
+
+Four reviews (employee pages, operator pages, configure pages against the mirror, site UX) led to
+these rules, now in the generator and the method:
+
+- Employee pages show the steps and the explanation only: no citations, review labels, evidence
+  tables, step numbers by process or mirror commit; "Last checked" instead, and previous/next in
+  the guide's order. The evidence stays in the sources, `docs check` and the IT guide.
+- Open questions are for the platform team: one page in the IT guide, never in employee text.
+- Beside an employee guide, process pages and operator pages don't ask which reader you are.
+- `employees.how` chooses the processes explained to employees.
+- The menu is usable with a keyboard and a screen reader, and doesn't flash on phones.
+- A client theme (`documentation/theme/`) overrides the site's tokens (brand, fonts, radius, width,
+  header, sidebar, logo).

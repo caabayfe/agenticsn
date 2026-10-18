@@ -265,3 +265,18 @@ frame (what it is for, before you start, steps with what you then see, what happ
 emails quoted exactly, tips, *I want to…*); the catalog is explained by how to use it, with a
 sample table, not a page per item. The screen pass is done as an ordinary employee
 (impersonation), because an administrator sees more.
+
+### Review of 2026-10-18 (pdi2, 104 pages)
+
+Four reviews (employee pages, operator pages, configure pages against the mirror, site UX) led to
+these rules, now in the generator and the method:
+
+- Employee pages show the steps and the explanation only: no citations, review labels, evidence
+  tables, step numbers by process or mirror commit; "Last checked" instead, and previous/next in
+  the guide's order. The evidence stays in the sources, `docs check` and the IT guide.
+- Open questions are for the platform team: one page in the IT guide, never in employee text.
+- Beside an employee guide, process pages and operator pages don't ask which reader you are.
+- `employees.how` chooses the processes explained to employees.
+- The menu is usable with a keyboard and a screen reader, and doesn't flash on phones.
+- A client theme (`documentation/theme/`) overrides the site's tokens (brand, fonts, radius, width,
+  header, sidebar, logo).

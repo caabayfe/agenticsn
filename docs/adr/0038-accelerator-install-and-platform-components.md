@@ -143,6 +143,46 @@ platform's standard mechanism and the customer's process (ADR-0018).
   customer may rename them. Metadata may reference only anchors; a reference from pack metadata
   to any other data record is a finding. Customer-specific references live in data.
 
+### 8. Modules are agnostic to the instance; ensure rules change what they do not own
+
+Added 2026-10-18 at the product owner's request: "the accelerators are agnostic to what
+exists in the instance".
+
+**What a module may and may not do:**
+- **Additive only.** A module creates its own records. It never replaces configuration it does
+  not own: a form section, a related list, an out-of-box SLA or a notification. A client's
+  customization of those is kept.
+- **Facts about configuration it does not own.** A module declares these in
+  `modules/<m>/ensure.yaml`. Each fact names its target by business key (for example table,
+  view and caption for a form section), never by an id seen on one instance. The first kinds
+  are:
+  - a form section has a field, placed after a named field when present, else appended;
+  - a view's related lists include a list;
+  - a record found by business key is inactive.
+
+  Each kind is a small, tested operation; nothing is free-form.
+
+**Planning:** the install plan resolves every fact against the mirror and says, for each one:
+- **already true:** nothing to do;
+- **will add:** with where it goes;
+- **target absent:** skipped, with the reason;
+- **conflict:** blocked for review.
+
+**Applying (development only):**
+1. The target is adopted from the instance's current copy (ADR-0031).
+2. Only the missing entries are added to that copy.
+3. The result is loaded through the module's update set, like the rest of the module (layouts
+   go through `fluent/load` whole, ADR-0030), so it promotes with the module.
+
+**Order and ownership:**
+- A fact applied again finds itself true and does nothing.
+- A fact never removes or reorders the client's entries.
+- **Settings that depend on data** (a group, a schedule) are loaded with the data (an entity
+  matched on the property's name), so each environment sets its own. A property a client has
+  changed is never reset by a later install.
+- **Out-of-box records shipped by a plugin** have the same sys_id on every instance. A module may
+  reference one, but the plan checks it exists and blocks if it does not.
+
 ## Consequences
 
 - A baseline instance is rebuilt by one approved command and re-runs after any failure.

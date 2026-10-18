@@ -1,4 +1,6 @@
-// What adding a pack's capabilities writes into the workspace (ADR-0026 as amended by ADR-0031):
+import { isAdoptFile, isPackOnly, moduleOf, workspacePathOf } from "./pack-layout";
+
+// What adding a pack's modules writes into the workspace (ADR-0026 as amended by ADR-0031):
 // the pack's Fluent source copied into the workspace's projects, and the out-of-box records it
 // customizes listed for the user to adopt and edit. Pure: files come in as text, YAML parsed by
 // the caller.
@@ -33,41 +35,14 @@ export interface Materialized {
   readonly problems: readonly string[];
 }
 
-const IGNORED = (path: string) => path === "accelerator.yaml" || path.startsWith("data/");
-const FORMAT_1 = (path: string) => path.startsWith("metadata/") || path.startsWith("patches/");
-const ADOPT_FILE = /^adopt\/([^/]+)\.yaml$/;
 const SYS_ID = /^[0-9a-f]{32}$/;
 
-// The capability a pack file belongs to: source/<capability>/... or adopt/<capability>.yaml.
-export function capabilityOf(path: string): string | null {
-  const adopt = ADOPT_FILE.exec(path);
-  if (adopt !== null) return adopt[1] ?? null;
-  const [top, capability, ...rest] = path.split("/");
-  return top === "source" && capability !== undefined && rest.length > 0 ? capability : null;
-}
-
-// The workspace path a source file is copied to, or null when it is not inside a project folder.
-export function workspacePathOf(path: string): string | null {
-  const [top, , scope, ...rest] = path.split("/");
-  if (top !== "source" || scope === undefined || rest.length === 0) return null;
-  return ["source", scope, ...rest].join("/");
-}
-
-// Pack files that are neither content nor the manifest and data templates. A pack still in the
-// YAML layout of format 1 is named once: every one of its files has the same remedy.
+// Pack files that are not installed, not module content, and not the manifest: every one named.
 function layoutProblems(files: ReadonlyMap<string, string>): string[] {
-  const paths = [...files.keys()].filter((path) => !IGNORED(path));
-  const old = paths.filter(FORMAT_1).sort();
-  const problems = paths
-    .filter((path) => !FORMAT_1(path) && capabilityOf(path) === null)
-    .map((path) => `${path}: not under source/<capability>/<scope>/ or adopt/<capability>.yaml`);
-  if (old.length > 0) {
-    const more = old.length > 1 ? ` and ${old.length - 1} more` : "";
-    problems.push(
-      `${old[0]}${more}: pack format 1: YAML records and patches are no longer installed; ship Fluent under source/ and customizations under adopt/`,
-    );
-  }
-  return problems;
+  return [...files.keys()]
+    .filter((path) => !isPackOnly(path) && moduleOf(path) === null)
+    .sort()
+    .map((path) => `${path}: not under modules/<module>/ (ADR-0038)`);
 }
 
 const text = (entry: Readonly<Record<string, unknown>>, key: string) => {
@@ -124,13 +99,15 @@ export function materialize(input: MaterializeInput): Materialized {
   const adoptions: Adoption[] = [];
   const writer = new Map<string, MaterializedFile>();
   for (const capability of input.selected) {
-    const own = [...input.files].filter(([path]) => capabilityOf(path) === capability);
+    const own = [...input.files].filter(
+      ([path]) => moduleOf(path) === capability && !isPackOnly(path),
+    );
     for (const [path, content] of own) {
       const target = workspacePathOf(path);
-      if (ADOPT_FILE.test(path)) {
+      if (isAdoptFile(path)) {
         adoptions.push(...adoptionsOf(capability, path, input.parse(content), problems));
       } else if (target === null) {
-        problems.push(`${path}: not in a project folder (source/<capability>/<scope>/...)`);
+        problems.push(`${path}: not in a project folder (modules/<module>/source/<scope>/...)`);
       } else {
         files.push(...copyOf({ path: target, text: content, capability }, writer, problems));
       }

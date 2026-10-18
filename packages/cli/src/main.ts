@@ -1,6 +1,6 @@
 // Composition root: the only place where adapters are wired to use cases.
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { INSTRUCTIONS, PROMPTS } from "@snagentic/agent-packs";
 import {
@@ -145,7 +145,9 @@ const context: UseCaseContext = {
   // minimal test pack lives in tests/fixtures and never ships).
   packWorkspace: (root, instance) => new GitPackWorkspace(root, instance),
   dataTemplates: new CsvDataTemplates(),
-  packs: new LazyPackSource(loadPackSource),
+  packs: new LazyPackSource(() =>
+    loadPackSource(workspaceOverride === undefined ? process.cwd() : resolve(workspaceOverride)),
+  ),
   pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),

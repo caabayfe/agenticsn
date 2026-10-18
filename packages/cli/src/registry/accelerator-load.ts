@@ -1,6 +1,6 @@
-import { resolve } from "node:path";
 import { InstanceError, loadData } from "@snagentic/core";
 import { z } from "zod";
+import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
 import { connect } from "./connect";
 import { defineUseCase } from "./use-case";
 
@@ -16,7 +16,7 @@ export const acceleratorLoad = defineUseCase({
   group: "accelerator",
   name: "load",
   description:
-    "Load an accelerator pack's data templates into a development instance through the pack's " +
+    "Load an accelerator pack's data templates (a directory, or the pack's demo set with --demo) into a development instance through the pack's " +
     "import set tables (ADR-0026): every template is validated first and nothing loads until " +
     "all pass; then each entity in order, one row per request, never retried, stopping after " +
     "the first entity with rows the instance did not take. Reports counts and the business keys " +
@@ -24,9 +24,8 @@ export const acceleratorLoad = defineUseCase({
   input: z.object({
     pack: z.string(),
     instance: z.string(),
-    data: z.string().describe("the directory with the templates, outside the workspace"),
-    waves: z.array(z.number()).optional().describe("load these waves' entities (default: all)"),
-    capabilities: z.array(z.string()).optional().describe("load these capabilities' entities"),
+    ...DataSourceInput,
+    ...SelectionInput,
     confirm: z.boolean().default(false).describe("confirm that this writes records"),
   }),
   output: z.object({
@@ -40,7 +39,7 @@ export const acceleratorLoad = defineUseCase({
   }),
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
   mcp: false,
-  arguments: ["pack", "instance", "data"],
+  arguments: ["pack", "instance"],
   async handle(input, context, run) {
     const { name, reader } = await connect(context, input.instance, run.signal);
     if (reader.imports === undefined) {
@@ -50,11 +49,10 @@ export const acceleratorLoad = defineUseCase({
       { packs: context.packs, templates: context.dataTemplates, importer: reader.imports },
       {
         pack: input.pack,
-        directory: resolve(context.host.cwd, input.data),
+        source: dataSourceOf(input, context.host.cwd),
         confirm: input.confirm,
         signal: run.signal,
-        ...(input.waves === undefined ? {} : { waves: input.waves }),
-        ...(input.capabilities === undefined ? {} : { capabilities: input.capabilities }),
+        ...selectionOf(input),
       },
     );
     return { instance: name, ...result };

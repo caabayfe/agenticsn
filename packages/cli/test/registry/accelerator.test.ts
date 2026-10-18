@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { DataSourceRequiredError } from "@snagentic/core";
 import { parse } from "yaml";
 import { CsvDataTemplates } from "../../src/adapters/accelerators/csv-data-templates";
 import { DirectoryPackSource } from "../../src/adapters/accelerators/directory-pack-source";
@@ -50,24 +51,57 @@ describe("accelerator use cases", () => {
     expect(output).toMatchObject({
       selected: ["base", "extra"],
       data: ["location"],
-      capabilities: [],
+      modules: [],
+      packs: [
+        {
+          id: "minimal",
+          modules: [
+            { id: "base", label: "snagentic test pack: base" },
+            { id: "extra", label: "snagentic test pack: extra" },
+          ],
+          profiles: { core: ["base"], all: ["base", "extra"] },
+        },
+      ],
     });
     const text = acceleratorCheck.render(output as never, "text");
     expect(text).toContain("installs base, extra");
     expect(text).toContain("data to load, in order: location");
   });
 
-  it("exits 1 while a capability is not ready", () => {
-    const capability = {
+  it("selects a profile's modules, and reports a profile the pack does not have", async () => {
+    const core = await executeUseCase(
+      acceleratorCheck,
+      { pack: "minimal", profile: "core" },
+      context,
+    );
+    expect(core.output).toMatchObject({ selected: ["base"], unknown: [] });
+    const named = await executeUseCase(
+      acceleratorCheck,
+      { pack: "minimal", modules: ["extra"] },
+      context,
+    );
+    expect(named.output).toMatchObject({ selected: ["base", "extra"] });
+    const full = await executeUseCase(
+      acceleratorCheck,
+      { pack: "minimal", profile: "full" },
+      context,
+    );
+    expect(full.output).toMatchObject({ selected: [], unknown: ["profile full"] });
+    expect(acceleratorCheck.exitCode(full.output as never)).toBe(1);
+  });
+
+  it("exits 1 while a module is not ready", () => {
+    const module = {
       id: "extra",
-      wave: 1,
-      state: "needs-plugins" as const,
-      plugins: [
+      state: "needs-components" as const,
+      components: [
         {
+          kind: "plugin" as const,
           id: "com.snc.on_call_rotation",
           state: "inactive" as const,
           version: "1.0.0",
           minVersion: null,
+          entitlement: "free" as const,
         },
       ],
       next: [
@@ -76,23 +110,26 @@ describe("accelerator use cases", () => {
       ],
     };
     const output = {
-      packs: [{ id: "minimal", version: "1.0.0", scope: "x", capabilities: [] }],
+      packs: [{ id: "minimal", version: "1.0.0", modules: [], profiles: {} }],
       selected: ["base", "extra"],
       unknown: ["nope"],
       data: [],
       problems: ["the pack needs snagentic >=9.0.0"],
-      capabilities: [capability],
+      warnings: ["the pack was tested on zurich; this instance runs yokohama"],
+      modules: [module],
     };
     const text = acceleratorCheck.render(output, "text");
-    expect(text).toContain("needs-plugins extra (wave 1)");
+    expect(text).toContain("needs-components extra");
+    expect(text).toContain("  plugin com.snc.on_call_rotation: inactive");
     expect(text).toContain(
       "next: snagentic plugins activate pdi2 com.snc.on_call_rotation --confirm",
     );
-    expect(text).toContain("unknown capability: nope");
+    expect(text).toContain("unknown: nope");
+    expect(text).toContain("warning: the pack was tested on zurich");
     expect(acceleratorCheck.exitCode(output)).toBe(1);
-    expect(
-      acceleratorCheck.exitCode({ ...output, unknown: [], problems: [], capabilities: [] }),
-    ).toBe(0);
+    expect(acceleratorCheck.exitCode({ ...output, unknown: [], problems: [], modules: [] })).toBe(
+      0,
+    );
   });
 
   it("says when there are no packs", async () => {
@@ -202,5 +239,28 @@ describe("accelerator use cases", () => {
     const fine = { ...(output as never as Record<string, unknown>), passed: true, entities: [] };
     expect(acceleratorValidateData.render(fine as never, "text")).toContain("ready to load");
     expect(acceleratorValidateData.exitCode(fine as never)).toBe(0);
+  });
+
+  it("validates the pack's demo data with --demo, and needs exactly one data source", async () => {
+    const validating = { ...context, dataTemplates: new CsvDataTemplates() };
+    const { output } = await executeUseCase(
+      acceleratorValidateData,
+      { pack: "minimal", demo: true },
+      validating,
+    );
+    expect(output).toMatchObject({
+      passed: true,
+      entities: [{ entity: "location", rows: 2, problems: [] }],
+    });
+    await expect(
+      executeUseCase(acceleratorValidateData, { pack: "minimal" }, validating),
+    ).rejects.toThrow(DataSourceRequiredError);
+    await expect(
+      executeUseCase(
+        acceleratorValidateData,
+        { pack: "minimal", demo: true, data: "/d" },
+        validating,
+      ),
+    ).rejects.toThrow(DataSourceRequiredError);
   });
 });

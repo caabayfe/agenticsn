@@ -56,8 +56,12 @@ const NO_CREDENTIALS: CredentialStore = {
 };
 
 export const FAKE_CONTEXT: UseCaseContext = {
-  packs: { ids: async () => [], manifest: async () => null, files: async () => new Map() },
-  dataTemplates: { tracked: async () => false, read: async () => null },
+  packs: { ids: async () => [], files: async () => new Map(), parse: () => null },
+  dataTemplates: {
+    tracked: async () => false,
+    read: async () => null,
+    parse: () => ({ columns: [], rows: [] }),
+  },
   // No packs in the fake context, so nothing reaches the pack workspace.
   packWorkspace: () => ({
     mirrorCommit: async () => null,

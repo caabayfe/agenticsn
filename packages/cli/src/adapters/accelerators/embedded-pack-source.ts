@@ -2,8 +2,6 @@ import type { PackSource } from "@snagentic/core";
 import { parse } from "yaml";
 import { DirectoryPackSource } from "./directory-pack-source";
 
-const MANIFEST = "accelerator.yaml";
-
 // Each pack's files by path in the pack, by pack id: what the release build embeds.
 export type EmbeddedPacks = Readonly<Record<string, Readonly<Record<string, string>>>>;
 
@@ -23,9 +21,8 @@ export class EmbeddedPackSource implements PackSource {
     return Object.keys(this.packs).sort();
   }
 
-  async manifest(id: string): Promise<unknown | null> {
-    const text = this.packs[id]?.[MANIFEST];
-    return text === undefined ? null : parse(text);
+  parse(text: string): unknown {
+    return parse(text);
   }
 
   async files(id: string): Promise<ReadonlyMap<string, string>> {

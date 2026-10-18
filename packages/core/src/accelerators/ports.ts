@@ -2,14 +2,16 @@ import type { MaterializedFile } from "./domain/materialize";
 import type { Template } from "./domain/templates";
 import type { PreviousAdd } from "./domain/upgrade";
 
-// Where accelerator packs come from: the first-party packs embedded in snagentic (ADR-0026).
+// Where accelerator packs come from: the packs embedded in snagentic and those under the
+// workspace's pack paths (ADR-0026, ADR-0038).
 export interface PackSource {
   // Pack ids, sorted.
   ids(): Promise<readonly string[]>;
-  // A pack's accelerator.yaml, parsed; null when there is no such pack.
-  manifest(id: string): Promise<unknown | null>;
-  // Every file of the pack, by path in the pack ("source/base/global/...").
+  // Every file of the pack, by path in the pack ("modules/<module>/..."); empty when there is no
+  // such pack.
   files(id: string): Promise<ReadonlyMap<string, string>>;
+  // A pack's YAML document, parsed.
+  parse(text: string): unknown;
 }
 
 // The workspace side of `accelerator add` for one instance (ADR-0026, item 2): the pack's files,
@@ -45,6 +47,8 @@ export interface DataTemplates {
   tracked(directory: string): Promise<boolean>;
   // A template, parsed; null when the file is missing.
   read(directory: string, file: string): Promise<Template | null>;
+  // A template's text, parsed (the pack's own demo set).
+  parse(text: string): Template;
 }
 
 export type ImportStatus = "inserted" | "updated" | "ignored" | "skipped" | "error";

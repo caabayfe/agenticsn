@@ -142,7 +142,12 @@ describe("docs build: what the IT guide leaves out", () => {
       ...run,
       sources,
       markdown: { html: (md) => md },
-      output: { root: "/ws/site", replace: async (files) => void (written = files) },
+      output: {
+        root: "/ws/site",
+        replace: async (files) => {
+          written = files;
+        },
+      },
       media: NO_MEDIA,
     });
     const file = (path: string) => String(written.find((item) => item.path === path)?.content);

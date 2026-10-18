@@ -7,9 +7,6 @@ import { type Built, checked, link, understandPages } from "./site-context";
 import { EMPLOYEES_HOME, layout, pageFile, prefixOf } from "./site-layout";
 import { navFor } from "./site-nav";
 
-const IT_DOOR =
-  "Operators and the platform team: each process step by step, and how it is configured";
-
 function summaryOf(b: Built, page: DocPage): string {
   const process = b.input.processes.find((item) => item.id === page.process);
   return process?.capabilities.find((item) => item.id === page.topic)?.summary ?? "";

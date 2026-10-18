@@ -13,7 +13,18 @@ const NAMED_BY_TABLE: Readonly<Record<string, ReadonlySet<string>>> = {
   sys_security_acl_role: new Set(["sys_user_role"]),
   sys_ui_action_view: new Set(["sys_ui_view"]),
   sys_user_role_contains: new Set(["role", "contains"]),
+  // A form's sections: the platform matches a loaded form's sections to the instance's by caption.
+  sys_ui_form_section: new Set(["sys_ui_section"]),
 };
+
+// The field a named reference is named by, where it is not `name`.
+const NAME_FIELDS: Readonly<Record<string, string>> = {
+  "sys_ui_form_section.sys_ui_section": "caption",
+};
+
+// The instance field a named reference is compared on: `<field>.name`, or its own name field.
+export const namedField = (table: string, field: string): string =>
+  `${field}.${NAME_FIELDS[`${table}.${field}`] ?? "name"}`;
 
 export function isNamedReference(table: string, field: string): boolean {
   return NAMED_REFERENCES.has(field) || (NAMED_BY_TABLE[table]?.has(field) ?? false);
@@ -62,6 +73,6 @@ const builtName = (record: UnitRecord, field: string) => {
 export function comparedValue(record: UnitRecord, field: string): [string, string] {
   const named = NAMED_REFERENCES.has(field) || record.referenceNames[field] !== undefined;
   return isNamedReference(record.table, field) && named
-    ? [builtName(record, field), `${field}.name`]
+    ? [builtName(record, field), namedField(record.table, field)]
     : [record.fields[field] ?? "", field];
 }

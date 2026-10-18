@@ -65,6 +65,10 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
     const built = unit("sys_ui_form_sections_f67d29c0e4f7611262bd5c7ae69ce0d8.xml");
     expect(built.head.fields["sys_domain"]).toBe("global");
     expect(built.children.every((row) => row.fields["sys_domain"] === undefined)).toBe(true);
+    // Each link names its section by caption, as the platform matches sections on load.
+    expect(
+      built.children.map((row) => row.referenceNames["sys_ui_section"] !== undefined),
+    ).not.toContain(false);
   });
 
   it("names a form's unit after the form, with its sections as rows", () => {

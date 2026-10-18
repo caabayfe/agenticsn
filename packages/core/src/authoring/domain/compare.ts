@@ -1,7 +1,7 @@
 import { platformWritten } from "../../metadata/domain/field-rules";
 import type { BuiltUnit, Fields, InstanceCopy, UnitRecord } from "./unit";
 import { type ChildSpec, unitSpec } from "./unit-specs";
-import { comparedValue, sameAttributes, sameValue } from "./values";
+import { comparedValue, isNamedReference, namedField, sameAttributes, sameValue } from "./values";
 
 // One comparison of a built unit with the instance's copy (ADR-0033 item 2).
 
@@ -75,12 +75,30 @@ function fieldDifferences(
 
 const position = (fields: Fields) => Number(fields["position"] ?? 0);
 
+// An instance row's key; a named reference in the key is its name, as the build's rows hold it.
 const rowKey = (spec: ChildSpec, fields: Fields) =>
-  spec.key.map((field) => fields[field] ?? "").join("|");
+  spec.key
+    .map((field) =>
+      isNamedReference(spec.table, field)
+        ? (fields[namedField(spec.table, field)] ?? "")
+        : (fields[field] ?? ""),
+    )
+    .join("|");
 
-function keysOf(spec: ChildSpec, rows: readonly Fields[]): string[] {
-  const sorted = spec.ordered ? [...rows].sort((a, b) => position(a) - position(b)) : rows;
-  const keys = sorted.map((row) => rowKey(spec, row));
+// A built row's key, compared as each key field is compared.
+const builtKey = (spec: ChildSpec, row: UnitRecord) =>
+  spec.key.map((field) => comparedValue(row, field)[0]).join("|");
+
+function keysOf<T>(
+  spec: ChildSpec,
+  rows: readonly T[],
+  fields: (row: T) => Fields,
+  key: (row: T) => string,
+): string[] {
+  const sorted = spec.ordered
+    ? [...rows].sort((a, b) => position(fields(a)) - position(fields(b)))
+    : rows;
+  const keys = sorted.map(key);
   return spec.ordered ? keys : keys.sort();
 }
 
@@ -94,13 +112,17 @@ function childDifferences(
 ): Difference[] {
   const builtKeys = keysOf(
     spec,
-    built.map((row) => row.fields),
+    built,
+    (row) => row.fields,
+    (row) => builtKey(spec, row),
   );
   // A partial child's rows the build doesn't carry are left as they are by a load.
   const carried = new Set(builtKeys);
   const instanceKeys = keysOf(
     spec,
     spec.partial === true ? instance.filter((row) => carried.has(rowKey(spec, row))) : instance,
+    (row) => row,
+    (row) => rowKey(spec, row),
   );
   const differences: Difference[] = sameList(builtKeys, instanceKeys)
     ? []
@@ -110,7 +132,7 @@ function childDifferences(
   const skip = new Set([...Object.keys(spec.link), ...(spec.ordered ? ["position"] : [])]);
   const byKey = new Map(instance.map((row) => [rowKey(spec, row), row]));
   for (const row of built) {
-    const key = rowKey(spec, row.fields);
+    const key = builtKey(spec, row);
     const match = byKey.get(key);
     if (match !== undefined) differences.push(...fieldDifferences(row, match, key, skip));
   }

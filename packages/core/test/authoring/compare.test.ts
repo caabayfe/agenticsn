@@ -132,6 +132,38 @@ describe("compareUnit (ADR-0033 item 2)", () => {
     expect(compareUnit(built, instance)).toEqual([]);
   });
 
+  it("compares a form's sections by caption: a load matches a taken-over form's sections so", () => {
+    const FORM = "34c40b8d87e413005087af1e36cb0b16";
+    const link = (sysId: string, section: string, caption: string, position: string) =>
+      record(
+        "sys_ui_form_section",
+        sysId,
+        { sys_id: sysId, sys_ui_form: FORM, sys_ui_section: section, position },
+        { sys_ui_section: caption },
+      );
+    const form = unit(
+      "sys_ui_form_sections_f1",
+      record("sys_ui_form", FORM, { sys_id: FORM, name: "incident_task", sys_domain: "global" }),
+      [link("l1", "b1", "", "0"), link("l2", "b2", "Notes", "1")],
+    );
+    const held = (section: string, caption: string, position: string) => ({
+      sys_id: `x${position}`,
+      sys_ui_form: FORM,
+      sys_ui_section: section,
+      "sys_ui_section.caption": caption,
+      position,
+    });
+    const instance = copy({ sys_id: FORM, name: "incident_task", sys_domain: "global" }, [
+      held("8aa1", "", "0"),
+      held("8955", "Notes", "1"),
+    ]);
+    expect(compareUnit(form, instance)).toEqual([]);
+    const reordered = copy(instance.head, [held("8955", "Notes", "0"), held("8aa1", "", "1")]);
+    expect(compareUnit(form, reordered)).toEqual([
+      { kind: "rows", table: "sys_ui_form_section", built: ["", "Notes"], instance: ["Notes", ""] },
+    ]);
+  });
+
   it("compares a list's columns as an ordered sequence, not by sys_id", () => {
     const built = revocationList(["number", "subject_user", "outcome"]);
     expect(compareUnit(built, listCopy(["number", "subject_user", "outcome"]))).toEqual([]);

@@ -77,6 +77,17 @@ export class FsDocumentationSources implements DocumentationSources {
     return processes;
   }
 
+  async features() {
+    const files: { path: string; features: unknown }[] = [];
+    for (const path of await list(this.root, "processes/*/features.yaml")) {
+      files.push({
+        path,
+        features: parsed(path, await readFile(join(this.root, path), "utf8")) ?? {},
+      });
+    }
+    return files;
+  }
+
   pages(): Promise<readonly PageSource[]> {
     return this.markdown(PAGES);
   }

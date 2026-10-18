@@ -3,6 +3,7 @@ import { escapeHtml } from "./html";
 import { iconSvg } from "./icons";
 import type { Process } from "./process";
 import { type Built, capabilitiesFor, checked, configurePages, link } from "./site-context";
+import { coverageText } from "./site-features";
 import { EMPLOYEES_HOME, IT_HOME, layout, pageFile, prefixOf, sectionHome } from "./site-layout";
 import { navFor } from "./site-nav";
 
@@ -72,9 +73,10 @@ function processCard(b: Built, process: Process): Card {
     title: process.title,
     href: `processes/${process.id}/index.html`,
     summary:
-      b.input.config.employees === undefined
+      (b.input.config.employees === undefined
         ? process.summary
-        : (process.itSummary ?? process.summary),
+        : (process.itSummary ?? process.summary)) +
+      (coverageText(b, process) === null ? "" : ` (${coverageText(b, process)}.)`),
     links: [
       ...links,
       ...(configurePages(b, process).length > 0

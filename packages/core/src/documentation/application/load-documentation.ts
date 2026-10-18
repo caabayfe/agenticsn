@@ -1,4 +1,5 @@
 import { NoDocumentationError } from "../domain/errors";
+import { parseFeatures } from "../domain/features";
 import { parseDocPage } from "../domain/page";
 import { parseProcess } from "../domain/process";
 import { parseRelease } from "../domain/releases";
@@ -26,5 +27,8 @@ export async function loadDocumentation(
   const releases = ((await sources.releases?.()) ?? []).map((source) =>
     parseRelease(source.path, source),
   );
-  return { config, processes, pages, scenes, releases };
+  const features = ((await sources.features?.()) ?? []).map((source) =>
+    parseFeatures(source.path, source.features),
+  );
+  return { config, processes, pages, scenes, releases, features };
 }

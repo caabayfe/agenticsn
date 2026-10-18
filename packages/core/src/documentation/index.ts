@@ -9,6 +9,7 @@ export {
   type MediaRequest,
   mediaOptions,
 } from "./application/build-site";
+export { type CensusResult, docsCensus, takeCensus } from "./application/census";
 export {
   assessDocumentation,
   type CheckDocsDependencies,
@@ -35,6 +36,15 @@ export {
   SURFACE_TABLES,
 } from "./domain/audience-checks";
 export { base64 } from "./domain/base64";
+export {
+  ancestorsOf,
+  CENSUS_SIGNALS,
+  type CensusGroup,
+  type CensusRecord,
+  type CensusSignal,
+  censusOf,
+  reaches,
+} from "./domain/census";
 export { type Claim, claimsOf, READERS, type Reader } from "./domain/claims";
 export {
   appliesTo,
@@ -47,7 +57,11 @@ export {
   recordName,
   worstStatus,
 } from "./domain/config-index";
-export { DocumentationSourceError, NoDocumentationError } from "./domain/errors";
+export {
+  DocumentationSourceError,
+  NoDocumentationError,
+  UnknownProcessError,
+} from "./domain/errors";
 export {
   anchorHash,
   anchorOf,
@@ -61,6 +75,17 @@ export {
   type SeenEvidence,
   seenStatus,
 } from "./domain/evidence";
+export {
+  claiming,
+  coverage,
+  FEATURE_STATUSES,
+  type Feature,
+  type FeatureStatus,
+  featureProblems,
+  type ProcessFeatures,
+  parseFeatures,
+  undecided,
+} from "./domain/features";
 export { escapeHtml, scriptJson } from "./domain/html";
 export { MediaToolMissingError, UnknownVoiceError } from "./domain/media-errors";
 export {

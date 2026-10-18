@@ -1,5 +1,6 @@
 import type { ConfigIndex } from "./config-index";
 import type { EvidenceStatus } from "./evidence";
+import type { ProcessFeatures } from "./features";
 import { escapeHtml } from "./html";
 import { withoutOpenQuestions } from "./open-questions";
 import type { DocPage, Section } from "./page";
@@ -41,6 +42,8 @@ export interface SiteInput {
   readonly videos?: ReadonlyMap<string, Uint8Array>;
   // The release files, for the What's new pages (ADR-0039).
   readonly releases?: readonly Release[];
+  // Each process's features.yaml (ADR-0040).
+  readonly features?: readonly ProcessFeatures[];
   // The client's theme files, by path inside documentation/theme/.
   readonly theme?: readonly { readonly path: string; readonly content: Uint8Array }[];
 }

@@ -8,6 +8,7 @@ import { FsMirrorRecords } from "../../src/adapters/documentation/fs-mirror-reco
 import { FsSiteOutput } from "../../src/adapters/documentation/fs-site-output";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import { docsBuild } from "../../src/registry/docs-build";
+import { docsCensus } from "../../src/registry/docs-census";
 import { docsCheck } from "../../src/registry/docs-check";
 import { docsPin } from "../../src/registry/docs-pin";
 import { docsServe } from "../../src/registry/docs-serve";
@@ -93,6 +94,31 @@ afterEach(() => {
 });
 
 describe("snagentic docs", () => {
+  it("census lists the applications that reach the process, from the mirror (ADR-0040)", async () => {
+    write(
+      "documentation/processes/incident/process.yaml",
+      "title: Incident management\ntables: [incident]\ncapabilities:\n  - id: assign\n    title: Assign an incident\n",
+    );
+    write(RECORD, "_meta:\n  hash: h1\nname: Set group\ncollection: incident\n");
+    const output = await docsCensus.handle({ process: "incident" }, context(), run);
+    expect(output).toEqual({
+      process: "incident",
+      tables: ["incident"],
+      groups: [
+        {
+          scope: "global",
+          title: "Platform (global)",
+          records: 1,
+          items: [{ kind: "Business rules", count: 1, names: ["Set group"] }],
+          features: [],
+        },
+      ],
+      undecided: [expect.objectContaining({ scope: "global" })],
+      declared: false,
+    });
+    expect(progress).toContain("reading the mirror for everything that reaches the process");
+  });
+
   it("check reports unpinned evidence and passes; pin records the hash; a mirror change then fails", async () => {
     const first = await docsCheck.handle({}, context(), run);
     expect(first.ok).toBe(true);

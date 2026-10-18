@@ -480,6 +480,18 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `docs census`
+
+```
+snagentic docs census <process> [options]
+```
+
+List every application that reaches a documented process's tables, from the mirror: form and workspace actions (also those on the tables they extend, such as task), business rules, client scripts, UI policies, notifications, SLA definitions, and tables that refer to the process. Each application must be named by a feature in processes/<process>/features.yaml (documented, todo, out-of-scope or question); the ones no feature names are listed as undecided. Features only visible on screen (workspace buttons, side panels) are found by walking the form as each role. Reads only the mirror.
+
+Changes the instance: no. MCP tool: none.
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `docs check`
 
 ```

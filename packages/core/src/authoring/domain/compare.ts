@@ -1,7 +1,7 @@
 import { platformWritten } from "../../metadata/domain/field-rules";
 import type { BuiltUnit, Fields, InstanceCopy, UnitRecord } from "./unit";
 import { type ChildSpec, unitSpec } from "./unit-specs";
-import { comparedValue, sameValue } from "./values";
+import { comparedValue, sameAttributes, sameValue } from "./values";
 
 // One comparison of a built unit with the instance's copy (ADR-0033 item 2).
 
@@ -62,7 +62,11 @@ function fieldDifferences(
     // A reference compared by name that holds the instance's own sys_id is the same reference,
     // even when the name can't be read (a role hidden from this user); a placeholder never is.
     if (instanceField !== field && record.fields[field] === instance[field]) continue;
-    if (!sameValue(built, actual)) {
+    const same =
+      record.table === "sys_dictionary" && field === "attributes"
+        ? sameAttributes(built, actual)
+        : sameValue(built, actual);
+    if (!same) {
       differences.push({ kind: "field", table: record.table, row, field, built, instance: actual });
     }
   }

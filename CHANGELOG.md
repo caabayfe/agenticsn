@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A second push of source with a new table works. The platform adds
+  `enforce_dot_walk_cross_scope_access=true` to a new table's collection row, which the build
+  never sends: push reported the row as not applied and kept it out of the ledger, and the next
+  plan refused it as never adopted. Plans now accept an instance value that only adds that
+  attribute. Found by spike S-D (spec 011) and again by the spec 009 scenarios (L3-1).
+
 ## [2.2.0] - 2026-10-18
 
 ### Added

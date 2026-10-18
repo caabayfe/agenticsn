@@ -14,6 +14,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- `adopt` brings in UI actions with an empty order (written as 100, as for menus), global tables
+  with an empty access (written as `public`) and columns whose choice is `0` (written empty),
+  each accepted only against those values; the table access only in global. It names, as a
+  refusal, a choice set of a table its application owns: adopt the column instead. Custom
+  dictionary entries on a PDI: 102 of 107 adoptable, 5 refused (baseline tables), none failing.
 - Plans and adopt treat a role or view reference that holds the instance's own sys_id as the
   same reference even when its name can't be read: the `maint` role is hidden from the admin
   user, and 41 UI action and ACL roles on a PDI showed a difference that wasn't there.

@@ -44,6 +44,22 @@ const EMPTY_DEFAULTS: Readonly<Record<string, string>> = {
   "sys_ui_policy.script_true": "function onCondition() {\n\n}",
   "sys_ui_policy.script_false": "function onCondition() {\n\n}",
   "sys_ui_policy_action.visible": "ignore",
+  // As for menus (product owner, 2026-10-18): 2 baseline UI actions on pdi2, each alone on its form.
+  "sys_ui_action.order": "100",
+};
+
+// The same, for records of the global scope only: an empty access on a global table is what
+// public means (975 global u_ tables on pdi2; no scoped table there has an empty access).
+const GLOBAL_EMPTY_DEFAULTS: Readonly<Record<string, string>> = {
+  "sys_db_object.access": "public",
+};
+
+// Values the instance writes another way for the same meaning: a column's choice 0 is "no
+// choices", which the build writes empty (19 custom columns on pdi2).
+const SAME_MEANING: Readonly<
+  Record<string, { readonly built: string; readonly instance: string }>
+> = {
+  "sys_dictionary.choice": { built: "", instance: "0" },
 };
 
 // Fields the SDK computes from other fields, which only the instance's empty value may differ
@@ -68,9 +84,18 @@ function rowsLoss(difference: Extract<Difference, { kind: "rows" }>): LossId | n
   return same ? "form-columns" : null;
 }
 
-function fieldLoss(difference: Extract<Difference, { kind: "field" }>): LossId | null {
+function fieldLoss(
+  difference: Extract<Difference, { kind: "field" }>,
+  scope: string | undefined,
+): LossId | null {
   const key = `${difference.table}.${difference.field}`;
   if (API_DEFAULTS.has(key)) return "api-default";
+  const global = scope === "global" ? GLOBAL_EMPTY_DEFAULTS[key] : undefined;
+  if (difference.instance === "" && global === difference.built) return "api-default";
+  const same = SAME_MEANING[key];
+  if (same?.built === difference.built && same.instance === difference.instance) {
+    return "api-default";
+  }
   if (difference.instance === "" && EMPTY_DEFAULTS[key] === difference.built) return "api-default";
   if (difference.instance === "" && EMPTY_RECOMPUTED.has(key)) return "api-default";
   if (
@@ -85,6 +110,7 @@ function fieldLoss(difference: Extract<Difference, { kind: "field" }>): LossId |
 }
 
 // The known loss a difference is, or null when the difference is not explained.
-export function knownLoss(difference: Difference): LossId | null {
-  return difference.kind === "rows" ? rowsLoss(difference) : fieldLoss(difference);
+// `scope`: the unit's application scope (its sys_scope), for losses that hold in global only.
+export function knownLoss(difference: Difference, scope?: string): LossId | null {
+  return difference.kind === "rows" ? rowsLoss(difference) : fieldLoss(difference, scope);
 }

@@ -11,6 +11,9 @@ export const LABELS = [
 ] as const;
 export type Label = (typeof LABELS)[number];
 
+// A link to another page, [text](see:<target>), resolved by references.ts (spec 010b).
+export const SEE_LINK = /\]\(see:([a-z0-9/-]*)\)/g;
+
 // Code (fenced blocks and inline spans) is left as written; only prose is transformed.
 const CODE = /(^(```|~~~)[\s\S]*?^\2[^\n]*$|`[^`\n]*`)/gm;
 
@@ -48,14 +51,23 @@ export function transcriptHtml(scene: Scene): string {
   return `<details class="transcript"><summary>Transcript (${scene.steps.length} steps)</summary><ol>${items.join("")}</ol></details>`;
 }
 
-function animationHtml(scene: Scene | undefined, name: string, prefix: string): string {
+function animationHtml(
+  scene: Scene | undefined,
+  name: string,
+  prefix: string,
+  video: boolean,
+): string {
   if (scene === undefined) {
     return `<p class="missing">Animation ${escapeHtml(name)} is missing.</p>`;
   }
   const title = escapeHtml(`Animation: ${scene.title}`);
   return (
     `<div class="animation"><iframe class="player" data-animation="${name}" src="${prefix}animations/${name}.html" ` +
-    `sandbox="allow-scripts" loading="lazy" title="${title}"></iframe>${transcriptHtml(scene)}</div>`
+    `sandbox="allow-scripts" allow="autoplay" loading="lazy" title="${title}"></iframe>${transcriptHtml(scene)}` +
+    (video
+      ? `<p class="video"><a href="${prefix}animations/${name}.mp4" download>Download the video (MP4)</a></p>`
+      : "") +
+    "</div>"
   );
 }
 
@@ -66,6 +78,12 @@ export interface ProseContext {
   readonly scenes: ReadonlyMap<string, Scene>;
   // Path from the page to the site root ("../" for pages/).
   readonly prefix: string;
+  // The address of a see: link's target, or null when it leads nowhere (spec 010b).
+  readonly link?: (target: string) => string | null;
+  // Animations rendered as MP4 beside the site (spec 010c).
+  readonly videos?: ReadonlySet<string>;
+  // For employees (ADR-0037): no citations and no review labels, which are for the IT readers.
+  readonly plain?: boolean;
 }
 
 function cite(id: string, context: ProseContext): string {
@@ -84,12 +102,17 @@ export function expandProse(markdown: string, context: ProseContext): string {
     prose
       .replace(
         /^(#{1,6} .*?)\s*\{label=([A-Za-z-]+)\}\s*$/gm,
-        (_, heading: string, label: string) => `${heading} ${labelHtml(label)}`,
+        (_, heading: string, label: string) =>
+          context.plain === true ? heading : `${heading} ${labelHtml(label)}`,
       )
-      .replace(/\[(E\d+)\]/g, (_, id: string) => cite(id, context))
+      .replace(/ ?\[(E\d+)\]/g, (all: string, id: string) =>
+        context.plain === true ? "" : all.replace(`[${id}]`, cite(id, context)),
+      )
+      .replace(SEE_LINK, (_, target: string) => `](${context.link?.(target) ?? "#unknown-link"})`)
       .replace(
         /^\{\{animation:([a-z0-9]+)\}\}\s*$/gm,
-        (_, name: string) => `\n${animationHtml(context.scenes.get(name), name, context.prefix)}\n`,
+        (_, name: string) =>
+          `\n${animationHtml(context.scenes.get(name), name, context.prefix, context.videos?.has(name) === true)}\n`,
       ),
   );
 }

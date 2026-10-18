@@ -1,7 +1,9 @@
 import { anchorOf, type Evidence, type EvidenceStatus } from "./evidence";
 import { escapeHtml } from "./html";
+import { iconSvg } from "./icons";
 import type { DocPage, Section } from "./page";
 import type { SiteConfig } from "./site-config";
+import { MENU_SCRIPT } from "./site-menu-script";
 import type { View } from "./views";
 
 // The section an Understand page is shown in, for each reader.
@@ -19,6 +21,14 @@ export function pageFile(
     : `${folder}/${page.section}/${page.topic}.html`;
 }
 
+// The two guides' homes, when the site has an employee guide (ADR-0037).
+export const EMPLOYEES_HOME = "employees/index.html";
+export const IT_HOME = "it/index.html";
+export const OPEN_QUESTIONS = "it/open-questions.html";
+// What changed for readers, from the release files (ADR-0039).
+export const WHATS_NEW_EMPLOYEES = "employees/whats-new.html";
+export const WHATS_NEW_IT = "it/whats-new.html";
+
 export function sectionHome(process: string, section: Section): string {
   return `processes/${process}/${section}/index.html`;
 }
@@ -28,10 +38,19 @@ export function prefixOf(file: string): string {
   return "../".repeat(file.split("/").length - 1);
 }
 
-// Shown to the embedding page by the player's height messages; nothing else is accepted.
-const RESIZE_SCRIPT =
-  "<script>addEventListener('message',function(e){document.querySelectorAll('iframe.player').forEach(function(f){" +
-  "if(e.source===f.contentWindow&&e.data&&e.data.snagenticAnimH){f.style.height=e.data.snagenticAnimH+'px';}});});</script>";
+// Talks to the players on the page; nothing else is accepted. Sizes each from its height message,
+// remembers the reader's sound choice across pages (localStorage; a sandboxed player can't), and
+// tells the players about the reader's first click, after which browsers allow sound.
+const PLAYERS_SCRIPT =
+  "<script>(function(){var K='snagentic-sound',on=false,act=false;try{on=localStorage.getItem(K)==='on';}catch(x){}" +
+  "var all=function(){return document.querySelectorAll('iframe.player');};" +
+  "var send=function(f,m){try{f.contentWindow.postMessage(m,'*');}catch(x){}};" +
+  "addEventListener('message',function(e){all().forEach(function(f){if(e.source!==f.contentWindow||!e.data)return;" +
+  "if(e.data.snagenticAnimH){f.style.height=e.data.snagenticAnimH+'px';send(f,{snagenticSoundPref:on});if(act)send(f,{snagenticActivate:true});}" +
+  "if(typeof e.data.snagenticSound==='boolean'){on=e.data.snagenticSound;try{localStorage.setItem(K,on?'on':'off');}catch(x){}" +
+  "all().forEach(function(g){send(g,{snagenticSoundPref:on});});}});});" +
+  "var go=function(){if(act)return;act=true;all().forEach(function(f){send(f,{snagenticActivate:true});});};" +
+  "addEventListener('pointerdown',go);addEventListener('keydown',go);})();</script>";
 
 export interface Crumb {
   // Relative to the site root.
@@ -39,25 +58,36 @@ export interface Crumb {
   readonly text: string;
 }
 
+const TOGGLE = `<button class="navtoggle" type="button" aria-label="Menu" aria-controls="menu" aria-expanded="true">${iconSvg("menu")}</button>`;
+
+// Before the page is drawn, so a phone never flashes the menu over the content.
+const EARLY_SCRIPT =
+  "<script>try{if(matchMedia('(max-width: 800px)').matches||localStorage.getItem('snagentic-nav')==='hidden')" +
+  "document.body.classList.add('nav-hidden');}catch(x){}</script>";
+
+// A page: the header, the menu beside the content when there is one (site-nav.ts), the footer.
 export function layout(
   config: SiteConfig,
   title: string,
   file: string,
   crumbs: readonly Crumb[],
   main: string,
+  aside = "",
 ): string {
   const prefix = prefixOf(file);
   const trail = crumbs
     .map((crumb) => `<a href="${prefix}${crumb.href}">${escapeHtml(crumb.text)}</a>`)
     .join(" › ");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title)}</title><link rel="stylesheet" href="${prefix}assets/site.css"></head><body>
-<header class="site"><a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs">${trail}</nav>`}</header>
-<main>
+<title>${escapeHtml(title === config.title ? title : `${title} · ${config.title}`)}</title><link rel="stylesheet" href="${prefix}assets/site.css"><link rel="stylesheet" href="${prefix}assets/theme/theme.css"></head><body data-prefix="${prefix}">${aside === "" ? "" : EARLY_SCRIPT}<a class="skip" href="#main">Skip to the content</a>
+<header class="site">${aside === "" ? "" : TOGGLE}<span class="logo" aria-hidden="true"></span><a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs" aria-label="Breadcrumb">${trail}</nav>`}</header>
+<div class="shell">${aside}<div class="content">
+<main id="main">
 ${main}
 </main>
 <footer class="site">${escapeHtml(config.footer)}</footer>
-${RESIZE_SCRIPT}
+</div></div>
+${PLAYERS_SCRIPT}${aside === "" ? "" : `<script src="${prefix}assets/search.js"></script>${MENU_SCRIPT}`}
 </body></html>
 `;
 }

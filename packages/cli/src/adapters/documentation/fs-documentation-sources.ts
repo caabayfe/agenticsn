@@ -7,6 +7,7 @@ import {
   type PageSource,
   type SceneSource,
   splitFrontMatter,
+  type ThemeFile,
 } from "@snagentic/core";
 import { isMap, parse, parseDocument } from "yaml";
 
@@ -20,6 +21,19 @@ function parsed(path: string, text: string, as: "yaml" | "json" = "yaml"): unkno
     const reason = error instanceof Error ? (error.message.split("\n")[0] ?? "") : String(error);
     throw new DocumentationSourceError(path, `is not valid ${as.toUpperCase()}: ${reason}`);
   }
+}
+
+export const PAGES = "processes/*/*/*.md";
+export const RELEASES = "changes/*.md";
+
+// A Markdown file with YAML front matter, as a page or a release file.
+export function markdownSource(path: string, text: string): PageSource {
+  const split = splitFrontMatter(text);
+  return {
+    path,
+    frontMatter: split.frontMatter === null ? {} : parsed(path, split.frontMatter),
+    body: split.body,
+  };
 }
 
 async function textIfExists(path: string): Promise<string | null> {
@@ -38,7 +52,8 @@ async function list(root: string, pattern: string): Promise<string[]> {
 }
 
 // documentation/ in the workspace: site.yaml, processes/<id>/process.yaml and its pages
-// (<section>/<topic>.md), animations/<name>/ (ADR-0036, spec 010a).
+// (<section>/<topic>.md), animations/<name>/ (ADR-0036, spec 010a), changes/<release>.md
+// (ADR-0039).
 export class FsDocumentationSources implements DocumentationSources {
   private readonly root: string;
 
@@ -62,17 +77,30 @@ export class FsDocumentationSources implements DocumentationSources {
     return processes;
   }
 
-  async pages(): Promise<readonly PageSource[]> {
-    const pages: PageSource[] = [];
-    for (const path of await list(this.root, "processes/*/*/*.md")) {
-      const split = splitFrontMatter(await readFile(join(this.root, path), "utf8"));
-      pages.push({
-        path,
-        frontMatter: split.frontMatter === null ? {} : parsed(path, split.frontMatter),
-        body: split.body,
-      });
+  pages(): Promise<readonly PageSource[]> {
+    return this.markdown(PAGES);
+  }
+
+  releases(): Promise<readonly PageSource[]> {
+    return this.markdown(RELEASES);
+  }
+
+  private async markdown(pattern: string): Promise<readonly PageSource[]> {
+    const files: PageSource[] = [];
+    for (const path of await list(this.root, pattern)) {
+      files.push(markdownSource(path, await readFile(join(this.root, path), "utf8")));
     }
-    return pages;
+    return files;
+  }
+
+  // documentation/theme/: every file, as bytes (CSS, images, fonts).
+  async theme(): Promise<readonly ThemeFile[]> {
+    const folder = join(this.root, "theme");
+    const files: ThemeFile[] = [];
+    for (const path of await list(folder, "**/*")) {
+      files.push({ path, content: new Uint8Array(await readFile(join(folder, path))) });
+    }
+    return files;
   }
 
   async scenes(): Promise<readonly SceneSource[]> {

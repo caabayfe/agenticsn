@@ -12,6 +12,7 @@ import { check } from "./check";
 import { describe } from "./describe";
 import { docsBuild } from "./docs-build";
 import { docsCheck } from "./docs-check";
+import { docsImpact } from "./docs-impact";
 import { docsPin } from "./docs-pin";
 import { docsServe } from "./docs-serve";
 import { docsVideo } from "./docs-video";
@@ -73,6 +74,7 @@ export const USE_CASES: readonly UseCase[] = [
   acceleratorValidateData,
   acceleratorLoad,
   docsCheck,
+  docsImpact,
   docsPin,
   docsBuild,
   docsServe,

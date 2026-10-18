@@ -42,6 +42,13 @@ const REFUSALS: readonly Refusal[] = [
     reason:
       "a role the SDK's conversion couldn't read (it wrote the role's sys_id, not its name): adopt with an account that can read every role of the record, or leave it on the instance",
   },
+  // The same for a view it can't resolve (17 UI actions on pdi2): a row for a view that doesn't
+  // exist, beside the instance's own row for it.
+  {
+    pattern: /\b(?:includeIn|excludeFrom)Views:\s*\[[^\]]*['"][0-9a-f]{32}['"]/,
+    reason:
+      "a view the SDK's conversion couldn't read (it wrote the view's sys_id, not its name): check the record's views exist on the instance and are readable, or leave it on the instance",
+  },
 ];
 
 export interface ConversionOutcome {

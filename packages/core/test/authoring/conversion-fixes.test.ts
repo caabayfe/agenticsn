@@ -29,6 +29,14 @@ describe("fixConverted", () => {
     ]);
   });
 
+  it("refuses views named by sys_id, which the transform writes for a view it can't resolve", () => {
+    const text =
+      "UiAction({\n    includeInViews: ['additional_info'],\n    excludeFromViews: ['4f3f54c59f6b320089c25ecec32e705f'],\n})";
+    expect(fixConverted("ua.now.ts", text).refused).toEqual([
+      expect.stringContaining("ua.now.ts: a view the SDK's conversion couldn't read"),
+    ]);
+  });
+
   it("accepts roles named by name", () => {
     const text = "Acl({\n    roles: ['itil', 'x_acme.admin'],\n})";
     expect(fixConverted("acl.now.ts", text).refused).toEqual([]);

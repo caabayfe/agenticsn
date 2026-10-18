@@ -57,6 +57,7 @@ function entity(value: unknown): DataEntity | null {
     entity: name,
     file,
     table,
+    target: text(fields?.["target"]) || null,
     key,
     after: texts(fields?.["after"]),
     columns: columnsOf(fields?.["columns"]),

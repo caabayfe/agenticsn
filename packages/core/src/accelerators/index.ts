@@ -11,10 +11,23 @@ export {
 } from "./application/check-pack";
 export { type EntityLoad, type LoadResult, loadData } from "./application/load-data";
 export { packFindings } from "./application/pack-gate";
+export {
+  type InstallPlanDependencies,
+  type InstallQuery,
+  planInstall,
+} from "./application/plan-install";
+export {
+  type InstallResult,
+  type InstallRunDependencies,
+  installPack,
+} from "./application/run-install";
 export { type DataQuery, type DataSource, validateData } from "./application/validate-data";
 export { dataOrder, type Selection, selectCapabilities } from "./domain/capability-graph";
 export {
   DataSourceRequiredError,
+  InstallBlockedError,
+  InstallLockedError,
+  InstallPlanChangedError,
   InvalidPackError,
   LoadConfirmationRequiredError,
   PackNotAddableError,
@@ -22,6 +35,18 @@ export {
   TemplatesInvalidError,
   TrackedDataError,
 } from "./domain/errors";
+export { installPlanDocument, installReportDocument } from "./domain/install-document";
+export {
+  type ComponentAction,
+  type InstallPlan,
+  type InstallRecord,
+  type InstallStepRecord,
+  installPlanId,
+  type PlannedComponent,
+  type PlannedEntity,
+  type PlannedModule,
+  plannedComponents,
+} from "./domain/install-plan";
 export { type ManifestOutcome, parseManifest } from "./domain/manifest";
 export type {
   Capability,
@@ -67,6 +92,8 @@ export type {
   DataTemplates,
   ImportSetWriter,
   ImportStatus,
+  InstallJournal,
+  InstallSteps,
   PackSource,
   PackWorkspace,
 } from "./ports";

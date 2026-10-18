@@ -27,6 +27,8 @@ export interface DataEntity {
   readonly columns: readonly DataColumn[];
   // The import set table; its transform map coalesces on `key`.
   readonly table: string;
+  // The table its transform map writes, shown in the install plan; null when not named.
+  readonly target: string | null;
   readonly key: readonly string[];
   // Entities that must be loaded first (their records are referenced).
   readonly after: readonly string[];

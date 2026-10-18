@@ -464,6 +464,26 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `accelerator install`
+
+```
+snagentic accelerator install <pack> <instance> [options]
+```
+
+Install an accelerator pack's modules on a development instance (ADR-0038). Without --confirm it writes the install plan for the platform admin (components to activate, each module's update set and source, out-of-box records changed, data to load, risks) and changes nothing. With --confirm <plan id> it runs exactly that plan: components, then each module through validate, plan_push and push into its own update set, then the data, then commits the plan and a report. A run that stops resumes with the same command.
+
+Changes the instance: **yes, development instances only**. MCP tool: none.
+
+Options:
+
+- `--profile <value>`: install this profile's modules
+- `--modules <values...>`: install these modules (with what they need)
+- `--data <value>`: the directory with the templates, outside the workspace
+- `--demo`: use the pack's fictional demo data
+- `--confirm <value>`: the plan id the admin approved
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `accelerator load`
 
 ```

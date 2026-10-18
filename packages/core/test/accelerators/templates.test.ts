@@ -10,6 +10,7 @@ const entity = (
   entity: name,
   file: `${name}.csv`,
   table: `x_t_${name}`,
+  target: null,
   key,
   after,
   columns,

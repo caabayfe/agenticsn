@@ -137,6 +137,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
     },
     clear: async () => {},
   }),
+  installJournal: () => {
+    throw new Error("no install in this test");
+  },
   pullRequests: () => {
     throw new Error("no git platform in this test");
   },

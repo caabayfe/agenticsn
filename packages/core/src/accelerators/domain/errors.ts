@@ -78,3 +78,36 @@ export class DataSourceRequiredError extends SnagenticError {
     );
   }
 }
+
+export class InstallPlanChangedError extends SnagenticError {
+  constructor(confirmed: string, current: string) {
+    super(
+      "install-plan-changed",
+      "precondition",
+      `the install plan is now ${current}, not the approved ${confirmed}: the pack or the instance changed since it was planned`,
+      "read the new plan (written in accelerators/installs/), get it approved, then confirm its id",
+    );
+  }
+}
+
+export class InstallBlockedError extends SnagenticError {
+  constructor(problems: readonly string[]) {
+    super(
+      "install-blocked",
+      "precondition",
+      `the install plan has blocking problems: ${problems.join("; ")}`,
+      "fix them on the instance or in the pack, then plan the install again",
+    );
+  }
+}
+
+export class InstallLockedError extends SnagenticError {
+  constructor(instance: string) {
+    super(
+      "install-locked",
+      "precondition",
+      `another install is running on ${instance}`,
+      "wait for it to finish; if none is running, remove .snagentic/<instance>/install.lock",
+    );
+  }
+}

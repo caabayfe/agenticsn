@@ -1,5 +1,6 @@
 import { acceleratorAdd } from "./accelerator-add";
 import { acceleratorCheck } from "./accelerator-check";
+import { acceleratorInstall } from "./accelerator-install";
 import { acceleratorList } from "./accelerator-list";
 import { acceleratorLoad } from "./accelerator-load";
 import { acceleratorValidateData } from "./accelerator-validate-data";
@@ -71,6 +72,7 @@ export const USE_CASES: readonly UseCase[] = [
   acceleratorCheck,
   acceleratorAdd,
   acceleratorValidateData,
+  acceleratorInstall,
   acceleratorLoad,
   docsCheck,
   docsPin,

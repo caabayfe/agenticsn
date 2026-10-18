@@ -48,6 +48,7 @@ import { fetchTransport } from "./adapters/servicenow/fetch-transport";
 import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
+import { JsonInstallJournal } from "./adapters/state/json-install-journal";
 import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
 import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
@@ -151,6 +152,8 @@ const context: UseCaseContext = {
   pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),
+  installJournal: (root, instance) =>
+    new JsonInstallJournal(join(root, instancePaths(instance).localState)),
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,
   upgrade: {

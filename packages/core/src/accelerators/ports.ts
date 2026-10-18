@@ -1,3 +1,4 @@
+import type { InstallRecord } from "./domain/install-plan";
 import type { MaterializedFile } from "./domain/materialize";
 import type { Template } from "./domain/templates";
 import type { PreviousAdd } from "./domain/upgrade";
@@ -61,4 +62,65 @@ export interface ImportSetWriter {
     row: Readonly<Record<string, string>>,
     signal: AbortSignal,
   ): Promise<{ readonly status: ImportStatus; readonly sysId: string }>;
+}
+
+// The steps an install runs, each one an existing use case (ADR-0038, item 2): the install only
+// orders them, skips what is done and records what happened. Every write goes through these.
+export interface InstallSteps {
+  // Activates an installed, inactive plugin and waits for the platform's installer to finish.
+  activatePlugin(id: string, signal: AbortSignal): Promise<{ readonly seconds: number }>;
+  // pull, then integrate: the mirror (and its component inventory) catches up with the instance.
+  refresh(signal: AbortSignal): Promise<void>;
+  // accelerator add for these modules: the workspace files it wrote, and those the merge left in
+  // conflict.
+  add(
+    modules: readonly string[],
+    signal: AbortSignal,
+  ): Promise<{ readonly copied: readonly string[]; readonly conflicts: readonly string[] }>;
+  // fluent-keys for the projects holding these files, committed (rule SN-MNT-010).
+  keys(paths: readonly string[], signal: AbortSignal): Promise<void>;
+  planPush(
+    label: string,
+    signal: AbortSignal,
+  ): Promise<{
+    readonly planId: string;
+    readonly ready: boolean;
+    readonly units: number;
+    readonly problems: readonly string[];
+  }>;
+  push(
+    planId: string,
+    label: string,
+    signal: AbortSignal,
+  ): Promise<{
+    readonly units: number;
+    readonly notApplied: number;
+    readonly notCaptured: number;
+    readonly updateSets: readonly string[];
+  }>;
+  load(
+    modules: readonly string[],
+    source: { readonly kind: "demo" } | { readonly kind: "directory"; readonly directory: string },
+    signal: AbortSignal,
+  ): Promise<{
+    readonly entities: readonly {
+      readonly entity: string;
+      readonly counts: Readonly<Record<ImportStatus, number>>;
+      readonly failed: readonly string[];
+    }[];
+    readonly stopped: boolean;
+  }>;
+  // Writes a workspace file (the plan and the report), relative to the workspace root.
+  writeFile(path: string, text: string): Promise<void>;
+  commit(paths: readonly string[], message: string): Promise<string>;
+}
+
+// The instance's install journal and lock (local state, never committed).
+export interface InstallJournal {
+  read(): Promise<InstallRecord | null>;
+  write(record: InstallRecord): Promise<void>;
+  clear(): Promise<void>;
+  // False when another install holds the lock.
+  lock(): Promise<boolean>;
+  unlock(): Promise<void>;
 }

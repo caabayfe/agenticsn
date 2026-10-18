@@ -159,7 +159,7 @@ describe("validate and the documentation", () => {
         return [{ page: "documentation/p.md", title: "Report an incident", evidence: ["E02"] }];
       },
     };
-    const result = await validate({ ...governanceOf({}), documentation: docs }, { base: "main" });
+    const result = await validate({ ...governanceOf({}), documentation: docs }, { base: "HEAD" });
     expect(bases).toEqual(["c0ffee"]);
     expect(result.passed).toBe(true);
     expect(result.findings.map((f) => [f.ruleId, f.severity, f.path, f.message])).toEqual([

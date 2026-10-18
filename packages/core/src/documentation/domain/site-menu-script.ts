@@ -12,5 +12,5 @@ q.addEventListener('input',function(){var w=q.value.toLowerCase().trim().split(/
 if(!w.length){res.hidden=true;grp.hidden=false;return;}
 var hits=(window.SNAGENTIC_SEARCH||[]).filter(function(e){var h=(e.t+' '+e.x).toLowerCase();
 return e.g===q.getAttribute('data-guide')&&w.every(function(v){return h.indexOf(v)>=0;});}).slice(0,30);
-res.innerHTML=hits.length?hits.map(function(e){return '<li><a href="'+p+e.u+'">'+esc(e.t)+'</a></li>';}).join(''):'<li class="none">No page found</li>';
+res.innerHTML=hits.length?hits.map(function(e){return '<li><a href="'+p+e.u+'">'+esc(e.t)+'<small>'+esc(e.p)+'</small></a></li>';}).join(''):'<li class="none">No page found</li>';
 res.hidden=false;grp.hidden=true;});})();</script>`;

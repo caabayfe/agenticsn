@@ -2,7 +2,7 @@ import { employeePage } from "./employee-guide";
 import { escapeHtml } from "./html";
 import { iconSvg } from "./icons";
 import type { Process } from "./process";
-import { type Built, capabilitiesFor, checked, link } from "./site-context";
+import { type Built, capabilitiesFor, checked, configurePages, link } from "./site-context";
 import { EMPLOYEES_HOME, IT_HOME, layout, pageFile, prefixOf, sectionHome } from "./site-layout";
 import { navFor } from "./site-nav";
 
@@ -68,9 +68,21 @@ function processCard(b: Built, process: Process): Card {
     title: process.title,
     href: `processes/${process.id}/index.html`,
     summary: process.summary,
-    links: [...links, { href: sectionHome(process.id, "configure"), text: "How it is configured" }],
+    links: [
+      ...links,
+      ...(configurePages(b, process).length > 0
+        ? [{ href: sectionHome(process.id, "configure"), text: "How it is configured" }]
+        : []),
+    ],
   };
 }
+
+// The IT guide's cards. Beside an employee guide, a process with nothing for IT (such as the
+// employees' getting-help) is left out.
+const itCards = (b: Built, processes: readonly Process[]): readonly Card[] =>
+  processes
+    .map((process) => processCard(b, process))
+    .filter((card) => b.input.config.employees === undefined || card.links.length > 0);
 
 const section = (prefix: string, cards: readonly Card[]) =>
   `<section class="map">${cards.map((card) => cardHtml(prefix, card)).join("")}</section>`;
@@ -78,7 +90,7 @@ const section = (prefix: string, cards: readonly Card[]) =>
 // The site map: every group of pages as a card, so any page is one click from the front page.
 export function siteMapHtml(b: Built, processes: readonly Process[]): string {
   const guide = b.input.config.employees;
-  const it = processes.map((process) => processCard(b, process));
+  const it = itCards(b, processes);
   const body =
     guide === undefined
       ? section("", it)
@@ -103,9 +115,6 @@ export function itHomeHtml(b: Built, processes: readonly Process[]): string {
   const main = `<h1>IT guide</h1>
 <p class="lead">For operators and the platform team: each process step by step, and how it is configured.</p>
 <div class="banner"><span>${checked(b)}</span></div>
-${section(
-  prefix,
-  processes.map((process) => processCard(b, process)),
-)}`;
+${section(prefix, itCards(b, processes))}`;
   return layout(b.input.config, "IT guide", IT_HOME, [], main, navFor(b, IT_HOME));
 }

@@ -90,6 +90,7 @@ describe("docs build: the menu", () => {
     expect(index).toContain('"u":"processes/incident/use/confirm.html","g":"employee"');
     expect(index).toContain('"u":"processes/incident/operate/assign.html","g":"it"');
     expect(index).toContain("who gets the incident");
+    expect(index).toContain('"t":"Assign an incident","p":"Incident management"');
     const user = index.slice(
       index.indexOf('"processes/incident/use/understand/overview.html"') - 80,
     );
@@ -122,5 +123,31 @@ describe("docs build: the site map", () => {
     expect(map).toContain('data-icon="doc"');
     expect(map).not.toContain("employees/index.html");
     expect(file("processes/incident/use/confirm.html")).not.toContain("employees/index.html");
+  });
+});
+
+describe("docs build: what the IT guide leaves out", () => {
+  it("leaves a process with nothing for IT out of the IT menu and the IT cards", async () => {
+    const help = {
+      path: "processes/getting-help/process.yaml",
+      process: {
+        title: "Getting help",
+        roles: [{ id: "employee", name: "Employee", audience: "user" }],
+        capabilities: [{ id: "channels", title: "Ways to get help", roles: ["employee"] }],
+      },
+    };
+    const { sources } = fakeSources(ALL, { site: { ...SITE, employees: GUIDE }, others: [help] });
+    let written: readonly { path: string; content: string | Uint8Array }[] = [];
+    await buildSite({
+      ...run,
+      sources,
+      markdown: { html: (md) => md },
+      output: { root: "/ws/site", replace: async (files) => void (written = files) },
+      media: NO_MEDIA,
+    });
+    const file = (path: string) => String(written.find((item) => item.path === path)?.content);
+    expect(sidebar(file("processes/incident/operate/assign.html"))).not.toContain("Getting help");
+    expect(file("it/index.html")).not.toContain("Getting help");
+    expect(file("it/index.html")).toContain("Incident management");
   });
 });

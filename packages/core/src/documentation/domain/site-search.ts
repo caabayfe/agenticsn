@@ -8,6 +8,8 @@ import type { View } from "./views";
 // case. The index is a script, not JSON, so the search works from a file as well as a server.
 interface Entry {
   readonly t: string;
+  // The process, shown beside the title: several processes have a "Who is told what".
+  readonly p: string;
   readonly u: string;
   readonly g: "employee" | "it";
   readonly x: string;
@@ -30,12 +32,12 @@ function headings(page: DocPage, view: View | undefined): string {
 
 function entry(b: Built, page: DocPage, view: View | undefined): Entry {
   const file = pageFile(page, view ?? "user");
+  const process = b.input.processes.find((item) => item.id === page.process);
   const summary =
-    b.input.processes
-      .find((process) => process.id === page.process)
-      ?.capabilities.find((capability) => capability.id === page.topic)?.summary ?? "";
+    process?.capabilities.find((capability) => capability.id === page.topic)?.summary ?? "";
   return {
     t: page.title,
+    p: process?.title ?? "",
     u: file,
     g: guideOf(b, file) === "employee" ? "employee" : "it",
     x: `${headings(page, view)} ${summary}`.toLowerCase(),

@@ -17,6 +17,7 @@ body.nav-hidden aside.nav{display:none}
 .side .search:focus{outline:2px solid var(--blue);outline-offset:1px}
 .side ul,.side ol{list-style:none;margin:0;padding:0}
 .side .results{margin-top:10px}
+.side .results small{display:block;font-size:12px;color:var(--mute)}
 .side .results .none{padding:6px 10px;color:var(--mute);font-size:14px}
 .grp{margin-top:16px}
 .grp-h{display:flex;align-items:center;gap:8px;margin:0 6px 4px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}

@@ -2,7 +2,7 @@ import { employeePage } from "./employee-guide";
 import { escapeHtml } from "./html";
 import { iconSvg } from "./icons";
 import type { Process } from "./process";
-import { type Built, capabilitiesFor, understandPages } from "./site-context";
+import { type Built, capabilitiesFor, configurePages, understandPages } from "./site-context";
 import { EMPLOYEES_HOME, IT_HOME, pageFile, prefixOf, sectionHome } from "./site-layout";
 
 // Which menu a page shows: the site map has none; with an employee guide, its pages (Use pages,
@@ -89,14 +89,23 @@ ${how.join("") === "" ? "" : `<div class="grp-h sep">${iconSvg("book")}<span>How
 
 function itSide(b: Built, processes: readonly Process[], prefix: string, current: string) {
   const single = b.input.config.employees === undefined;
-  const folders = processes.map((process) =>
-    folder(prefix, current, process, [
-      ...understandLinks(b, process, "operator"),
+  const folders = processes.map((process) => {
+    const guides = [
       ...(single ? capabilityLinks(b, process, "user") : []),
       ...capabilityLinks(b, process, "operator"),
-      { href: sectionHome(process.id, "configure"), text: "How it is configured" },
-    ]),
-  );
+    ];
+    const configured = configurePages(b, process).length > 0;
+    // Beside an employee guide, a process with nothing for IT (such as getting-help) stays out.
+    return !single && guides.length === 0 && !configured
+      ? ""
+      : folder(prefix, current, process, [
+          ...understandLinks(b, process, "operator"),
+          ...guides,
+          ...(configured
+            ? [{ href: sectionHome(process.id, "configure"), text: "How it is configured" }]
+            : []),
+        ]);
+  });
   const title = single ? b.input.config.title : "IT guide";
   return `<nav class="side" aria-label="${escapeHtml(title)}"><div class="side-h">${escapeHtml(title)}</div>
 ${search("it", title)}<div class="groups">${folders.join("")}</div></nav>`;

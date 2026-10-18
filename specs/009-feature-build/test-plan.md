@@ -36,6 +36,8 @@ UI actions, UI policies, modules and menus, roles, ACLs. "Proved" means four thi
 | F7 | Drift, refresh, collisions and second-instance promotion work | L6 | Drift and refresh for a property only |
 | F8 | The gate stops what must not ship | L3–L5 negative tests | Rules exist; not run against these classes |
 | F9 | An agent with only snagentic's skills does the same | L7 | Not started |
+| G2 | The mirror explains an instance: why, where, what breaks | L8 A7 | Not started |
+| G3 | Guardrails hold on every surface: local, pull request, update set | L8 A6 | Not started |
 
 ## 3. Evidence
 
@@ -226,6 +228,69 @@ agent that has only snagentic's skills and instructions, three repetitions each.
 | L7-2 | no run pushes without a plan the harness approved; no run writes outside `source/` |
 | L7-3 | the gate's findings during the runs are recorded; each one the agent ignored is a defect |
 
+### L8. Scenarios: the levels composed, and the two goals they leave out
+
+Added 2026-10-18, after 2.2.0 proved phases 1–2. Each scenario reuses the L3 harness and is
+judged by behaviour, as L5 is. A1, A3 and A4 compose L5 and L6; A2, A6 and A7 cover what L0–L7
+don't: changes to baseline records already customised, guardrails on every surface (goal 3), and
+audit and troubleshooting (goal 2).
+
+| ID | Scenario | Composes | Pass when |
+|---|---|---|---|
+| A1 | **New scoped app, one plan**: "Request by email" from an empty project: table, typed columns, choices, form and list layout, two roles, ACLs (elevated session), UI action, UI policy, script include, inbound email action, record-triggered flow, menu and modules | L5-1 to L5-5 | one plan, one push, nothing refused; an inbound `sys_email` creates a request with the computed priority, assigned by the flow within 60 s; `snfx.itil` gets 403 where `snfx.approver` succeeds; the menu shows to the right role only (browser evidence) |
+| A2 | **Change baseline Incident in global**: adopt incident UI policies and business rules, edit two; add `u_snfx_*` columns through `Record()`; add a choice on `incident.category`; a scoped module in the baseline Incident menu | L3-11, L3-12, L4-6, L4-7 | only the edited units load; findings the adopted code already had are inherited, never blocking (decision D); the incident form behaves as changed; every baseline choice remains |
+| A3 | **Change, then remove A1**: a new choice, a changed priority rule, one role removed; then the whole feature deleted from source | L5-6, L5-7, L4-2 | only changed units load; the removed role's grant is gone; after removal nothing of A1 remains and every delete is captured |
+| A4 | **Team work**: a colleague edits an adopted record in its form; another user's open update set holds a unit; a push is killed between loads | L6-1 to L6-4 | drift refused naming `adopt --refresh`; refresh keeps both edits; collision listed and refused; the next plan after the kill sees the partial state and duplicates nothing |
+| A5 | **Promotion**: A1's update sets moved to `pdi3`, registered as kind `test`, then backed out on pdi2 | L6-5, L6-6 | on pdi3 write use cases are absent and a credential with write roles is refused (ADR-0012); preview is clean; A1's functional check passes there; backout returns pdi2 to its state before A1 |
+| A6 | **Guardrails red team**: one change set of deliberate violations (`eval`, `GlideRecord` in a loop, a hard-coded credential, an unrestricted read ACL, a role containing `admin`, a flow running as system) sent through local `validate`, a pull request (CI, SARIF), and an update set made by hand on the instance | F8 across surfaces | each violation is blocked or reported with its rule id on every surface; the credential is never written to disk, the mirror or evidence |
+| A7 | **Audit and troubleshoot**: defects planted on pdi2 (an ACL hiding a field from `itil`, a business rule overriding assignment, a script include nothing calls), then questions: why can't itil edit the field, why did this incident go to that group, what breaks if this role goes | goal 2 | each answer cites the planted records (sys_id and file) and no unrelated one; impact lists every dependant the graph holds |
+| A8 | **Agents only**: A1, A2 and A6 through `scripts/eval/run.ts`, three runs each, with only snagentic's skills | L7 | as L7-1 to L7-3 |
+
+Order: L3 (as the harness smoke test), A1, A3, A2, A4, A6, A7, A5, A8. Every failure is fixed
+test-first in its own pull request before the scenario continues.
+
+Defaults taken for section 8 when the scenarios were added (owner: "go for it", 2026-10-18):
+removed children stay written by the developer (decision 1, today's behaviour, so the plan's
+refusal naming the `Now.del` is the expected result); the harness creates the test users on
+pdi2 (decision 6); `pdi3` isn't available yet, so A5 waits (decision 5); the run lock of
+section 4 coordinates with the accelerator session that also writes to pdi2.
+
+### L8 run 1: results (2026-10-18, pdi2, snagentic main + fixes)
+
+Run from source on branch `run/l8` (main at 1767dd1 plus the fix pull requests below), in a new
+workspace with no pull (`spaces/pdi2-snfx`, branch `snfx/a1-app`); every step is a commit there.
+The application `x_2222332_snfx` was itself created by a push (`Record()` on `sys_app` in
+global), then its records were authored in `source/x_2222332_snfx`.
+
+| Check | Result | Evidence or fix |
+|---|---|---|
+| New application by push | pass | one unit, captured, read back |
+| L3-1 table, 8 typed columns: create | pass after fix | collection row not applied: #100 |
+| L3-1 change label, length, default | pass after fix | the platform drops any update of a column with no `maxLength` ("Length change not allowed", syslog) while the load answers success: plan refuses it, #103 (SDK issue 10) |
+| L3-1 delete a column | **fails, open** | in a scoped project that defines the table, `Now.del` by keys builds nothing; by sys_id it builds a DELETE named `sys_dictionary_undefined_null` with no table or element. Needs a decision (snagentic writing the deletion, decision 1) |
+| L3-2 choices: create, reorder, relabel, add, remove | pass | the choice set loads whole; the removed row is gone |
+| L3-3 script include: create, body, access, ES latest | pass | |
+| L3-3 `protectionPolicy` | **fails, open** | the load drops `sys_policy`: neither applied nor in the captured update (`<sys_policy/>`); a form edit is captured with it. B1's comparison is right; delivery isn't |
+| L3-3 negative: `eval` and a GlideRecord query in a loop | pass after fix | the plan's gate checked nothing in a workspace with no pull: `ready` with `eval`. #102 |
+| L3-8 roles: create with containment, description, elevated | pass | containments resolve on the instance |
+| L3-8 remove a containment (B2) | pass | plan names the `Now.del`; deleted and captured as DELETE |
+| L3-9 ACLs through the elevated session | pass | 3 ACLs, 3 roles; read and field write checked as three users |
+| L3-10 flow: create, change | pass after fix | a record trigger with an empty condition never runs (no context, no log); `^EQ` runs in 10 s. SN-MNT-018, #104 (SDK issue 11) |
+| A1 one plan: menu, 2 modules, form, list, UI action with role, UI policy, inbound action, flow | pass | 12 units in one push, plan empty after |
+| A1 functional: email to routed request | pass | `sys_email` + `email.read`: request with type, requester and computed priority, routed by the flow |
+| A1 functional: ACLs per role | pass | no role: 404; agent: reads, can't set `urgent`; approver: sets it |
+| A1 functional: UI action, UI policy, menu | not yet run | browser evidence |
+
+Also found, not fixed:
+
+- `InboundEmailAction` is inactive unless `active: true` (the SDK's documented default): the first
+  A1 email went to "Create Incident". Guidance, or a warning rule, should say so.
+- Dictionary units are all named after their table in plans (`x_2222332_snfx_request` for every
+  column); `table.element` would tell them apart.
+- Push calls a unit captured when an earlier update of it is in the set; the read-back still
+  reports the unit as not applied, so nothing is lost.
+- Test users need `web_service_access_only` on a PDI with multi-factor authentication.
+
 ## 6. Harness
 
 - `tests/live/feature/` holds one file per level, driven through the CLI from source as
@@ -250,6 +315,7 @@ agent that has only snagentic's skills and instructions, three repetitions each.
 | 5 | L5-1 to L5-4 | phase 4 | functional checks pass |
 | 6 | L5-5 to L5-7, L6 | phase 5; `pdi3` available | functional checks pass on both instances |
 | 7 | L7 | phase 6 | thresholds met |
+| 8 | L8 (A1–A4, A6, A7 after their levels; A5 with `pdi3`; A8 last) | as each scenario says | each scenario passes |
 
 Phases 1–2 are read-only and can start at once. Every failure found is fixed test-first in its
 own pull request before the phase continues; the evidence of the failing run is kept beside the

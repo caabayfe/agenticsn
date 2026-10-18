@@ -72,11 +72,11 @@ const templates: DataTemplates = {
   },
 };
 
-const workspace = (mirror = "m1"): PackWorkspace => ({
+const workspace = (mirror = "m1", written: readonly string[] = []): PackWorkspace => ({
   mirrorCommit: async () => mirror,
   includes: async () => true,
   parse: (text) => JSON.parse(text),
-  previous: async () => ({ written: [], kept: [] }),
+  previous: async () => ({ written, kept: [] }),
   commit: async () => "c",
   merge: async () => ({ branch: "b", conflicts: [] }),
 });
@@ -495,6 +495,23 @@ describe("running an install (ADR-0038, item 2)", () => {
         `accelerators/installs/pdi2/itsm-${plan.planId}/resume-${resumed.plan.planId}.md`,
       ),
     ).toBe(true);
+  });
+
+  it("re-installs the modules already in the workspace together, under one upgrade update set", async () => {
+    const { steps, calls } = fakeSteps();
+    const ready = {
+      ...deps(READY, { steps }),
+      workspace: workspace("m1", ["source/global/src/fluent/imports.now.ts"]),
+    };
+    const plan = await planInstall(ready, QUERY);
+    const result = await installPack(ready, { ...QUERY, confirm: plan.planId });
+    expect(calls.filter((c) => c.startsWith("add") || c.startsWith("plan"))).toEqual([
+      "add foundation",
+      "plan itsm 0.1.0 upgrade",
+      "add foundation+incident",
+      "plan ITSM: incident 0.1.0",
+    ]);
+    expect(result.steps.map((s) => s.step)).toContain("modules already installed: foundation");
   });
 
   it("refuses to run while another install holds the instance's lock", async () => {

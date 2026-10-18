@@ -97,43 +97,71 @@ async function takeOver(
   }
 }
 
+// Delivers modules already added (`ids`, cumulative) into the update sets named by `label`.
+async function deliverAs(
+  deps: InstallRunDependencies,
+  ids: readonly string[],
+  adoptions: readonly Adoption[],
+  label: string,
+  signal: AbortSignal,
+): Promise<{ outcome: "done" | "skipped"; detail: string }> {
+  const added = await deps.steps.add(ids, signal);
+  if (added.conflicts.length > 0) throw new Error(`merge conflicts: ${added.conflicts.join(", ")}`);
+  await deps.steps.keys(added.copied, signal);
+  await takeOver(deps, adoptions, signal);
+  const planned = await deps.steps.planPush(label, signal);
+  if (planned.units === 0 && planned.problems.length === 0) {
+    return { outcome: "skipped", detail: "the instance already holds it as built" };
+  }
+  if (!planned.ready) throw new Error(`plan not ready: ${planned.problems.join("; ")}`);
+  const pushed = await deps.steps.push(planned.planId, label, signal);
+  if (pushed.notApplied + pushed.notCaptured > 0) {
+    throw new Error(
+      `${pushed.notCaptured} not captured, ${pushed.notApplied} not applied as built: check them on the instance`,
+    );
+  }
+  return {
+    outcome: "done",
+    detail: `${pushed.units} unit(s) into ${pushed.updateSets.join(", ")}`,
+  };
+}
+
+// The modules a previous add already wrote to the workspace: re-installing them is an upgrade.
+async function installedBefore(deps: InstallRunDependencies, plan: InstallPlan) {
+  const written = new Set((await deps.workspace.previous(plan.pack)).written);
+  return plan.modules.filter((m) => m.files.length > 0 && m.files.every((f) => written.has(f)));
+}
+
+// Each new module goes into its own update set, in dependency order. Modules already in the
+// workspace (a re-install or an upgrade) are refreshed and delivered first, together, under one
+// upgrade update set: a module's plan builds the whole workspace, so planning them one by one
+// would put one module's changes in another's update set.
 async function deliver(
   deps: InstallRunDependencies,
   plan: InstallPlan,
   record: { current: InstallRecord },
   signal: AbortSignal,
 ) {
-  const ids = plan.modules.map((m) => m.id);
-  // A resumed run skips the modules it finished: their update sets are done, and planning
-  // one again would take in the later modules' files the workspace already holds.
+  // A resumed run skips the steps it finished: their update sets are done.
   const finished = new Set(
     record.current.steps.filter((s) => s.outcome !== "stopped").map((s) => s.step),
   );
-  for (const [index, module] of plan.modules.entries()) {
+  const before = await installedBefore(deps, plan);
+  const done = before.map((m) => m.id);
+  const upgrade = `modules already installed: ${done.join(", ")}`;
+  if (before.length > 0 && !finished.has(upgrade)) {
+    const adoptions = before.flatMap((m) => m.adoptions);
+    const label = `${plan.pack} ${plan.version} upgrade`;
+    await step(deps, record, upgrade, () => deliverAs(deps, done, adoptions, label, signal));
+  }
+  for (const module of plan.modules.filter((m) => !done.includes(m.id))) {
+    done.push(module.id);
     if (finished.has(`module ${module.id}`)) continue;
-    await step(deps, record, `module ${module.id}`, async () => {
-      // Every module up to this one: a later add never drops an earlier module's files.
-      const added = await deps.steps.add(ids.slice(0, index + 1), signal);
-      if (added.conflicts.length > 0)
-        throw new Error(`merge conflicts: ${added.conflicts.join(", ")}`);
-      await deps.steps.keys(added.copied, signal);
-      await takeOver(deps, module.adoptions, signal);
-      const planned = await deps.steps.planPush(module.label, signal);
-      if (planned.units === 0 && planned.problems.length === 0) {
-        return { outcome: "skipped", detail: "the instance already holds it as built" };
-      }
-      if (!planned.ready) throw new Error(`plan not ready: ${planned.problems.join("; ")}`);
-      const pushed = await deps.steps.push(planned.planId, module.label, signal);
-      if (pushed.notApplied + pushed.notCaptured > 0) {
-        throw new Error(
-          `${pushed.notCaptured} not captured, ${pushed.notApplied} not applied as built: check them on the instance`,
-        );
-      }
-      return {
-        outcome: "done",
-        detail: `${pushed.units} unit(s) into ${pushed.updateSets.join(", ")}`,
-      };
-    });
+    // Every module up to this one: a later add never drops an earlier module's files.
+    const ids = [...done];
+    await step(deps, record, `module ${module.id}`, () =>
+      deliverAs(deps, ids, module.adoptions, module.label, signal),
+    );
   }
 }
 

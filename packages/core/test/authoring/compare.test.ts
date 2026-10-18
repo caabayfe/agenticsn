@@ -164,6 +164,36 @@ describe("compareUnit (ADR-0033 item 2)", () => {
     ]);
   });
 
+  it("compares a reference written by keys through the instance's values of those keys", () => {
+    const entry = unit(
+      "sys_ui_related_list_entry_e1",
+      record("sys_ui_related_list_entry", "e1", {
+        sys_id: "e1",
+        list_id: "keys:name=incident&view=Default+view",
+        position: "9",
+      }),
+    );
+    const held = (view: string) =>
+      copy({
+        sys_id: "e1",
+        list_id: "5b6a",
+        "list_id.name": "incident",
+        "list_id.view": view,
+        position: "9",
+      });
+    expect(compareUnit(entry, held("Default view"))).toEqual([]);
+    expect(compareUnit(entry, held("sow"))).toEqual([
+      {
+        kind: "field",
+        table: "sys_ui_related_list_entry",
+        row: "",
+        field: "list_id.view",
+        built: "Default view",
+        instance: "sow",
+      },
+    ]);
+  });
+
   it("compares a list's columns as an ordered sequence, not by sys_id", () => {
     const built = revocationList(["number", "subject_user", "outcome"]);
     expect(compareUnit(built, listCopy(["number", "subject_user", "outcome"]))).toEqual([]);

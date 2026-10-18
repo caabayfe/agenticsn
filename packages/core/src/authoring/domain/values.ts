@@ -17,6 +17,17 @@ const NAMED_BY_TABLE: Readonly<Record<string, ReadonlySet<string>>> = {
   sys_ui_form_section: new Set(["sys_ui_section"]),
 };
 
+// A reference the SDK wrote by keys (Now.ref with coalesce keys): the build gives it a new id
+// every time and the platform resolves it by the keys on load, so it is held as its keys.
+const KEYED = "keys:";
+
+export const keyedValue = (keys: Readonly<Record<string, string>>): string =>
+  KEYED + new URLSearchParams(Object.entries(keys).sort(([a], [b]) => (a < b ? -1 : 1))).toString();
+
+export function keyedReference(value: string): ReadonlyMap<string, string> | null {
+  return value.startsWith(KEYED) ? new Map(new URLSearchParams(value.slice(KEYED.length))) : null;
+}
+
 // The field a named reference is named by, where it is not `name`.
 const NAME_FIELDS: Readonly<Record<string, string>> = {
   "sys_ui_form_section.sys_ui_section": "caption",

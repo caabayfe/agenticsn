@@ -1,7 +1,14 @@
 import { platformWritten } from "../../metadata/domain/field-rules";
 import type { BuiltUnit, Fields, InstanceCopy, UnitRecord } from "./unit";
 import { type ChildSpec, unitSpec } from "./unit-specs";
-import { comparedValue, isNamedReference, namedField, sameAttributes, sameValue } from "./values";
+import {
+  comparedValue,
+  isNamedReference,
+  keyedReference,
+  namedField,
+  sameAttributes,
+  sameValue,
+} from "./values";
 
 // One comparison of a built unit with the instance's copy (ADR-0033 item 2).
 
@@ -44,6 +51,22 @@ export type Difference =
       readonly instance: readonly string[];
     };
 
+// A reference held as its keys, compared key by key with the instance's dot-walked values.
+function keyedDifferences(
+  table: string,
+  row: string,
+  field: string,
+  keys: ReadonlyMap<string, string>,
+  instance: Fields,
+): Difference[] {
+  return [...keys].flatMap(([key, built]): Difference[] => {
+    const actual = instance[`${field}.${key}`];
+    return actual === undefined || sameValue(built, actual)
+      ? []
+      : [{ kind: "field", table, row, field: `${field}.${key}`, built, instance: actual }];
+  });
+}
+
 function fieldDifferences(
   record: UnitRecord,
   instance: Fields,
@@ -54,6 +77,11 @@ function fieldDifferences(
   for (const field of Object.keys(record.fields).sort()) {
     // A field the platform rewrites on save (an ACL's description) never equals what was sent.
     if (IGNORED.has(field) || skip.has(field) || platformWritten(record.table, field)) continue;
+    const keys = keyedReference(record.fields[field] ?? "");
+    if (keys !== null) {
+      differences.push(...keyedDifferences(record.table, row, field, keys, instance));
+      continue;
+    }
     const [built, instanceField] = comparedValue(record, field);
     // A field the instance does not answer is a column it does not have: the load cannot set
     // it (the SDK writes sys_choice.inactive_on_update, which pdi2 has no column for).

@@ -78,6 +78,8 @@ export { VERSION_FIELDS, versionOf } from "./domain/unit-version";
 export {
   comparedValue,
   isNamedReference,
+  keyedReference,
+  keyedValue,
   NAMED_REFERENCES,
   normalizeValue,
   sameValue,

@@ -109,4 +109,17 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
       UnreadableBuildError,
     );
   });
+
+  it("reads a reference written by keys (Now.ref) as its keys: its id is new on every build", () => {
+    const xml = (
+      id: string,
+    ) => `<?xml version="1.0"?><record_update table="sys_ui_related_list_entry">
+<sys_ui_related_list_entry action="INSERT_OR_UPDATE"><sys_id>e1</sys_id>
+<list_id name="incident" view="Default view">${id}</list_id><position>9</position>
+</sys_ui_related_list_entry></record_update>`;
+    const first = builtUnitOf("sys_ui_related_list_entry_e1.xml", xml("aaaa"));
+    const second = builtUnitOf("sys_ui_related_list_entry_e1.xml", xml("bbbb"));
+    expect(first.head.fields["list_id"]).toBe("keys:name=incident&view=Default+view");
+    expect(second.head.fields).toEqual(first.head.fields);
+  });
 });

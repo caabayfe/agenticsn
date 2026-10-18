@@ -5,7 +5,7 @@ import { KeysetPager } from "../../sync/application/keyset-pager";
 import type { BuiltUnit, Fields, InstanceCopy } from "../domain/unit";
 import { type ChildSpec, childLink, coalesceValues, unitSpec } from "../domain/unit-specs";
 import { VERSION_FIELDS, versionOf } from "../domain/unit-version";
-import { isNamedReference, namedField } from "../domain/values";
+import { isNamedReference, keyedReference, namedField } from "../domain/values";
 
 // Reads the instance's copy of each unit (ADR-0033 item 1): heads by sys_id, then by the keys
 // the platform coalesces on, then the composites' rows. Every request is a keyset listing on
@@ -24,9 +24,10 @@ function fieldsFor(table: string, records: readonly Fields[], extra: readonly st
   // sys_update_name ties a Now.del found by its keys to the ledger entry it removes.
   const fields = new Set<string>([...VERSION_FIELDS, "sys_domain", "sys_update_name", ...extra]);
   for (const record of records) {
-    for (const field of Object.keys(record)) {
+    for (const [field, value] of Object.entries(record)) {
       fields.add(field);
       if (isNamedReference(table, field)) fields.add(namedField(table, field));
+      for (const key of keyedReference(value)?.keys() ?? []) fields.add(`${field}.${key}`);
     }
   }
   return [...fields].sort();

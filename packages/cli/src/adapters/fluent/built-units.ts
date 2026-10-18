@@ -1,6 +1,7 @@
 import { gunzipSync } from "node:zlib";
 import {
   type BuiltUnit,
+  keyedValue,
   type UnitAction,
   type UnitRecord,
   UnreadableBuildError,
@@ -73,8 +74,14 @@ function recordOf(node: Node): UnitRecord {
     const tag = tagOf(child);
     if (tag.startsWith("#") || isRecord(child)) continue;
     fields[tag] = opened(textOf(child));
-    // A form's link to a section names the section by its caption, as the platform matches it.
     const attributes = attributesOf(child);
+    // A reference written by keys (Now.ref with keys): no display value, two or more keys.
+    const keys = Object.keys(attributes).filter((key) => key !== "display_value");
+    if (attributes["display_value"] === undefined && keys.length >= 2) {
+      fields[tag] = keyedValue(attributes);
+      continue;
+    }
+    // A form's link to a section names the section by its caption, as the platform matches it.
     const name =
       tag === "sys_ui_section" ? (attributes["caption"] ?? attributes["name"]) : attributes["name"];
     if (name !== undefined) referenceNames[tag] = name;

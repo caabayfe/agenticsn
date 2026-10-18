@@ -67,7 +67,7 @@ function l1(dir: string): string[] {
       .join(", ");
     const b = census.buckets;
     lines.push(
-      `| ${census.table} | ${count(census.records)} | ${b["adoptable"] ?? 0} | ${b["refused"] ?? 0} | ${b["sdk-limit"] ?? 0} | ${b["failing"] ?? 0} | ${losses || "none"} |`,
+      `| ${census.table} | ${count(census.records)} | ${count(b["adoptable"] ?? 0)} | ${count(b["refused"] ?? 0)} | ${count(b["sdk-limit"] ?? 0)} | ${count(b["failing"] ?? 0)} | ${losses || "none"} |`,
     );
     for (const [reason, n] of Object.entries(census.reasons)) {
       details.push(`- **${basename(file, ".json")}**, ${n}: ${reason}`);

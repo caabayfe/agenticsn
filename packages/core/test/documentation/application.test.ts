@@ -138,6 +138,17 @@ describe("docs check: sections and readers", () => {
     });
   });
 
+  it("fails a guide that doesn't show its capability as an animation", async () => {
+    const check = await problemsOf([
+      ...without(pages.resolve.path),
+      withPage(pages.resolve, { body: "Choose Resolve. [E01]" }),
+    ]);
+    expect(check.ok).toBe(false);
+    expect(check.problems).toEqual([
+      { kind: "missing-animation", severity: "error", page: pages.resolve.path, detail: "resolve" },
+    ]);
+  });
+
   it("fails an operator's capability with no configure page", async () => {
     const check = await problemsOf(without(pages.configureAssign.path));
     expect(check.ok).toBe(false);
@@ -153,14 +164,40 @@ describe("docs check: sections and readers", () => {
     const check = await problemsOf([
       ...ALL,
       { path: "processes/incident/understand/history.md", frontMatter: { title: "H" }, body: "" },
-      { path: "processes/incident/operate/escalate.md", frontMatter: { title: "E" }, body: "" },
-      { path: "processes/problem/use/report.md", frontMatter: { title: "P" }, body: "" },
+      {
+        path: "processes/incident/operate/escalate.md",
+        frontMatter: { title: "E" },
+        body: "{{animation:asg}}",
+      },
+      {
+        path: "processes/problem/use/report.md",
+        frontMatter: { title: "P" },
+        body: "{{animation:asg}}",
+      },
     ]);
     const errors = check.problems.filter((problem) => problem.severity === "error");
     expect(errors.map((problem) => [problem.kind, problem.detail])).toEqual([
       ["unknown-topic", "history"],
       ["unknown-capability", "escalate"],
       ["unknown-process", "problem"],
+    ]);
+  });
+
+  it("fails a link to a page that doesn't exist, and passes one that does", async () => {
+    const check = await problemsOf([
+      ...without(pages.assign.path),
+      withPage(pages.assign, {
+        body: `${pages.assign.body}\nSee [resolving](see:resolve), [problems](see:problem/raise).\n`,
+      }),
+    ]);
+    expect(check.ok).toBe(false);
+    expect(check.problems).toEqual([
+      {
+        kind: "unknown-reference",
+        severity: "error",
+        page: pages.assign.path,
+        detail: "see:problem/raise",
+      },
     ]);
   });
 
@@ -179,7 +216,9 @@ describe("docs check: sections and readers", () => {
   it("warns about platform words in what end users read, including the user view of shared pages", async () => {
     const check = await problemsOf([
       ...without(pages.report.path, pages.lifecycle.path),
-      withPage(pages.report, { body: "Set state=3 and fill caller_id; add work notes. [E01]" }),
+      withPage(pages.report, {
+        body: "Set state=3 and fill caller_id; add work notes. [E01]\n\n{{animation:asg}}\n",
+      }),
       withPage(pages.lifecycle, { body: "The incident_state moves on." }),
     ]);
     expect(check.ok).toBe(true);
@@ -207,7 +246,7 @@ describe("docs check: sections and readers", () => {
           title: "Assign",
           evidence: { E01: { record: `sys_script/${RULE}`, how: "h", result: "r" } },
         },
-        body: "Done for you. [E01]",
+        body: "Done for you. [E01]\n\n{{animation:asg}}\n",
       }),
     ]);
     expect(check.problems).toEqual([

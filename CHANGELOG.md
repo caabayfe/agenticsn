@@ -13,6 +13,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   module, or is a warning saying what the module loses, and names the plugin to repair or
   activate. The plan lists the missing fields and counts the rest.
 
+### Fixed
+
+- A plan's gate checks every project the push would load. It checked only the projects changed
+  since the last pull, or since `HEAD` in a workspace never pulled, so source committed before
+  then went unchecked: on pdi2 a script include with `eval` planned as ready. A project the push
+  loads is now judged from its ledger commit, and one that never agreed with the instance (no
+  ledger) is judged in full. Found by the spec 009 scenarios (L8).
+
 ## [2.5.0] - 2026-10-20
 
 ### Added

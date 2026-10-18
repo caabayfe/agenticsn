@@ -235,11 +235,17 @@ async function uncommittedSource(deps: UnitPlanDependencies): Promise<UnitProble
 
 // Each project's ledger commit, where it last agreed with the instance (adopt or push): the
 // gate's base for it (decision D). A project with no committed ledger keeps the plan's base.
-async function ledgerBases(deps: UnitPlanDependencies): Promise<Record<string, string>> {
-  const bases: Record<string, string> = {};
+// Each project's ledger commit; a project the push would load with none never agreed with the
+// instance, so its base is null and the gate judges all of it.
+async function ledgerBases(
+  deps: UnitPlanDependencies,
+  loading: readonly string[],
+): Promise<Record<string, string | null>> {
+  const bases: Record<string, string | null> = {};
   for (const project of await deps.authoring.workspace.projects()) {
     const commit = await deps.authoring.workspace.ledgerCommit(project).catch(() => null);
     if (commit !== null) bases[project.path] = commit;
+    else if (loading.includes(project.path)) bases[project.path] = null;
   }
   return bases;
 }
@@ -261,8 +267,8 @@ export async function computeUnitPlan(
   problems.push(...cut);
   const units = loads.flatMap((load) => load.units);
   const base = (await deps.workspace.mirrorCommit()) ?? "HEAD";
-  const bases = await ledgerBases(deps);
-  const gate = await gateFor(deps, base, [...new Set(units.map((u) => u.project))], bases);
+  const loading = [...new Set(units.map((u) => u.project))];
+  const gate = await gateFor(deps, base, loading, await ledgerBases(deps, loading));
   const collisions = await collisionsOf(deps, units, label);
   const ready =
     units.length > 0 &&

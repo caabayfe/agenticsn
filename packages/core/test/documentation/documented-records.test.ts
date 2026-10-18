@@ -19,21 +19,50 @@ describe("documentation lookup for validate", () => {
         table: "sys_ui_action",
         sysId: ACTION,
         page: `documentation/${pages.resolve.path}`,
+        title: "Resolve an incident",
         evidence: ["E01"],
+        claims: [{ heading: "Resolve an incident", reader: "operators", text: "Choose Resolve." }],
       },
       {
         table: "sys_script",
         sysId: RULE,
         page: `documentation/${pages.configureAssign.path}`,
+        title: "Assignment configuration",
         evidence: ["E01"],
+        claims: [
+          {
+            heading: "Assignment configuration",
+            reader: "platform",
+            text: "The rule sets the group.",
+          },
+        ],
       },
       {
         table: "sys_ui_action",
         sysId: ACTION,
         page: `documentation/${pages.configureResolve.path}`,
+        title: "Resolution configuration",
         evidence: ["E01"],
+        claims: [
+          {
+            heading: "Resolution configuration",
+            reader: "platform",
+            text: "The action sets the state.",
+          },
+        ],
       },
     ]);
+  });
+
+  it("leaves out evidence on a field the change doesn't touch (ADR-0039)", async () => {
+    const { sources } = fakeSources(ALL);
+    const lookup = documentationLookup({ ...run, sources });
+    const rule = { table: "sys_script", sysId: RULE };
+    expect(await lookup.citing([{ ...rule, changed: ["condition"] }], run.signal)).toEqual([]);
+    const script = await lookup.citing([{ ...rule, changed: ["condition", "script"] }], run.signal);
+    expect(script.map((item) => item.evidence)).toEqual([["E01"]]);
+    const action = { table: "sys_ui_action", sysId: ACTION, changed: ["order"] };
+    expect(await lookup.citing([action], run.signal)).toHaveLength(2);
   });
 
   it("lists evidence the mirror no longer matches", async () => {
@@ -44,8 +73,16 @@ describe("documentation lookup for validate", () => {
     expect(stale[0]).toEqual({
       page: `documentation/${pages.report.path}`,
       evidence: "E01",
+      title: "Report an incident",
       anchor: expect.stringContaining("sc_cat_item_producer/"),
       status: "missing",
+      claims: [
+        {
+          heading: "Report an incident",
+          reader: "employees",
+          text: "Open Employee Center and choose Report an issue.",
+        },
+      ],
     });
     expect(await documentationLookup({ ...run, sources }).stale(run.signal)).toEqual([]);
   });

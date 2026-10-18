@@ -35,6 +35,7 @@ export {
   SURFACE_TABLES,
 } from "./domain/audience-checks";
 export { base64 } from "./domain/base64";
+export { type Claim, claimsOf, READERS, type Reader } from "./domain/claims";
 export {
   appliesTo,
   CONFIG_RECORD_TYPES,

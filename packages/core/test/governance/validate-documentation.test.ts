@@ -19,7 +19,12 @@ function documentation(stale = false): DocumentedRecords & { asked: unknown[][] 
         .map((record) => ({
           ...record,
           page: "documentation/processes/incident/configure/assign.md",
+          title: "Assignment configuration",
           evidence: ["E01", "E04"],
+          claims: [
+            { heading: "Routing", reader: "platform" as const, text: "The rule sets the group." },
+            { heading: "Routing", reader: "platform" as const, text: "It runs before insert." },
+          ],
         }));
     },
     unanimated: async () => [],
@@ -28,9 +33,13 @@ function documentation(stale = false): DocumentedRecords & { asked: unknown[][] 
         ? [
             {
               page: "documentation/processes/incident/use/report.md",
+              title: "Report an incident",
               evidence: "E02",
               anchor: "sysevent_in_email_action/3ccfeff5c611227a0180144333c87af9",
               status: "changed" as const,
+              claims: [
+                { heading: "By email", reader: "employees" as const, text: "Write to the desk." },
+              ],
             },
           ]
         : [],
@@ -55,7 +64,7 @@ describe("validate and the documentation", () => {
         root: "workspace",
         field: null,
         line: null,
-        message: `cites sys_script/${RULE_ID} (E01, E04), which ${GLOBAL}/${unit.updateName} changes`,
+        message: `cites sys_script/${RULE_ID} (E01, E04), which ${GLOBAL}/${unit.updateName} changes: "The rule sets the group." (and 1 more claim)`,
         evidence: "",
         why: expect.any(String),
         remediation: expect.stringContaining("snagentic docs pin"),
@@ -63,6 +72,29 @@ describe("validate and the documentation", () => {
     ]);
     expect(deps.documentation.asked).toEqual([
       [{ table: "sys_script", sysId: RULE_ID, source: `${GLOBAL}/${unit.updateName}` }],
+    ]);
+  });
+
+  it("says which fields a change edits, so evidence on other fields is left alone", async () => {
+    const before = unitOf("sys_script", DESCRIBED, RULE_ID);
+    const now = {
+      ...before,
+      head: { ...before.head, fields: { ...before.head.fields, when: "after" } },
+    };
+    const deps = {
+      ...governanceOf({ [GLOBAL]: { now: [now], base: [before] } }),
+      documentation: documentation(),
+    };
+    await validate(deps, { base: "HEAD" });
+    expect(deps.documentation.asked).toEqual([
+      [
+        {
+          table: "sys_script",
+          sysId: RULE_ID,
+          source: `${GLOBAL}/${now.updateName}`,
+          changed: ["when"],
+        },
+      ],
     ]);
   });
 
@@ -74,7 +106,7 @@ describe("validate and the documentation", () => {
       [
         "SN-MNT-015",
         "documentation/processes/incident/use/report.md",
-        "E02 sysevent_in_email_action/3ccfeff5c611227a0180144333c87af9 is changed in the mirror",
+        'E02 sysevent_in_email_action/3ccfeff5c611227a0180144333c87af9 is changed in the mirror: "Write to the desk."',
       ],
     ]);
   });
@@ -84,7 +116,14 @@ describe("validate and the documentation", () => {
       citing: async () => [],
       unanimated: async () => [],
       stale: async () => [
-        { page: "documentation/p.md", evidence: "E01", anchor: "sys_script/x", status: "missing" },
+        {
+          page: "documentation/p.md",
+          title: "P",
+          evidence: "E01",
+          anchor: "sys_script/x",
+          status: "missing",
+          claims: [],
+        },
       ],
     };
     const result = await validate({ ...governanceOf({}), documentation: docs }, { base: "HEAD" });

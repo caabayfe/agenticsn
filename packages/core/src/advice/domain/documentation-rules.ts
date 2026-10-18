@@ -12,7 +12,7 @@ export const DOCUMENTATION_RULES: readonly Rule[] = [
     title: "The change edits a documented record",
     why: "A documentation page cites this record as evidence for what users, operators or the platform team are told. Changing the record can make the page wrong without anyone noticing.",
     remediation:
-      "Update the cited sections of the page in the same change. After the change is pushed and pulled, re-read the record and run snagentic docs pin <page>.",
+      "Update the cited sections of the page in the same change: snagentic docs impact lists each claim the change affects. After the change is pushed and pulled, re-read the record and run snagentic docs pin <page>.",
     scripts: [],
   },
   {

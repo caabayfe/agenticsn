@@ -1,10 +1,19 @@
 import type { Finding } from "../domain/findings";
-import type { DocumentedRecords, RecordRef } from "../ports";
+import type { ChangedRecord, DocumentedClaim, DocumentedRecords } from "../ports";
 import { withRule } from "./record-checks";
 
 // A record the change touched, and the source file that holds it.
-export interface TouchedRecord extends RecordRef {
+export interface TouchedRecord extends ChangedRecord {
   readonly source: string;
+}
+
+// The first claim the evidence supports, quoted, so the finding says what may now be wrong.
+function quoted(claims: readonly DocumentedClaim[]): string {
+  const [first] = claims;
+  if (first === undefined) return "";
+  const more = claims.length - 1;
+  const rest = more === 0 ? "" : ` (and ${more} more claim${more === 1 ? "" : "s"})`;
+  return `: "${first.text}"${rest}`;
 }
 
 // Pages that cite a record the change edits (SN-MNT-014), pages whose evidence no longer
@@ -25,7 +34,7 @@ export async function documentationFindings(
       root: "workspace",
       field: null,
       line: null,
-      message: `cites ${citation.table}/${citation.sysId} (${citation.evidence.join(", ")}), which ${sources.join(", ")} changes`,
+      message: `cites ${citation.table}/${citation.sysId} (${citation.evidence.join(", ")}), which ${sources.join(", ")} changes${quoted(citation.claims)}`,
       evidence: "",
     });
   });
@@ -35,7 +44,7 @@ export async function documentationFindings(
       root: "workspace",
       field: null,
       line: null,
-      message: `${item.evidence} ${item.anchor} is ${item.status === "missing" ? "gone from" : "changed in"} the mirror`,
+      message: `${item.evidence} ${item.anchor} is ${item.status === "missing" ? "gone from" : "changed in"} the mirror${quoted(item.claims)}`,
       evidence: "",
     }),
   );

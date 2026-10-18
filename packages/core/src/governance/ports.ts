@@ -73,24 +73,49 @@ export interface RecordRef {
   readonly sysId: string;
 }
 
-// A page that cites a record: the page (workspace-relative) and the evidence ids that do.
+// A record a change edits, with the fields it changes. Without them (the change adds or
+// deletes the record), every piece of evidence on the record is affected (ADR-0039).
+export interface ChangedRecord extends RecordRef {
+  readonly changed?: readonly string[];
+}
+
+// Who reads a claim: a Use page's employees, an Operate page's operators, both on a shared
+// Understand section, the platform team on a Configure page.
+export type ClaimReader = "employees" | "operators" | "everyone" | "platform";
+
+// A block of a page that cites the evidence: its heading, its reader and its words.
+export interface DocumentedClaim {
+  readonly heading: string;
+  readonly reader: ClaimReader;
+  readonly text: string;
+}
+
+// A page that cites a record: the page (workspace-relative), its title, the evidence ids the
+// change affects, and the claims they support.
 export interface RecordCitation extends RecordRef {
   readonly page: string;
+  readonly title: string;
   readonly evidence: readonly string[];
+  readonly claims: readonly DocumentedClaim[];
 }
 
 // Evidence whose record changed in the mirror, or is gone, since the page was verified.
 export interface StaleCitation {
   readonly page: string;
+  readonly title: string;
   readonly evidence: string;
   readonly anchor: string;
   readonly status: "changed" | "missing";
+  readonly claims: readonly DocumentedClaim[];
 }
 
 // The workspace's documentation as validate sees it (ADR-0036, spec 010 P4). Both are empty
 // when the workspace has no documentation.
 export interface DocumentedRecords {
-  citing(records: readonly RecordRef[], signal: AbortSignal): Promise<readonly RecordCitation[]>;
+  citing(
+    records: readonly ChangedRecord[],
+    signal: AbortSignal,
+  ): Promise<readonly RecordCitation[]>;
   stale(signal: AbortSignal): Promise<readonly StaleCitation[]>;
   // Guides that don't show their capability as an animation (spec 010c).
   unanimated(signal: AbortSignal): Promise<readonly string[]>;

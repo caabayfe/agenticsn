@@ -66,6 +66,7 @@ The skill makes the walk a step of every process (as each role).
 
 ## 5. Incident on pdi2
 
-16 applications, 19 features: core handling documented; communication plans and Discuss
-documented in the pilot; 9 to do; 4 questions; 3 out of scope (major incident is its own
-process, CAB meetings belong to change, test SLA definitions).
+16 applications, 18 features: 4 documented (core handling; communication plans and Discuss,
+written in the pilot, with Collaborate chat found to be the same Sidebar discussions), 7 to do,
+4 questions, 3 out of scope (major incident is its own process, CAB meetings belong to change,
+test SLA definitions). The card reads "4 of 15 features documented".

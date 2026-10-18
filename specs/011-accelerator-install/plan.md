@@ -234,3 +234,41 @@ nothing.
 | Plugin activations take long or stall | Budget per component, resume by re-run, progress id journaled |
 | Fluent creates records in a child domain incorrectly | Spike S-H first; per-account variation as data until it passes |
 | PDI demo data makes the baseline less clean | Modules never depend on platform demo items; the baseline is rebuilt on a fresh instance |
+
+## 10. Execution: the first slice (2026-10-18, autonomous run)
+
+**Target to show:** on pdi2, one command installs the `core` profile of the ITSM pack from
+`ntt-accelerators`:
+
+```
+snagentic accelerator install itsm pdi2 --profile core              # writes the plan for the admin
+snagentic accelerator install itsm pdi2 --profile core --confirm <plan-id>
+```
+
+It checks components, pushes the `foundation` module into its own update set batch, loads the
+fictional demo company from the module's CSV files, and commits an install report. Running it
+again changes nothing. Evidence: the plan and report in git, the update sets and records on pdi2.
+
+**Order of work:**
+
+| Step | What | Milestones |
+|---|---|---|
+| 1 | S-G: the minimal pack on the Fluent route, live, before any change | S-G |
+| 2 | Pack format 2: modules in folders (`modules/<m>/module.yaml`), components (plugin or app), profiles, no pack scope, no waves; the minimal pack converted; demo data read from the pack | I1 |
+| 3 | Packs from a path: `snagentic.yaml` `accelerators.paths` | I1 |
+| 4 | S-D: anchors through a Fluent `ImportSet`, live | S-D, I7 |
+| 5 | The `foundation` module in `ntt-accelerators`: properties, import set tables and transform maps, schedules, demo CSVs; installed step by step with the existing commands | content phase 1 |
+| 6 | Install plan document and plan id; the orchestrator, journal and lock, on development | I4, I5 |
+| 7 | `install` live on pdi2, twice; evidence recorded here | – |
+
+**Left for later, by design:** the components-only install on test and production (I6) waits for
+ADR-0038 to be accepted; the store application installer (I3) waits for spike S-F; the scope
+gate rule (I2) waits for S-E; generated module sheet sections (I8).
+
+**What "top quality" means for content**, checked for every module:
+- out-of-box first: platform plugins and their configuration before anything new, and nothing
+  that changes an out-of-box record where an extension point exists;
+- CSDM-aligned data: offerings carry support group, schedule and criticality; roles only through
+  groups;
+- every switch is a documented property with a default and its variations;
+- every module reinstalls with nothing changed, and its sheet says what it does with a data flow.

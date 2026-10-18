@@ -11,7 +11,7 @@ import {
 import { compareUnit, type Difference } from "../domain/compare";
 import { unitDigest } from "../domain/digest";
 import { type LedgerEntry, withEntries } from "../domain/ledger";
-import { knownLoss, type LossId } from "../domain/losses";
+import { knownLoss, type LossId, lossSets } from "../domain/losses";
 import { conversionRefusal, knownRefusal } from "../domain/refusals";
 import type { BuiltUnit, InstanceCopy } from "../domain/unit";
 import { unitSecrets } from "../domain/unit-secrets";
@@ -48,6 +48,8 @@ export interface AdoptedUnit {
   readonly updateName: string;
   readonly table: string;
   readonly losses: readonly LossId[];
+  // What a load of the unit also sets, as "table.field = value" (its known losses).
+  readonly sets: readonly string[];
 }
 
 export interface AdoptResult {
@@ -80,13 +82,19 @@ function describe(unit: BuiltUnit, detail: string) {
   return `${unit.updateName}: ${detail}`;
 }
 
+// A unit that agrees with the instance: its ledger entry, and what a load of it also sets.
+interface Checked {
+  readonly entry: LedgerEntry;
+  readonly sets: readonly string[];
+}
+
 // Checks each unit against the instance: its ledger entry, or why it cannot be adopted.
 function entryFor(
   unit: BuiltUnit,
   copy: InstanceCopy | null,
   problems: string[],
   refusals: string[],
-): LedgerEntry | null {
+): Checked | null {
   if (copy === null) {
     problems.push(describe(unit, "the build makes a record the instance does not hold"));
     return null;
@@ -107,7 +115,10 @@ function entryFor(
     else if (refusal !== null) refusals.push(describe(unit, refusal));
     else problems.push(describe(unit, explain(difference)));
   }
-  return { build: unitDigest(unit), instance: copy.version, losses: [...losses].sort() };
+  return {
+    entry: { build: unitDigest(unit), instance: copy.version, losses: [...losses].sort() },
+    sets: lossSets(differences, unit.head.fields["sys_scope"]),
+  };
 }
 
 interface Adoption {
@@ -122,7 +133,7 @@ async function checkedEntries(dependencies: AdoptDependencies, units: readonly B
   const copies = await readUnits(dependencies.reader, units, dependencies.signal);
   const problems: string[] = [];
   const refusals: string[] = [];
-  const entries = new Map<string, LedgerEntry>();
+  const entries = new Map<string, Checked>();
   for (const unit of units) {
     const entry = entryFor(unit, copies.get(unit.updateName) ?? null, problems, refusals);
     if (entry !== null && !refusals.some((r) => r.startsWith(`${unit.updateName}:`))) {
@@ -162,7 +173,11 @@ async function adoptInto(
   let conflicts: readonly string[] = [];
   if (base === null) await workspace.writeFiles(project, outcome.draft.files);
   else conflicts = await workspace.mergeFiles(project, base, outcome.draft.files);
-  const ledger = withEntries(await workspace.readLedger(project), input.instance, entries);
+  const ledger = withEntries(
+    await workspace.readLedger(project),
+    input.instance,
+    new Map([...entries].map(([name, checked]) => [name, checked.entry])),
+  );
   await workspace.writeLedger(project, ledger);
   const inProject = (file: string) => `${project.path}/${file}`;
   return {
@@ -170,7 +185,8 @@ async function adoptInto(
       project: project.path,
       updateName: unit.updateName,
       table: unit.head.table,
-      losses: entries.get(unit.updateName)?.losses ?? [],
+      losses: entries.get(unit.updateName)?.entry.losses ?? [],
+      sets: entries.get(unit.updateName)?.sets ?? [],
     })),
     files: [...outcome.draft.files.keys()].map(inProject),
     unmanaged: unexpressed(targets, outcome.draft.after),

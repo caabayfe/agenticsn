@@ -98,7 +98,15 @@ describe("adopt", () => {
       {
         instance: "pdi",
         projects: [],
-        units: [{ project: "p", updateName: "u", table: "t", losses: ["api-default"] }],
+        units: [
+          {
+            project: "p",
+            updateName: "u",
+            table: "t",
+            losses: ["api-default"],
+            sets: ["sys_ui_policy.ui_type = 0"],
+          },
+        ],
         files: [],
         unmanaged: ["ua_table_licensing_config:1"],
         conflicts: ["p/a.now.ts"],
@@ -106,7 +114,7 @@ describe("adopt", () => {
       "text",
     );
     expect(text.split("\n")).toEqual([
-      "adopted u  (also sets: api-default)",
+      "adopted u  (also sets: sys_ui_policy.ui_type = 0)",
       "  api-default: the SDK writes its API's default instead of the instance's value",
       "not adopted: ua_table_licensing_config:1 (the SDK cannot express it; it stays as it is)",
       "conflict: p/a.now.ts (local and instance edits overlap; resolve it)",

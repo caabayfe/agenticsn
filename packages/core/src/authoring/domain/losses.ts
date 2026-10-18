@@ -114,3 +114,12 @@ function fieldLoss(
 export function knownLoss(difference: Difference, scope?: string): LossId | null {
   return difference.kind === "rows" ? rowsLoss(difference) : fieldLoss(difference, scope);
 }
+
+// What a load of a unit with these differences also sets, as "table.field = value": the known
+// losses, which adopt shows and plan lists.
+export function lossSets(differences: readonly Difference[], scope?: string): string[] {
+  const sets = differences
+    .filter((difference) => knownLoss(difference, scope) !== null)
+    .map((d) => (d.kind === "field" ? `${d.table}.${d.field} = ${d.built}` : `${d.table} rows`));
+  return [...new Set(sets)].sort();
+}

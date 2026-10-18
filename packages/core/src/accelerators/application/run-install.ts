@@ -129,7 +129,8 @@ async function deliverAs(
 // The modules a previous add already wrote to the workspace: re-installing them is an upgrade.
 async function installedBefore(deps: InstallRunDependencies, plan: InstallPlan) {
   const written = new Set((await deps.workspace.previous(plan.pack)).written);
-  return plan.modules.filter((m) => m.files.length > 0 && m.files.every((f) => written.has(f)));
+  // Any of its files: a module that gained files since is still installed, with stale ones.
+  return plan.modules.filter((m) => m.files.some((f) => written.has(f)));
 }
 
 // Each new module goes into its own update set, in dependency order. Modules already in the

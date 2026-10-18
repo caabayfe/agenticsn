@@ -514,6 +514,25 @@ describe("running an install (ADR-0038, item 2)", () => {
     expect(result.steps.map((s) => s.step)).toContain("modules already installed: foundation");
   });
 
+  it("counts a module as installed when it gained files since its last add", async () => {
+    const { steps, calls } = fakeSteps();
+    const grown: PackFixture = {
+      ...PACK,
+      files: { ...PACK.files, "modules/incident/source/global/src/fluent/form.now.ts": "// new" },
+    };
+    const ready = {
+      ...deps(READY, { steps }),
+      packs: memoryPacks({ itsm: packFiles(grown) }),
+      workspace: workspace("m1", [
+        "source/global/src/fluent/imports.now.ts",
+        "source/global/src/fluent/incident.now.ts",
+      ]),
+    };
+    const plan = await planInstall(ready, QUERY);
+    await installPack(ready, { ...QUERY, confirm: plan.planId });
+    expect(calls.filter((c) => c.startsWith("plan"))).toEqual(["plan itsm 0.1.0 upgrade"]);
+  });
+
   it("refuses to run while another install holds the instance's lock", async () => {
     const { journal } = memoryJournal(null, true);
     const plan = await planInstall(deps(READY), QUERY);

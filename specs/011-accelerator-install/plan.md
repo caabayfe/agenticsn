@@ -303,3 +303,63 @@ Found on the way, for the next steps:
 | I5 orchestrator, journal, lock (development) | Done |
 | I7 anchors and the demo data exception | Done, except the finding for metadata that references a non-anchor record |
 | I2, I3, I6, I8, I9 | Open (I6 waits for ADR-0038's acceptance; I3 for S-F; I2 for S-E) |
+
+## 11. Second slice: incident-relations and incident-task (2026-10-18)
+
+**Owner principle (2026-10-18): accelerators are agnostic to what exists on the instance.**
+A module must give the same result on a fresh instance, on a heavily customized one, and on
+one where it already ran. Concretely:
+1. it **adds**, and never replaces configuration a client may have changed (a form layout, a
+   related list, an out-of-box SLA);
+2. it finds existing records by **business key** (the incident Default view; the SLA named "P1
+   resolution"), never by an id seen on one instance;
+3. it states what it expects, and the install plan shows what is missing and what it will do
+   (create, skip or block);
+4. it never overwrites a client's customization silently.
+
+What was installed on pdi2 (`accelerator install itsm pdi2 --profile incident-advanced --demo`):
+- **`incident-relations` 0.1.0** (5 units): the Related Changes relationship and the
+  child-resolves-with-parent rule;
+- **`incident-task` 0.1.0** (11 units): task field inheritance, no resolution with active tasks
+  unless confirmed, the "all tasks complete" note, and the classic-form button and
+  confirmation.
+
+Each module went into its own update set. An update to a module re-pushed only the 2 changed
+rules.
+
+**Tested on pdi2 through the API:**
+- a task inherits the incident's fields, and one given its own values keeps them;
+- resolving an incident with an active task is refused.
+
+The classic-form confirmation (an onSubmit prompt, then the GlideAjax session flag) needs a
+signed-in browser session and is not yet exercised.
+
+**Found, and the work it adds:**
+
+| # | Finding | Work |
+|---|---|---|
+| F1 | A resumed install planned a finished module again, taking in later modules' files | **Fixed** (`72bc463`): a resumed run skips the modules its journal records as finished |
+| F2 | The platform cut a business rule name to the field's 40 characters, so the push reported "not applied as built" and the next plan refused it | **I11, length guard:** `validate` checks built string values against the dictionary's `max_length` from the mirror's catalog, before any push |
+| F3 | Placing related lists on the incident form needs changes to out-of-box layout records, and plan refuses records this branch never adopted | **I10, ensure rules:** see below |
+| F4 | `incident-core`'s fallback group property holds the demo anchor's sys_id. With a client's own data and no demo, the group does not exist | **I12, settings as data:** property values that depend on data are loaded with the data (an entity targeting `sys_properties`, matched on `name`), so each environment sets its own. `incident-core` ships an empty default |
+| F5 | A record removed with the Table API was captured in the user's Default update set, and collided with the module's set | Spike tools only. Product removals go through snagentic |
+
+**I10 ensure rules (proposal; needs an ADR because it is a new content kind):**
+- **What a module declares:** `modules/<m>/ensure.yaml`, a list of declarative facts about
+  configuration it does not own. For example:
+  - "table `incident`, view `Default`, has the related list `incident_task.incident`";
+  - "the SLA definition named `Priority 1 resolution (1 hour)` is inactive".
+- **Planning:** each fact is resolved by business key against the mirror. The install plan
+  lists, for each fact:
+  - already true: nothing to do;
+  - missing: add it, appended after the client's own entries;
+  - target absent: skip, with the reason;
+  - conflicting: block for review.
+- **Applying:** on a development instance, the install applies each change into the module's
+  update set, so it promotes with the rest of the module. Facts are additive. A deactivation
+  never deletes.
+- **Supported kinds:** each kind is a small, tested operation, and nothing is free-form. The
+  first ones are:
+  - related list entries;
+  - form section fields;
+  - active flags.

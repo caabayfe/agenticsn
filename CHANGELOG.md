@@ -4,7 +4,21 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-18
+
+### Added
+
+- Verified process documentation (ADR-0036, spec 010). Pages describe a process for its users
+  and its operators, and every claim cites the mirror records behind it. `docs check` fails
+  when one of those records changes or disappears, and `docs pin` records it again once a person
+  has re-verified the page. `docs build` writes a static site, `docs serve` previews it, and
+  `docs video` records a narrated animation as an MP4 (ffmpeg, plus Piper or the system voice
+  for narration). The `servicenow-document` skill carries the method. No new MCP tool.
+
 ### Changed
+
+- `adopt` shows what a load of each unit also sets, with the value, as plans do:
+  `adopted <unit>  (also sets: sys_ui_policy.ui_type = 0)` instead of the loss's name.
 
 - A plan's gate judges what the change introduced since each project last agreed with the
   instance (its ledger commit: the adoption or the last push), not since the last pull. Adopted
@@ -14,6 +28,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Every record of the classes checked on a PDI now adopts or is refused with a reason; none
+  fails unexplained. `adopt` now refuses, each with what to do:
+  - a global role whose suffix isn't its name, which the SDK would rewrite to the name (10);
+  - a UI action whose role or view the SDK's conversion couldn't read: it writes the sys_id,
+    and the build makes a row for a role or view that doesn't exist (20). These are not
+    dangling views on the instance;
+  - a menu for mobile, or with no device type, which the SDK would move to the browser (4);
+  - an advanced ACL with no script, which the SDK would write as not advanced (53 of 56).
+- Refusals found while converting (an empty script include access, a role or view the SDK
+  couldn't read) are reported as refusals, with what to do. They were reported as a failed
+  conversion whose hint said to check that the records still exist.
 - `adopt` brings in UI actions with an empty order (written as 100, as for menus), global tables
   with an empty access (written as `public`) and columns whose choice is `0` (written empty),
   each accepted only against those values; the table access only in global. It names, as a

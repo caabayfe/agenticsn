@@ -168,6 +168,7 @@ export function fakeSources(
     process?: unknown;
     others?: { path: string; process: unknown }[];
     theme?: { path: string; content: Uint8Array }[];
+    releases?: PageSource[];
   } = {},
 ) {
   const pinned = new Map<string, Map<string, string>>();
@@ -180,6 +181,7 @@ export function fakeSources(
     pages: async () => list,
     scenes: async () => options.scenes ?? [scene],
     ...(options.theme === undefined ? {} : { theme: async () => options.theme ?? [] }),
+    ...(options.releases === undefined ? {} : { releases: async () => options.releases ?? [] }),
     pinHashes: async (path, hashes) => {
       pinned.set(path, new Map(hashes));
     },

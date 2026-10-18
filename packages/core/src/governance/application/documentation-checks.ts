@@ -17,13 +17,15 @@ function quoted(claims: readonly DocumentedClaim[]): string {
 }
 
 // Pages that cite a record the change edits (SN-MNT-014), pages whose evidence no longer
-// matches the mirror (SN-MNT-015), and guides without an animation (SN-MNT-016). Findings name
-// the page: that is the file to update.
+// matches the mirror (SN-MNT-015), guides without an animation (SN-MNT-016), and pages pinned
+// again since base without a release note (SN-MNT-017). Findings name the page: that is the
+// file to update.
 export async function documentationFindings(
   docs: DocumentedRecords,
-  touched: readonly TouchedRecord[],
+  change: { readonly base: string; readonly touched: readonly TouchedRecord[] },
   signal: AbortSignal,
 ): Promise<Finding[]> {
+  const touched = change.touched;
   const citations = touched.length === 0 ? [] : await docs.citing(touched, signal);
   const edited = citations.flatMap((citation) => {
     const sources = touched
@@ -58,5 +60,15 @@ export async function documentationFindings(
       evidence: "",
     }),
   );
-  return [...edited, ...stale, ...unanimated];
+  const unnoted = ((await docs.unnoted?.(change.base, signal)) ?? []).flatMap((item) =>
+    withRule("SN-MNT-017", {
+      path: item.page,
+      root: "workspace",
+      field: null,
+      line: null,
+      message: `${item.evidence.join(", ")} pinned to a changed record, and no release note links ${item.title}`,
+      evidence: "",
+    }),
+  );
+  return [...edited, ...stale, ...unanimated, ...unnoted];
 }

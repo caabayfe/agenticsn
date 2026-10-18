@@ -42,7 +42,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0034](0034-the-mirror-keeps-typed-property-values-and-names-what-it-leaves-out.md) | The mirror keeps typed property values and names what it leaves out | Accepted |
 | [0035](0035-pulls-scan-what-they-write-for-secrets.md) | Pulls scan what they write for secrets | Proposed |
 | [0036](0036-verified-documentation-site.md) | Verified documentation: pages anchored to the mirror, published as a static site | Accepted |
-| [0039](0039-a-change-shows-what-it-does-to-the-documentation.md) | A change shows what it does to the documentation, sentence by sentence | Proposed |
+| [0039](0039-a-change-shows-what-it-does-to-the-documentation.md) | A change shows what it does to the documentation, sentence by sentence | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

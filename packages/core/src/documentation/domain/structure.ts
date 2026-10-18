@@ -4,6 +4,7 @@ import { type DocPage, type PageProblem, pageProblems, type Section } from "./pa
 import type { Process, ProcessCapability } from "./process";
 import { animationsOf } from "./prose";
 import { referencesOf, resolveReference } from "./references";
+import { type Release, unknownReleasePages } from "./releases";
 import type { Scene } from "./scene";
 import type { SiteConfig } from "./site-config";
 import { type View, viewOf } from "./views";
@@ -14,6 +15,8 @@ export interface DocSet {
   readonly processes: readonly Process[];
   readonly pages: readonly DocPage[];
   readonly scenes: readonly Scene[];
+  // documentation/changes/<release>.md (ADR-0039).
+  readonly releases: readonly Release[];
 }
 
 const ERRORS = [
@@ -31,6 +34,7 @@ const ERRORS = [
   "unknown-reference",
   "missing-animation",
   "unknown-guide-page",
+  "unknown-release-page",
 ] as const;
 const WARNINGS = [
   "uncited-evidence",
@@ -210,5 +214,8 @@ export function structureProblems(docs: DocSet): readonly DocsProblem[] {
     ...(docs.config.employees?.how ?? [])
       .filter((id) => !processIds.includes(id))
       .map((id) => docsProblem("unknown-guide-page", "site.yaml", `how: ${id}`)),
+    ...unknownReleasePages(docs.releases, docs.pages, processIds).map((item) =>
+      docsProblem("unknown-release-page", item.path, `see:${item.target}`),
+    ),
   ];
 }

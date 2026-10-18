@@ -148,6 +148,31 @@ describe("validate and the documentation", () => {
     ]);
   });
 
+  it("warns about a page pinned again without a release note, asking from the resolved base", async () => {
+    const bases: string[] = [];
+    const docs: DocumentedRecords = {
+      citing: async () => [],
+      stale: async () => [],
+      unanimated: async () => [],
+      unnoted: async (base) => {
+        bases.push(base);
+        return [{ page: "documentation/p.md", title: "Report an incident", evidence: ["E02"] }];
+      },
+    };
+    const result = await validate({ ...governanceOf({}), documentation: docs }, { base: "main" });
+    expect(bases).toEqual(["c0ffee"]);
+    expect(result.passed).toBe(true);
+    expect(result.findings.map((f) => [f.ruleId, f.severity, f.path, f.message])).toEqual([
+      [
+        "SN-MNT-017",
+        "warn",
+        "documentation/p.md",
+        "E02 pinned to a changed record, and no release note links Report an incident",
+      ],
+    ]);
+    expect(result.findings[0]?.remediation).toContain("documentation/changes/<release>.md");
+  });
+
   it("checks no documentation when the workspace has none", async () => {
     const unit = unitOf("sys_script", DESCRIBED, RULE_ID);
     const result = await validate(governanceOf({ [GLOBAL]: { now: [unit], base: [] } }), {

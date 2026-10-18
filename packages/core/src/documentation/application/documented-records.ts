@@ -3,8 +3,10 @@ import { NoDocumentationError } from "../domain/errors";
 import type { RecordEvidence } from "../domain/evidence";
 import type { DocPage } from "../domain/page";
 import { structureProblems } from "../domain/structure";
+import type { DocumentationHistory } from "../ports";
 import { assessDocumentation, type CheckDocsDependencies, todayOf } from "./check-docs";
 import { type Documentation, loadDocumentation } from "./load-documentation";
+import { unnotedPages } from "./unnoted-pages";
 
 // The documentation as other contexts ask about it (validate, ADR-0036 P4 and ADR-0039): which
 // pages cite a record a change edits, and which evidence no longer matches the mirror, with the
@@ -41,6 +43,11 @@ export interface DocumentationLookup {
     }[]
   >;
   unanimated(signal: AbortSignal): Promise<readonly string[]>;
+  // Pages pinned again to a new hash since `base` without a release note linking them.
+  unnoted(
+    base: string,
+    signal: AbortSignal,
+  ): Promise<readonly { page: string; title: string; evidence: readonly string[] }[]>;
 }
 
 // Evidence on one field is affected only when the change edits that field; evidence on a
@@ -70,7 +77,7 @@ function citationsOn(page: DocPage, records: ReadonlyMap<string, CitedRecord>) {
 const FOLDER = "documentation";
 
 export function documentationLookup(
-  deps: Omit<CheckDocsDependencies, "signal">,
+  deps: Omit<CheckDocsDependencies, "signal"> & { readonly history?: DocumentationHistory },
 ): DocumentationLookup {
   const load = async (): Promise<Documentation | null> => {
     try {
@@ -119,6 +126,15 @@ export function documentationLookup(
       return structureProblems(docs)
         .filter((problem) => problem.kind === "missing-animation")
         .map((problem) => `${FOLDER}/${problem.page}`);
+    },
+    async unnoted(base) {
+      const docs = await load();
+      if (docs === null || deps.history === undefined) return [];
+      return (await unnotedPages(docs, deps.history, base)).map(({ page, evidence }) => ({
+        page: `${FOLDER}/${page.path}`,
+        title: page.title,
+        evidence,
+      }));
     },
   };
 }

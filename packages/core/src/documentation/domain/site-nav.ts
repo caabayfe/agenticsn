@@ -12,6 +12,7 @@ import {
   prefixOf,
   sectionHome,
 } from "./site-layout";
+import { whatsNewOf } from "./site-releases";
 
 // Which menu a page shows: the site map has none; with an employee guide, its pages (Use pages,
 // the employees' view of Understand pages) show the employee guide; everything else the IT guide.
@@ -75,6 +76,11 @@ const guideLinks = (b: Built, targets: readonly string[]): readonly Link[] =>
     return page === undefined ? [] : [{ href: pageFile(page, "user"), text: page.title }];
   });
 
+const whatsNew = (b: Built, page: "employees" | "it"): readonly Link[] => {
+  const file = whatsNewOf(b, page);
+  return file === null ? [] : [{ href: file, text: "What's new" }];
+};
+
 const search = (guide: "employee" | "it", label: string) =>
   `<input class="search" type="search" placeholder="Search" data-guide="${guide}" aria-label="Search the ${escapeHtml(label)}">` +
   '<p class="count" role="status" aria-live="polite"></p><ol class="results" hidden></ol>';
@@ -91,7 +97,7 @@ function employeeSide(b: Built, processes: readonly Process[], prefix: string, c
     folder(prefix, current, process, understandLinks(b, process, "user")),
   );
   return `<nav class="side" aria-label="${escapeHtml(guide.title)}"><div class="side-h">${escapeHtml(guide.title)}</div>
-${search("employee", guide.title)}<div class="groups">${group(prefix, current, "Start here", "home", guideLinks(b, guide.start))}${tasks.join("")}
+${search("employee", guide.title)}<div class="groups">${group(prefix, current, "Start here", "home", [...guideLinks(b, guide.start), ...whatsNew(b, "employees")])}${tasks.join("")}
 ${how.join("") === "" ? "" : `<div class="grp-h sep">${iconSvg("book")}<span>How it works</span></div>${how.join("")}`}</div></nav>`;
 }
 
@@ -122,8 +128,9 @@ function itSide(b: Built, processes: readonly Process[], prefix: string, current
           { href: OPEN_QUESTIONS, text: `Open questions (${questions})` },
         ]);
   const title = single ? b.input.config.title : "IT guide";
+  const updates = group(prefix, current, "Updates", "refresh", whatsNew(b, "it"));
   return `<nav class="side" aria-label="${escapeHtml(title)}"><div class="side-h">${escapeHtml(title)}</div>
-${search("it", title)}<div class="groups">${folders.join("")}${open}</div></nav>`;
+${search("it", title)}<div class="groups">${updates}${folders.join("")}${open}</div></nav>`;
 }
 
 function rail(b: Built, prefix: string, guide: Guide, current: string): string {

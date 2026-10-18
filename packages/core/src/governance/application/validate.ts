@@ -161,7 +161,11 @@ async function mirrorEdits(mirror: MirrorState): Promise<Finding[]> {
 export async function checkSince(
   deps: ValidateDependencies,
   query: ValidateQuery,
-): Promise<{ readonly projects: readonly FluentProject[]; readonly checked: ProjectCheck[] }> {
+): Promise<{
+  readonly resolved: string;
+  readonly projects: readonly FluentProject[];
+  readonly checked: ProjectCheck[];
+}> {
   const resolved = await deps.mirror.resolve(query.base);
   if (resolved === null) {
     throw new UnknownBaseError(query.base);
@@ -175,7 +179,7 @@ export async function checkSince(
   for (const project of projects) {
     checked.push(await checkProject(deps, privilegesOf, project, resolved));
   }
-  return { projects, checked };
+  return { resolved, projects, checked };
 }
 
 // Checks what the change did to the workspace's Fluent source against the rules, reporting only
@@ -185,14 +189,14 @@ export async function validate(
   deps: ValidateDependencies,
   query: ValidateQuery,
 ): Promise<Validation> {
-  const { projects, checked } = await checkSince(deps, query);
+  const { resolved, projects, checked } = await checkSince(deps, query);
   const edits = query.paths === undefined ? await mirrorEdits(deps.mirror) : [];
   const documented =
     deps.documentation === undefined
       ? []
       : await documentationFindings(
           deps.documentation,
-          checked.flatMap((c) => c.touched),
+          { base: resolved, touched: checked.flatMap((c) => c.touched) },
           query.signal ?? new AbortController().signal,
         );
   const findings = ordered([...edits, ...checked.flatMap((c) => c.findings), ...documented]);

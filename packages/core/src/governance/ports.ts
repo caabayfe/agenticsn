@@ -119,4 +119,10 @@ export interface DocumentedRecords {
   stale(signal: AbortSignal): Promise<readonly StaleCitation[]>;
   // Guides that don't show their capability as an animation (spec 010c).
   unanimated(signal: AbortSignal): Promise<readonly string[]>;
+  // Pages pinned again to a new hash since the commit `base` names, with no release note added
+  // since then linking them (ADR-0039, decision 6).
+  unnoted?(
+    base: string,
+    signal: AbortSignal,
+  ): Promise<readonly { page: string; title: string; evidence: readonly string[] }[]>;
 }

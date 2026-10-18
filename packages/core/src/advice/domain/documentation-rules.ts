@@ -35,4 +35,14 @@ export const DOCUMENTATION_RULES: readonly Rule[] = [
       "Add an animation under documentation/animations/<name>/ and embed it on the page with {{animation:<name>}}; snagentic docs check lists every page without one.",
     scripts: [],
   },
+  {
+    id: "SN-MNT-017",
+    category: "manageability",
+    severity: "warn",
+    title: "A page changed what readers are told, without a release note",
+    why: "The page was pinned again because a record it cites changed, so it may now tell employees or IT something new. Readers learn what changed from the release notes on the What's new pages (ADR-0039), and this change adds none for the page.",
+    remediation:
+      "Add a note to the release file (documentation/changes/<release>.md) for employees or it, saying what changed in the readers' words, with a see: reference to the page.",
+    scripts: [],
+  },
 ];

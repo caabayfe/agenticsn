@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { documentationLookup } from "@snagentic/core";
+import { type DocumentationHistory, documentationLookup, type PageSource } from "@snagentic/core";
 import { ACTION, ALL, fakeMirror, fakeSources, pages, RULE, run } from "../support/docs-fixtures";
 
 describe("documentation lookup for validate", () => {
@@ -112,5 +112,66 @@ describe("documentation lookup for validate", () => {
     await expect(
       documentationLookup({ ...run, sources: broken }).stale(run.signal),
     ).rejects.toThrow(/needs title and instance/);
+  });
+});
+
+describe("documentation lookup: pages pinned again without a release note (ADR-0039)", () => {
+  const repinned = {
+    ...pages.resolve,
+    frontMatter: {
+      ...pages.resolve.frontMatter,
+      evidence: { E01: { ...pages.resolve.frontMatter.evidence.E01, hash: "a2" } },
+    },
+  };
+  const release = (notes: unknown[]) => ({
+    path: "changes/2026-10.md",
+    frontMatter: { title: "October 2026", date: "2026-10-18", notes },
+    body: "",
+  });
+  const NOTE = { for: "it", note: "Resolve now asks for a code.", see: ["incident/resolve"] };
+  const history = (atBase: readonly PageSource[]): DocumentationHistory => ({
+    changedSince: async () => [pages.resolve.path, "changes/2026-10.md"],
+    at: async (_commit, paths) => atBase.filter((source) => paths.includes(source.path)),
+  });
+  const lookup = (releases: PageSource[], atBase: readonly PageSource[]) =>
+    documentationLookup({
+      ...run,
+      sources: fakeSources([...ALL.filter((p) => p.path !== pages.resolve.path), repinned], {
+        releases,
+      }).sources,
+      history: history(atBase),
+    });
+
+  it("names a page pinned to a new hash since base when no new note links it", async () => {
+    const found = await lookup([release([])], [pages.resolve, release([])]).unnoted(
+      "c0ffee",
+      run.signal,
+    );
+    expect(found).toEqual([
+      {
+        page: `documentation/${pages.resolve.path}`,
+        title: "Resolve an incident",
+        evidence: ["E01"],
+      },
+    ]);
+  });
+
+  it("accepts the page once a note added since base links it, but not an old note", async () => {
+    expect(
+      await lookup([release([NOTE])], [pages.resolve, release([])]).unnoted("c0ffee", run.signal),
+    ).toEqual([]);
+    expect(
+      await lookup([release([NOTE])], [pages.resolve, release([NOTE])]).unnoted(
+        "c0ffee",
+        run.signal,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("ignores pages that didn't parse at base, and needs a history to say anything", async () => {
+    const broken = { ...pages.resolve, frontMatter: { evidence: {} } };
+    expect(await lookup([], [broken]).unnoted("c0ffee", run.signal)).toEqual([]);
+    const without = documentationLookup({ ...run, sources: fakeSources(ALL).sources });
+    expect(await without.unnoted("c0ffee", run.signal)).toEqual([]);
   });
 });

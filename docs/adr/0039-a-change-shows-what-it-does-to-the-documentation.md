@@ -1,6 +1,6 @@
 # 0039. A change shows what it does to the documentation, sentence by sentence
 
-- Status: Proposed
+- Status: Accepted (product owner, 2026-10-18)
 - Date: 2026-10-18
 - Requirements: G3 (guardrails), G2 (explain an instance), ASR-01, ASR-09
 - Amends: 0010 (adds the documentation impact report to scope)
@@ -49,9 +49,15 @@ find the sentences.
 5. **The gate stays a warning.** SN-MNT-014 gains the precision of item 2 and quotes the first
    claim it affects. The change may be right and the page wrong, so it doesn't block.
    `docs check` remains the strict gate on stale evidence.
-6. **Later, the same data gives "What's new" pages.** A page records a dated change note,
-   written by the agent when it updates what a reader does. The employee guide and the IT guide
-   each list their own notes. This is a second slice, decided with that slice (see the plan).
+6. **Readers learn what changed from release notes** (product owner, 2026-10-18).
+   - **One file per release:** `documentation/changes/<release>.md` gives a title, a date and
+     notes. Each note is for employees or for IT, says what changed in the readers' words
+     (written by the agent, never generated), and links the pages it concerns with `see:`
+     references. An unknown reference fails `docs check`.
+   - **What's new pages:** the employee guide lists the employee notes; the IT guide lists all
+     notes, with the employee ones marked. Newest release first.
+   - **A missing note is a warning:** SN-MNT-017 (warn) names a page re-pinned since `base` to a
+     new hash, because the record it cites changed, when no note added since `base` links it.
 
 ## Consequences
 
@@ -74,5 +80,7 @@ find the sentences.
   matters. A git-based mirror read would add a port for no extra precision.
 - **Make SN-MNT-014 block.** Rejected for now: a change is often right and the page out of date.
   The pull request can still require `docs check` to pass.
+- **A note per page, in its front matter.** Rejected by the product owner: a release file reads
+  as one story, and a release often changes several pages at once.
 - **Generate the new wording.** Rejected, as in ADR-0036: snagentic never writes the prose. The
   agent does, from the report.

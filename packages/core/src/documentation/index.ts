@@ -103,6 +103,18 @@ export {
 } from "./domain/prose";
 export { type Resolved, referencesOf, resolveReference } from "./domain/references";
 export {
+  NOTE_GUIDES,
+  type NoteGuide,
+  newNotes,
+  notedPages,
+  notePages,
+  parseRelease,
+  type Release,
+  type ReleaseNote,
+  repinnedPages,
+  unknownReleasePages,
+} from "./domain/releases";
+export {
   type Camera,
   type Cue,
   estimateTimeline,
@@ -132,6 +144,7 @@ export { isView, VIEWS, type View, viewMarks, viewOf } from "./domain/views";
 export type {
   AudioAssets,
   AudioCodec,
+  DocumentationHistory,
   DocumentationSources,
   MarkdownRenderer,
   MediaTools,

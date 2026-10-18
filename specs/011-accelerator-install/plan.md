@@ -1,6 +1,6 @@
 # 011. Accelerator install and the ITSM baseline: plan
 
-- Status: Draft (2026-10-18). Decisions D1–D5 taken by the product owner; O1–O7 open (O5 became D5)
+- Status: Draft (2026-10-18). Decisions D1–D9 taken by the product owner (2026-10-18); O4 and O6 open
 - Date: 2026-10-18
 - Decision: ADR-0038 (proposed), amending ADR-0026 and ADR-0012
 - Builds on: spec 005 (accelerator mechanism, v1.8.0), ADR-0031 (Fluent authoring), ADR-0033
@@ -40,17 +40,17 @@ documented with its data flows, and its demo master data loads from CSV files.
 | D3 | Store applications install through the platform's installation mechanism, like plugins, never as a manual step |
 | D4 | Components (plugins, store applications) never travel in update sets and install automatically on every instance kind, UAT and production included, with a separate installer credential. Customizations travel in update sets, promoted by the standard mechanism. Data on UAT and production is loaded there by the delivery team |
 | D5 | The baseline instance is **not domain-separated**, like most clients: a dedicated instance (not pdi2, where spikes write), rebuilt from zero at each minor pack release. Domain separation is a supported variant for the few clients that use it, proven on a domain-separated instance (pdi2: TOP > Default) with the `demo-full` profile and two demo accounts, at each minor release |
+| D6 | Packs live in a private repository, `ntt-accelerators` (locally `../ntt-accelerators`), loaded from a path (`snagentic.yaml` `accelerators.paths`). snagentic keeps only the minimal test pack; `nttdata/` is dropped from the pack roots |
+| D7 | **Anchor records**: rows the pack owns carry a fixed sys_id in the CSV, set on insert and matched on re-run. Metadata may reference only anchors; customer-specific references live in data |
+| D8 | Module order: Foundation, Incident, Request and catalogs, Problem, Change, then Major Incident and On-Call. Those two must work without Twilio or Teams credentials (email, push and the On-Call mobile app); voice, SMS and the Teams bridge are optional parts behind aliases, reported as "not configured", never blocking an install |
+| D9 | Per-account metadata on domain-separated instances is generated per account from a workspace accounts list (section 4.5, item 3), after spike S-H; until then, per-account variation is data only |
 
 ### Open
 
 | # | Question | Recommendation |
 |---|---|---|
-| O1 | Where packs live | A private repository for all NTT DATA packs, loaded from a path (`snagentic.yaml` `accelerators.paths`); snagentic keeps the minimal test pack. Content changes daily during the build, and an embedded pack needs a binary rebuild and a keychain approval per change |
-| O2 | How metadata references pack-owned data (catalog fulfilment groups, assignment lookups, SLA conditions) | **Anchor records**: rows the pack owns carry a fixed sys_id in the CSV, set on insert and matched on re-run; metadata may reference only anchors; customer-specific references live in data |
-| O3 | Module order | Foundation, Incident, Request and catalogs, Problem, Change, then Major Incident and On-Call (the only modules blocked by external credentials: Twilio, Teams). The functional design had Major Incident in wave 1 |
 | O4 | Where ATF suites run | From the pack repository's CI through the CI/CD API; a snagentic command only with its own ADR (spec 004, D1) |
 | O6 | The demo catalog | Three catalogs and about 15 items (section 7, phase 3) |
-| O7 | Per-account metadata on domain-separated instances | Generated per account from a workspace accounts list (section 4.5, item 3), after spike S-H; until then, per-account variation is data only |
 
 ## 4. How it works
 
@@ -169,7 +169,7 @@ the few that are:
 
 | # | Question | Decides | How |
 |---|---|---|---|
-| S-D | Can an import set transform set a fixed sys_id on insert and coalesce on it, from a Fluent `ImportSet`? | O2 (anchors) | pdi2: one entity, three rows, two loads; rename one row between loads |
+| S-D | Can an import set transform set a fixed sys_id on insert and coalesce on it, from a Fluent `ImportSet`? | D7 (how anchors are loaded) | pdi2: one entity, three rows, two loads; rename one row between loads |
 | S-E | Can a Fluent configuration project load into a ServiceNow-owned scope (On-Call), captured in that scope's child update set? Which application access settings refuse it? | D1, the scope gate rule | pdi2: one property or form change in the On-Call scope, through `push` |
 | S-F | Which CI/CD API installs a store application, with which roles, how is progress reported, and what does it do with dependencies and demo data? | D3, the component installer | pdi2: install one small store application not yet present |
 | S-H | On pdi2 (TOP > Default): create through `fluent/load` (a) a notification in Default, (b) a domain override of a global business rule, (c) an SLA definition in Default; are they created in that domain and captured with it? Does an import set row land in the domain its `domain` column names? | Section 4.5, items 2 and 3 | pdi2, one scratch batch, rolled back |
@@ -182,7 +182,7 @@ Each milestone ends green on `bun run verify`.
 | # | Milestone | Behaviour tests (examples) | Depends on |
 |---|---|---|---|
 | I0 | Spikes S-D to S-H, results written here; ADR-0038 accepted | – | – |
-| I1 | Modules, components and profiles in the manifest; packs from a path (if O1) | a profile adds its modules' dependencies; a store application is a component; a pack requiring another SDK version warns | I0 |
+| I1 | Modules, components and profiles in the manifest; packs from a path (D6), `nttdata/` removed from `pack-roots.ts` and its isolation test | a profile adds its modules' dependencies; a store application is a component; a pack requiring another SDK version warns | I0 |
 | I2 | Scope gate rule | a record in a scope that doesn't own its table blocks; a create the application access refuses blocks | S-E |
 | I3 | Store application installer beside the plugin activator, one component step | an unknown progress after a lost response is read, never re-requested; demo data never requested; a component past its budget is reported, the run stops, a re-run resumes | S-F |
 | I4 | Install plan and plan id | the plan lists every component, module update set, changed out-of-box record and data entity; a changed instance fact changes the id; `--confirm` with another id refuses | I1 |
@@ -209,7 +209,7 @@ nothing.
 | 3 | `catalog-it`, `catalog-people`, `catalog-workplace` | IT Services: laptop, monitor and peripherals, mobile phone, standard software, licence removal, application access, shared mailbox, distribution list, file share, VPN, something else. People: new hire (order guide), leaver, role change. Workplace: access badge, desk move. None depends on the platform's demo items |
 | 4 | `problem` | Reactive and proactive problems, known errors, the incident link |
 | 5 | `change` | Standard, normal and emergency models, CAB, conflicts, risk from offering criticality |
-| 6 | `major-incident`, `on-call` | Trigger rules, communication plans, outage and status; rotas as data in On-Call's scope; Twilio and Teams behind aliases |
+| 6 | `major-incident`, `on-call` | Trigger rules, communication plans, outage and status; rotas as data in On-Call's scope; complete with email, push and the On-Call mobile app; Twilio voice and SMS and the Teams bridge optional, behind aliases (D8) |
 | 7 | `knowledge`, `virtual-agent`, `ai-tier-1` | Knowledge lifecycle, VA topics, recommended actions, Predictive Intelligence definitions |
 
 ## 8. Safety tests (added to the invariants suite)

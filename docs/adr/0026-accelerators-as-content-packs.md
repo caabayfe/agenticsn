@@ -223,3 +223,6 @@ Product owner decisions of 2026-10-18, recorded in ADR-0038:
   existing steps from one plan the platform admin approves by id, and resumes by re-running.
 - **Test and production** get the components only, at parity with development, installed
   automatically with a separate installer credential. Update sets and data stay as decided above.
+- **Pack location:** packs are read from a path, from the private repository `ntt-accelerators`;
+  the `nttdata/` folder of the 2026-10-14 amendment is dropped. Pack-owned data rows are anchors
+  with fixed sys_ids.

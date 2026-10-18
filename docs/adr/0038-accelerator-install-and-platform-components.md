@@ -130,6 +130,19 @@ component installer, under the conditions above.
 `push` leaves each module's update sets in progress. Completing them, and promoting them, is the
 platform's standard mechanism and the customer's process (ADR-0018).
 
+### 7. Packs are read from a path; pack-owned records are anchors
+
+- **Packs live outside snagentic**, in a private repository (`ntt-accelerators`), and are read
+  from the paths a workspace names (`snagentic.yaml` `accelerators.paths`). This replaces the
+  `nttdata/` folder of ADR-0026's 2026-10-14 amendment. snagentic keeps only its minimal test
+  pack. A local path is as trusted as the workspace: its content still goes through `validate`,
+  the gate and `push`. Downloading packs from a registry stays deferred (ADR-0026).
+- `check` warns when the pack's `requires.snagentic` or SDK version differs from the binary's.
+- **Anchor records.** Data rows the pack owns (persona groups, demo offerings) carry a fixed
+  sys_id in the template; the transform sets it on insert and matches on it on re-run, so a
+  customer may rename them. Metadata may reference only anchors; a reference from pack metadata
+  to any other data record is a finding. Customer-specific references live in data.
+
 ## Consequences
 
 - A baseline instance is rebuilt by one approved command and re-runs after any failure.
@@ -144,7 +157,7 @@ platform's standard mechanism and the customer's process (ADR-0018).
   their own.
 - Customizing ServiceNow-owned scopes records customer customizations that upgrades skip; pack
   review prefers each application's own extension points.
-- New work: modules and profiles in the manifest, components (plugin or app), the scope gate rule,
+- New work: packs from a path, anchors and their finding, modules and profiles in the manifest, components (plugin or app), the scope gate rule,
   the install orchestrator, plan document and journal, the store application installer, the
   components-only installer and its credential handling. Spikes S-E (Fluent loads into a
   ServiceNow-owned scope, captured in its update set) and S-F (store application install API).

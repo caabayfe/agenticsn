@@ -213,3 +213,35 @@ evidence:
 |---|---|
 | `seen` | checked within the last 90 days |
 | `recheck` | older than 90 days: a warning naming the page, never a blocking error |
+
+## 8. Links between pages (010b, 2026-10-17)
+
+Processes refer to each other: incident escalates to major incident and problem, request to
+change. A page links another with `[text](see:<target>)`:
+
+| Target | Leads to |
+|---|---|
+| `see:<topic>` | the topic in the same process |
+| `see:<process>/<topic>` | the topic in another process |
+| `see:<process>/<section>/<topic>` | that section's page |
+| `see:<process>` | the process's page |
+
+Without a section, the reader's own section wins: an end user's link goes to the end user's page
+when the topic has one, then the shared page (in the reader's view), then the others. `docs
+check` reports a link that leads nowhere as `unknown-reference`, an error.
+
+## 9. Every capability is shown (010c, 2026-10-17)
+
+Product owner: people learn a process by seeing it, so animations are part of every guide, not an
+extra.
+
+| Rule | Where | Severity |
+|---|---|---|
+| A Use or Operate page embeds at least one `{{animation:…}}` | `docs check` (`missing-animation`) | error |
+| Every animation step has its spoken line (`say`) | loading the scene | error |
+| A guide without an animation | `validate` (SN-MNT-016) | warning: never holds a push |
+
+`docs build --video` renders every animation as an MP4 into the site, with a *Download the video*
+link under its player, and names each animation it could not render (no browser, no ffmpeg);
+nothing is skipped silently. Shared pages that explain a flow get one too, by the method.
+

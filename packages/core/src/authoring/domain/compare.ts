@@ -67,38 +67,44 @@ function keyedDifferences(
   });
 }
 
+// One field's difference, if any.
+function fieldDifference(
+  record: UnitRecord,
+  field: string,
+  instance: Fields,
+  row: string,
+): Difference[] {
+  const keys = keyedReference(record.fields[field] ?? "");
+  if (keys !== null) return keyedDifferences(record.table, row, field, keys, instance);
+  const [built, instanceField] = comparedValue(record, field);
+  // A field the instance does not answer is a column it does not have: the load cannot set
+  // it (the SDK writes sys_choice.inactive_on_update, which pdi2 has no column for).
+  const actual = instance[instanceField];
+  if (actual === undefined) return [];
+  // A reference compared by name that holds the instance's own sys_id is the same reference,
+  // even when the name can't be read (a role hidden from this user); a placeholder never is.
+  if (instanceField !== field && record.fields[field] === instance[field]) return [];
+  const same =
+    record.table === "sys_dictionary" && field === "attributes"
+      ? sameAttributes(built, actual)
+      : sameValue(built, actual);
+  return same ? [] : [{ kind: "field", table: record.table, row, field, built, instance: actual }];
+}
+
 function fieldDifferences(
   record: UnitRecord,
   instance: Fields,
   row: string,
   skip: ReadonlySet<string>,
 ): Difference[] {
-  const differences: Difference[] = [];
-  for (const field of Object.keys(record.fields).sort()) {
-    // A field the platform rewrites on save (an ACL's description) never equals what was sent.
-    if (IGNORED.has(field) || skip.has(field) || platformWritten(record.table, field)) continue;
-    const keys = keyedReference(record.fields[field] ?? "");
-    if (keys !== null) {
-      differences.push(...keyedDifferences(record.table, row, field, keys, instance));
-      continue;
-    }
-    const [built, instanceField] = comparedValue(record, field);
-    // A field the instance does not answer is a column it does not have: the load cannot set
-    // it (the SDK writes sys_choice.inactive_on_update, which pdi2 has no column for).
-    const actual = instance[instanceField];
-    if (actual === undefined) continue;
-    // A reference compared by name that holds the instance's own sys_id is the same reference,
-    // even when the name can't be read (a role hidden from this user); a placeholder never is.
-    if (instanceField !== field && record.fields[field] === instance[field]) continue;
-    const same =
-      record.table === "sys_dictionary" && field === "attributes"
-        ? sameAttributes(built, actual)
-        : sameValue(built, actual);
-    if (!same) {
-      differences.push({ kind: "field", table: record.table, row, field, built, instance: actual });
-    }
-  }
-  return differences;
+  return Object.keys(record.fields)
+    .sort()
+    .flatMap((field) =>
+      // A field the platform rewrites on save (an ACL's description) never equals what was sent.
+      IGNORED.has(field) || skip.has(field) || platformWritten(record.table, field)
+        ? []
+        : fieldDifference(record, field, instance, row),
+    );
 }
 
 const position = (fields: Fields) => Number(fields["position"] ?? 0);

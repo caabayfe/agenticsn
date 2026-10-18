@@ -67,23 +67,29 @@ function opened(value: string): string {
 const isRecord = (node: Node) =>
   attributesOf(node)["action"] !== undefined && tagOf(node) !== "#text";
 
+// One field element: its value, and the name it references a record by, if any.
+function fieldOf(tag: string, child: Node): { value: string; name?: string } {
+  const attributes = attributesOf(child);
+  // A reference written by keys (Now.ref with keys): no display value, two or more keys.
+  const keys = Object.keys(attributes).filter((key) => key !== "display_value");
+  if (attributes["display_value"] === undefined && keys.length >= 2) {
+    return { value: keyedValue(attributes) };
+  }
+  // A form's link to a section names the section by its caption, as the platform matches it.
+  const name =
+    tag === "sys_ui_section" ? (attributes["caption"] ?? attributes["name"]) : attributes["name"];
+  const value = opened(textOf(child));
+  return name === undefined ? { value } : { value, name };
+}
+
 function recordOf(node: Node): UnitRecord {
   const fields: Record<string, string> = {};
   const referenceNames: Record<string, string> = {};
   for (const child of childrenOf(node)) {
     const tag = tagOf(child);
     if (tag.startsWith("#") || isRecord(child)) continue;
-    fields[tag] = opened(textOf(child));
-    const attributes = attributesOf(child);
-    // A reference written by keys (Now.ref with keys): no display value, two or more keys.
-    const keys = Object.keys(attributes).filter((key) => key !== "display_value");
-    if (attributes["display_value"] === undefined && keys.length >= 2) {
-      fields[tag] = keyedValue(attributes);
-      continue;
-    }
-    // A form's link to a section names the section by its caption, as the platform matches it.
-    const name =
-      tag === "sys_ui_section" ? (attributes["caption"] ?? attributes["name"]) : attributes["name"];
+    const { value, name } = fieldOf(tag, child);
+    fields[tag] = value;
     if (name !== undefined) referenceNames[tag] = name;
   }
   const action: UnitAction =

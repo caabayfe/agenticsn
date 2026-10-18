@@ -1,6 +1,7 @@
 import { InstallBlockedError, InstallLockedError, InstallPlanChangedError } from "../domain/errors";
 import { installPlanDocument, installReportDocument } from "../domain/install-document";
 import type { InstallPlan, InstallRecord, InstallStepRecord } from "../domain/install-plan";
+import type { Adoption } from "../domain/materialize";
 import type { InstallJournal, InstallSteps } from "../ports";
 import { type InstallPlanDependencies, type InstallQuery, planInstall } from "./plan-install";
 
@@ -78,6 +79,24 @@ async function components(
   }
 }
 
+// A module's out-of-box layouts become this branch's only where the client never changed them:
+// otherwise the module stops for the admin's review, before anything of it is pushed.
+async function takeOver(
+  deps: InstallRunDependencies,
+  adoptions: readonly Adoption[],
+  signal: AbortSignal,
+) {
+  if (adoptions.length === 0) return;
+  const result = await deps.steps.takeOver(adoptions, signal);
+  const refused = [
+    ...result.customized.map((r) => `customized on the instance: ${r}`),
+    ...result.absent.map((r) => `not on the instance: ${r}`),
+  ];
+  if (refused.length > 0) {
+    throw new Error(`${refused.join("; ")} (review it, then resume or drop it from the module)`);
+  }
+}
+
 async function deliver(
   deps: InstallRunDependencies,
   plan: InstallPlan,
@@ -98,6 +117,7 @@ async function deliver(
       if (added.conflicts.length > 0)
         throw new Error(`merge conflicts: ${added.conflicts.join(", ")}`);
       await deps.steps.keys(added.copied, signal);
+      await takeOver(deps, module.adoptions, signal);
       const planned = await deps.steps.planPush(module.label, signal);
       if (planned.units === 0 && planned.problems.length === 0) {
         return { outcome: "skipped", detail: "the instance already holds it as built" };

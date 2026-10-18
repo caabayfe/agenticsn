@@ -254,6 +254,22 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `take-over`
+
+```
+snagentic take-over <records...> [options]
+```
+
+Take over out-of-box records the workspace's source declares whole, such as a form layout (ADR-0038 item 8). A record still as the platform shipped it (no customer update) is recorded in the ledger as this branch's, so the next plan loads the source over it. A record the client customized is refused and nothing is written. Name records table:sys_id.
+
+Changes the instance: **yes, development instances only**. MCP tool: none.
+
+Options:
+
+- `--instance <value>`: the development instance holding the records
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `plan-push`
 
 ```

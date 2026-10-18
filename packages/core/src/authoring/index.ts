@@ -9,6 +9,13 @@ export {
 } from "./application/adopt";
 export { readUnits } from "./application/read-units";
 export {
+  type TakenRecord,
+  type TakeOverDependencies,
+  type TakeOverInput,
+  type TakeOverResult,
+  takeOver,
+} from "./application/take-over";
+export {
   AdoptRecordsNotFoundError,
   AdoptRefusedError,
   AdoptSecretError,
@@ -21,6 +28,7 @@ export {
   NothingAdoptedError,
   PathOutsideProjectError,
   SdkUnavailableError,
+  TakeOverBuildFailedError,
 } from "./domain/adopt-errors";
 export { compareUnit, type Difference } from "./domain/compare";
 export {

@@ -81,7 +81,13 @@ const workspace = (mirror = "m1"): PackWorkspace => ({
   merge: async () => ({ branch: "b", conflicts: [] }),
 });
 
-function fakeSteps(options: { notApplied?: Record<string, number>; nothingFor?: string[] } = {}) {
+function fakeSteps(
+  options: {
+    notApplied?: Record<string, number>;
+    nothingFor?: string[];
+    customized?: string[];
+  } = {},
+) {
   const calls: string[] = [];
   const files = new Map<string, string>();
   const steps: InstallSteps = {
@@ -98,6 +104,13 @@ function fakeSteps(options: { notApplied?: Record<string, number>; nothingFor?: 
     },
     keys: async (paths) => {
       calls.push(`keys ${paths.length}`);
+    },
+    takeOver: async (records) => {
+      calls.push(`take-over ${records.length}`);
+      const customized = records
+        .filter((r) => (options.customized ?? []).includes(r.sysId))
+        .map((r) => `${r.table} ${r.sysId}`);
+      return { taken: records.length - customized.length, customized, absent: [] };
     },
     planPush: async (label) => {
       calls.push(`plan ${label}`);
@@ -169,6 +182,18 @@ const deps = (
     },
   };
 };
+
+const WITH_ADOPT: PackFixture = {
+  ...PACK,
+  files: {
+    ...PACK.files,
+    "modules/foundation/adopt.yaml": JSON.stringify([
+      { table: "sys_properties", sys_id: "a".repeat(32), note: "set the value to true" },
+    ]),
+  },
+};
+
+const ACTIVE = { "com.snc.cmdb.csdm": "active", "com.snc.incident.mim": "active" } as const;
 
 const QUERY = {
   pack: "itsm",
@@ -312,6 +337,30 @@ describe("deciding what the install does with each component", () => {
       "an inactive store application: activate it in Application Manager (spike S-F)",
     ]);
     expect(decided({ state: "inactive" })[0]).toBe("activate");
+  });
+
+  it("takes over a module's out-of-box records before planning its push", async () => {
+    const { steps, calls } = fakeSteps();
+    const packs = memoryPacks({ itsm: packFiles(WITH_ADOPT) });
+    const ready = { ...deps(ACTIVE, { steps }), packs };
+    const plan = await planInstall(ready, QUERY);
+    await installPack(ready, { ...QUERY, confirm: plan.planId });
+    const at = (call: string) => calls.indexOf(call);
+    expect(at("take-over 1")).toBeGreaterThan(at("keys 1"));
+    expect(at("take-over 1")).toBeLessThan(at("plan ITSM: foundation 0.1.0"));
+  });
+
+  it("stops at a module whose out-of-box record the client customized, naming it", async () => {
+    const { steps, calls } = fakeSteps({ customized: ["a".repeat(32)] });
+    const packs = memoryPacks({ itsm: packFiles(WITH_ADOPT) });
+    const ready = { ...deps(ACTIVE, { steps }), packs };
+    const plan = await planInstall(ready, QUERY);
+    const result = await installPack(ready, { ...QUERY, confirm: plan.planId });
+    expect(result.stopped?.step).toBe("module foundation");
+    expect(result.stopped?.detail).toContain(
+      `customized on the instance: sys_properties ${"a".repeat(32)}`,
+    );
+    expect(calls).not.toContain("plan ITSM: foundation 0.1.0");
   });
 
   it("lists the out-of-box records a module customizes in the plan", async () => {

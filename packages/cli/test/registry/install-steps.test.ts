@@ -26,6 +26,19 @@ const ANSWERS: Readonly<Record<string, unknown>> = {
     updateSets: [{ name: "snagentic: L" }],
   },
   load: { entities: [], stopped: false },
+  "take-over": {
+    taken: [
+      {
+        table: "sys_ui_section",
+        sysId: "s1",
+        updateName: "sys_ui_section_b1",
+        project: "source/global",
+      },
+    ],
+    owned: [],
+    customized: [{ table: "sys_ui_form", sysId: "f1", updateName: "sys_ui_form_f1", project: "" }],
+    absent: [{ table: "sys_ui_section", sysId: "s2" }],
+  },
 };
 
 function fakes() {
@@ -134,5 +147,34 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
     ]);
     expect(written).toEqual([["/w/accelerators/installs/pdi/x/plan.md", "# plan"]]);
     expect(commits).toEqual([[["accelerators/installs/pdi/x/plan.md"], "install"]]);
+  });
+
+  it("takes over out-of-box records and commits the ledgers that now hold them", async () => {
+    const { steps, calls, commits } = fakes();
+    const result = await steps.takeOver(
+      [
+        { table: "sys_ui_section", sysId: "s1" },
+        { table: "sys_ui_form", sysId: "f1" },
+        { table: "sys_ui_section", sysId: "s2" },
+      ],
+      signal,
+    );
+    expect(result).toEqual({
+      taken: 1,
+      customized: ["sys_ui_form f1"],
+      absent: ["sys_ui_section s2"],
+    });
+    expect(calls).toEqual([
+      [
+        "take-over",
+        {
+          instance: "pdi",
+          records: ["sys_ui_section:s1", "sys_ui_form:f1", "sys_ui_section:s2"],
+        },
+      ],
+    ]);
+    expect(commits).toEqual([
+      [["source/global/snagentic.ledger.yaml"], "chore(snagentic): take over out-of-box layouts"],
+    ]);
   });
 });

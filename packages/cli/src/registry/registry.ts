@@ -30,6 +30,7 @@ import { pluginsList } from "./plugins-list";
 import { pull } from "./pull";
 import { push } from "./push";
 import { status } from "./status";
+import { takeOver } from "./take-over";
 import { updateSetsCollisions } from "./update-sets-collisions";
 import { updateSetsExport } from "./update-sets-export";
 import { updateSetsList } from "./update-sets-list";
@@ -58,6 +59,7 @@ export const USE_CASES: readonly UseCase[] = [
   fluentKeys,
   check,
   adopt,
+  takeOver,
   planPush,
   push,
   agentInstall,

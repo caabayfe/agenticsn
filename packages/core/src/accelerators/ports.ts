@@ -79,6 +79,16 @@ export interface InstallSteps {
   ): Promise<{ readonly copied: readonly string[]; readonly conflicts: readonly string[] }>;
   // fluent-keys for the projects holding these files, committed (rule SN-MNT-010).
   keys(paths: readonly string[], signal: AbortSignal): Promise<void>;
+  // take-over for the out-of-box records a module declares whole (ADR-0038 item 8): those
+  // untouched since shipped become this branch's; customized or absent ones are named.
+  takeOver(
+    records: readonly { readonly table: string; readonly sysId: string }[],
+    signal: AbortSignal,
+  ): Promise<{
+    readonly taken: number;
+    readonly customized: readonly string[];
+    readonly absent: readonly string[];
+  }>;
   planPush(
     label: string,
     signal: AbortSignal,

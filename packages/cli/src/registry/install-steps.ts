@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { InstallSteps, InstanceName } from "@snagentic/core";
+import { type InstallSteps, type InstanceName, LEDGER_FILE } from "@snagentic/core";
 import type { z } from "zod";
 import { acceleratorAdd } from "./accelerator-add";
 import { acceleratorLoad } from "./accelerator-load";
@@ -9,6 +9,7 @@ import { planPush } from "./plan-push";
 import { pluginsActivate } from "./plugins-activate";
 import { pull } from "./pull";
 import { push } from "./push";
+import { takeOver } from "./take-over";
 import type { RunControl, UseCase, UseCaseContext } from "./use-case";
 
 // Runs a use case with an input given as on its command line (defaults filled by its schema).
@@ -82,6 +83,21 @@ export function installSteps(
         files,
         "chore(snagentic): keys for the accelerator's new records",
       );
+    },
+    async takeOver(records) {
+      const out = await call(takeOver, {
+        instance,
+        records: records.map((r) => `${r.table}:${r.sysId}`),
+      });
+      const ledgers = [...new Set(out.taken.map((r) => `${r.project}/${LEDGER_FILE}`))];
+      if (ledgers.length > 0) {
+        await delivery().commitFiles(ledgers, "chore(snagentic): take over out-of-box layouts");
+      }
+      return {
+        taken: out.taken.length,
+        customized: out.customized.map((r) => `${r.table} ${r.sysId}`),
+        absent: out.absent.map((r) => `${r.table} ${r.sysId}`),
+      };
     },
     ...deliverySteps(call, instance),
     load: (modules, source) =>

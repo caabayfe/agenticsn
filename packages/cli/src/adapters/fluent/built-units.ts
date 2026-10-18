@@ -112,13 +112,23 @@ export function isEmptyUpdate(xml: string): boolean {
   return xml.replace(/<\?xml[^>]*\?>/, "").trim() === "";
 }
 
+// A form's composite names its domain on the wrapper (<sys_ui_form_sections sys_domain=...>),
+// not on the form record: the head carries it, as the platform matches forms by domain.
+function withWrapperDomain(root: Node, head: UnitRecord): UnitRecord {
+  if (head.fields["sys_domain"] !== undefined) return head;
+  const wrapper = childrenOf(root).find((node) => childrenOf(node).some(isRecord));
+  const domain = wrapper === undefined ? undefined : attributesOf(wrapper)["sys_domain"];
+  return domain === undefined ? head : { ...head, fields: { ...head.fields, sys_domain: domain } };
+}
+
 export function builtUnitOf(file: string, xml: string): BuiltUnit {
   const document = parser.parse(xml) as Node[];
   const root = document.find((node) => tagOf(node) === "record_update");
   if (root === undefined) throw new UnreadableBuildError(file, "it is not an update record");
   const records = recordsIn(root);
-  const head = headOf(records, attributesOf(root)["table"]);
-  if (head === undefined) throw new UnreadableBuildError(file, "no record names the unit");
+  const found = headOf(records, attributesOf(root)["table"]);
+  if (found === undefined) throw new UnreadableBuildError(file, "no record names the unit");
+  const head = withWrapperDomain(root, found);
   const name = file.slice(file.lastIndexOf("/") + 1).replace(/\.xml$/, "");
-  return { updateName: name, file, head, children: records.filter((r) => r !== head) };
+  return { updateName: name, file, head, children: records.filter((r) => r !== found) };
 }

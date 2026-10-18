@@ -61,6 +61,12 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
     expect(built.children[0]?.fields["element"]).toBe(".begin_split");
   });
 
+  it("gives a form the domain its wrapper names, so it is matched like the platform matches it", () => {
+    const built = unit("sys_ui_form_sections_f67d29c0e4f7611262bd5c7ae69ce0d8.xml");
+    expect(built.head.fields["sys_domain"]).toBe("global");
+    expect(built.children.every((row) => row.fields["sys_domain"] === undefined)).toBe(true);
+  });
+
   it("names a form's unit after the form, with its sections as rows", () => {
     const built = unit("sys_ui_form_sections_f67d29c0e4f7611262bd5c7ae69ce0d8.xml");
     expect(built.head.table).toBe("sys_ui_form");

@@ -58,7 +58,8 @@ export interface SourceDraft {
 
 export type DraftOutcome =
   | { readonly ok: true; readonly draft: SourceDraft }
-  | { readonly ok: false; readonly message: string };
+  // `refused`: the conversion fixes' refusals, each with what to do (conversion-fixes.ts).
+  | { readonly ok: false; readonly message: string; readonly refused?: readonly string[] };
 
 // A project's build: its units, and each built file's XML by file name (relative to the build
 // output), which is what a load sends.

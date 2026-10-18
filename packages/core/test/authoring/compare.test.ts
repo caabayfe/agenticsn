@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { coalesceValues, compareUnit, knownLoss, unitName } from "@snagentic/core";
+import { coalesceValues, compareUnit, knownLoss, unitName, unitSpec } from "@snagentic/core";
 import { copy, listCopy, record, revocationList, scriptInclude, unit } from "./units";
 
 const INSTANCE_SCRIPT_INCLUDE = {
@@ -368,5 +368,38 @@ describe("compareUnit: roles and views named in source (B3)", () => {
     expect(compareUnit(built, copy({ role: "itil" }))).toEqual([
       expect.objectContaining({ field: "role", built: "admin", instance: "itil" }),
     ]);
+  });
+});
+
+// A role hidden from the integration user (maint): the instance answers its sys_id but no name,
+// while the build names it. The same sys_id is the same reference (spec 009 L1, pdi2).
+describe("compareUnit: a named reference with the instance's own sys_id", () => {
+  const REAL = "b05947ca0a0a0aa700fdef030c6bca07";
+  const role = unit(
+    "sys_security_acl_role_y",
+    record(
+      "sys_security_acl_role",
+      "c".repeat(32),
+      { sys_user_role: REAL },
+      { sys_user_role: "maint" },
+    ),
+  );
+
+  it("is the same reference whatever the names say", () => {
+    expect(compareUnit(role, copy({ sys_user_role: REAL, "sys_user_role.name": "" }))).toEqual([]);
+  });
+
+  it("still names a different role", () => {
+    expect(
+      compareUnit(role, copy({ sys_user_role: "d".repeat(32), "sys_user_role.name": "admin" })),
+    ).toEqual([
+      expect.objectContaining({ field: "sys_user_role", built: "maint", instance: "admin" }),
+    ]);
+  });
+});
+
+describe("unitSpec: compiled units", () => {
+  it("doesn't compare a flow's JSON chunks, which the platform re-encodes", () => {
+    expect(unitSpec("sys_json_chunk").comparable).toBe(false);
   });
 });

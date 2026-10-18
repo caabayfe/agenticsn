@@ -53,6 +53,12 @@ export function introduced(now: readonly Finding[], before: readonly Finding[]):
   });
 }
 
+// The findings `now` keeps from `before`: what the change inherited rather than introduced.
+export function inherited(now: readonly Finding[], before: readonly Finding[]): Finding[] {
+  const fresh = new Set(introduced(now, before));
+  return now.filter((finding) => !fresh.has(finding));
+}
+
 const RANK: Readonly<Record<FindingSeverity, number>> = { block: 0, warn: 1, info: 2 };
 
 // Most severe first, then by file and line, so results read the same on every run.

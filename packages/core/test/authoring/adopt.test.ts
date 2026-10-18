@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   AdoptRecordsNotFoundError,
+  AdoptRefusedError,
   AdoptStoreApplicationError,
   AdoptTransformFailedError,
   AdoptUnexplainedDifferenceError,
@@ -60,6 +61,7 @@ describe("adopt (ADR-0031 item 3)", () => {
         updateName: `sys_script_include_${SCRIPT_INCLUDE_ID}`,
         table: "sys_script_include",
         losses: [],
+        sets: [],
       },
     ]);
     expect(result.files).toEqual(["source/x_2222332_s11/src/fluent/generated/si.now.ts"]);
@@ -102,6 +104,7 @@ describe("adopt (ADR-0031 item 3)", () => {
       { instance: "pdi2", records: [{ table: "sysauto_script", sysId: "a".repeat(32) }] },
     );
     expect(result.units[0]?.losses).toEqual(["api-default"]);
+    expect(result.units[0]?.sets).toEqual(["sysauto_script.run_dayofweek = 1"]);
   });
 
   it("writes nothing when the build would change what the instance holds", async () => {
@@ -315,6 +318,48 @@ describe("adopt (ADR-0031 item 3)", () => {
     await expect(adopting).rejects.toBeInstanceOf(AdoptTransformFailedError);
   });
 
+  it("names a conversion the SDK can't make as a refusal, with what to set", async () => {
+    const failing = {
+      ...toolchain([]).chain,
+      draftTransform: async () => ({
+        ok: false as const,
+        message: "Cannot coerce value to number: ",
+      }),
+    };
+    const adopting = adopt(
+      {
+        reader: instance().reader,
+        workspace: memoryWorkspace().workspace,
+        toolchain: failing,
+        access,
+        signal,
+      },
+      { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
+    );
+    await expect(adopting).rejects.toBeInstanceOf(AdoptRefusedError);
+  });
+
+  it("refuses what the conversion fixes refuse, with their reasons", async () => {
+    const reason = "ua.now.ts: a role the SDK's conversion couldn't read";
+    const failing = {
+      ...toolchain([]).chain,
+      draftTransform: async () => ({ ok: false as const, message: reason, refused: [reason] }),
+    };
+    const adopting = adopt(
+      {
+        reader: instance().reader,
+        workspace: memoryWorkspace().workspace,
+        toolchain: failing,
+        access,
+        signal,
+      },
+      { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
+    );
+    const refused = await adopting.catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(AdoptRefusedError);
+    expect(refused instanceof AdoptRefusedError ? refused.message : "").toContain(reason);
+  });
+
   it("adopts each scope's records into its own project, in scope order", async () => {
     const OTHER = "b".repeat(32);
     const fake = fakeInstance({
@@ -375,4 +420,33 @@ describe("adopt (ADR-0031 item 3)", () => {
       expect(written.size).toBe(0);
     },
   );
+
+  it("refuses by design, naming why, a protected role whose containments the SDK would protect", async () => {
+    const id = "c".repeat(32);
+    const fake = fakeInstance({
+      sys_user_role_contains: [
+        {
+          sys_id: id,
+          sys_class_name: "sys_user_role_contains",
+          sys_scope: SCOPE_ID,
+          sys_policy: "",
+          sys_mod_count: "0",
+          sys_updated_on: "2026-10-16 06:30:48",
+        },
+      ],
+      sys_scope: [{ sys_id: SCOPE_ID, scope: "x_2222332_s11", sys_class_name: "sys_app" }],
+    });
+    const contains = unit(
+      `sys_user_role_contains_${id}`,
+      record("sys_user_role_contains", id, { sys_id: id, sys_policy: "read" }),
+    );
+    const { workspace, written } = memoryWorkspace();
+    const adopting = adopt(
+      { reader: fake.reader, workspace, toolchain: toolchain([contains]).chain, access, signal },
+      { instance: "pdi2", records: [{ table: "sys_user_role_contains", sysId: id }] },
+    );
+    await expect(adopting).rejects.toBeInstanceOf(AdoptRefusedError);
+    await expect(adopting).rejects.toThrow("containment rows' protection from none to read");
+    expect(written.size).toBe(0);
+  });
 });

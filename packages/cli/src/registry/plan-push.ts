@@ -37,6 +37,12 @@ export const PlanOutput = z.object({
           .array(z.string())
           .readonly()
           .describe("known SDK losses the load also sets (not written in source)"),
+        alsoSets: z
+          .array(z.string())
+          .readonly()
+          .describe(
+            "what those losses set, as table.field = value: the load sets it beyond source",
+          ),
       }),
     )
     .readonly(),
@@ -56,6 +62,13 @@ export const PlanOutput = z.object({
     waived: z.array(GateFinding.extend({ reason: z.string(), approver: z.string() })).readonly(),
     warnings: z.number(),
     waiverProblems: z.array(z.object({ index: z.number(), reason: z.string() })).readonly(),
+    inherited: z
+      .array(GateFinding)
+      .readonly()
+      .optional()
+      .describe(
+        "findings the changed units already held where they last agreed with the instance: shown, never blocking",
+      ),
   }),
   collisions: z
     .array(
@@ -110,7 +123,7 @@ export const planPush = defineUseCase({
     const lines = [
       ...output.units.map(
         (u) =>
-          `${u.operation.padEnd(6)} ${u.updateName}  ${u.project}${u.changes.length > 0 ? `  (${u.changes.join(", ")})` : ""}${u.losses.length > 0 ? `  also sets: ${u.losses.join(", ")}` : ""}`,
+          `${u.operation.padEnd(6)} ${u.updateName}  ${u.project}${u.changes.length > 0 ? `  (${u.changes.join(", ")})` : ""}${u.alsoSets.length > 0 ? `  also sets: ${u.alsoSets.join(", ")}` : ""}`,
       ),
       ...output.problems.map((p) => `problem: ${p.updateName || p.project}: ${p.reason}`),
       ...output.gate.blocking.map(
@@ -118,6 +131,9 @@ export const planPush = defineUseCase({
       ),
       ...output.gate.waived.map(
         (f) => `waived:  ${f.ruleId} ${f.path} (${f.approver}: ${f.reason})`,
+      ),
+      ...(output.gate.inherited ?? []).map(
+        (f) => `inherited (not blocking): ${f.ruleId} ${f.path}:${f.line ?? ""} ${f.message}`,
       ),
       ...output.gate.waiverProblems.map((w) =>
         w.index < 0 ? w.reason : `waivers.yaml entry ${w.index + 1}: ${w.reason}`,

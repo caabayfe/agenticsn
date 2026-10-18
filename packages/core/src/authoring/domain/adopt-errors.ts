@@ -28,7 +28,9 @@ export class AdoptTransformFailedError extends SnagenticError {
       "adopt-transform-failed",
       "remote",
       `the ServiceNow SDK could not convert the records of ${scope}: ${message}`,
-      "check that each record still exists (snagentic pull), then adopt again",
+      message.startsWith("the converted source does not build")
+        ? "the SDK's conversion of these records doesn't build (an SDK limitation): leave them on the instance, and report it to ServiceNow with the message"
+        : "check that each record still exists (snagentic pull), then adopt again",
     );
   }
 }
@@ -133,5 +135,21 @@ export class PathOutsideProjectError extends SnagenticError {
       `refused to write ${JSON.stringify(path)}: it is outside ${folder}`,
       "nothing was written; report it, naming the records adopted and the SDK version (snagentic doctor)",
     );
+  }
+}
+
+// Records adopt refuses by design: what the SDK would change on the instance was judged too
+// much to accept (refusals.ts). Not a gap to report.
+export class AdoptRefusedError extends SnagenticError {
+  readonly refusals: readonly string[];
+
+  constructor(refusals: readonly string[]) {
+    super(
+      "adopt-refused",
+      "not-permitted",
+      `these records can't be adopted: ${refusals.slice(0, 5).join("; ")}${refusals.length > 5 ? ` and ${refusals.length - 5} more` : ""}`,
+      "nothing was written; adopt the other records, and leave these on the instance",
+    );
+    this.refusals = refusals;
   }
 }

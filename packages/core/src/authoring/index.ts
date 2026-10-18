@@ -10,6 +10,7 @@ export {
 export { readUnits } from "./application/read-units";
 export {
   AdoptRecordsNotFoundError,
+  AdoptRefusedError,
   AdoptSecretError,
   AdoptStoreApplicationError,
   AdoptTransformFailedError,
@@ -47,6 +48,7 @@ export {
   type LossId,
 } from "./domain/losses";
 export { planUnit, type UnitDecision } from "./domain/plan-unit";
+export { conversionRefusal, knownRefusal } from "./domain/refusals";
 export { sdkRouteAllowed } from "./domain/sdk-routes";
 export {
   type BuiltUnit,
@@ -56,6 +58,7 @@ export {
   type UnitAction,
   type UnitRecord,
 } from "./domain/unit";
+export { unitSecrets } from "./domain/unit-secrets";
 export {
   type ChildSpec,
   childLink,

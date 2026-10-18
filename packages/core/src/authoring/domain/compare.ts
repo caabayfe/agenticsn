@@ -59,6 +59,9 @@ function fieldDifferences(
     // it (the SDK writes sys_choice.inactive_on_update, which pdi2 has no column for).
     const actual = instance[instanceField];
     if (actual === undefined) continue;
+    // A reference compared by name that holds the instance's own sys_id is the same reference,
+    // even when the name can't be read (a role hidden from this user); a placeholder never is.
+    if (instanceField !== field && record.fields[field] === instance[field]) continue;
     if (!sameValue(built, actual)) {
       differences.push({ kind: "field", table: record.table, row, field, built, instance: actual });
     }

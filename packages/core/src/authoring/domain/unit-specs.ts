@@ -86,6 +86,9 @@ const SPECS: Readonly<Record<string, UnitSpec>> = {
     comparable: true,
   },
   sys_hub_flow: COMPILED,
+  // A flow's definition chunks: the build writes JSON, the platform stores it gzipped and
+  // base64-encoded (equal once decoded, pdi2), so they are compared as the flow is: by ledger.
+  sys_json_chunk: COMPILED,
   sys_hub_action_type_definition: COMPILED,
 };
 

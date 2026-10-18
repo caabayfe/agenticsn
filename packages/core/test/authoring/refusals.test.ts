@@ -54,4 +54,44 @@ describe("knownRefusal", () => {
       ),
     ).toContain("short description");
   });
+
+  it("names a protected UI action whose roles or views the SDK would change", () => {
+    expect(knownRefusal(field("sys_ui_action_role", "sys_policy", "read", ""))).toContain(
+      "a protected UI action",
+    );
+    expect(knownRefusal(field("sys_ui_action_view", "sys_policy", "read", ""))).toContain(
+      "a protected UI action",
+    );
+  });
+
+  it.each([
+    [`Type '"read-only"' is not assignable to type '"read" | "protected"'.`, "legacy"],
+    [`Type '"private"' is not assignable to type '"public" | "package_private"'.`, "legacy"],
+    [
+      "workspace.showFormButtonV2 or workspace.showFormMenuButtonV2 must be true when workspace",
+      "workspace",
+    ],
+  ])("names a conversion the SDK can't make: %p", (message, expected) => {
+    expect(conversionRefusal(`the converted source does not build: ${message}`)).toContain(
+      expected,
+    );
+  });
+
+  it("names a column of a baseline table, which the SDK's Table can't define in global", () => {
+    expect(
+      conversionRefusal(
+        "the converted source does not build: Global table 'name' property should start with custom prefix 'u_'",
+      ),
+    ).toContain("a column of a baseline table");
+  });
+
+  it("names the legacy protection value read_only too", () => {
+    expect(
+      conversionRefusal(`Type '"read_only"' is not assignable to type '"read" | "protected"'.`),
+    ).toContain("legacy");
+  });
+
+  it("names an empty number field without assuming it is a UI policy", () => {
+    expect(conversionRefusal("Cannot coerce value to number: ")).toContain("a number field");
+  });
 });

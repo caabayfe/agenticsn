@@ -25,6 +25,9 @@ export function pageFile(
 export const EMPLOYEES_HOME = "employees/index.html";
 export const IT_HOME = "it/index.html";
 export const OPEN_QUESTIONS = "it/open-questions.html";
+// What changed for readers, from the release files (ADR-0039).
+export const WHATS_NEW_EMPLOYEES = "employees/whats-new.html";
+export const WHATS_NEW_IT = "it/whats-new.html";
 
 export function sectionHome(process: string, section: Section): string {
   return `processes/${process}/${section}/index.html`;

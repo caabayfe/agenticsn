@@ -32,8 +32,18 @@ export interface DocumentationSources {
   // documentation/theme/: the client's theme.css and the images and fonts it uses, by path inside
   // the folder. Absent or empty: the site ships its template.
   theme?(): Promise<readonly ThemeFile[]>;
+  // changes/<release>.md: one file per release, with its notes (ADR-0039).
+  releases?(): Promise<readonly PageSource[]>;
   // Sets evidence.<id>.hash in a page's front matter, keeping the rest of the file as written.
   pinHashes(path: string, hashes: ReadonlyMap<string, string>): Promise<void>;
+}
+
+// The documentation's sources in git history, for what changed since a commit (ADR-0039).
+export interface DocumentationHistory {
+  // documentation/-relative paths of files that differ from `commit`: committed since or edited.
+  changedSince(commit: string): Promise<readonly string[]>;
+  // Pages or release files as `commit` held them; a file it didn't hold is left out.
+  at(commit: string, paths: readonly string[]): Promise<readonly PageSource[]>;
 }
 
 // One record of a table as listed: its main fields only (no long-field files), and who changed

@@ -492,6 +492,23 @@ Changes the instance: no. MCP tool: none.
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `docs impact`
+
+```
+snagentic docs impact [options]
+```
+
+What a change does to the workspace's documentation: each claim (sentence, list item or table row) whose evidence the change affects, with its page, heading and reader (employees, operators, platform team). Covers the Fluent source changed since base, evidence on a field only when that field changes, and evidence the instance changed since the page was verified. The text is Markdown, to post on a pull request. Read the JSON to fix the pages in the same change. Reads only the workspace and the mirror.
+
+Changes the instance: no. MCP tool: none.
+
+Options:
+
+- `--base <value>`: commit, branch or tag to compare with, for example origin/main
+- `--instance <value>`: default: the workspace's only instance
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `docs pin`
 
 ```

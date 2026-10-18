@@ -7,6 +7,7 @@ import type { PlayerMedia } from "./player";
 import { OVERVIEW, type Process, type ProcessCapability } from "./process";
 import { expandProse } from "./prose";
 import { resolveReference } from "./references";
+import type { Release } from "./releases";
 import type { Scene } from "./scene";
 import type { SiteConfig } from "./site-config";
 import {
@@ -38,6 +39,8 @@ export interface SiteInput {
   readonly indexes?: ReadonlyMap<string, ConfigIndex>;
   // Each animation rendered as MP4, by animation name (spec 010c).
   readonly videos?: ReadonlyMap<string, Uint8Array>;
+  // The release files, for the What's new pages (ADR-0039).
+  readonly releases?: readonly Release[];
   // The client's theme files, by path inside documentation/theme/.
   readonly theme?: readonly { readonly path: string; readonly content: Uint8Array }[];
 }

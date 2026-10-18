@@ -12,6 +12,7 @@ import { configureHtml, guideHtml, understandHtml } from "./site-pages";
 import { searchScript } from "./site-search";
 import { SITE_STYLE } from "./site-style";
 import { THEME_TEMPLATE } from "./site-theme";
+import { whatsNewFiles } from "./site-whats-new";
 import { SECTION_VIEW } from "./structure";
 import { VIEWS } from "./views";
 
@@ -90,6 +91,7 @@ export function siteFiles(input: SiteInput): readonly SiteFile[] {
           { path: IT_HOME, content: itHomeHtml(b, processes) },
           { path: OPEN_QUESTIONS, content: openQuestionsHtml(b, processes) },
         ]),
+    ...whatsNewFiles(b),
   ];
   const files: SiteFile[] = [
     ...homes,

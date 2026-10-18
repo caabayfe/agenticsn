@@ -157,6 +157,7 @@ export async function buildSite(
     indexes,
     videos,
     theme: (await deps.sources.theme?.()) ?? [],
+    releases: docs.releases,
   });
   await deps.output.replace(files);
   return {

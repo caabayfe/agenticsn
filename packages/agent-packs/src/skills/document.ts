@@ -20,7 +20,8 @@ export const DOCUMENT: Skill = {
   ],
   decide: [
     "A role exists in the code but you cannot tell what it does for people: ask, or mark OPEN-QUESTION.",
-    "`snagentic docs check` lists changed evidence, or `validate` reports SN-MNT-014 or SN-MNT-015: re-read the record, fix every page that cites it in the same change, then pin.",
+    "`snagentic docs check` lists changed evidence, or `validate` reports SN-MNT-014 or SN-MNT-015: run `snagentic docs impact` against the branch the change merges into (--base origin/main), as JSON (--format json), re-read each record, fix every claim it lists in the same change, then pin. Put the text output in the pull request description so reviewers see what readers are told differently.",
+    "A fix changes what employees or IT do, or `validate` reports SN-MNT-017: add a note to the release file, documentation/changes/<release>.md (title, date, notes with for: employees or it, note in the readers' words, see: the pages), creating the file for a new release. The What's new pages list the notes.",
     "A platform-words warning on an end user's page: rewrite in the portal's words, or move the sentence under {for=operator}.",
   ],
   output:

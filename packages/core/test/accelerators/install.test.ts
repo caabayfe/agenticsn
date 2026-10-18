@@ -437,7 +437,10 @@ describe("running an install (ADR-0038, item 2)", () => {
       confirm: plan.planId,
     });
     expect(resumed.stopped).toBeNull();
-    expect(second.calls[0]).toBe("add foundation");
+    // The module the journal records as done is not planned again: its update set is closed
+    // to this run, and the workspace already holds the later modules' files.
+    expect(second.calls[0]).toBe("add foundation+incident");
+    expect(second.calls).not.toContain("plan ITSM: foundation 0.1.0");
     expect(
       second.files.has(
         `accelerators/installs/pdi2/itsm-${plan.planId}/resume-${resumed.plan.planId}.md`,

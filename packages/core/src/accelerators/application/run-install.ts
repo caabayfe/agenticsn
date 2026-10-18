@@ -85,7 +85,13 @@ async function deliver(
   signal: AbortSignal,
 ) {
   const ids = plan.modules.map((m) => m.id);
+  // A resumed run skips the modules it finished: their update sets are done, and planning
+  // one again would take in the later modules' files the workspace already holds.
+  const finished = new Set(
+    record.current.steps.filter((s) => s.outcome !== "stopped").map((s) => s.step),
+  );
   for (const [index, module] of plan.modules.entries()) {
+    if (finished.has(`module ${module.id}`)) continue;
     await step(deps, record, `module ${module.id}`, async () => {
       // Every module up to this one: a later add never drops an earlier module's files.
       const added = await deps.steps.add(ids.slice(0, index + 1), signal);

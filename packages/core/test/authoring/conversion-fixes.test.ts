@@ -103,4 +103,20 @@ describe("knownLoss: values the SDK recomputes where the instance holds nothing"
     );
     expect(knownLoss(field("sys_ui_policy_action", "table", "incident", "task"))).toBeNull();
   });
+
+  it("accepts order 100 for a UI action whose order is empty", () => {
+    expect(knownLoss(field("sys_ui_action", "order", "100", ""))).toBe("api-default");
+  });
+
+  it("accepts public for a global table whose access is empty, only in global", () => {
+    const access = field("sys_db_object", "access", "public", "");
+    expect(knownLoss(access, "global")).toBe("api-default");
+    expect(knownLoss(access, "x_acme_app")).toBeNull();
+    expect(knownLoss(access)).toBeNull();
+  });
+
+  it("accepts an empty choice where a column says 0, no choices", () => {
+    expect(knownLoss(field("sys_dictionary", "choice", "", "0"))).toBe("api-default");
+    expect(knownLoss(field("sys_dictionary", "choice", "", "1"))).toBeNull();
+  });
 });

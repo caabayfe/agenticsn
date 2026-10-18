@@ -26,10 +26,10 @@ export type UnitDecision =
   // The unit has rows in other domains, which a load might replace (S16).
   | { readonly kind: "unsafe"; readonly reason: string };
 
-function lossesOf(differences: readonly Difference[]): LossId[] {
+function lossesOf(differences: readonly Difference[], scope: string | undefined): LossId[] {
   const losses = new Set<LossId>();
   for (const difference of differences) {
-    const loss = knownLoss(difference);
+    const loss = knownLoss(difference, scope);
     if (loss !== null) losses.add(loss);
   }
   return [...losses].sort();
@@ -66,5 +66,9 @@ export function planUnit(
   if (copy.foreignRows > 0) {
     return { kind: "unsafe", reason: `${copy.foreignRows} rows belong to other domains` };
   }
-  return { kind: "load", differences, losses: lossesOf(differences) };
+  return {
+    kind: "load",
+    differences,
+    losses: lossesOf(differences, unit.head.fields["sys_scope"]),
+  };
 }

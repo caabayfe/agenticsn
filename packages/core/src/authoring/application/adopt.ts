@@ -101,7 +101,7 @@ function entryFor(
   const differences = unitSpec(unit.head.table).comparable ? compareUnit(unit, copy) : [];
   const losses = new Set<LossId>();
   for (const difference of differences) {
-    const loss = knownLoss(difference);
+    const loss = knownLoss(difference, unit.head.fields["sys_scope"]);
     const refusal = loss === null ? knownRefusal(difference) : null;
     if (loss !== null) losses.add(loss);
     else if (refusal !== null) refusals.push(describe(unit, refusal));

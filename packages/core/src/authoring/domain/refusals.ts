@@ -78,6 +78,12 @@ const CONVERSION_REFUSALS: readonly { readonly error: RegExp; readonly reason: s
     reason:
       "a column of a baseline table, which the SDK's Table() can't define in global: leave it on the instance (a Record() route for baseline records is test plan decision 3)",
   },
+  // An application's own table defines its choices with its column, not as a ChoiceSet (1 on pdi2).
+  {
+    error: /ChoiceSet on table '[^']*' is not allowed from scoped app/,
+    reason:
+      "the choices of a table its application owns are defined with the table's column: adopt the column (its sys_dictionary entry) instead",
+  },
   // The SDK requires a UI policy's short description; 12 on pdi2 have none.
   {
     error: /shortDescription cannot be empty/,

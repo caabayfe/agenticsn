@@ -113,7 +113,7 @@ function unitVerdict(
   // As adopt does: units the platform compiles after a load (flows) aren't compared.
   const differences = unitSpec(unit.head.table).comparable ? compareUnit(unit, copy) : [];
   for (const difference of differences) {
-    const loss = knownLoss(difference);
+    const loss = knownLoss(difference, unit.head.fields["sys_scope"]);
     if (loss !== null) {
       losses.add(loss);
       continue;

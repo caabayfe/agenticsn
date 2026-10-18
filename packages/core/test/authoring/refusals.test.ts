@@ -94,4 +94,12 @@ describe("knownRefusal", () => {
   it("names an empty number field without assuming it is a UI policy", () => {
     expect(conversionRefusal("Cannot coerce value to number: ")).toContain("a number field");
   });
+
+  it("names a choice set of a table its application owns: adopt the column", () => {
+    expect(
+      conversionRefusal(
+        "the converted source does not build: ChoiceSet on table 'x_2222332_s11_e2e' is not allowed from scoped app 'x_2222332_s11'",
+      ),
+    ).toContain("adopt the column");
+  });
 });

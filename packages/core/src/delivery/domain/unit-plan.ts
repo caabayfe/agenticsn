@@ -65,13 +65,15 @@ export function deletionFor(updateName: string): string | null {
   return match === null ? null : `Now.del('${match[1]}', '${match[2]}')`;
 }
 
-// The differences the source makes, and what the SDK sets beyond it (its known losses).
-const authored = (differences: readonly Difference[]) =>
-  differences.filter((difference) => knownLoss(difference) === null);
+const scopeOf = (unit: BuiltUnit) => unit.head.fields["sys_scope"];
 
-function setsOf(differences: readonly Difference[]): string[] {
+// The differences the source makes, and what the SDK sets beyond it (its known losses).
+const authored = (differences: readonly Difference[], scope: string | undefined) =>
+  differences.filter((difference) => knownLoss(difference, scope) === null);
+
+function setsOf(differences: readonly Difference[], scope: string | undefined): string[] {
   const sets = differences
-    .filter((difference) => knownLoss(difference) !== null)
+    .filter((difference) => knownLoss(difference, scope) !== null)
     .map((d) => (d.kind === "field" ? `${d.table}.${d.field} = ${d.built}` : `${d.table} rows`));
   return [...new Set(sets)].sort();
 }
@@ -126,9 +128,10 @@ export function plannedOrProblem(
     sysId: unit.head.sysId,
     name: unitName(unit),
     operation: decision.kind,
-    changes: decision.kind === "load" ? changesOf(authored(decision.differences)) : [],
+    changes:
+      decision.kind === "load" ? changesOf(authored(decision.differences, scopeOf(unit))) : [],
     losses: decision.kind === "load" ? decision.losses : [],
-    alsoSets: decision.kind === "load" ? setsOf(decision.differences) : [],
+    alsoSets: decision.kind === "load" ? setsOf(decision.differences, scopeOf(unit)) : [],
   };
 }
 

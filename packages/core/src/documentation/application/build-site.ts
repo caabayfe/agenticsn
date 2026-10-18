@@ -1,7 +1,9 @@
 import type { ConfigIndex } from "../domain/config-index";
 import type { EvidenceStatus } from "../domain/evidence";
-import type { PlayerMedia } from "../domain/player";
+import { type PlayerMedia, playerHtml } from "../domain/player";
+import type { Scene } from "../domain/scene";
 import { siteFiles } from "../domain/site";
+import type { SiteMedia } from "../domain/site-config";
 import type { MarkdownRenderer, MediaTools, SiteOutput } from "../ports";
 import { type AudioOptions, audioTrack } from "./audio-tracks";
 import {
@@ -22,6 +24,8 @@ export interface BuildSiteDependencies extends CheckDocsDependencies {
 export interface BuildSiteOptions {
   // Give each animation an audio track (music and effects, and the voice when asked).
   readonly audio?: AudioOptions;
+  // Also render each animation as an MP4 with its track (spec 010c); implies audio.
+  readonly video?: { readonly fps: number };
 }
 
 export interface BuildSiteResult {
@@ -31,6 +35,11 @@ export interface BuildSiteResult {
   // Animations given an audio track, and cue sounds that were missing from them.
   readonly narrated: readonly string[];
   readonly missingSounds: readonly string[];
+  // Animations rendered as video, and why the others couldn't be.
+  readonly videos: readonly string[];
+  readonly videosNotMade: readonly { readonly animation: string; readonly reason: string }[];
+  // Old recordings removed from the video cache.
+  readonly videosPruned: number;
 }
 
 function statusesByPage(check: DocsCheck): Map<string, Map<string, EvidenceStatus>> {
@@ -43,26 +52,94 @@ function statusesByPage(check: DocsCheck): Map<string, Map<string, EvidenceStatu
   return byPage;
 }
 
+// Each animation as an MP4 with its track; a missing browser is reported per animation, never
+// silently skipped.
+async function renderVideos(
+  deps: BuildSiteDependencies,
+  scenes: readonly Scene[],
+  media: ReadonlyMap<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>,
+  audio: AudioOptions | undefined,
+  video: BuildSiteOptions["video"],
+) {
+  const videos = new Map<string, Uint8Array>();
+  const notMade: { animation: string; reason: string }[] = [];
+  if (video === undefined) return { videos, notMade, pruned: 0 };
+  const browser = await deps.media.video.available();
+  for (const scene of scenes) {
+    const track = media.get(scene.name);
+    if (!browser || track === undefined) {
+      notMade.push({ animation: scene.name, reason: "no Chrome or Chromium browser" });
+      continue;
+    }
+    const options = {
+      seconds: track.player.timeline.total,
+      fps: video.fps,
+      subtitles: (audio?.voice ?? "none") !== "none",
+    };
+    videos.set(
+      scene.name,
+      await deps.media.video.render(
+        playerHtml(scene, track.player),
+        track.mp3,
+        options,
+        deps.signal,
+      ),
+    );
+  }
+  const pruned = browser ? ((await deps.media.video.prune?.(deps.signal)) ?? 0) : 0;
+  return { videos, notMade, pruned };
+}
+
+// Media as people ask for it, on the command line or in site.yaml: a voice or a video implies
+// an audio track.
+export interface MediaRequest {
+  readonly audio?: boolean | undefined;
+  readonly voice?: string | undefined;
+  readonly video?: boolean | undefined;
+}
+
+export function mediaOptions(request: MediaRequest): BuildSiteOptions {
+  const voice = request.voice ?? "none";
+  const narrated = request.audio === true || voice !== "none" || request.video === true;
+  return {
+    ...(narrated ? { audio: { voice } } : {}),
+    ...(request.video === true ? { video: { fps: 30 } } : {}),
+  };
+}
+
+const fromSite = (media: SiteMedia | undefined): BuildSiteOptions =>
+  media === undefined ? {} : mediaOptions(media);
+
 // `docs build`: the static site, with each page's evidence status as of now. A stale page is
-// built and says so; `docs check` is the gate.
+// built and says so; `docs check` is the gate. Without options it makes the media site.yaml asks
+// for.
 export async function buildSite(
   deps: BuildSiteDependencies,
-  options: BuildSiteOptions = {},
+  given?: BuildSiteOptions,
 ): Promise<BuildSiteResult> {
   const docs = await loadDocumentation(deps.sources, deps.root);
+  const options = given ?? fromSite(docs.config.media);
   const mirror = deps.mirror(docs.config.instance);
   const check = await assessDocumentation(docs, mirror, todayOf(deps.clock), deps.signal);
   const media = new Map<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>();
   const missing = new Set<string>();
-  if (options.audio !== undefined) {
+  const audio = options.audio ?? (options.video === undefined ? undefined : { voice: "none" });
+  if (audio !== undefined) {
     for (const scene of docs.scenes) {
-      const track = await audioTrack(deps.media, scene, options.audio, deps.signal);
+      const track = await audioTrack(deps.media, scene, audio, deps.signal);
       media.set(scene.name, { player: track.media, mp3: track.mp3 });
       for (const name of track.missingSounds) {
         missing.add(name);
       }
     }
   }
+  const { videos, notMade, pruned } = await renderVideos(
+    deps,
+    docs.scenes,
+    media,
+    audio,
+    options.video,
+  );
   const indexes = new Map<string, ConfigIndex>();
   for (const process of docs.processes) {
     indexes.set(process.id, await configIndex(docs, process, mirror, check, deps.signal));
@@ -78,6 +155,9 @@ export async function buildSite(
     mirrorCommit: await mirror.head(),
     media,
     indexes,
+    videos,
+    theme: (await deps.sources.theme?.()) ?? [],
+    releases: docs.releases,
   });
   await deps.output.replace(files);
   return {
@@ -86,5 +166,8 @@ export async function buildSite(
     check,
     narrated: [...media.keys()],
     missingSounds: [...missing],
+    videos: [...videos.keys()],
+    videosNotMade: notMade,
+    videosPruned: pruned,
   };
 }

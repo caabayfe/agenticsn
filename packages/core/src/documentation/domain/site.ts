@@ -2,11 +2,17 @@ import type { DocPage } from "./page";
 import { playerHtml } from "./player";
 import type { Process } from "./process";
 import { built, type SiteInput } from "./site-context";
-import { configureHomeHtml, indexHtml, processHtml, viewHomeHtml } from "./site-homes";
+import { employeesHomeHtml } from "./site-employees";
+import { configureHomeHtml, processHtml, viewHomeHtml } from "./site-homes";
 import { recordsFile, recordsHtml } from "./site-index";
-import { pageFile, sectionHome } from "./site-layout";
+import { EMPLOYEES_HOME, IT_HOME, OPEN_QUESTIONS, pageFile, sectionHome } from "./site-layout";
+import { itHomeHtml, siteMapHtml } from "./site-map";
+import { openQuestionsHtml } from "./site-open-questions";
 import { configureHtml, guideHtml, understandHtml } from "./site-pages";
+import { searchScript } from "./site-search";
 import { SITE_STYLE } from "./site-style";
+import { THEME_TEMPLATE } from "./site-theme";
+import { whatsNewFiles } from "./site-whats-new";
 import { SECTION_VIEW } from "./structure";
 import { VIEWS } from "./views";
 
@@ -54,7 +60,19 @@ function processFiles(b: Build, process: Process): readonly SiteFile[] {
   ];
 }
 
-// Every file of the static site: the index; per process its page, the three section homes, the
+// The client's theme as given, or the template when it has no theme.css.
+function themeFiles(theme: readonly { readonly path: string; readonly content: Uint8Array }[]) {
+  const files: SiteFile[] = theme.map((file) => ({
+    path: `assets/theme/${file.path}`,
+    content: file.content,
+  }));
+  return theme.some((file) => file.path === "theme.css")
+    ? files
+    : [...files, { path: "assets/theme/theme.css", content: THEME_TEMPLATE }];
+}
+
+// Every file of the static site: the site map and the search index (and, with an employee guide,
+// the two guides' homes, ADR-0037); per process its page, the three section homes, the
 // shared pages in both views, the guides and the configure pages; the animations and the
 // stylesheet (spec 010a).
 export function siteFiles(input: SiteInput): readonly SiteFile[] {
@@ -62,9 +80,23 @@ export function siteFiles(input: SiteInput): readonly SiteFile[] {
   const processes = [...input.processes].sort(
     (left, right) => left.order - right.order || left.title.localeCompare(right.title),
   );
+  const guide = input.config.employees;
+  const homes: readonly SiteFile[] = [
+    { path: "index.html", content: siteMapHtml(b, processes) },
+    { path: "assets/search.js", content: searchScript(b) },
+    ...(guide === undefined
+      ? []
+      : [
+          { path: EMPLOYEES_HOME, content: employeesHomeHtml(b, guide, processes) },
+          { path: IT_HOME, content: itHomeHtml(b, processes) },
+          { path: OPEN_QUESTIONS, content: openQuestionsHtml(b, processes) },
+        ]),
+    ...whatsNewFiles(b),
+  ];
   const files: SiteFile[] = [
-    { path: "index.html", content: indexHtml(b, processes) },
+    ...homes,
     { path: "assets/site.css", content: SITE_STYLE },
+    ...themeFiles(input.theme ?? []),
     ...processes.flatMap((process) => processFiles(b, process)),
   ];
   for (const scene of input.scenes) {
@@ -75,6 +107,10 @@ export function siteFiles(input: SiteInput): readonly SiteFile[] {
     });
     if (media !== undefined) {
       files.push({ path: `animations/${scene.name}.mp3`, content: media.mp3 });
+    }
+    const video = input.videos?.get(scene.name);
+    if (video !== undefined) {
+      files.push({ path: `animations/${scene.name}.mp4`, content: video });
     }
   }
   return files;

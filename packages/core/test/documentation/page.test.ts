@@ -190,6 +190,16 @@ describe("page problems", () => {
     expect(pageProblems(guide)).toEqual([]);
   });
 
+  it("reports a label outside a heading, where it would be printed as written", () => {
+    const page = parseDocPage("processes/triage/use/route.md", {
+      frontMatter: { title: "T" },
+      body: "## Fine {label=NEW}\nText. {label=OPEN-QUESTION}\n`{label=NEW}` in code\n",
+    });
+    expect(pageProblems(page)).toEqual([
+      { kind: "misplaced-label", page: "processes/triage/use/route.md", detail: "OPEN-QUESTION" },
+    ]);
+  });
+
   it("allows reader marks only on shared pages, and only for users and operators", () => {
     const page = (section: string, body: string) =>
       parseDocPage(`processes/triage/${section}/route.md`, { frontMatter: { title: "T" }, body });

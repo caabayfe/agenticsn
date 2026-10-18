@@ -95,12 +95,12 @@ export const pages = {
         E01: record("sc_cat_item_producer", PRODUCER, "read the producer", { hash: "p1" }),
       },
     },
-    body: "Open Employee Center and choose Report an issue. [E01]",
+    body: "Open Employee Center and choose Report an issue. [E01]\n\n{{animation:asg}}\n",
   },
   confirm: {
     path: "processes/incident/use/confirm.md",
     frontMatter: { title: "Confirm or reopen the fix", evidence: { E01: SEEN } },
-    body: "Accept it, or reject it with a reason. [E01]",
+    body: "Accept it, or reject it with a reason. [E01]\n\n{{animation:asg}}\n",
   },
   assign: {
     path: "processes/incident/operate/assign.md",
@@ -116,7 +116,7 @@ export const pages = {
       title: "Resolve an incident",
       evidence: { E01: record("sys_ui_action", ACTION, "read Resolve", { hash: "a1" }) },
     },
-    body: "Choose Resolve. [E01]",
+    body: "Choose Resolve. [E01]\n\n{{animation:asg}}\n",
   },
   configureAssign: {
     path: "processes/incident/configure/assign.md",
@@ -167,6 +167,8 @@ export function fakeSources(
     site?: unknown;
     process?: unknown;
     others?: { path: string; process: unknown }[];
+    theme?: { path: string; content: Uint8Array }[];
+    releases?: PageSource[];
   } = {},
 ) {
   const pinned = new Map<string, Map<string, string>>();
@@ -178,6 +180,8 @@ export function fakeSources(
     ],
     pages: async () => list,
     scenes: async () => options.scenes ?? [scene],
+    ...(options.theme === undefined ? {} : { theme: async () => options.theme ?? [] }),
+    ...(options.releases === undefined ? {} : { releases: async () => options.releases ?? [] }),
     pinHashes: async (path, hashes) => {
       pinned.set(path, new Map(hashes));
     },

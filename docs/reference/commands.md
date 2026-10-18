@@ -492,6 +492,23 @@ Changes the instance: no. MCP tool: none.
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `docs impact`
+
+```
+snagentic docs impact [options]
+```
+
+What a change does to the workspace's documentation: each claim (sentence, list item or table row) whose evidence the change affects, with its page, heading and reader (employees, operators, platform team). Covers the Fluent source changed since base, evidence on a field only when that field changes, and evidence the instance changed since the page was verified. The text is Markdown, to post on a pull request. Read the JSON to fix the pages in the same change. Reads only the workspace and the mirror.
+
+Changes the instance: no. MCP tool: none.
+
+Options:
+
+- `--base <value>`: commit, branch or tag to compare with, for example origin/main
+- `--instance <value>`: default: the workspace's only instance
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `docs pin`
 
 ```
@@ -510,7 +527,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic docs build [options]
 ```
 
-Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate). --audio adds music and sound effects to the animations, --voice piper|system also narrates them.
+Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate). --audio adds music and sound effects to the animations, --voice piper|system also narrates them, --video renders every animation as an MP4 on its page and names any it could not make. Without these flags it makes the media site.yaml asks for (media: audio, voice, video); recorded videos are reused until their animation changes.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
@@ -518,6 +535,7 @@ Options:
 
 - `--audio`: give each animation an audio track: music and sound effects (needs ffmpeg)
 - `--voice <value>`: narrate the steps with a voice: piper, system or none (implies --audio)
+- `--video`: also render every animation as an MP4 on its page (needs ffmpeg and Chrome)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -535,6 +553,7 @@ Options:
 
 - `--audio`: give each animation an audio track: music and sound effects (needs ffmpeg)
 - `--voice <value>`: narrate the steps with a voice: piper, system or none (implies --audio)
+- `--video`: also render every animation as an MP4 on its page (needs ffmpeg and Chrome)
 - `--port <number>`: the port (default 4173)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.

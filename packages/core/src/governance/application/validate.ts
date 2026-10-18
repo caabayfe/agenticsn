@@ -11,6 +11,7 @@ import type { DocumentedRecords, FluentProjects, MirrorState, ScriptChecker } fr
 import { documentationFindings, type TouchedRecord } from "./documentation-checks";
 import {
   aclFindings,
+  builtValueFindings,
   checkVersion,
   MAX_SCRIPT_BYTES,
   type Skipped,
@@ -119,7 +120,7 @@ async function checkUnits(
       source,
       ...edited(item),
     });
-    findings.push(...aclFindings(item, path, units));
+    findings.push(...aclFindings(item, path, units), ...builtValueFindings(item, path));
     if (item.unit.head.action === "DELETE") continue;
     const current = checkVersion(deps.checker, item.now, privileges);
     const previous =

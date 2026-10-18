@@ -8,6 +8,7 @@ import {
 import type { BuiltUnit } from "../../authoring/domain/unit";
 import { BEHAVIOR_CLASSES } from "../../knowledge/index";
 import { type AclState, aclHits } from "../domain/acl-checks";
+import { serializedObjectHits } from "../domain/built-values";
 import { evidenceOf, type Finding } from "../domain/findings";
 import type { RecordVersion, ScriptChecker } from "../ports";
 import { type ChangedUnit, rolesOf } from "./unit-versions";
@@ -161,6 +162,19 @@ export function aclFindings(
       ? null
       : { fields: unit.head.fields, roles: rolesOf(builds.now, unit.head.sysId) };
   return aclHits(before, now).flatMap((hit) =>
+    withRule(hit.ruleId, {
+      path,
+      field: hit.field,
+      line: null,
+      message: hit.message,
+      evidence: "",
+    }),
+  );
+}
+
+// Values the build wrote that can't be what the source meant.
+export function builtValueFindings(changed: ChangedUnit, path: string): Finding[] {
+  return serializedObjectHits(changed.unit).flatMap((hit) =>
     withRule(hit.ruleId, {
       path,
       field: hit.field,

@@ -110,3 +110,25 @@ describe("knownRefusal", () => {
     ).toContain("adopt the column");
   });
 });
+
+// What the SDK can't express on menus and ACLs (final census on main, 2026-10-18).
+describe("knownRefusal: menus and ACLs", () => {
+  it("names a menu the SDK would show in the browser, which it can't define for mobile", () => {
+    expect(
+      knownRefusal(field("sys_app_application", "device_type", "browser", "mobile")),
+    ).toContain("a menu for mobile");
+    expect(knownRefusal(field("sys_app_application", "device_type", "browser", ""))).toContain(
+      "a menu with no device type",
+    );
+    expect(
+      knownRefusal(field("sys_app_application", "device_type", "browser", "browser")),
+    ).toBeNull();
+  });
+
+  it("names an advanced ACL with no script, which the SDK would write as not advanced", () => {
+    expect(knownRefusal(field("sys_security_acl", "advanced", "false", "true"))).toContain(
+      "an advanced ACL with no script",
+    );
+    expect(knownRefusal(field("sys_security_acl", "advanced", "true", "false"))).toBeNull();
+  });
+});

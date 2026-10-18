@@ -1,7 +1,7 @@
 // Test plan L1 (spec 009): can every record of a class enter Fluent? For each record, what
 // adopt does, without writing source: convert, fix, build, check secrets, read the live copies,
 // compare. Read-only on the instance. Each record ends adoptable (with its named losses),
-// refused (with the reason), or failing.
+// refused (with the reason), an SDK limit (its conversion fails in the SDK), or failing.
 //   bun tests/live/verify/adopt-census.ts <workspace> <instance> <table> [--limit n]
 //     [--scopes <pattern>] [--ids <file>] [--evidence <dir>]
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -31,7 +31,11 @@ const signal = new AbortController().signal;
 
 type Verdict =
   | { readonly kind: "adoptable"; readonly losses: readonly string[] }
-  | { readonly kind: "refused" | "failing"; readonly reason: string };
+  | { readonly kind: "refused" | "sdk-limit" | "failing"; readonly reason: string };
+
+// The SDK's own conversion fails: its source doesn't build, or it can't read what it needs.
+// Adopt names these an SDK limitation (sdk-issues.md 4 and 5), not a snagentic failure.
+const SDK_LIMIT = /^the converted source does not build|^unable to find sys_complex_object/;
 
 interface Scope {
   readonly name: string;
@@ -203,7 +207,7 @@ async function census(
     const named = conversionRefusal(draft.message);
     const refused = named !== null || /can't express|Accessible from/.test(draft.message);
     out.set(ids[0] ?? "", {
-      kind: refused ? "refused" : "failing",
+      kind: refused ? "refused" : SDK_LIMIT.test(draft.message) ? "sdk-limit" : "failing",
       reason: (named ?? draft.message).slice(0, 200),
     });
     return;

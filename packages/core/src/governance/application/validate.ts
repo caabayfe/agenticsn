@@ -12,6 +12,7 @@ import { documentationFindings, type TouchedRecord } from "./documentation-check
 import {
   aclFindings,
   checkVersion,
+  flowFindings,
   MAX_SCRIPT_BYTES,
   type Skipped,
   undescribed,
@@ -104,7 +105,7 @@ async function checkUnits(
     const path = `${project.path}/${item.unit.updateName}`;
     const source = Object.values(item.now.files)[0] ?? path;
     touched.push({ table: item.unit.head.table, sysId: item.unit.head.sysId, source });
-    findings.push(...aclFindings(item, path, units));
+    findings.push(...aclFindings(item, path, units), ...flowFindings(item, path));
     if (item.unit.head.action === "DELETE") continue;
     const current = checkVersion(deps.checker, item.now, privileges);
     const previous =

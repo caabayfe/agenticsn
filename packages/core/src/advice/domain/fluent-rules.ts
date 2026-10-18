@@ -39,6 +39,17 @@ export const FLUENT_RULES: readonly Rule[] = [
     classes: FLOWS,
   },
   {
+    id: "SN-MNT-018",
+    category: "manageability",
+    severity: "block",
+    title: "A record-triggered flow needs a condition",
+    why: 'The platform registers a record trigger whose condition is empty, but never runs its flow: no error, no context. Flow Designer writes "no condition" as ^EQ.',
+    remediation:
+      "Give the trigger a condition; to run the flow for every record, write condition: '^EQ'.",
+    scripts: [],
+    classes: ["sys_hub_flow"],
+  },
+  {
     id: "SN-UPG-003",
     category: "upgradability",
     severity: "warn",

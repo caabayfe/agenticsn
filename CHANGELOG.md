@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- Rule SN-MNT-018 blocks a record-triggered flow whose condition is empty. The platform registers
+  such a trigger but never runs the flow, without an error; Flow Designer writes "no condition" as
+  `^EQ`, which the finding names. Found by the spec 009 scenarios (L8 A1, pdi2).
+
 ## [2.2.0] - 2026-10-18
 
 ### Added

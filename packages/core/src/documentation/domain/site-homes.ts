@@ -14,6 +14,7 @@ import {
 } from "./site-context";
 import { recordsFile } from "./site-index";
 import { layout, pageFile, prefixOf, sectionHome } from "./site-layout";
+import { navFor } from "./site-nav";
 import type { View } from "./views";
 
 const DOOR_TEXT: Readonly<Record<View, string>> = {
@@ -50,7 +51,14 @@ export function processHtml(b: Built, process: Process): string {
 <div class="banner"><span>${checked(b)}</span></div>
 <div class="doors">${viewDoor(b, process, "user")}${viewDoor(b, process, "operator")}${door("configure/index.html", SECTION_TITLES.configure, ["The business rules, ACLs, scripts and other records behind each step"])}</div>
 ${states.length === 0 ? "" : `<h2>Lifecycle</h2><ol class="lifecycle">${states.join("")}</ol>`}`;
-  return layout(b.input.config, process.title, file, guideCrumbs(b, "platform"), main);
+  return layout(
+    b.input.config,
+    process.title,
+    file,
+    guideCrumbs(b, "platform"),
+    main,
+    navFor(b, file),
+  );
 }
 
 // A reader's home: who they are, the shared topics in their view, and their capabilities.
@@ -93,6 +101,7 @@ ${topics.length === 0 ? "" : `<h2>How it works</h2><ul class="pages">${topics.jo
           { href: `processes/${process.id}/index.html`, text: process.title },
         ],
     main,
+    navFor(b, file),
   );
 }
 
@@ -117,18 +126,6 @@ ${b.input.indexes?.has(process.id) === true ? `<p>${link(prefix, recordsFile(pro
       { href: `processes/${process.id}/index.html`, text: process.title },
     ],
     main,
+    navFor(b, file),
   );
-}
-
-// The list of processes: the site's index, or the IT guide's home beside an employee guide.
-export function indexHtml(b: Built, processes: readonly Process[], file = "index.html"): string {
-  const prefix = prefixOf(file);
-  const items = processes.map(
-    (process) =>
-      `<li><a href="${prefix}processes/${process.id}/index.html">${escapeHtml(process.title)}</a><br><span class="mute">${escapeHtml(process.summary)}</span></li>`,
-  );
-  const main = `<h1>${escapeHtml(b.input.config.title)}</h1>
-<div class="banner"><span>${checked(b)}</span></div>
-<h2>Processes</h2><ul class="pages">${items.join("")}</ul>`;
-  return layout(b.input.config, b.input.config.title, file, [], main);
 }

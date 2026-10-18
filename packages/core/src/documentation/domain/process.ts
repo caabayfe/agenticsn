@@ -20,6 +20,8 @@ export interface ProcessCapability {
   readonly counterpart?: string;
   // The Configure page that explains it, when it isn't configure/<id>.md.
   readonly configure?: string;
+  // Its icon in the menu and the site map (icons.ts).
+  readonly icon?: string;
 }
 
 export interface LifecycleState {
@@ -40,6 +42,7 @@ export interface Process {
   readonly understand: readonly string[];
   // The tables the process lives on, for the configuration index.
   readonly tables: readonly string[];
+  readonly icon?: string;
 }
 
 export const OVERVIEW = "overview";
@@ -111,6 +114,7 @@ function capability(path: string, raw: unknown, roles: ReadonlySet<string>): Pro
     `capability ${capabilityId} counterpart`,
   );
   const configure = optionalId(path, fields["configure"], `capability ${capabilityId} configure`);
+  const icon = textOf(fields["icon"]);
   return {
     id: capabilityId,
     title: textOf(fields["title"]) ?? capabilityId,
@@ -118,6 +122,7 @@ function capability(path: string, raw: unknown, roles: ReadonlySet<string>): Pro
     roles: used,
     ...(counterpart === undefined ? {} : { counterpart }),
     ...(configure === undefined ? {} : { configure }),
+    ...(icon === undefined ? {} : { icon }),
   };
 }
 
@@ -140,6 +145,7 @@ export function parseProcess(path: string, raw: unknown): Process {
     throw new DocumentationSourceError(path, `capability ${twice} is listed twice`);
   }
   const order = fields["order"];
+  const icon = textOf(fields["icon"]);
   return {
     id: processId,
     title,
@@ -155,5 +161,6 @@ export function parseProcess(path: string, raw: unknown): Process {
       id(path, item, "each understand topic"),
     ),
     tables: list(path, fields["tables"], "tables").map(String),
+    ...(icon === undefined ? {} : { icon }),
   };
 }

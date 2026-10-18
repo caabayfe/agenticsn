@@ -1,7 +1,9 @@
 import { anchorOf, type Evidence, type EvidenceStatus } from "./evidence";
 import { escapeHtml } from "./html";
+import { iconSvg } from "./icons";
 import type { DocPage, Section } from "./page";
 import type { SiteConfig } from "./site-config";
+import { MENU_SCRIPT } from "./site-menu-script";
 import type { View } from "./views";
 
 // The section an Understand page is shown in, for each reader.
@@ -52,25 +54,31 @@ export interface Crumb {
   readonly text: string;
 }
 
+const TOGGLE = `<button class="navtoggle" type="button" aria-label="Hide or show the menu" aria-expanded="true">${iconSvg("menu")}</button>`;
+
+// A page: the header, the menu beside the content when there is one (site-nav.ts), the footer.
 export function layout(
   config: SiteConfig,
   title: string,
   file: string,
   crumbs: readonly Crumb[],
   main: string,
+  aside = "",
 ): string {
   const prefix = prefixOf(file);
   const trail = crumbs
     .map((crumb) => `<a href="${prefix}${crumb.href}">${escapeHtml(crumb.text)}</a>`)
     .join(" › ");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title)}</title><link rel="stylesheet" href="${prefix}assets/site.css"></head><body>
-<header class="site"><a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs">${trail}</nav>`}</header>
+<title>${escapeHtml(title)}</title><link rel="stylesheet" href="${prefix}assets/site.css"></head><body data-prefix="${prefix}">
+<header class="site">${aside === "" ? "" : TOGGLE}<a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs">${trail}</nav>`}</header>
+<div class="shell">${aside}<div class="content">
 <main>
 ${main}
 </main>
 <footer class="site">${escapeHtml(config.footer)}</footer>
-${PLAYERS_SCRIPT}
+</div></div>
+${PLAYERS_SCRIPT}${aside === "" ? "" : `<script src="${prefix}assets/search.js"></script>${MENU_SCRIPT}`}
 </body></html>
 `;
 }

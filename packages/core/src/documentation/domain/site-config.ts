@@ -16,6 +16,7 @@ export interface EmployeeTask {
   readonly summary: string;
   // <process>/<topic> of Use or Understand pages.
   readonly pages: readonly string[];
+  readonly icon?: string;
 }
 
 // The employee guide's home: where employees start, then their tasks (ADR-0037).
@@ -78,7 +79,13 @@ function task(raw: unknown): EmployeeTask {
   if (title === undefined) {
     throw new DocumentationSourceError("site.yaml", "each employees task needs title");
   }
-  return { title, summary: textOf(fields["summary"]) ?? "", pages: textsOf(fields["pages"]) };
+  const icon = textOf(fields["icon"]);
+  return {
+    title,
+    summary: textOf(fields["summary"]) ?? "",
+    pages: textsOf(fields["pages"]),
+    ...(icon === undefined ? {} : { icon }),
+  };
 }
 
 function employeeGuide(raw: unknown): EmployeeGuide {

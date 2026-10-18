@@ -61,6 +61,7 @@ describe("docs build: the site's sections", () => {
     const { result, written } = await build();
     expect(written.map((item) => item.path).sort()).toEqual([
       "animations/asg.html",
+      "assets/search.js",
       "assets/site.css",
       "index.html",
       "processes/incident/configure/assign.html",
@@ -79,7 +80,7 @@ describe("docs build: the site's sections", () => {
       "processes/incident/use/understand/lifecycle.html",
       "processes/incident/use/understand/overview.html",
     ]);
-    expect(result.files).toBe(18);
+    expect(result.files).toBe(19);
   });
 
   it("opens each process with its lifecycle and a door for each reader, naming where they work", async () => {
@@ -102,7 +103,8 @@ describe("docs build: the site's sections", () => {
 
   it("gives end users their own home: their roles, the shared topics in their view, their capabilities", async () => {
     const { file } = await build();
-    const home = file("processes/incident/use/index.html");
+    const page = file("processes/incident/use/index.html");
+    const home = page.slice(page.indexOf("<main>"), page.indexOf("</main>"));
     expect(home).toContain("<strong>Caller</strong> — anyone who reports a problem");
     expect(home).not.toContain("Resolver");
     expect(home).toContain(

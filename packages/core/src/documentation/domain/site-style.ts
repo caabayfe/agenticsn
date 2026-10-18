@@ -1,5 +1,8 @@
+import { SHELL_STYLE } from "./site-shell-style";
+
 // The site's CSS: readable pages, light and dark, phone width without horizontal scroll.
-export const SITE_STYLE = `:root{--ink:#172B4D;--ink2:#44546F;--mute:#626F86;--line:#DCDFE4;--bg:#FFFFFF;--panel:#F7F8F9;
+export const SITE_STYLE =
+  `:root{--ink:#172B4D;--ink2:#44546F;--mute:#626F86;--line:#DCDFE4;--bg:#FFFFFF;--panel:#F7F8F9;
 --blue:#0C66E4;--green:#1F845A;--greenL:#DCFFF1;--amber:#B65C02;--amberL:#FFF7D6;--red:#C9372C;--redL:#FFECEB;
 --purple:#6E5DC6;--purpleL:#F3F0FF;--blueL:#E9F2FF;--greyL:#F1F2F4;color-scheme:light dark}
 @media (prefers-color-scheme: dark){:root{--ink:#DEE4EA;--ink2:#B6C2CF;--mute:#9FADBC;--line:#38414A;--bg:#1D2125;
@@ -63,4 +66,4 @@ a.config{font-size:13px}
 .door strong{display:block;font-size:18px;color:var(--blue)}
 .door span{display:block;font-size:14px;color:var(--ink2);margin-top:4px}
 .counterpart{margin:20px 0;padding:10px 12px;border-left:4px solid var(--purple);background:var(--purpleL);border-radius:0 6px 6px 0;font-size:15px}
-`;
+` + SHELL_STYLE;

@@ -37,14 +37,11 @@ async function build(employees: unknown = GUIDE) {
 }
 
 describe("docs build: an employee guide and an IT guide", () => {
-  it("opens the site with a door to each guide, and moves the process list to the IT guide", async () => {
+  it("opens the site on a map of both guides, and lists the processes in the IT guide", async () => {
     const { file, written } = await build();
     const front = file("index.html");
-    expect(front).toContain(
-      '<a class="door" href="employees/index.html"><strong>Employee guide</strong>',
-    );
-    expect(front).toContain('<a class="door" href="it/index.html"><strong>IT guide</strong>');
-    expect(front).not.toContain("processes/incident/index.html");
+    expect(front).toContain('<h2><a href="employees/index.html">Employee guide</a></h2>');
+    expect(front).toContain('<h2><a href="it/index.html">IT guide</a></h2>');
     expect(file("it/index.html")).toContain(
       '<a href="../processes/incident/index.html">Incident management</a>',
     );

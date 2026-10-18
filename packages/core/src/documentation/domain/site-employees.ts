@@ -4,19 +4,11 @@ import type { DocPage } from "./page";
 import type { Process } from "./process";
 import type { EmployeeGuide } from "./site-config";
 import { type Built, checked, link, understandPages } from "./site-context";
-import { door } from "./site-homes";
-import { EMPLOYEES_HOME, IT_HOME, layout, pageFile, prefixOf } from "./site-layout";
+import { EMPLOYEES_HOME, layout, pageFile, prefixOf } from "./site-layout";
+import { navFor } from "./site-nav";
 
 const IT_DOOR =
   "Operators and the platform team: each process step by step, and how it is configured";
-
-// The front door when the site has an employee guide: one door per guide (ADR-0037).
-export function frontDoorHtml(b: Built, guide: EmployeeGuide): string {
-  const main = `<h1>${escapeHtml(b.input.config.title)}</h1>
-<div class="banner"><span>${checked(b)}</span></div>
-<div class="doors">${door(EMPLOYEES_HOME, guide.title, [guide.intro])}${door(IT_HOME, "IT guide", [IT_DOOR])}</div>`;
-  return layout(b.input.config, b.input.config.title, "index.html", [], main);
-}
 
 function summaryOf(b: Built, page: DocPage): string {
   const process = b.input.processes.find((item) => item.id === page.process);
@@ -67,5 +59,5 @@ ${guide.intro === "" ? "" : `<p class="lead">${escapeHtml(guide.intro)}</p>`}
 ${guide.start.length === 0 ? "" : `<h2>Start here</h2>${entries(b, guide.start, prefix)}`}
 ${tasks.join("\n")}
 ${howItWorks(b, processes, prefix)}`;
-  return layout(b.input.config, guide.title, EMPLOYEES_HOME, [], main);
+  return layout(b.input.config, guide.title, EMPLOYEES_HOME, [], main, navFor(b, EMPLOYEES_HOME));
 }

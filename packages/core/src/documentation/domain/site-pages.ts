@@ -19,6 +19,7 @@ import {
   verification,
 } from "./site-context";
 import { type Crumb, layout, pageFile, prefixOf, sectionHome, staleNotice } from "./site-layout";
+import { navFor } from "./site-nav";
 import { capabilityAudience } from "./structure";
 import type { View } from "./views";
 
@@ -103,7 +104,7 @@ ${bodyHtml(b, page, file)}
 ${capability === undefined || separated(b, view) ? "" : counterpartHtml(b, process, capability, prefix)}
 ${verification(b, page, true)}
 ${pager(prefix, near(-1), config, near(1))}`;
-  return layout(b.input.config, page.title, file, crumbs(b, process, view), main);
+  return layout(b.input.config, page.title, file, crumbs(b, process, view), main, navFor(b, file));
 }
 
 // A shared page, as one reader sees it.
@@ -122,7 +123,7 @@ ${staleNotice(staleOf(b, page), "guide")}
 ${bodyHtml(b, page, file, view)}
 ${verification(b, page, true)}
 ${pager(prefix, near(-1), "", near(1))}`;
-  return layout(b.input.config, page.title, file, crumbs(b, process, view), main);
+  return layout(b.input.config, page.title, file, crumbs(b, process, view), main, navFor(b, file));
 }
 
 // A Configure page, with the guides it explains.
@@ -157,5 +158,5 @@ ${verification(b, page, false)}`;
     { href: `processes/${process.id}/index.html`, text: process.title },
     { href: sectionHome(process.id, "configure"), text: SECTION_TITLES.configure },
   ];
-  return layout(b.input.config, page.title, file, trail, main);
+  return layout(b.input.config, page.title, file, trail, main, navFor(b, file));
 }

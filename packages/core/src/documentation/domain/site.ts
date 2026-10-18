@@ -2,11 +2,13 @@ import type { DocPage } from "./page";
 import { playerHtml } from "./player";
 import type { Process } from "./process";
 import { built, type SiteInput } from "./site-context";
-import { employeesHomeHtml, frontDoorHtml } from "./site-employees";
-import { configureHomeHtml, indexHtml, processHtml, viewHomeHtml } from "./site-homes";
+import { employeesHomeHtml } from "./site-employees";
+import { configureHomeHtml, processHtml, viewHomeHtml } from "./site-homes";
 import { recordsFile, recordsHtml } from "./site-index";
 import { EMPLOYEES_HOME, IT_HOME, pageFile, sectionHome } from "./site-layout";
+import { itHomeHtml, siteMapHtml } from "./site-map";
 import { configureHtml, guideHtml, understandHtml } from "./site-pages";
+import { searchScript } from "./site-search";
 import { SITE_STYLE } from "./site-style";
 import { SECTION_VIEW } from "./structure";
 import { VIEWS } from "./views";
@@ -55,8 +57,8 @@ function processFiles(b: Build, process: Process): readonly SiteFile[] {
   ];
 }
 
-// Every file of the static site: the index (or, with an employee guide, the front door and the
-// two guides' homes, ADR-0037); per process its page, the three section homes, the
+// Every file of the static site: the site map and the search index (and, with an employee guide,
+// the two guides' homes, ADR-0037); per process its page, the three section homes, the
 // shared pages in both views, the guides and the configure pages; the animations and the
 // stylesheet (spec 010a).
 export function siteFiles(input: SiteInput): readonly SiteFile[] {
@@ -65,14 +67,16 @@ export function siteFiles(input: SiteInput): readonly SiteFile[] {
     (left, right) => left.order - right.order || left.title.localeCompare(right.title),
   );
   const guide = input.config.employees;
-  const homes: readonly SiteFile[] =
-    guide === undefined
-      ? [{ path: "index.html", content: indexHtml(b, processes) }]
+  const homes: readonly SiteFile[] = [
+    { path: "index.html", content: siteMapHtml(b, processes) },
+    { path: "assets/search.js", content: searchScript(b) },
+    ...(guide === undefined
+      ? []
       : [
-          { path: "index.html", content: frontDoorHtml(b, guide) },
           { path: EMPLOYEES_HOME, content: employeesHomeHtml(b, guide, processes) },
-          { path: IT_HOME, content: indexHtml(b, processes, IT_HOME) },
-        ];
+          { path: IT_HOME, content: itHomeHtml(b, processes) },
+        ]),
+  ];
   const files: SiteFile[] = [
     ...homes,
     { path: "assets/site.css", content: SITE_STYLE },

@@ -201,7 +201,7 @@ async function census(
   } else if (ids.length === 1) {
     // As adopt does: a conversion fix's refusal, or a conversion the SDK can't make (named).
     const named = conversionRefusal(draft.message);
-    const refused = named !== null || /can't express|Accessible from/.test(draft.message);
+    const refused = named !== null || (draft.refused?.length ?? 0) > 0;
     out.set(ids[0] ?? "", {
       kind: refused ? "refused" : "failing",
       reason: (named ?? draft.message).slice(0, 200),

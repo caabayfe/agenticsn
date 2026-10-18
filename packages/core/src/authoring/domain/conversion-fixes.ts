@@ -34,6 +34,14 @@ const REFUSALS: readonly Refusal[] = [
     reason:
       "the script include's access is empty, which the SDK can't express: set Accessible from on the instance (this application scope only, or all application scopes), then adopt again",
   },
+  // A role the reading account can't see (an elevated role such as security_admin's) converts
+  // to its sys_id, which the build reads as a role's name: a row for a role that doesn't exist,
+  // with a new sys_id each build (3 code-signing UI actions on pdi2).
+  {
+    pattern: /\broles:\s*\[[^\]]*['"][0-9a-f]{32}['"]/,
+    reason:
+      "a role the SDK's conversion couldn't read (it wrote the role's sys_id, not its name): adopt with an account that can read every role of the record, or leave it on the instance",
+  },
 ];
 
 export interface ConversionOutcome {

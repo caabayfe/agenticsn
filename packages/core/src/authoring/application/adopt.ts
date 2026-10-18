@@ -147,6 +147,9 @@ async function adoptInto(
   if (input.refresh === true && base === null) throw new NothingAdoptedError(project.path);
   const outcome = await toolchain.draftTransform(project, targets, access, base ?? undefined);
   if (!outcome.ok) {
+    if (outcome.refused !== undefined && outcome.refused.length > 0) {
+      throw new AdoptRefusedError(outcome.refused.map((reason) => `${project.scope}: ${reason}`));
+    }
     const refusal = conversionRefusal(outcome.message);
     if (refusal !== null) throw new AdoptRefusedError([`${project.scope}: ${refusal}`]);
     throw new AdoptTransformFailedError(project.scope, outcome.message);

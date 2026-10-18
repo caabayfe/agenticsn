@@ -152,7 +152,11 @@ describe("SdkToolchain", () => {
         recording.records,
         access,
       );
-      expect(outcome).toEqual({ ok: false, message: expect.stringContaining("Accessible from") });
+      expect(outcome).toEqual({
+        ok: false,
+        message: expect.stringContaining("Accessible from"),
+        refused: [expect.stringContaining("Accessible from")],
+      });
     },
     SDK_BUILD_TIMEOUT,
   );

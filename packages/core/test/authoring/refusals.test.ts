@@ -18,6 +18,13 @@ describe("knownRefusal", () => {
     );
   });
 
+  it("names a role whose suffix the SDK would rewrite to its name", () => {
+    expect(knownRefusal(field("sys_user_role", "suffix", "pd_shared.admin", "admin"))).toContain(
+      "would change its suffix from admin to pd_shared.admin",
+    );
+    expect(knownRefusal(field("sys_user_role", "suffix", "itil", ""))).toBeNull();
+  });
+
   it("names nothing for a difference that isn't refused by design", () => {
     expect(knownRefusal(field("sys_user_role", "description", "a", "b"))).toBeNull();
     expect(knownRefusal(field("sys_user_role_contains", "sys_policy", "read", "read"))).toBeNull();

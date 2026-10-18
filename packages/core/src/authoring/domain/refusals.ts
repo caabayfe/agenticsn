@@ -74,7 +74,7 @@ const CONVERSION_REFUSALS: readonly { readonly error: RegExp; readonly reason: s
   {
     error: /^Cannot coerce value to number/,
     reason:
-      "the SDK can't convert a number field left empty (for a UI policy that runs scripts, its UI type): set a value on the instance, then adopt again",
+      "the SDK can't convert a number field left empty (such as the UI type of a UI policy that runs scripts, or a field of a flow): set a value on the instance, then adopt again",
   },
   // Legacy values the SDK's types reject: protection read-only or true (modules, UI actions,
   // script includes) and script include access private (6 on pdi2).

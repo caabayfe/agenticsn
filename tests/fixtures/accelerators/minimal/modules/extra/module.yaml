@@ -1,0 +1,7 @@
+label: "snagentic test pack: extra"
+dependsOn: [base]
+components:
+  - kind: plugin
+    id: com.snc.on_call_rotation
+    minVersion: null
+    entitlement: free

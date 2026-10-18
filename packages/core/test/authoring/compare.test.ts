@@ -65,6 +65,34 @@ describe("compareUnit (ADR-0033 item 2)", () => {
     ).toEqual([]);
   });
 
+  it("accepts the dictionary attribute the platform adds to a new table (spike S-D)", () => {
+    const table = (attributes: string) =>
+      unit(
+        "sys_dictionary_u_acc_imp_probe_null",
+        record("sys_dictionary", "c".repeat(32), {
+          name: "u_acc_imp_probe",
+          element: "",
+          internal_type: "collection",
+          attributes,
+        }),
+      );
+    const instance = (attributes: string) =>
+      copy({ name: "u_acc_imp_probe", element: "", internal_type: "collection", attributes });
+    const added = "enforce_dot_walk_cross_scope_access=true";
+    expect(compareUnit(table(""), instance(added))).toEqual([]);
+    expect(compareUnit(table("no_audit=true"), instance(`no_audit=true,${added}`))).toEqual([]);
+    expect(compareUnit(table("no_audit=true"), instance(added))).toEqual([
+      {
+        kind: "field",
+        table: "sys_dictionary",
+        row: "",
+        field: "attributes",
+        built: "no_audit=true",
+        instance: added,
+      },
+    ]);
+  });
+
   it("treats line endings and trailing newlines as equal", () => {
     const built = scriptInclude("one\ntwo\n");
     expect(

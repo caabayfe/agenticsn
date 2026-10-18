@@ -30,6 +30,27 @@ export function sameValue(built: string, instance: string): boolean {
   return a === b || (a === "" && b === "false");
 }
 
+// Dictionary attributes the platform adds on its own when a table is created (spike S-D): the
+// load never sent them, so an instance value that adds only these agrees with the build.
+const PLATFORM_ATTRIBUTES: ReadonlySet<string> = new Set([
+  "enforce_dot_walk_cross_scope_access=true",
+]);
+
+const attributeList = (value: string) =>
+  normalizeValue(value)
+    .split(",")
+    .map((a) => a.trim())
+    .filter(Boolean);
+
+// Whether a built dictionary `attributes` value and the instance's mean the same.
+export function sameAttributes(built: string, instance: string): boolean {
+  const wanted = attributeList(built);
+  const held = attributeList(instance).filter(
+    (a) => wanted.includes(a) || !PLATFORM_ATTRIBUTES.has(a),
+  );
+  return wanted.length === held.length && wanted.every((a) => held.includes(a));
+}
+
 // The build's "NULL" names the empty name the instance holds.
 const builtName = (record: UnitRecord, field: string) => {
   const name = record.referenceNames[field] ?? record.fields[field] ?? "";

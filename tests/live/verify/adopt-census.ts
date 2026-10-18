@@ -3,7 +3,7 @@
 // compare. Read-only on the instance. Each record ends adoptable (with its named losses),
 // refused (with the reason), or failing.
 //   bun tests/live/verify/adopt-census.ts <workspace> <instance> <table> [--limit n]
-//     [--evidence <dir>]
+//     [--scopes <pattern>] [--ids <file>] [--evidence <dir>]
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -39,7 +39,14 @@ interface Scope {
 }
 
 // The records of a table in the mirror, by scope (folder) and scope sys_id (_meta.sys_scope).
-async function population(mirror: MirrorReader, instance: string, table: string, limit: number) {
+async function population(
+  mirror: MirrorReader,
+  instance: string,
+  table: string,
+  limit: number,
+  scopes: RegExp,
+  only: ReadonlySet<string> | null,
+) {
   const pattern = new RegExp(
     `/metadata/(?:domains/[^/]+/)?([^/]+)/${table}/[^/]+--([A-Za-z0-9_]+)\\.yaml$`,
   );
@@ -48,6 +55,7 @@ async function population(mirror: MirrorReader, instance: string, table: string,
     const match = pattern.exec(path);
     if (match === null) continue;
     const [, name = "", id = ""] = match;
+    if (!scopes.test(name) || (only !== null && !only.has(id))) continue;
     const entry = byScope.get(name);
     if (entry === undefined) {
       const meta = (fromYamlStrings((await mirror.read(path)) ?? "") as Record<string, unknown>)[
@@ -228,6 +236,15 @@ async function main() {
     return at < 0 ? undefined : args.splice(at, 2)[1];
   };
   const limit = Number(option("--limit") ?? "100000");
+  // Which application scopes to take records from (a pattern): custom ones (^x_) for the
+  // classes where baseline records are routed through Record() (test plan, decision 3).
+  const scopes = new RegExp(option("--scopes") ?? ".");
+  // Or exactly these records: a file of sys_ids, one per line.
+  const idsFile = option("--ids");
+  const only =
+    idsFile === undefined
+      ? null
+      : new Set((await Bun.file(idsFile).text()).split("\n").filter(Boolean));
   const evidence = option("--evidence");
   const [workspace = ".", instance = "", table = ""] = args;
   const repository = resolve(workspace);
@@ -236,7 +253,7 @@ async function main() {
   const root = mkdtempSync(join(tmpdir(), "snagentic-census-"));
   const tools = new SdkToolchain(root, loadFluentRuntime);
   const verdicts = new Map<string, Verdict>();
-  for (const { scope, ids } of await population(mirror, instance, table, limit)) {
+  for (const { scope, ids } of await population(mirror, instance, table, limit, scopes, only)) {
     const target = project(root, scope);
     for (let i = 0; i < ids.length; i += BATCH) {
       await census(tools, client, target, table, ids.slice(i, i + BATCH), verdicts);

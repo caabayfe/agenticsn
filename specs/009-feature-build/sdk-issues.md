@@ -78,11 +78,30 @@ on ServiceNow's own protected roles and policies), a load changes who may edit t
 Accepted by snagentic as named losses, but worth reporting so the SDK can keep the empty value:
 a global role's `suffix` becomes its name (632 of 646 global roles); `ApplicationMenu` and
 `UiAction` write `order: 100` for an empty order (96 menus, 2 UI actions); an empty UI policy
-script becomes `function onCondition() {}`; a mobile menu (`device_type`) can't be expressed by
-`ApplicationMenu`.
+script becomes `function onCondition() {}`.
+
+The same recomputation changes values the instance does hold, which snagentic refuses:
+
+- a global role's suffix that isn't its name becomes the name (10 roles, such as
+  `pd_shared.admin` with suffix `admin`);
+- `ApplicationMenu` has no device type and builds `browser`, so a mobile menu (3) or one
+  with none (1) moves to the browser's navigator;
+- `Acl` builds an advanced ACL with an empty script as not advanced (3).
 
 ## 8. An adopted flow's snapshot is written as an empty update file
 
 Building an adopted flow writes `dist/app/sys_hub_flow_snapshot_<id>.xml` containing only the
 XML declaration. Harmless to load, but tools reading the build see an update file with no
 record. **snagentic:** skips files with no element (since PR #87).
+
+## 9. A role or view the transform can't read becomes a reference to a missing record
+
+When the reading account can't see a UI action's role (an elevated role, such as the
+code-signing roles beside `security_admin`) or can't resolve one of its views, the transform
+writes that record's sys_id in `roles`, `includeInViews` or `excludeFromViews`. The build
+reads the sys_id as a name and adds a row for a role or view of that name, which doesn't exist,
+beside the instance's own row. That row gets a new random sys_id on every build. On the PDI:
+3 UI actions (roles) and 17 (views).
+**Expected:** the transform keeps the row's reference as a sys_id the build understands, or
+fails naming the record it couldn't read; and a build's generated sys_ids are stable.
+**snagentic:** refuses, naming the role or view it couldn't read (since PR #93).

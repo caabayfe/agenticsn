@@ -17,6 +17,11 @@ export interface SceneSource {
 }
 
 // The workspace's documentation/ folder.
+export interface ThemeFile {
+  readonly path: string;
+  readonly content: Uint8Array;
+}
+
 export interface DocumentationSources {
   // site.yaml parsed, or null when the workspace has no documentation.
   site(): Promise<unknown>;
@@ -24,6 +29,9 @@ export interface DocumentationSources {
   processes(): Promise<readonly { readonly path: string; readonly process: unknown }[]>;
   pages(): Promise<readonly PageSource[]>;
   scenes(): Promise<readonly SceneSource[]>;
+  // documentation/theme/: the client's theme.css and the images and fonts it uses, by path inside
+  // the folder. Absent or empty: the site ships its template.
+  theme?(): Promise<readonly ThemeFile[]>;
   // Sets evidence.<id>.hash in a page's front matter, keeping the rest of the file as written.
   pinHashes(path: string, hashes: ReadonlyMap<string, string>): Promise<void>;
 }

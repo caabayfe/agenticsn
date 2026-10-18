@@ -63,6 +63,7 @@ describe("docs build: the site's sections", () => {
       "animations/asg.html",
       "assets/search.js",
       "assets/site.css",
+      "assets/theme/theme.css",
       "index.html",
       "processes/incident/configure/assign.html",
       "processes/incident/configure/index.html",
@@ -80,7 +81,7 @@ describe("docs build: the site's sections", () => {
       "processes/incident/use/understand/lifecycle.html",
       "processes/incident/use/understand/overview.html",
     ]);
-    expect(result.files).toBe(19);
+    expect(result.files).toBe(20);
   });
 
   it("opens each process with its lifecycle and a door for each reader, naming where they work", async () => {

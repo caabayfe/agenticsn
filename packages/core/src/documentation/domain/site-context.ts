@@ -37,6 +37,8 @@ export interface SiteInput {
   readonly indexes?: ReadonlyMap<string, ConfigIndex>;
   // Each animation rendered as MP4, by animation name (spec 010c).
   readonly videos?: ReadonlyMap<string, Uint8Array>;
+  // The client's theme files, by path inside documentation/theme/.
+  readonly theme?: readonly { readonly path: string; readonly content: Uint8Array }[];
 }
 
 export interface Built {

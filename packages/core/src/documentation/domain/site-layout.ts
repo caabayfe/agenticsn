@@ -70,8 +70,8 @@ export function layout(
     .map((crumb) => `<a href="${prefix}${crumb.href}">${escapeHtml(crumb.text)}</a>`)
     .join(" › ");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title)}</title><link rel="stylesheet" href="${prefix}assets/site.css"></head><body data-prefix="${prefix}">
-<header class="site">${aside === "" ? "" : TOGGLE}<a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs">${trail}</nav>`}</header>
+<title>${escapeHtml(title)}</title><link rel="stylesheet" href="${prefix}assets/site.css"><link rel="stylesheet" href="${prefix}assets/theme/theme.css"></head><body data-prefix="${prefix}">
+<header class="site">${aside === "" ? "" : TOGGLE}<span class="logo" aria-hidden="true"></span><a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs">${trail}</nav>`}</header>
 <div class="shell">${aside}<div class="content">
 <main>
 ${main}

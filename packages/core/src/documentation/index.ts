@@ -139,6 +139,7 @@ export type {
   PageSource,
   SceneSource,
   SiteOutput,
+  ThemeFile,
   VideoOptions,
   VideoOutput,
   VideoRenderer,

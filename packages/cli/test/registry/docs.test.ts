@@ -134,7 +134,7 @@ describe("snagentic docs", () => {
       context(),
       run,
     );
-    expect(built.files).toBe(9);
+    expect(built.files).toBe(10);
     expect(built.ok).toBe(false);
     expect(docsBuild.render(built, "text")).toContain("some pages are out of date");
     expect(docsBuild.exitCode(built)).toBe(0);
@@ -244,7 +244,7 @@ describe("snagentic docs", () => {
     );
     expect(served).toEqual({ port: 4999 });
     expect(result.url).toBe("http://127.0.0.1:4999/");
-    expect(progress[0]).toContain("serving 9 files at http://127.0.0.1:4999/");
+    expect(progress[0]).toContain("serving 10 files at http://127.0.0.1:4999/");
     expect(docsServe.render(result, "text")).toBe("stopped serving http://127.0.0.1:4999/");
     expect(docsServe.exitCode(result)).toBe(0);
   });

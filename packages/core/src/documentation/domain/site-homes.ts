@@ -39,18 +39,39 @@ function viewDoor(b: Built, process: Process, view: View): string {
   );
 }
 
-// The process: what it is for, its lifecycle, and a door for each reader.
+// The process: what it is for, its lifecycle, and a door for each reader (or, beside an employee
+// guide, what operators do).
 export function processHtml(b: Built, process: Process): string {
   const file = `processes/${process.id}/index.html`;
   const states = process.lifecycle.map(
     (state) =>
       `<li><strong>${escapeHtml(state.state)}</strong><span>${escapeHtml(state.meaning)}</span></li>`,
   );
+  const lifecycle =
+    states.length === 0 ? "" : `<h2>Lifecycle</h2><ol class="lifecycle">${states.join("")}</ol>`;
+  // Beside an employee guide, the process page is in the IT guide: no reader to choose.
+  if (b.input.config.employees !== undefined) {
+    const configured = configurePages(b, process).length > 0;
+    const main = `<h1>${escapeHtml(process.title)}</h1>
+<p class="lead">${escapeHtml(process.summary)}</p>
+${whereBanner(b, "operator")}
+${readerSections(b, process, "operator", file)}
+${configured ? `<p>${link(prefixOf(file), sectionHome(process.id, "configure"), "How it is configured")}</p>` : ""}
+${lifecycle}`;
+    return layout(
+      b.input.config,
+      process.title,
+      file,
+      guideCrumbs(b, "platform"),
+      main,
+      navFor(b, file),
+    );
+  }
   const main = `<h1>${escapeHtml(process.title)}</h1>
 <p class="lead">${escapeHtml(process.summary)}</p>
 <div class="banner"><span>${checked(b)}</span></div>
 <div class="doors">${viewDoor(b, process, "user")}${viewDoor(b, process, "operator")}${door("configure/index.html", SECTION_TITLES.configure, ["The business rules, ACLs, scripts and other records behind each step"])}</div>
-${states.length === 0 ? "" : `<h2>Lifecycle</h2><ol class="lifecycle">${states.join("")}</ol>`}`;
+${lifecycle}`;
   return layout(
     b.input.config,
     process.title,
@@ -61,10 +82,9 @@ ${states.length === 0 ? "" : `<h2>Lifecycle</h2><ol class="lifecycle">${states.j
   );
 }
 
-// A reader's home: who they are, the shared topics in their view, and their capabilities.
-export function viewHomeHtml(b: Built, process: Process, view: View): string {
+// Who a reader is, the shared topics in their view, and their capabilities, as links from `file`.
+function readerSections(b: Built, process: Process, view: View, file: string): string {
   const section = VIEW_SECTION[view];
-  const file = sectionHome(process.id, section);
   const prefix = prefixOf(file);
   const roles = process.roles
     .filter((role) => role.audience === view)
@@ -83,13 +103,24 @@ export function viewHomeHtml(b: Built, process: Process, view: View): string {
         : link(prefix, pageFile(page), capability.title);
     return `<li><span class="num">${index + 1}.</span> ${title}<br><span class="mute">${escapeHtml(capability.summary)}</span></li>`;
   });
+  return `${roles.length === 0 ? "" : `<h2>Who this is for</h2><ul class="roles">${roles.join("")}</ul>`}
+${topics.length === 0 ? "" : `<h2>How it works</h2><ul class="pages">${topics.join("")}</ul>`}
+${steps.length === 0 ? "" : `<h2>What you can do</h2><ul class="pages">${steps.join("")}</ul>`}`;
+}
+
+const whereBanner = (b: Built, view: View) => {
   const surfaces = surfaceNames(b, view);
+  return `<div class="banner">${surfaces === "" ? "" : `<span>Where: ${escapeHtml(surfaces)}</span>`}<span>${checked(b)}</span></div>`;
+};
+
+// A reader's home: who they are, the shared topics in their view, and their capabilities.
+export function viewHomeHtml(b: Built, process: Process, view: View): string {
+  const section = VIEW_SECTION[view];
+  const file = sectionHome(process.id, section);
   const main = `<h1>${escapeHtml(process.title)}: ${escapeHtml(SECTION_TITLES[section].toLowerCase())}</h1>
 <p class="lead">${escapeHtml(process.summary)}</p>
-<div class="banner">${surfaces === "" ? "" : `<span>Where: ${escapeHtml(surfaces)}</span>`}<span>${checked(b)}</span></div>
-${roles.length === 0 ? "" : `<h2>Who this is for</h2><ul class="roles">${roles.join("")}</ul>`}
-${topics.length === 0 ? "" : `<h2>How it works</h2><ul class="pages">${topics.join("")}</ul>`}
-<h2>What you can do</h2><ul class="pages">${steps.join("")}</ul>`;
+${whereBanner(b, view)}
+${readerSections(b, process, view, file)}`;
   return layout(
     b.input.config,
     `${process.title}: ${SECTION_TITLES[section]}`,

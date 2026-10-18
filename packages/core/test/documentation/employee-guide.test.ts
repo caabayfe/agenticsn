@@ -96,6 +96,23 @@ describe("docs build: an employee guide and an IT guide", () => {
     expect(file("processes/incident/index.html")).toContain('it/index.html">IT guide</a>');
   });
 
+  it("opens a process in the IT guide on what operators do, without asking which reader you are", async () => {
+    const { file } = await build();
+    const page = file("processes/incident/index.html");
+    const main = page.slice(page.indexOf("<main>"), page.indexOf("</main>"));
+    expect(main).not.toContain('class="door"');
+    expect(main).not.toContain("For end users");
+    expect(main).toContain("<h2>What you can do</h2>");
+    expect(main).toContain(
+      'href="../../processes/incident/operate/assign.html">Assign an incident</a>',
+    );
+    expect(main).not.toContain("Confirm or reopen the fix");
+    expect(main).toContain(
+      'href="../../processes/incident/configure/index.html">How it is configured</a>',
+    );
+    expect(main).toContain("<strong>In Progress</strong><span>someone is working on it</span>");
+  });
+
   it("keeps the single site, and its links, when there is no employee guide", async () => {
     const { file, written } = await build(null);
     expect(file("index.html")).toContain('<a href="processes/incident/index.html">');

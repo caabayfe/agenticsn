@@ -17,7 +17,7 @@ const ANSWERS: Readonly<Record<string, unknown>> = {
     units: [{}, {}],
     problems: [{ updateName: "sys_x_1", project: "source/global", reason: "drift" }],
     gate: { blocking: [{ ruleId: "SN-MNT-010", path: "keys.ts", message: "new IDs" }] },
-    collisions: [{ record: "sys_y_2" }],
+    collisions: [{ record: "sys_y_2", heldBy: [{ updateSetName: "someone's work" }] }],
   },
   push: {
     units: [{}, {}, {}],
@@ -107,7 +107,7 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
 
   it("plans and pushes a module under its label, naming every reason it is not ready", async () => {
     const { steps, calls } = fakes();
-    expect(await steps.planPush("L", signal)).toEqual({
+    expect(await steps.planPush("L", signal, ["L"])).toEqual({
       planId: "p1",
       ready: false,
       units: 2,
@@ -125,7 +125,7 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
     });
     expect(calls.map(([name, input]) => [name, input])).toEqual([
       ["plan-push", { instance: "pdi", label: "L" }],
-      ["push", { instance: "pdi", plan: "p1", confirm: true, label: "L" }],
+      ["push", { instance: "pdi", plan: "p1", confirm: true, label: "L", allowCollisions: false }],
     ]);
   });
 
@@ -175,6 +175,37 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
     ]);
     expect(commits).toEqual([
       [["source/global/snagentic.ledger.yaml"], "chore(snagentic): take over out-of-box layouts"],
+    ]);
+  });
+
+  it("plans again with collisions allowed when only the install's own update sets hold them", async () => {
+    const calls: [string, unknown][] = [];
+    const answers: Record<string, unknown> = {
+      "plan-push": {
+        planId: "p2",
+        ready: true,
+        units: [{}],
+        problems: [],
+        gate: { blocking: [] },
+        collisions: [{ record: "sys_z_3", heldBy: [{ updateSetName: "snagentic: L [global]" }] }],
+      },
+      push: { units: [{}], notApplied: 0, notCaptured: 0, updateSets: [{ name: "snagentic: U" }] },
+    };
+    const call = (async (useCase: { name: string }, input: unknown) => {
+      calls.push([useCase.name, input]);
+      return answers[useCase.name];
+    }) as CallUseCase;
+    const steps = installSteps(
+      FAKE_CONTEXT,
+      { root: "/w", instance: InstanceName.parse("pdi"), pack: "itsm" },
+      call,
+    );
+    expect((await steps.planPush("U", signal, ["L", "U"])).problems).toEqual([]);
+    await steps.push("p2", "U", signal);
+    expect(calls).toEqual([
+      ["plan-push", { instance: "pdi", label: "U" }],
+      ["plan-push", { instance: "pdi", label: "U", allowCollisions: true }],
+      ["push", { instance: "pdi", plan: "p2", confirm: true, label: "U", allowCollisions: true }],
     ]);
   });
 });

@@ -102,14 +102,15 @@ async function deliverAs(
   deps: InstallRunDependencies,
   ids: readonly string[],
   adoptions: readonly Adoption[],
-  label: string,
+  labels: { readonly label: string; readonly own: readonly string[] },
   signal: AbortSignal,
 ): Promise<{ outcome: "done" | "skipped"; detail: string }> {
+  const { label, own } = labels;
   const added = await deps.steps.add(ids, signal);
   if (added.conflicts.length > 0) throw new Error(`merge conflicts: ${added.conflicts.join(", ")}`);
   await deps.steps.keys(added.copied, signal);
   await takeOver(deps, adoptions, signal);
-  const planned = await deps.steps.planPush(label, signal);
+  const planned = await deps.steps.planPush(label, signal, own);
   if (planned.units === 0 && planned.problems.length === 0) {
     return { outcome: "skipped", detail: "the instance already holds it as built" };
   }
@@ -149,11 +150,15 @@ async function deliver(
   );
   const before = await installedBefore(deps, plan);
   const done = before.map((m) => m.id);
+  const upgradeLabel = `${plan.pack} ${plan.version} upgrade`;
+  // Every update set this install names, in this run or an earlier one.
+  const own = [...plan.modules.map((m) => m.label), upgradeLabel];
   const upgrade = `modules already installed: ${done.join(", ")}`;
   if (before.length > 0 && !finished.has(upgrade)) {
     const adoptions = before.flatMap((m) => m.adoptions);
-    const label = `${plan.pack} ${plan.version} upgrade`;
-    await step(deps, record, upgrade, () => deliverAs(deps, done, adoptions, label, signal));
+    await step(deps, record, upgrade, () =>
+      deliverAs(deps, done, adoptions, { label: upgradeLabel, own }, signal),
+    );
   }
   for (const module of plan.modules.filter((m) => !done.includes(m.id))) {
     done.push(module.id);
@@ -161,7 +166,7 @@ async function deliver(
     // Every module up to this one: a later add never drops an earlier module's files.
     const ids = [...done];
     await step(deps, record, `module ${module.id}`, () =>
-      deliverAs(deps, ids, module.adoptions, module.label, signal),
+      deliverAs(deps, ids, module.adoptions, { label: module.label, own }, signal),
     );
   }
 }

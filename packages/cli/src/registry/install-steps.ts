@@ -25,23 +25,45 @@ export const callerFor =
     return useCase.handle(useCase.input.parse(input), context, run);
   };
 
+// A collision with update sets this install named (an earlier run's, still open) is the
+// install changing its own records: such a plan is made again with those collisions allowed.
+const ownedBy = (own: readonly string[], set: string) =>
+  own.some((label) => set === `snagentic: ${label}` || set.startsWith(`snagentic: ${label} [`));
+
 // plan_push and push for one module's update set.
 function deliverySteps(
   call: CallUseCase,
   instance: string,
 ): Pick<InstallSteps, "planPush" | "push"> {
+  const allowed = new Set<string>();
   return {
-    async planPush(label) {
-      const out = await call(planPush, { instance, label });
+    async planPush(label, _signal, own) {
+      let out = await call(planPush, { instance, label });
+      const ours = out.collisions.every((c) =>
+        c.heldBy.every((h) => ownedBy(own, h.updateSetName)),
+      );
+      if (out.collisions.length > 0 && ours) {
+        allowed.add(label);
+        out = await call(planPush, { instance, label, allowCollisions: true });
+      }
       const problems = [
         ...out.problems.map((p) => `${p.updateName || p.project}: ${p.reason}`),
         ...out.gate.blocking.map((f) => `${f.ruleId} ${f.path}: ${f.message}`),
-        ...out.collisions.map((c) => `${c.record} is held in another update set`),
+        ...out.collisions
+          .filter(() => !allowed.has(label))
+          .map((c) => `${c.record} is held in another update set`),
       ];
       return { planId: out.planId, ready: out.ready, units: out.units.length, problems };
     },
     async push(planId, label) {
-      const out = await call(push, { instance, plan: planId, confirm: true, label });
+      const allowCollisions = allowed.has(label);
+      const out = await call(push, {
+        instance,
+        plan: planId,
+        confirm: true,
+        label,
+        allowCollisions,
+      });
       return {
         units: out.units.length,
         notApplied: out.notApplied,

@@ -91,9 +91,12 @@ export interface InstallSteps {
     readonly customized: readonly string[];
     readonly absent: readonly string[];
   }>;
+  // plan_push under `label`. A record held only in update sets of `own` labels (this install's
+  // own, from an earlier run) is no collision: the install changes its own records.
   planPush(
     label: string,
     signal: AbortSignal,
+    own: readonly string[],
   ): Promise<{
     readonly planId: string;
     readonly ready: boolean;

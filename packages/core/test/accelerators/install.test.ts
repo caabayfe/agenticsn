@@ -90,6 +90,7 @@ function fakeSteps(
   } = {},
 ) {
   const calls: string[] = [];
+  const owned: string[] = [];
   const files = new Map<string, string>();
   const steps: InstallSteps = {
     activatePlugin: async (id) => {
@@ -113,8 +114,9 @@ function fakeSteps(
         .map((r) => `${r.table} ${r.sysId}`);
       return { taken: records.length - customized.length, customized, absent: [] };
     },
-    planPush: async (label) => {
+    planPush: async (label, _signal, own) => {
       calls.push(`plan ${label}`);
+      owned.push(...own);
       const nothing = (options.nothingFor ?? []).some((m) => label.includes(m));
       return { planId: `p-${label}`, ready: !nothing, units: nothing ? 0 : 5, problems: [] };
     },
@@ -145,7 +147,7 @@ function fakeSteps(
       return "r1";
     },
   };
-  return { steps, calls, files };
+  return { steps, calls, files, owned };
 }
 
 function memoryJournal(start: InstallRecord | null = null, locked = false) {
@@ -513,6 +515,17 @@ describe("running an install (ADR-0038, item 2)", () => {
       "plan ITSM: incident 0.1.0",
     ]);
     expect(result.steps.map((s) => s.step)).toContain("modules already installed: foundation");
+  });
+
+  it("tells each plan which update sets are the install's own", async () => {
+    const { steps, owned } = fakeSteps();
+    const plan = await planInstall(deps(READY, { steps }), QUERY);
+    await installPack(deps(READY, { steps }), { ...QUERY, confirm: plan.planId });
+    expect([...new Set(owned)]).toEqual([
+      "ITSM: foundation 0.1.0",
+      "ITSM: incident 0.1.0",
+      "itsm 0.1.0 upgrade",
+    ]);
   });
 
   it("counts a module as installed when it gained files since its last add", async () => {

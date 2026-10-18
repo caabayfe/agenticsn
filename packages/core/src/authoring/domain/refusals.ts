@@ -22,6 +22,16 @@ const REFUSALS: readonly Refusal[] = [
     reason: (built, instance) =>
       `a protected role: the SDK would change its containment rows' protection from ${instance || "none"} to ${built || "none"} (read-only rows), which changes who may edit its grants; leave the role on the instance`,
   },
+  // A global role's suffix the instance holds and the SDK rewrites to the role's name (10 on
+  // pdi2, such as pd_shared.admin with suffix admin): the platform uses the suffix in scoped role
+  // names, so the change isn't cosmetic (product owner, 2026-10-18). An empty suffix is a loss.
+  {
+    table: "sys_user_role",
+    field: "suffix",
+    applies: (built, instance) => instance !== "" && built !== instance,
+    reason: (built, instance) =>
+      `a role whose suffix isn't its name: the SDK would change its suffix from ${instance} to ${built}; leave the role on the instance`,
+  },
   // The same for a protected UI policy's actions (34 on pdi2), refused alike (2026-10-17).
   {
     table: "sys_ui_policy_action",

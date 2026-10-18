@@ -337,6 +337,27 @@ describe("adopt (ADR-0031 item 3)", () => {
     await expect(adopting).rejects.toBeInstanceOf(AdoptRefusedError);
   });
 
+  it("refuses what the conversion fixes refuse, with their reasons", async () => {
+    const reason = "ua.now.ts: a role the SDK's conversion couldn't read";
+    const failing = {
+      ...toolchain([]).chain,
+      draftTransform: async () => ({ ok: false as const, message: reason, refused: [reason] }),
+    };
+    const adopting = adopt(
+      {
+        reader: instance().reader,
+        workspace: memoryWorkspace().workspace,
+        toolchain: failing,
+        access,
+        signal,
+      },
+      { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
+    );
+    const refused = await adopting.catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(AdoptRefusedError);
+    expect(refused instanceof AdoptRefusedError ? refused.message : "").toContain(reason);
+  });
+
   it("adopts each scope's records into its own project, in scope order", async () => {
     const OTHER = "b".repeat(32);
     const fake = fakeInstance({

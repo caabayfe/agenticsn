@@ -111,8 +111,7 @@ export function plannedOrProblem(
   if (decision.kind === "drift" || decision.kind === "not-adopted") {
     return problem(decision.kind, REASONS[decision.kind]);
   }
-  if (decision.kind === "unsafe")
-    return problem("unsafe", `${decision.reason}: it is never loaded`);
+  if (decision.kind === "unsafe") return problem("unsafe", decision.reason);
   return {
     ...context,
     updateName: unit.updateName,

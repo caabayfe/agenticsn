@@ -1,3 +1,4 @@
+import { emptyLengthRefusal } from "./column-length";
 import { compareUnit, type Difference } from "./compare";
 import type { LedgerEntry } from "./ledger";
 import { knownLoss, type LossId } from "./losses";
@@ -23,7 +24,8 @@ export type UnitDecision =
   | { readonly kind: "drift"; readonly differences: readonly Difference[] }
   // The instance holds the unit, and this branch never adopted it from this instance.
   | { readonly kind: "not-adopted"; readonly differences: readonly Difference[] }
-  // The unit has rows in other domains, which a load might replace (S16).
+  // The unit has rows in other domains, which a load might replace (S16), or the platform would
+  // refuse the load while answering success (a column with no max length).
   | { readonly kind: "unsafe"; readonly reason: string };
 
 function lossesOf(differences: readonly Difference[], scope: string | undefined): LossId[] {
@@ -64,8 +66,13 @@ export function planUnit(
   if (entry.instance !== copy.version) return { kind: "drift", differences };
   if (entry.build === digest) return { kind: "none" };
   if (copy.foreignRows > 0) {
-    return { kind: "unsafe", reason: `${copy.foreignRows} rows belong to other domains` };
+    return {
+      kind: "unsafe",
+      reason: `${copy.foreignRows} rows belong to other domains: it is never loaded`,
+    };
   }
+  const refused = emptyLengthRefusal(unit, copy);
+  if (refused !== null) return { kind: "unsafe", reason: refused };
   return {
     kind: "load",
     differences,

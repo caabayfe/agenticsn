@@ -128,3 +128,66 @@ describe("planUnit (ADR-0033 item 4)", () => {
     });
   });
 });
+
+// pdi2, 2026-10-18 (spec 009 L3-1): the platform's DictionaryUpdateLoader refuses an update whose
+// max_length is empty ("Length change not allowed. Invalid new length (-1)"), while fluent/load
+// answers success. A column the load created without maxLength could never change again.
+describe("planUnit on a column whose source gives no max length", () => {
+  const column = (fields: Record<string, string>) =>
+    unit(
+      "sys_dictionary_x_app_request_urgent",
+      record("sys_dictionary", "d".repeat(32), {
+        name: "x_app_request",
+        element: "urgent",
+        internal_type: "boolean",
+        column_label: "Urgent request",
+        ...fields,
+      }),
+    );
+  const held = (fields: Record<string, string>) =>
+    copy(
+      {
+        sys_id: "d".repeat(32),
+        name: "x_app_request",
+        element: "urgent",
+        internal_type: "boolean",
+        column_label: "Urgent",
+        ...fields,
+      },
+      [],
+      VERSION,
+    );
+  const known = (built: ReturnType<typeof column>) => entry({ build: "before", instance: VERSION });
+
+  it("refuses the change, naming the maxLength the platform needs", () => {
+    const built = column({ max_length: "" });
+    const decision = planUnit(built, unitDigest(built), held({ max_length: "" }), known(built));
+    expect(decision).toMatchObject({ kind: "unsafe" });
+    expect(decision.kind === "unsafe" && decision.reason).toContain("maxLength: 40");
+  });
+
+  it("names the instance's own length when it holds one, and 32 for a reference", () => {
+    const built = column({ max_length: "" });
+    const decision = planUnit(built, unitDigest(built), held({ max_length: "80" }), known(built));
+    expect(decision.kind === "unsafe" && decision.reason).toContain("maxLength: 80");
+    const reference = column({ max_length: "", internal_type: "reference" });
+    const asReference = planUnit(
+      reference,
+      unitDigest(reference),
+      held({ max_length: "", internal_type: "reference" }),
+      known(reference),
+    );
+    expect(asReference.kind === "unsafe" && asReference.reason).toContain("maxLength: 32");
+  });
+
+  it("loads the change once the source gives a length", () => {
+    const built = column({ max_length: "40" });
+    const decision = planUnit(built, unitDigest(built), held({ max_length: "" }), known(built));
+    expect(decision).toMatchObject({ kind: "load" });
+  });
+
+  it("creates a column with no length: the platform accepts it on insert", () => {
+    const built = column({ max_length: "" });
+    expect(planUnit(built, unitDigest(built), null, undefined)).toEqual({ kind: "create" });
+  });
+});

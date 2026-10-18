@@ -129,8 +129,12 @@ describe("snagentic docs", () => {
       PAGE,
       readFileSync(join(root, PAGE), "utf8").replace("    how:", "    hash: old\n    how:"),
     );
-    const built = await docsBuild.handle({ audio: false, voice: "none" }, context(), run);
-    expect(built.files).toBe(8);
+    const built = await docsBuild.handle(
+      { audio: false, voice: "none", video: false },
+      context(),
+      run,
+    );
+    expect(built.files).toBe(10);
     expect(built.ok).toBe(false);
     expect(docsBuild.render(built, "text")).toContain("some pages are out of date");
     expect(docsBuild.exitCode(built)).toBe(0);
@@ -139,15 +143,108 @@ describe("snagentic docs", () => {
     ).toContain("status-changed");
   });
 
+  it("build --video renders each animation and says which it made", async () => {
+    write("documentation/animations/asg/animation.json", '{"name":"asg","title":"Assignment"}');
+    write(
+      "documentation/animations/asg/scene.svg",
+      '<svg viewBox="0 0 960 440"><g id="cam"></g></svg>',
+    );
+    write(
+      "documentation/animations/asg/steps.json",
+      '[{"t":"Saved","c":"Saved.","say":"It is saved."}]',
+    );
+    const built = await docsBuild.handle(
+      { audio: false, voice: "none", video: true },
+      context(),
+      run,
+    );
+    expect(built.videos).toEqual(["asg"]);
+    expect(docsBuild.render(built, "text")).toContain("videos: asg");
+    expect(readFileSync(join(root, ".snagentic/site/animations/asg.mp4")).length).toBe(0);
+  });
+
+  it("build --video without a browser lists every animation it could not make", async () => {
+    write("documentation/animations/asg/animation.json", '{"name":"asg","title":"Assignment"}');
+    write(
+      "documentation/animations/asg/scene.svg",
+      '<svg viewBox="0 0 960 440"><g id="cam"></g></svg>',
+    );
+    write(
+      "documentation/animations/asg/steps.json",
+      '[{"t":"Saved","c":"Saved.","say":"It is saved."}]',
+    );
+    const base = context();
+    const noBrowser: UseCaseContext = {
+      ...base,
+      documentation: (workspace) => {
+        const docs = base.documentation(workspace);
+        return {
+          ...docs,
+          media: {
+            ...docs.media,
+            video: { available: async () => false, render: async () => new Uint8Array(0) },
+          },
+        };
+      },
+    };
+    const built = await docsBuild.handle(
+      { audio: false, voice: "none", video: true },
+      noBrowser,
+      run,
+    );
+    expect(built.videosNotMade).toEqual([
+      { animation: "asg", reason: "no Chrome or Chromium browser" },
+    ]);
+  });
+
+  it("build --video names the animations it could not make", () => {
+    const text = docsBuild.render(
+      {
+        root: "/s",
+        files: 1,
+        ok: true,
+        evidence: [],
+        problems: [],
+        narrated: [],
+        missingSounds: [],
+        videos: [],
+        videosNotMade: [{ animation: "asg", reason: "no Chrome or Chromium browser" }],
+        videosPruned: 0,
+      },
+      "text",
+    );
+    expect(text).toContain("video not made: asg (no Chrome or Chromium browser)");
+    expect(text).not.toContain("old recordings");
+  });
+
+  it("build says how many old recordings it removed from the video cache", () => {
+    const text = docsBuild.render(
+      {
+        root: "/s",
+        files: 1,
+        ok: true,
+        evidence: [],
+        problems: [],
+        narrated: ["asg"],
+        missingSounds: [],
+        videos: ["asg"],
+        videosNotMade: [],
+        videosPruned: 2,
+      },
+      "text",
+    );
+    expect(text).toContain("removed 2 old recordings from the video cache");
+  });
+
   it("serve builds the site, then serves it on the requested port", async () => {
     const result = await docsServe.handle(
-      { audio: false, voice: "none", port: 4999 },
+      { audio: false, voice: "none", video: false, port: 4999 },
       context(),
       run,
     );
     expect(served).toEqual({ port: 4999 });
     expect(result.url).toBe("http://127.0.0.1:4999/");
-    expect(progress[0]).toContain("serving 8 files at http://127.0.0.1:4999/");
+    expect(progress[0]).toContain("serving 10 files at http://127.0.0.1:4999/");
     expect(docsServe.render(result, "text")).toBe("stopped serving http://127.0.0.1:4999/");
     expect(docsServe.exitCode(result)).toBe(0);
   });
@@ -159,7 +256,11 @@ describe("snagentic docs", () => {
     );
     write("documentation/animations/asg/scene.svg", '<svg><g id="cam"></g></svg>');
     write("documentation/animations/asg/steps.json", '[{"t":"A","c":"B","say":"Hello there."}]');
-    const built = await docsBuild.handle({ audio: false, voice: "fake" }, context(), run);
+    const built = await docsBuild.handle(
+      { audio: false, voice: "fake", video: false },
+      context(),
+      run,
+    );
     expect(built.narrated).toEqual(["asg"]);
     expect(built.missingSounds).toEqual(["nope_1"]);
     expect(docsBuild.render(built, "text")).toContain("audio tracks: asg");

@@ -10,6 +10,36 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   such a trigger but never runs the flow, without an error; Flow Designer writes "no condition" as
   `^EQ`, which the finding names. Found by the spec 009 scenarios (L8 A1, pdi2).
 
+## [2.3.0] - 2026-10-18
+
+### Added
+
+- An employee guide and an IT guide from one source (ADR-0037). `site.yaml` can declare an
+  `employees:` guide: tasks in the employees' words, a Start here list and the processes
+  explained in plain words. Employee pages show no evidence, citations, review labels or open
+  questions; the IT guide has the operator, configuration and open-questions pages. The site
+  opens on a map of cards, with a menu per guide that can be hidden, offline search, and a
+  client theme (`documentation/theme/theme.css`, copied from a commented template).
+- Links between pages and processes (spec 010b): `see:` references, checked by `docs check`.
+- `docs impact --base <ref>` (ADR-0039): each claim (sentence, list item or table row) a change
+  may make wrong, by reader (employees, operators, platform team), from Fluent source changed
+  since `base` and from instance changes since the page was pinned. The text is Markdown for a
+  pull request; `--format json` is for the agent.
+- Release notes (ADR-0039): one file per release, `documentation/changes/<release>.md`, with
+  notes for employees or IT linked to their pages. The site gets a What's new page per guide.
+- SN-MNT-017 (warn): a page pinned to a changed record since `base` with no release note
+  linking it.
+- Media defaults in `site.yaml` (`media: { audio, voice, video }`); recordings are cached and
+  reused until the animation, its audio or the player changes, and old ones are removed.
+  Players remember the reader's sound choice.
+
+### Changed
+
+- SN-MNT-014 counts evidence on one field only when the change edits that field, and quotes
+  the first claim it affects; SN-MNT-015 quotes it too.
+- Every Use and Operate page shows its capability as an animation; `docs check` fails without
+  one (spec 010c).
+
 ## [2.2.0] - 2026-10-18
 
 ### Added

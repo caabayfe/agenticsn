@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   buildSite,
   loadDocumentation,
+  type MediaTools,
   type PageSource,
   parseScene,
   siteFiles,
@@ -13,6 +14,7 @@ import {
   PROCESS,
   pages,
   run,
+  SITE,
   scene,
   withPage,
 } from "../support/docs-fixtures";
@@ -59,7 +61,9 @@ describe("docs build: the site's sections", () => {
     const { result, written } = await build();
     expect(written.map((item) => item.path).sort()).toEqual([
       "animations/asg.html",
+      "assets/search.js",
       "assets/site.css",
+      "assets/theme/theme.css",
       "index.html",
       "processes/incident/configure/assign.html",
       "processes/incident/configure/index.html",
@@ -77,7 +81,7 @@ describe("docs build: the site's sections", () => {
       "processes/incident/use/understand/lifecycle.html",
       "processes/incident/use/understand/overview.html",
     ]);
-    expect(result.files).toBe(18);
+    expect(result.files).toBe(20);
   });
 
   it("opens each process with its lifecycle and a door for each reader, naming where they work", async () => {
@@ -100,7 +104,8 @@ describe("docs build: the site's sections", () => {
 
   it("gives end users their own home: their roles, the shared topics in their view, their capabilities", async () => {
     const { file } = await build();
-    const home = file("processes/incident/use/index.html");
+    const page = file("processes/incident/use/index.html");
+    const home = page.slice(page.indexOf("<main"), page.indexOf("</main>"));
     expect(home).toContain("<strong>Caller</strong> — anyone who reports a problem");
     expect(home).not.toContain("Resolver");
     expect(home).toContain(
@@ -149,6 +154,25 @@ describe("docs build: guides and configure pages", () => {
     expect(guide).toContain("The platform changed since this guide was checked");
     expect(guide).toContain(
       '<details class="verified"><summary>How this page was checked (1 records)</summary>',
+    );
+  });
+
+  it("turns see: links into the page's address, in the reader's view", async () => {
+    const { file } = await build([
+      ...ALL.filter((page) => page.path !== pages.assign.path && page.path !== pages.report.path),
+      withPage(pages.assign, {
+        body: "Read [the overview](see:overview) and [the process](see:incident). [E01]",
+      }),
+      withPage(pages.report, { body: "Read [the overview](see:overview). [E01]" }),
+    ]);
+    expect(file("processes/incident/operate/assign.html")).toContain(
+      "[the overview](../../../processes/incident/operate/understand/overview.html)",
+    );
+    expect(file("processes/incident/operate/assign.html")).toContain(
+      "[the process](../../../processes/incident/index.html)",
+    );
+    expect(file("processes/incident/use/report.html")).toContain(
+      "[the overview](../../../processes/incident/use/understand/overview.html)",
     );
   });
 
@@ -268,5 +292,153 @@ describe("docs build: defaults and media", () => {
       new Uint8Array([1]),
     );
     expect(parseScene(scene.path, scene).name).toBe("asg");
+  });
+});
+
+describe("docs build: videos", () => {
+  const media = (browser: boolean): MediaTools => ({
+    ...NO_MEDIA,
+    codec: {
+      available: async () => true,
+      decode: async () => new Float32Array(10),
+      encodeMp3: async () => new Uint8Array([1, 2]),
+    },
+    video: { available: async () => browser, render: async () => new Uint8Array([9]) },
+  });
+
+  async function buildWith(browser: boolean) {
+    const { sources } = fakeSources(ALL);
+    let written: readonly { path: string; content: string | Uint8Array }[] = [];
+    const result = await buildSite(
+      {
+        ...run,
+        sources,
+        markdown: { html: (md) => md },
+        output: {
+          root: "/ws/site",
+          replace: async (files) => {
+            written = files;
+          },
+        },
+        media: media(browser),
+      },
+      { video: { fps: 30 } },
+    );
+    return { result, written };
+  }
+
+  it("renders every animation as an MP4 and links it under the player", async () => {
+    const { result, written } = await buildWith(true);
+    expect(result.videos).toEqual(["asg"]);
+    expect(written.find((file) => file.path === "animations/asg.mp4")?.content).toEqual(
+      new Uint8Array([9]),
+    );
+    const page = String(
+      written.find((file) => file.path === "processes/incident/operate/assign.html")?.content,
+    );
+    expect(page).toContain(
+      'href="../../../animations/asg.mp4" download>Download the video (MP4)</a>',
+    );
+  });
+
+  it("cleans the video cache after recording, and reports what it removed", async () => {
+    let pruned = 0;
+    const { sources } = fakeSources(ALL);
+    const result = await buildSite(
+      {
+        ...run,
+        sources,
+        markdown: { html: (md) => md },
+        output: { root: "/ws/site", replace: async () => {} },
+        media: {
+          ...media(true),
+          video: {
+            available: async () => true,
+            render: async () => new Uint8Array([9]),
+            prune: async () => {
+              pruned += 1;
+              return 3;
+            },
+          },
+        },
+      },
+      { video: { fps: 30 } },
+    );
+    expect(result.videosPruned).toBe(3);
+    expect(pruned).toBe(1);
+  });
+
+  it("names every animation it could not render, and links no video", async () => {
+    const { result, written } = await buildWith(false);
+    expect(result.videos).toEqual([]);
+    expect(result.videosNotMade).toEqual([
+      { animation: "asg", reason: "no Chrome or Chromium browser" },
+    ]);
+    expect(written.some((file) => file.path.endsWith(".mp4"))).toBe(false);
+    expect(result.videosPruned).toBe(0);
+  });
+});
+
+describe("docs build: media from site.yaml", () => {
+  const tools: MediaTools = {
+    ...NO_MEDIA,
+    codec: {
+      available: async () => true,
+      decode: async () => new Float32Array(10),
+      encodeMp3: async () => new Uint8Array([1, 2]),
+    },
+    video: { available: async () => true, render: async () => new Uint8Array([9]) },
+  };
+
+  async function buildFor(media: unknown, options?: Parameters<typeof buildSite>[1]) {
+    const { sources } = fakeSources(ALL, { site: { ...SITE, media } });
+    return buildSite(
+      {
+        ...run,
+        sources,
+        markdown: { html: (md) => md },
+        output: { root: "/ws/site", replace: async () => {} },
+        media: tools,
+      },
+      options,
+    );
+  }
+
+  it("narrates and records the animations as site.yaml asks, when no media option is given", async () => {
+    const result = await buildFor({ voice: "none", video: true });
+    expect(result.narrated).toEqual(["asg"]);
+    expect(result.videos).toEqual(["asg"]);
+  });
+
+  it("lets explicit options override site.yaml, down to no media at all", async () => {
+    const result = await buildFor({ video: true }, {});
+    expect(result.narrated).toEqual([]);
+    expect(result.videos).toEqual([]);
+  });
+
+  it("gives an audio track without video when site.yaml asks only for a voice", async () => {
+    const result = await buildFor({ voice: "none", audio: true });
+    expect(result.narrated).toEqual(["asg"]);
+    expect(result.videos).toEqual([]);
+  });
+});
+
+describe("docs build: sound by the reader's choice", () => {
+  it("lets each player play with sound, remembers the reader's choice and passes on their first click", async () => {
+    const { file } = await build();
+    const page = file("processes/incident/operate/assign.html");
+    expect(page).toContain('sandbox="allow-scripts" allow="autoplay"');
+    expect(page).toContain("localStorage.getItem(K)==='on'");
+    expect(page).toContain("snagenticSoundPref:on");
+    expect(page).toContain("addEventListener('pointerdown',go)");
+    expect(page).toContain("snagenticActivate:true");
+  });
+
+  it("makes Play and a click on the stage play with sound, and tells the page", async () => {
+    const { file } = await build();
+    const player = file("animations/asg.html");
+    expect(player).toContain('root.addEventListener("click", playButton)');
+    expect(player).toContain("parent.postMessage({ snagenticSound: on }");
+    expect(player).toContain("d.snagenticActivate && !activated");
   });
 });

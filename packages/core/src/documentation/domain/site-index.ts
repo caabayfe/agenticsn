@@ -1,8 +1,9 @@
 import { type ConfigIndex, groupByType, type IndexEntry } from "./config-index";
 import { escapeHtml } from "./html";
 import type { Process } from "./process";
-import { type Built, checked, link, SECTION_TITLES } from "./site-context";
+import { type Built, checked, guideCrumbs, link, SECTION_TITLES } from "./site-context";
 import { layout, prefixOf, sectionHome } from "./site-layout";
+import { navFor } from "./site-nav";
 
 export function recordsFile(process: string): string {
   return `processes/${process}/configure/records.html`;
@@ -54,9 +55,11 @@ ${uncited}`;
     `${process.title}: configuration index`,
     file,
     [
+      ...guideCrumbs(b, "platform"),
       { href: `processes/${process.id}/index.html`, text: process.title },
       { href: sectionHome(process.id, "configure"), text: SECTION_TITLES.configure },
     ],
     main,
+    navFor(b, file),
   );
 }

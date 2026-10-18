@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { coalesceValues, compareUnit, knownLoss, unitName } from "@snagentic/core";
+import { coalesceValues, compareUnit, knownLoss, unitName, unitSpec } from "@snagentic/core";
 import { copy, listCopy, record, revocationList, scriptInclude, unit } from "./units";
 
 const INSTANCE_SCRIPT_INCLUDE = {
@@ -395,5 +395,11 @@ describe("compareUnit: a named reference with the instance's own sys_id", () => 
     ).toEqual([
       expect.objectContaining({ field: "sys_user_role", built: "maint", instance: "admin" }),
     ]);
+  });
+});
+
+describe("unitSpec: compiled units", () => {
+  it("doesn't compare a flow's JSON chunks, which the platform re-encodes", () => {
+    expect(unitSpec("sys_json_chunk").comparable).toBe(false);
   });
 });

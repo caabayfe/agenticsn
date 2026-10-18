@@ -21,6 +21,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   would change, records with legacy values the SDK doesn't accept (protection `read-only` or
   `true`, access `private`), UI actions whose workspace settings it can't express, and columns of
   baseline tables, which the SDK's `Table()` can't define in global.
+- A flow's definition chunks (`sys_json_chunk`) are compared as the flow is, by the ledger: the
+  build writes JSON and the platform stores it gzipped, so 13 of 150 flows on a PDI showed a
+  difference that wasn't there. When the SDK's conversion of a record doesn't build, `adopt`
+  now says it is an SDK limitation to leave on the instance and report, not to pull again.
 - `adopt` brings in more UI policies: an empty script builds the SDK's empty condition function,
   an action with no visibility builds `ignore`, and an action with no table builds its policy's
   table, each accepted only against the empty value (no change in behaviour).

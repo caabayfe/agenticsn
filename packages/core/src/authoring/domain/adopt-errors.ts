@@ -28,7 +28,9 @@ export class AdoptTransformFailedError extends SnagenticError {
       "adopt-transform-failed",
       "remote",
       `the ServiceNow SDK could not convert the records of ${scope}: ${message}`,
-      "check that each record still exists (snagentic pull), then adopt again",
+      message.startsWith("the converted source does not build")
+        ? "the SDK's conversion of these records doesn't build (an SDK limitation): leave them on the instance, and report it to ServiceNow with the message"
+        : "check that each record still exists (snagentic pull), then adopt again",
     );
   }
 }

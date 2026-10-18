@@ -56,12 +56,12 @@ const CONVERSION_REFUSALS: readonly { readonly error: RegExp; readonly reason: s
   {
     error: /^Cannot coerce value to number/,
     reason:
-      "the SDK can't convert a number field left empty (a UI policy that runs scripts: its UI type); set it on the instance, then adopt again",
+      "the SDK can't convert a number field left empty (for a UI policy that runs scripts, its UI type): set a value on the instance, then adopt again",
   },
   // Legacy values the SDK's types reject: protection read-only or true (modules, UI actions,
   // script includes) and script include access private (6 on pdi2).
   {
-    error: /Type '"(read-only|true|private)"' is not assignable/,
+    error: /Type '"(read-only|read_only|true|private)"' is not assignable/,
     reason:
       "the record holds a legacy value the SDK doesn't accept (protection read-only or true, or access private): set a current value on the instance, then adopt again",
   },

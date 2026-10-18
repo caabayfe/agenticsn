@@ -84,4 +84,14 @@ describe("knownRefusal", () => {
       ),
     ).toContain("a column of a baseline table");
   });
+
+  it("names the legacy protection value read_only too", () => {
+    expect(
+      conversionRefusal(`Type '"read_only"' is not assignable to type '"read" | "protected"'.`),
+    ).toContain("legacy");
+  });
+
+  it("names an empty number field without assuming it is a UI policy", () => {
+    expect(conversionRefusal("Cannot coerce value to number: ")).toContain("a number field");
+  });
 });

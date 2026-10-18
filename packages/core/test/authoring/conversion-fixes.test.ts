@@ -37,6 +37,11 @@ describe("fixConverted", () => {
     ]);
   });
 
+  it("accepts an ACL's role named by sys_id, which its build resolves as a sys_id", () => {
+    const text = "Acl({\n    roles: ['a8bb6c5f77733110ca60b0b7cf5a9914'],\n})";
+    expect(fixConverted("acl.now.ts", text).refused).toEqual([]);
+  });
+
   it("accepts roles named by name", () => {
     const text = "Acl({\n    roles: ['itil', 'x_acme.admin'],\n})";
     expect(fixConverted("acl.now.ts", text).refused).toEqual([]);

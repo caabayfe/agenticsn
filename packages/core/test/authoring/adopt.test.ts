@@ -61,6 +61,7 @@ describe("adopt (ADR-0031 item 3)", () => {
         updateName: `sys_script_include_${SCRIPT_INCLUDE_ID}`,
         table: "sys_script_include",
         losses: [],
+        sets: [],
       },
     ]);
     expect(result.files).toEqual(["source/x_2222332_s11/src/fluent/generated/si.now.ts"]);
@@ -103,6 +104,7 @@ describe("adopt (ADR-0031 item 3)", () => {
       { instance: "pdi2", records: [{ table: "sysauto_script", sysId: "a".repeat(32) }] },
     );
     expect(result.units[0]?.losses).toEqual(["api-default"]);
+    expect(result.units[0]?.sets).toEqual(["sysauto_script.run_dayofweek = 1"]);
   });
 
   it("writes nothing when the build would change what the instance holds", async () => {

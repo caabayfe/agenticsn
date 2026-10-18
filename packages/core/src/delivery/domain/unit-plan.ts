@@ -1,5 +1,5 @@
 import type { Difference } from "../../authoring/domain/compare";
-import { knownLoss, type LossId } from "../../authoring/domain/losses";
+import { knownLoss, type LossId, lossSets } from "../../authoring/domain/losses";
 import type { UnitDecision } from "../../authoring/domain/plan-unit";
 import type { BuiltUnit } from "../../authoring/domain/unit";
 import { canonicalJson } from "../../kernel/canonical-json";
@@ -71,13 +71,6 @@ const scopeOf = (unit: BuiltUnit) => unit.head.fields["sys_scope"];
 const authored = (differences: readonly Difference[], scope: string | undefined) =>
   differences.filter((difference) => knownLoss(difference, scope) === null);
 
-function setsOf(differences: readonly Difference[], scope: string | undefined): string[] {
-  const sets = differences
-    .filter((difference) => knownLoss(difference, scope) !== null)
-    .map((d) => (d.kind === "field" ? `${d.table}.${d.field} = ${d.built}` : `${d.table} rows`));
-  return [...new Set(sets)].sort();
-}
-
 export const changesOf = (differences: readonly Difference[]): string[] => [
   ...new Set(
     differences.map((d) => (d.kind === "field" ? `${d.table}.${d.field}` : `${d.table} rows`)),
@@ -131,7 +124,7 @@ export function plannedOrProblem(
     changes:
       decision.kind === "load" ? changesOf(authored(decision.differences, scopeOf(unit))) : [],
     losses: decision.kind === "load" ? decision.losses : [],
-    alsoSets: decision.kind === "load" ? setsOf(decision.differences, scopeOf(unit)) : [],
+    alsoSets: decision.kind === "load" ? lossSets(decision.differences, scopeOf(unit)) : [],
   };
 }
 

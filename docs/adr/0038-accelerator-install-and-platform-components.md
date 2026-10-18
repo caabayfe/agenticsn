@@ -143,45 +143,35 @@ platform's standard mechanism and the customer's process (ADR-0018).
   customer may rename them. Metadata may reference only anchors; a reference from pack metadata
   to any other data record is a finding. Customer-specific references live in data.
 
-### 8. Modules are agnostic to the instance; ensure rules change what they do not own
+### 8. Modules are agnostic to the instance, and follow ServiceNow SDK practice
 
 Added 2026-10-18 at the product owner's request: "the accelerators are agnostic to what
-exists in the instance".
+exists in the instance", and "everything needs to follow the SDK best practice where possible,
+so we can have the right support from ServiceNow".
 
-**What a module may and may not do:**
-- **Additive only.** A module creates its own records. It never replaces configuration it does
-  not own: a form section, a related list, an out-of-box SLA or a notification. A client's
-  customization of those is kept.
-- **Facts about configuration it does not own.** A module declares these in
-  `modules/<m>/ensure.yaml`. Each fact names its target by business key (for example table,
-  view and caption for a form section), never by an id seen on one instance. The first kinds
-  are:
-  - a form section has a field, placed after a named field when present, else appended;
-  - a view's related lists include a list;
-  - a record found by business key is inactive.
+**What a module may do:**
+- **Additive by default.** A module creates its own records. It never changes a client's
+  customization silently.
+- **SDK APIs as the SDK models them.** Scripts are in files (`Now.include`). `Record()` is
+  used only where the SDK has no API. Forms and lists are declared whole (`Form()`, `List()`).
+  snagentic never patches the SDK's output or writes configuration around it. SDK gaps are
+  reported to ServiceNow.
+- **Taking over an out-of-box layout.** Some modules need fields or lists on a form they do
+  not own (for example impact and urgency on the incident task form). Such a module:
+  - declares the whole layout in its source;
+  - lists the out-of-box record in `adopt.yaml`.
 
-  Each kind is a small, tested operation; nothing is free-form.
+  The install plan then checks each listed record on the instance:
+  - **untouched since the platform shipped it** (no customer update recorded under its update
+    name): the module takes it over, and the plan lists it under "Out-of-box records changed";
+  - **customized by the client:** the plan **blocks for review**, naming the record, and
+    nothing is merged or overwritten.
 
-**Planning:** the install plan resolves every fact against the mirror and says, for each one:
-- **already true:** nothing to do;
-- **will add:** with where it goes;
-- **target absent:** skipped, with the reason;
-- **conflict:** blocked for review.
-
-**Applying (development only):**
-1. The target is adopted from the instance's current copy (ADR-0031).
-2. Only the missing entries are added to that copy.
-3. The result is loaded through the module's update set, like the rest of the module (layouts
-   go through `fluent/load` whole, ADR-0030), so it promotes with the module.
-
-**Order and ownership:**
-- A fact applied again finds itself true and does nothing.
-- A fact never removes or reorders the client's entries.
-- **Settings that depend on data** (a group, a schedule) are loaded with the data (an entity
-  matched on the property's name), so each environment sets its own. A property a client has
-  changed is never reset by a later install.
-- **Out-of-box records shipped by a plugin** have the same sys_id on every instance. A module may
-  reference one, but the plan checks it exists and blocks if it does not.
+  On a fresh baseline instance every layout is untouched, so the install runs without stops.
+- **Shipped records only.** A module may reference an out-of-box record shipped by a plugin
+  (the same sys_id on every instance); the plan checks it exists.
+- **Business keys for anything else.** Records the client owns, such as a group or a schedule,
+  are found by business key. Settings hold the key, not a sys_id.
 
 ## Consequences
 

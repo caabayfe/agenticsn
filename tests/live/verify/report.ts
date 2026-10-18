@@ -54,8 +54,8 @@ function l1(dir: string): string[] {
   const lines = [
     "## L1. Adopt census",
     "",
-    "| Class | Records | Adoptable | Refused | Failing | Named losses |",
-    "|---|---|---|---|---|---|",
+    "| Class | Records | Adoptable | Refused | SDK limit | Failing | Named losses |",
+    "|---|---|---|---|---|---|---|",
   ];
   const details: string[] = [];
   for (const file of readdirSync(dir)
@@ -67,7 +67,7 @@ function l1(dir: string): string[] {
       .join(", ");
     const b = census.buckets;
     lines.push(
-      `| ${census.table} | ${count(census.records)} | ${b["adoptable"] ?? 0} | ${b["refused"] ?? 0} | ${b["failing"] ?? 0} | ${losses || "none"} |`,
+      `| ${census.table} | ${count(census.records)} | ${b["adoptable"] ?? 0} | ${b["refused"] ?? 0} | ${b["sdk-limit"] ?? 0} | ${b["failing"] ?? 0} | ${losses || "none"} |`,
     );
     for (const [reason, n] of Object.entries(census.reasons)) {
       details.push(`- **${basename(file, ".json")}**, ${n}: ${reason}`);

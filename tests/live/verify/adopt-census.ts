@@ -1,7 +1,7 @@
 // Test plan L1 (spec 009): can every record of a class enter Fluent? For each record, what
 // adopt does, without writing source: convert, fix, build, check secrets, read the live copies,
 // compare. Read-only on the instance. Each record ends adoptable (with its named losses),
-// refused (with the reason), or failing.
+// refused (with the reason), an SDK limit (its conversion fails in the SDK), or failing.
 //   bun tests/live/verify/adopt-census.ts <workspace> <instance> <table> [--limit n]
 //     [--scopes <pattern>] [--ids <file>] [--evidence <dir>]
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -31,7 +31,20 @@ const signal = new AbortController().signal;
 
 type Verdict =
   | { readonly kind: "adoptable"; readonly losses: readonly string[] }
-  | { readonly kind: "refused" | "failing"; readonly reason: string };
+  | { readonly kind: "refused" | "sdk-limit" | "failing"; readonly reason: string };
+
+// The SDK's own conversion fails: its source doesn't build, or it can't read what it needs.
+// Adopt names these an SDK limitation (sdk-issues.md 4 and 5), not a snagentic failure.
+const SDK_LIMIT = /^the converted source does not build|^unable to find sys_complex_object/;
+
+// A record whose conversion fails, as adopt judges it: a conversion fix's refusal, a
+// conversion the SDK can't make (named), an SDK limit, or a failure.
+function conversionVerdict(message: string, refused: readonly string[] | undefined): Verdict {
+  const named = conversionRefusal(message);
+  const reason = (named ?? message).slice(0, 200);
+  if (named !== null || (refused?.length ?? 0) > 0) return { kind: "refused", reason };
+  return { kind: SDK_LIMIT.test(message) ? "sdk-limit" : "failing", reason };
+}
 
 interface Scope {
   readonly name: string;
@@ -199,13 +212,7 @@ async function census(
       return;
     }
   } else if (ids.length === 1) {
-    // As adopt does: a conversion fix's refusal, or a conversion the SDK can't make (named).
-    const named = conversionRefusal(draft.message);
-    const refused = named !== null || (draft.refused?.length ?? 0) > 0;
-    out.set(ids[0] ?? "", {
-      kind: refused ? "refused" : "failing",
-      reason: (named ?? draft.message).slice(0, 200),
-    });
+    out.set(ids[0] ?? "", conversionVerdict(draft.message, draft.refused));
     return;
   }
   const half = Math.ceil(ids.length / 2);

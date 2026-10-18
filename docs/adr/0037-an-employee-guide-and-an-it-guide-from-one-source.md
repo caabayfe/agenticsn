@@ -1,6 +1,6 @@
 # 0037. An employee guide and an IT guide, published from one source
 
-- Status: Proposed (product owner's direction, 2026-10-17; pilot on pdi2 before acceptance)
+- Status: Accepted (product owner, 2026-10-18, after the pilot on pdi2)
 - Date: 2026-10-17
 - Requirements: G2 (explain an instance), ASR-15
 - Amends: 0036 (how the site is organised for its readers)

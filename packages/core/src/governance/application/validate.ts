@@ -1,5 +1,11 @@
 import { UnknownBaseError } from "../domain/errors";
-import { type Finding, type FindingSeverity, introduced, ordered } from "../domain/findings";
+import {
+  type Finding,
+  type FindingSeverity,
+  inherited,
+  introduced,
+  ordered,
+} from "../domain/findings";
 import { type FluentBuild, type FluentProject, fluentFindings } from "../domain/fluent-findings";
 import type { DocumentedRecords, FluentProjects, MirrorState, ScriptChecker } from "../ports";
 import { documentationFindings, type TouchedRecord } from "./documentation-checks";
@@ -22,6 +28,9 @@ export interface ValidateQuery {
   // Source files to check, relative to the workspace: only the projects holding them are built.
   // Every project changed since `base` when absent.
   readonly paths?: readonly string[];
+  // A base per project (workspace path -> commit), in place of `base` for that project: the
+  // commit that last wrote its ledger, so adopted code counts as already there (decision D).
+  readonly bases?: Readonly<Record<string, string>>;
   readonly signal?: AbortSignal;
 }
 
@@ -34,6 +43,8 @@ export interface Validation {
   readonly passed: boolean;
   readonly counts: Readonly<Record<FindingSeverity, number>>;
   readonly findings: readonly Finding[];
+  // Findings the changed units already held at their base: shown, never blocking (decision D).
+  readonly inherited: readonly Finding[];
   readonly notChecked: readonly Skipped[];
   readonly rulesNotChecked: readonly { readonly ruleId: string; readonly reason: string }[];
 }
@@ -77,6 +88,7 @@ function edited(item: ChangedUnit): { readonly changed?: readonly string[] } {
 export interface ProjectCheck {
   readonly units: number;
   readonly findings: Finding[];
+  readonly inherited: Finding[];
   readonly skipped: Skipped[];
   readonly touched: TouchedRecord[];
 }
@@ -94,6 +106,7 @@ async function checkUnits(
   const changed = changedUnits(project, builds.now, base);
   const privileges = await privilegesOf(project.scope);
   const findings: Finding[] = [];
+  const kept: Finding[] = [];
   const skipped: Skipped[] = [];
   const touched: TouchedRecord[] = [];
   const units = { now: builds.now.units, base: base?.units ?? [] };
@@ -112,12 +125,19 @@ async function checkUnits(
     const previous =
       item.before === null ? [] : checkVersion(deps.checker, item.before, privileges).findings;
     findings.push(...introduced(current.findings, previous));
+    kept.push(...inherited(current.findings, previous));
     if (item.before === null) findings.push(...undescribed(path, item.now));
     skipped.push(...current.skipped);
   }
   // Paths name source files and units, relative to the workspace.
-  const inWorkspace = findings.map((f): Finding => ({ ...f, root: "workspace" }));
-  return { units: changed.length, findings: inWorkspace, skipped, touched };
+  const inWorkspace = (list: Finding[]) => list.map((f): Finding => ({ ...f, root: "workspace" }));
+  return {
+    units: changed.length,
+    findings: inWorkspace(findings),
+    inherited: inWorkspace(kept),
+    skipped,
+    touched,
+  };
 }
 
 // The project folder is named after its scope (source/<scope>).
@@ -135,7 +155,7 @@ async function checkProject(
     build,
     await deps.fluent.sdkVersion(),
   ).flatMap((hit) => withRule(hit.ruleId, { ...hit, root: "workspace", field: null }));
-  if (!build.built) return { units: 0, findings, skipped: [], touched: [] };
+  if (!build.built) return { units: 0, findings, inherited: [], skipped: [], touched: [] };
   const base = await deps.fluent.buildAt(project, commit);
   const scope = { path: project.path, scope: scopeOf(project) };
   const units = await checkUnits(deps, privilegesOf, scope, { now: build, base });
@@ -177,7 +197,10 @@ export async function checkSince(
   const privilegesOf = privilegesOnce(deps.mirror);
   const checked: ProjectCheck[] = [];
   for (const project of projects) {
-    checked.push(await checkProject(deps, privilegesOf, project, resolved));
+    const own = query.bases?.[project.path];
+    const base = own === undefined ? resolved : await deps.mirror.resolve(own);
+    if (base === null) throw new UnknownBaseError(own ?? query.base);
+    checked.push(await checkProject(deps, privilegesOf, project, base));
   }
   return { resolved, projects, checked };
 }
@@ -211,6 +234,7 @@ export async function validate(
     passed: counts.block === 0,
     counts,
     findings,
+    inherited: ordered(checked.flatMap((c) => c.inherited)),
     notChecked: checked.flatMap((c) => c.skipped),
     rulesNotChecked: RULES_NOT_CHECKED,
   };

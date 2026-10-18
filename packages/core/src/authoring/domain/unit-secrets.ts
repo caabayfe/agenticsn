@@ -20,13 +20,20 @@ export function unitSecrets(
   return [...new Set(findings)];
 }
 
+// Classes the mirror skips for reasons other than secrecy: a unit may carry them into source.
+const NOT_SECRET: ReadonlySet<string> = new Set([
+  "sys_translated_text",
+  "sys_documentation",
+  "sys_ui_message",
+]);
+
 function rowSecrets(
   updateName: string,
   row: UnitRecord,
   catalog: Catalog,
   policy: RedactionPolicy,
 ): string[] {
-  if (isDeniedClass(row.table)) {
+  if (isDeniedClass(row.table) && !NOT_SECRET.has(row.table)) {
     return [`${updateName}: ${row.table} is never kept`];
   }
   const redacted = fieldsToRedact(catalog, row.table, row.fields, policy);

@@ -164,6 +164,7 @@ describe("plan-push rendering", () => {
             operation: "load",
             changes: ["sys_script.order"],
             losses: ["api-default"],
+            alsoSets: ["sys_script.priority = 100"],
           },
         ],
         problems: [],
@@ -173,6 +174,15 @@ describe("plan-push rendering", () => {
           waived: [{ ...finding, reason: "legacy", approver: "pat" }],
           warnings: 0,
           waiverProblems: [{ index: 0, reason: "expired" }],
+          inherited: [
+            {
+              ruleId: "SN-UPG-001",
+              severity: "block",
+              path: "source/global/sys_ui_policy_x",
+              line: 2,
+              message: "$$(...) manipulates the DOM directly",
+            },
+          ],
         },
         collisions: [
           {
@@ -187,8 +197,9 @@ describe("plan-push rendering", () => {
       "text",
     );
     expect(text.split("\n")).toEqual([
-      "load   sys_script_x  source/global  (sys_script.order)  also sets: api-default",
+      "load   sys_script_x  source/global  (sys_script.order)  also sets: sys_script.priority = 100",
       "waived:  SN-MNT-006 p (pat: legacy)",
+      "inherited (not blocking): SN-UPG-001 source/global/sys_ui_policy_x:2 $$(...) manipulates the DOM directly",
       "waivers.yaml entry 1: expired",
       'held:    sys_script_x in "Other" (sam)',
       "update sets: snagentic: b",

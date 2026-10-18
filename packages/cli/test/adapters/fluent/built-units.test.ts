@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { UnreadableBuildError } from "@snagentic/core";
-import { builtUnitOf } from "../../../src/adapters/fluent/built-units";
+import { builtUnitOf, isEmptyUpdate } from "../../../src/adapters/fluent/built-units";
 
 // Files the embedded SDK (4.13.6) built on pdi2 in spikes S16 and S17.
 const FIXTURES = join(import.meta.dir, "../../../../../tests/fixtures/sdk/units");
@@ -20,6 +20,14 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
     expect(built.head.fields["name"]).toBe("E2EUtil");
     expect(built.head.fields["description"]).toBe("");
     expect(built.children).toEqual([]);
+  });
+
+  it("decodes character references, as the instance stores the text", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><record_update table="x_t"><x_t action="INSERT_OR_UPDATE"><sys_id>0123456789abcdef0123456789abcdef</sys_id><description>a&#13;\nb &amp;#13; c &#x41; &lt;d&gt;</description><script><![CDATA[keep &#13; raw]]></script></x_t></record_update>`;
+    expect(builtUnitOf("x_t_1.xml", xml).head.fields).toMatchObject({
+      description: "a\r\nb &#13; c A <d>",
+      script: "keep &#13; raw",
+    });
   });
 
   it("reads a column as a dictionary unit, coalesced by table and column", () => {
@@ -78,6 +86,12 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
 
   it("reads a Now.del as a deletion", () => {
     expect(unit("sys_properties_99171e3ec14343a9b2903cbbe455a95d.xml").head.action).toBe("DELETE");
+  });
+
+  // An adopted flow's rebuild writes its snapshot as a declaration alone (SDK 4.13.6, pdi2).
+  it("knows an update file with no element holds nothing to load", () => {
+    expect(isEmptyUpdate('<?xml version="1.0" encoding="UTF-8"?>\n')).toBe(true);
+    expect(isEmptyUpdate('<?xml version="1.0"?><unload/>')).toBe(false);
   });
 
   it("refuses a file that is not an update record", () => {

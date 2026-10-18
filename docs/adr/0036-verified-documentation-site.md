@@ -1,6 +1,6 @@
 # 0036. Verified documentation: pages anchored to the mirror, published as a static site
 
-- Status: Accepted (product owner, 2026-10-17)
+- Status: Accepted (product owner, 2026-10-17; amended by 0037)
 - Date: 2026-10-17
 - Requirements: G2 (explain and assess an instance), G3 (guardrails), ASR-01, ASR-08, ASR-09,
   ASR-10, ASR-13, ASR-15

@@ -23,6 +23,9 @@ const parser = new XMLParser({
   trimValues: false,
   parseTagValue: false,
   parseAttributeValue: false,
+  // Character references (the build writes a carriage return as &#13;) are text, as the
+  // instance stores it. CDATA stays as written.
+  htmlEntities: true,
 });
 
 const ATTRIBUTES = ":@";
@@ -101,6 +104,12 @@ function headOf(records: readonly UnitRecord[], table: string | undefined): Unit
     }) ??
     (records.length === 1 ? records[0] : undefined)
   );
+}
+
+// A built file with no element at all: the SDK writes an adopted flow's snapshot this way. It
+// loads nothing, so it is no unit; any other file that isn't an update record still fails.
+export function isEmptyUpdate(xml: string): boolean {
+  return xml.replace(/<\?xml[^>]*\?>/, "").trim() === "";
 }
 
 export function builtUnitOf(file: string, xml: string): BuiltUnit {

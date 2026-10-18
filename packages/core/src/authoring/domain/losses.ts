@@ -30,7 +30,46 @@ const API_DEFAULTS: ReadonlySet<string> = new Set([
 // (conversion-fixes.ts): only that empty value is the loss, never a value the source changed.
 const EMPTY_DEFAULTS: Readonly<Record<string, string>> = {
   "sys_ui_policy_action.field_message_type": "none",
+  // An empty UI type is desktop's; the build writes desktop's id (spec 009 X4, 144 on pdi2).
+  "sys_ui_policy.ui_type": "0",
+  // The SDK's inbound action plugin reads an empty action as a record action (1 on pdi2).
+  "sysevent_in_email_action.action": "record_action",
+  // ApplicationMenu writes order 100 where a menu has none: 96 of 217 menus on pdi2, all
+  // baseline. Accepted by the product owner (2026-10-17): adopt works, and every plan that loads
+  // such a menu says the load also sets its order. Exact alternative: Record() (test plan,
+  // decision 3).
+  "sys_app_application.order": "100",
+  // A UI policy with no script builds the SDK's empty condition function, which does nothing
+  // either (26 on pdi2); an action with no visibility builds ignore, which empty means (1).
+  "sys_ui_policy.script_true": "function onCondition() {\n\n}",
+  "sys_ui_policy.script_false": "function onCondition() {\n\n}",
+  "sys_ui_policy_action.visible": "ignore",
+  // As for menus (product owner, 2026-10-18): 2 baseline UI actions on pdi2, each alone on its form.
+  "sys_ui_action.order": "100",
 };
+
+// The same, for records of the global scope only: an empty access on a global table is what
+// public means (975 global u_ tables on pdi2; no scoped table there has an empty access).
+const GLOBAL_EMPTY_DEFAULTS: Readonly<Record<string, string>> = {
+  "sys_db_object.access": "public",
+};
+
+// Values the instance writes another way for the same meaning: a column's choice 0 is "no
+// choices", which the build writes empty (19 custom columns on pdi2).
+const SAME_MEANING: Readonly<
+  Record<string, { readonly built: string; readonly instance: string }>
+> = {
+  "sys_dictionary.choice": { built: "", instance: "0" },
+};
+
+// Fields the SDK computes from other fields, which only the instance's empty value may differ
+// from: a global role's suffix becomes its name (632 of 646 global roles on pdi2 have none; 7
+// already hold their name, so the platform accepts it).
+// A policy action with no table builds its policy's table, which is what empty means (5 on pdi2).
+const EMPTY_RECOMPUTED: ReadonlySet<string> = new Set([
+  "sys_user_role.suffix",
+  "sys_ui_policy_action.table",
+]);
 
 const SPLIT_MARKERS = /^(\.begin_split|\.split|\.end_split)\|/;
 const SYS_ID = /^[0-9a-f]{32}$/;
@@ -45,10 +84,20 @@ function rowsLoss(difference: Extract<Difference, { kind: "rows" }>): LossId | n
   return same ? "form-columns" : null;
 }
 
-function fieldLoss(difference: Extract<Difference, { kind: "field" }>): LossId | null {
+function fieldLoss(
+  difference: Extract<Difference, { kind: "field" }>,
+  scope: string | undefined,
+): LossId | null {
   const key = `${difference.table}.${difference.field}`;
   if (API_DEFAULTS.has(key)) return "api-default";
+  const global = scope === "global" ? GLOBAL_EMPTY_DEFAULTS[key] : undefined;
+  if (difference.instance === "" && global === difference.built) return "api-default";
+  const same = SAME_MEANING[key];
+  if (same?.built === difference.built && same.instance === difference.instance) {
+    return "api-default";
+  }
   if (difference.instance === "" && EMPTY_DEFAULTS[key] === difference.built) return "api-default";
+  if (difference.instance === "" && EMPTY_RECOMPUTED.has(key)) return "api-default";
   if (
     SYS_ID.test(difference.instance) &&
     difference.built !== "" &&
@@ -61,6 +110,16 @@ function fieldLoss(difference: Extract<Difference, { kind: "field" }>): LossId |
 }
 
 // The known loss a difference is, or null when the difference is not explained.
-export function knownLoss(difference: Difference): LossId | null {
-  return difference.kind === "rows" ? rowsLoss(difference) : fieldLoss(difference);
+// `scope`: the unit's application scope (its sys_scope), for losses that hold in global only.
+export function knownLoss(difference: Difference, scope?: string): LossId | null {
+  return difference.kind === "rows" ? rowsLoss(difference) : fieldLoss(difference, scope);
+}
+
+// What a load of a unit with these differences also sets, as "table.field = value": the known
+// losses, which adopt shows and plan lists.
+export function lossSets(differences: readonly Difference[], scope?: string): string[] {
+  const sets = differences
+    .filter((difference) => knownLoss(difference, scope) !== null)
+    .map((d) => (d.kind === "field" ? `${d.table}.${d.field} = ${d.built}` : `${d.table} rows`));
+  return [...new Set(sets)].sort();
 }

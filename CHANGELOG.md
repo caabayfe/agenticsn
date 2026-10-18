@@ -4,11 +4,89 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-18
+
+### Added
+
+- Verified process documentation (ADR-0036, spec 010). Pages describe a process for its users
+  and its operators, and every claim cites the mirror records behind it. `docs check` fails
+  when one of those records changes or disappears, and `docs pin` records it again once a person
+  has re-verified the page. `docs build` writes a static site, `docs serve` previews it, and
+  `docs video` records a narrated animation as an MP4 (ffmpeg, plus Piper or the system voice
+  for narration). The `servicenow-document` skill carries the method. No new MCP tool.
+
+### Changed
+
+- `adopt` shows what a load of each unit also sets, with the value, as plans do:
+  `adopted <unit>  (also sets: sys_ui_policy.ui_type = 0)` instead of the loss's name.
+
+- A plan's gate judges what the change introduced since each project last agreed with the
+  instance (its ledger commit: the adoption or the last push), not since the last pull. Adopted
+  code no longer blocks unrelated pushes; findings an edited record already had are listed as
+  inherited, never blocking (product owner's decision D, 2026-10-17). A project with no ledger
+  is checked as before.
+
 ### Fixed
 
+- Every record of the classes checked on a PDI now adopts or is refused with a reason; none
+  fails unexplained. `adopt` now refuses, each with what to do:
+  - a global role whose suffix isn't its name, which the SDK would rewrite to the name (10);
+  - a UI action whose role or view the SDK's conversion couldn't read: it writes the sys_id,
+    and the build makes a row for a role or view that doesn't exist (20). These are not
+    dangling views on the instance;
+  - a menu for mobile, or with no device type, which the SDK would move to the browser (4);
+  - an advanced ACL with no script, which the SDK would write as not advanced (53 of 56).
+- Refusals found while converting (an empty script include access, a role or view the SDK
+  couldn't read) are reported as refusals, with what to do. They were reported as a failed
+  conversion whose hint said to check that the records still exist.
+- `adopt` brings in UI actions with an empty order (written as 100, as for menus), global tables
+  with an empty access (written as `public`) and columns whose choice is `0` (written empty),
+  each accepted only against those values; the table access only in global. It names, as a
+  refusal, a choice set of a table its application owns: adopt the column instead. Custom
+  dictionary entries on a PDI: 102 of 107 adoptable, 5 refused (baseline tables), none failing.
+- Plans and adopt treat a role or view reference that holds the instance's own sys_id as the
+  same reference even when its name can't be read: the `maint` role is hidden from the admin
+  user, and 41 UI action and ACL roles on a PDI showed a difference that wasn't there.
+- `adopt` names more refusals by design: a protected UI action whose roles or views the SDK
+  would change, records with legacy values the SDK doesn't accept (protection `read-only` or
+  `true`, access `private`), UI actions whose workspace settings it can't express, and columns of
+  baseline tables, which the SDK's `Table()` can't define in global.
+- A flow's definition chunks (`sys_json_chunk`) are compared as the flow is, by the ledger: the
+  build writes JSON and the platform stores it gzipped, so 13 of 150 flows on a PDI showed a
+  difference that wasn't there. When the SDK's conversion of a record doesn't build, `adopt`
+  now says it is an SDK limitation to leave on the instance and report, not to pull again.
+- `adopt` brings in existing flows. Rebuilding an adopted flow writes its snapshot as an empty
+  update file, which snagentic read as an unreadable build, so every flow failed to adopt. An
+  update file with no element now holds no unit; any other unreadable file still fails.
+- `adopt` brings in more UI policies: an empty script builds the SDK's empty condition function,
+  an action with no visibility builds `ignore`, and an action with no table builds its policy's
+  table, each accepted only against the empty value (no change in behaviour).
+- `adopt` names, as refusals by design, UI policies the SDK would limit to desktop, protected UI
+  policies whose actions' protection it would change, and conversions the SDK can't make (a UI
+  policy that runs scripts with no UI type, or with no short description), each with what to do.
+- `adopt` no longer treats translations as secrets: its credential check (S2) refused every
+  class the mirror skips; it now refuses credential classes only.
+- `adopt` names why it refuses a protected ServiceNow role whose containment rows have no
+  protection: the SDK would mark them read-only, changing who may edit the role's grants. It
+  reported an unexplained difference and asked for a bug report. Refusals by design now have
+  their own error, which says to leave those records on the instance.
+- Plans list what a load sets beyond the source apart from what the source changes, with the
+  value: `also sets: sys_app_application.order = 100` instead of the loss's name mixed in with
+  the changes.
+- `adopt` brings in application menus with an empty order (96 of 217 on a PDI, all baseline).
+  The SDK writes order 100 for them; accepted by the product owner as a known loss, so a push
+  that loads such a menu shows `also sets: sys_app_application.order = 100` in its plan.
+- Plans and adopt read the built XML's character references as text: the build writes a
+  carriage return as `&#13;`, which was compared literally, so any text with Windows line
+  endings (a role's description, a script) showed as a difference that wasn't there.
 - `adopt` brings in UI policies whose actions have an empty message type: three in four on a
   PDI failed to build, because the SDK converts the empty type to a value its own types reject.
   The converted source now says `none`, which the load writes for the empty value (spec 009 X4).
+- `adopt` brings in global roles, UI policies with an empty UI type, and inbound actions with
+  an empty type. The SDK writes a global role's suffix as its name, desktop for an empty UI type
+  and a record action for an empty type; each is accepted only against the instance's empty
+  value, so a real change still shows (spec 009 X4). Checked read-only on a PDI: 10 of 10
+  roles and 8 of 8 policies.
 - `adopt` refuses a script include whose access is empty, with what to set on the instance, rather
   than failing to build: the SDK would have to choose who may call it.
 - A change to a script include's `protectionPolicy` or `useEsLatest` alone is now delivered.

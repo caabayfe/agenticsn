@@ -12,6 +12,8 @@ interface Fix {
 
 interface Refusal {
   readonly pattern: RegExp;
+  // The API whose source the refusal applies to, when only one builds the case wrongly.
+  readonly api?: RegExp;
   readonly reason: string;
 }
 
@@ -34,6 +36,24 @@ const REFUSALS: readonly Refusal[] = [
     reason:
       "the script include's access is empty, which the SDK can't express: set Accessible from on the instance (this application scope only, or all application scopes), then adopt again",
   },
+  // A role the reading account can't see (an elevated role such as security_admin's) converts
+  // to its sys_id, which UiAction's build reads as a role's name: a row for a role that doesn't
+  // exist, with a new sys_id each build (3 code-signing UI actions on pdi2). Acl's build
+  // resolves the sys_id, and those ACLs adopt (8 in the 2,000 sampled on pdi2).
+  {
+    api: /\bUiAction\(/,
+    pattern: /\broles:\s*\[[^\]]*['"][0-9a-f]{32}['"]/,
+    reason:
+      "a role the SDK's conversion couldn't read (it wrote the role's sys_id, not its name): adopt with an account that can read every role of the record, or leave it on the instance",
+  },
+  // The same for a view it can't resolve (17 UI actions on pdi2): a row for a view that doesn't
+  // exist, beside the instance's own row for it.
+  {
+    api: /\bUiAction\(/,
+    pattern: /\b(?:includeIn|excludeFrom)Views:\s*\[[^\]]*['"][0-9a-f]{32}['"]/,
+    reason:
+      "a view the SDK's conversion couldn't read (it wrote the view's sys_id, not its name): check the record's views exist on the instance and are readable, or leave it on the instance",
+  },
 ];
 
 export interface ConversionOutcome {
@@ -51,8 +71,9 @@ export function fixConverted(file: string, text: string): ConversionOutcome {
     if (next !== fixedText) fixed.push(fix.id);
     fixedText = next;
   }
-  const refused = REFUSALS.filter((refusal) => new RegExp(refusal.pattern).test(fixedText)).map(
-    (refusal) => `${file}: ${refusal.reason}`,
-  );
+  const refused = REFUSALS.filter(
+    (refusal) =>
+      new RegExp(refusal.pattern).test(fixedText) && (refusal.api?.test(fixedText) ?? true),
+  ).map((refusal) => `${file}: ${refusal.reason}`);
   return { text: fixedText, fixed, refused };
 }

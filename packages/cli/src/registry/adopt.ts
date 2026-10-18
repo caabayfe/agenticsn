@@ -45,6 +45,10 @@ export const adopt = defineUseCase({
           updateName: z.string(),
           table: z.string(),
           losses: z.array(z.string()).readonly(),
+          sets: z
+            .array(z.string())
+            .readonly()
+            .describe("what a load also sets, as table.field = value (the SDK's known losses)"),
         }),
       )
       .readonly(),
@@ -87,7 +91,7 @@ export const adopt = defineUseCase({
       ...output.projects.filter((p) => p.created).map((p) => `created ${p.path}`),
       ...output.units.map(
         (u) =>
-          `adopted ${u.updateName}${u.losses.length > 0 ? `  (also sets: ${u.losses.join(", ")})` : ""}`,
+          `adopted ${u.updateName}${u.sets.length > 0 ? `  (also sets: ${u.sets.join(", ")})` : ""}`,
       ),
       ...[...losses].map(
         (loss) =>

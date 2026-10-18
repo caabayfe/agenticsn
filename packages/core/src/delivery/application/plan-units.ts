@@ -232,6 +232,17 @@ async function uncommittedSource(deps: UnitPlanDependencies): Promise<UnitProble
     : [problem("source", "build", `commit the source first: ${files.slice(0, 5).join(", ")}`)];
 }
 
+// Each project's ledger commit, where it last agreed with the instance (adopt or push): the
+// gate's base for it (decision D). A project with no committed ledger keeps the plan's base.
+async function ledgerBases(deps: UnitPlanDependencies): Promise<Record<string, string>> {
+  const bases: Record<string, string> = {};
+  for (const project of await deps.authoring.workspace.projects()) {
+    const commit = await deps.authoring.workspace.ledgerCommit(project).catch(() => null);
+    if (commit !== null) bases[project.path] = commit;
+  }
+  return bases;
+}
+
 export async function computeUnitPlan(
   deps: UnitPlanDependencies,
   query: UnitPlanQuery,
@@ -247,7 +258,8 @@ export async function computeUnitPlan(
   }
   const units = loads.flatMap((load) => load.units);
   const base = (await deps.workspace.mirrorCommit()) ?? "HEAD";
-  const gate = await gateFor(deps, base, [...new Set(units.map((u) => u.project))]);
+  const bases = await ledgerBases(deps);
+  const gate = await gateFor(deps, base, [...new Set(units.map((u) => u.project))], bases);
   const collisions = await collisionsOf(deps, units, label);
   const ready =
     units.length > 0 &&

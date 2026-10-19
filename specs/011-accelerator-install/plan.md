@@ -363,3 +363,20 @@ signed-in browser session and is not yet exercised.
   - related list entries;
   - form section fields;
   - active flags.
+
+## 12. Third slice: SDK practice and validation in both interfaces (2026-10-18/19)
+
+The incident task was validated in Service Operations Workspace and in the classic UI, with
+browser recordings. What this needed and found:
+
+| # | Finding | Work |
+|---|---|---|
+| F6 | A take-over of an untouched out-of-box layout, for the SDK's whole-layout `Form()` | **Built:** the `take-over` command, and the install step before each module's push (`b3e1b8a`) |
+| F7 | The SDK writes a form's domain on its composite wrapper, and the platform matches sections by caption | **Fixed** (`authoring`) |
+| F8 | `Now.ref` by keys gets a new id every build; the platform does not resolve it for related list containers | **Fixed** in snagentic (keyed references held as keys); the pack restates shipped containers by their real sys_id |
+| F9 | Re-installs planned module by module mixed modules' changes; the working branch decides which modules are present | **Fixed:** upgrade mode, `present()`, collisions allowed with the install's own update sets |
+| F10 | Piping `git archive` into `tar` failed now and then | **Fixed:** the archive is written to a file |
+| F11 | Spike S-E: customizing a store application's scope (`sn_sow_inc`) through its own child update set | **Passed** |
+| F12 | Server modules are refused in configuration projects | `Now.include` is the SDK way for these projects |
+| F13 | The platform's `fluent/load` creates a related list entry but refuses to update or delete one ("invalid scope") | **I13 (new):** deliver `sys_ui_related_list` whole, entries inside, as the platform records it (as snagentic 1.x did), so related lists can change after their first install |
+| F14 | Record names over a field's length are cut by the platform (twice: a business rule, a data source) | **I11**, now urgent |

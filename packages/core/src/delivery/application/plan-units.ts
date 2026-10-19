@@ -25,6 +25,7 @@ import {
   unitPlanId,
 } from "../domain/unit-plan";
 import type { DeliveryWorkspace } from "../ports";
+import { withoutCutValues } from "./field-lengths";
 import { gateFor } from "./plan-gate";
 
 // What a push would load, and whether it may (ADR-0031, ADR-0033): every project under source/
@@ -248,14 +249,16 @@ export async function computeUnitPlan(
   query: UnitPlanQuery,
 ): Promise<{ readonly plan: UnitPushPlan; readonly loads: readonly ProjectLoad[] }> {
   const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
-  const loads: ProjectLoad[] = [];
+  const built: ProjectLoad[] = [];
   const problems: UnitProblem[] = await uncommittedSource(deps);
   const userDomain = sessionDomain(deps);
   for (const project of await deps.authoring.workspace.projects()) {
     const planned = await planProject(deps, project, query.instance, userDomain);
-    if (planned.load !== null) loads.push(planned.load);
+    if (planned.load !== null) built.push(planned.load);
     problems.push(...planned.problems);
   }
+  const { loads, problems: cut } = await withoutCutValues(deps.reader, built, deps.signal);
+  problems.push(...cut);
   const units = loads.flatMap((load) => load.units);
   const base = (await deps.workspace.mirrorCommit()) ?? "HEAD";
   const bases = await ledgerBases(deps);

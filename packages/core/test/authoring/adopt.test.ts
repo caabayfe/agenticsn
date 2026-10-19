@@ -61,6 +61,7 @@ describe("adopt (ADR-0031 item 3)", () => {
         updateName: `sys_script_include_${SCRIPT_INCLUDE_ID}`,
         table: "sys_script_include",
         losses: [],
+        sets: [],
       },
     ]);
     expect(result.files).toEqual(["source/x_2222332_s11/src/fluent/generated/si.now.ts"]);
@@ -103,6 +104,7 @@ describe("adopt (ADR-0031 item 3)", () => {
       { instance: "pdi2", records: [{ table: "sysauto_script", sysId: "a".repeat(32) }] },
     );
     expect(result.units[0]?.losses).toEqual(["api-default"]);
+    expect(result.units[0]?.sets).toEqual(["sysauto_script.run_dayofweek = 1"]);
   });
 
   it("writes nothing when the build would change what the instance holds", async () => {
@@ -335,6 +337,27 @@ describe("adopt (ADR-0031 item 3)", () => {
       { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
     );
     await expect(adopting).rejects.toBeInstanceOf(AdoptRefusedError);
+  });
+
+  it("refuses what the conversion fixes refuse, with their reasons", async () => {
+    const reason = "ua.now.ts: a role the SDK's conversion couldn't read";
+    const failing = {
+      ...toolchain([]).chain,
+      draftTransform: async () => ({ ok: false as const, message: reason, refused: [reason] }),
+    };
+    const adopting = adopt(
+      {
+        reader: instance().reader,
+        workspace: memoryWorkspace().workspace,
+        toolchain: failing,
+        access,
+        signal,
+      },
+      { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
+    );
+    const refused = await adopting.catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(AdoptRefusedError);
+    expect(refused instanceof AdoptRefusedError ? refused.message : "").toContain(reason);
   });
 
   it("adopts each scope's records into its own project, in scope order", async () => {

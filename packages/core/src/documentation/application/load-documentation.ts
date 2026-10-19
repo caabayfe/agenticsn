@@ -1,6 +1,7 @@
 import { NoDocumentationError } from "../domain/errors";
 import { parseDocPage } from "../domain/page";
 import { parseProcess } from "../domain/process";
+import { parseRelease } from "../domain/releases";
 import { parseScene } from "../domain/scene";
 import { parseSiteConfig } from "../domain/site-config";
 import type { DocSet } from "../domain/structure";
@@ -22,5 +23,8 @@ export async function loadDocumentation(
   );
   const pages = (await sources.pages()).map((source) => parseDocPage(source.path, source));
   const scenes = (await sources.scenes()).map((source) => parseScene(source.path, source));
-  return { config, processes, pages, scenes };
+  const releases = ((await sources.releases?.()) ?? []).map((source) =>
+    parseRelease(source.path, source),
+  );
+  return { config, processes, pages, scenes, releases };
 }

@@ -1,4 +1,4 @@
-import { buildSite } from "@snagentic/core";
+import { buildSite, type MediaRequest, mediaOptions } from "@snagentic/core";
 import { z } from "zod";
 import { checkLines, DocsProblemSchema, EvidenceResultSchema } from "./docs-check";
 import { defineUseCase, type UseCaseContext } from "./use-case";
@@ -12,31 +12,40 @@ export const DocsBuildOutput = z.object({
   problems: z.array(DocsProblemSchema),
   narrated: z.array(z.string()),
   missingSounds: z.array(z.string()),
+  videos: z.array(z.string()),
+  videosNotMade: z.array(z.object({ animation: z.string(), reason: z.string() })),
+  videosPruned: z.number(),
 });
 
 export const AudioInput = {
   audio: z
     .boolean()
-    .default(false)
+    .optional()
     .describe("give each animation an audio track: music and sound effects (needs ffmpeg)"),
   voice: z
     .string()
-    .default("none")
+    .optional()
     .describe("narrate the steps with a voice: piper, system or none (implies --audio)"),
+  video: z
+    .boolean()
+    .optional()
+    .describe("also render every animation as an MP4 on its page (needs ffmpeg and Chrome)"),
 };
+
+// No media flag: the build makes what site.yaml asks for. Any flag: exactly what the flags say.
+const options = (input: MediaRequest) =>
+  input.audio === undefined && input.voice === undefined && input.video === undefined
+    ? undefined
+    : mediaOptions(input);
 
 export async function buildDocs(
   context: UseCaseContext,
   signal: AbortSignal,
-  input: { readonly audio: boolean; readonly voice: string } = { audio: false, voice: "none" },
+  input: MediaRequest = {},
 ) {
   const root = await workspaceRoot(context);
   const docs = context.documentation(root);
-  const audio = input.audio || input.voice !== "none" ? { voice: input.voice } : undefined;
-  const built = await buildSite(
-    { ...docs, root, signal, clock: context.clock },
-    audio === undefined ? {} : { audio },
-  );
+  const built = await buildSite({ ...docs, root, signal, clock: context.clock }, options(input));
   return {
     root: built.root,
     files: built.files,
@@ -50,6 +59,9 @@ export async function buildDocs(
     problems: [...built.check.problems],
     narrated: [...built.narrated],
     missingSounds: [...built.missingSounds],
+    videos: [...built.videos],
+    videosNotMade: built.videosNotMade.map((item) => ({ ...item })),
+    videosPruned: built.videosPruned,
   };
 }
 
@@ -60,7 +72,10 @@ export const docsBuild = defineUseCase({
     "Build the documentation as a static site (HTML, CSS, self-contained animations) in " +
     ".snagentic/site/, for any web server. Each page shows its evidence status against the mirror; " +
     "a stale page is built and says so (docs check is the gate). --audio adds music and sound " +
-    "effects to the animations, --voice piper|system also narrates them.",
+    "effects to the animations, --voice piper|system also narrates them, --video renders every " +
+    "animation as an MP4 on its page and names any it could not make. Without these flags it makes " +
+    "the media site.yaml asks for (media: audio, voice, video); recorded videos are reused until " +
+    "their animation changes.",
   input: z.object(AudioInput),
   output: DocsBuildOutput,
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
@@ -74,9 +89,18 @@ export const docsBuild = defineUseCase({
       output.missingSounds.length === 0
         ? []
         : [`cue sounds not found (left out): ${output.missingSounds.join(", ")}`];
+    const videos = output.videos.length === 0 ? [] : [`videos: ${output.videos.join(", ")}`];
+    const notMade = output.videosNotMade.map(
+      (item) => `video not made: ${item.animation} (${item.reason})`,
+    );
     return [
       `built ${output.files} files in ${output.root}${state}`,
       ...audio,
+      ...videos,
+      ...notMade,
+      ...(output.videosPruned === 0
+        ? []
+        : [`removed ${output.videosPruned} old recordings from the video cache`]),
       ...missing,
       ...checkLines(output),
     ].join("\n");

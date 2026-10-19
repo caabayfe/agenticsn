@@ -23,6 +23,7 @@ import { bunMarkdown } from "./adapters/documentation/bun-markdown";
 import { FsDocumentationSources } from "./adapters/documentation/fs-documentation-sources";
 import { FsMirrorRecords } from "./adapters/documentation/fs-mirror-records";
 import { FsSiteOutput } from "./adapters/documentation/fs-site-output";
+import { GitDocumentationHistory } from "./adapters/documentation/git-documentation-history";
 import { mediaTools } from "./adapters/documentation/media-tools";
 import { serveSite } from "./adapters/documentation/static-site-server";
 import { fluentProbe } from "./adapters/fluent/fluent-probe";
@@ -128,6 +129,7 @@ const context: UseCaseContext = {
     fluent: new WorkspaceFluentProjects(root, loadFluentRuntime, options),
     documentation: documentationLookup({
       sources: new FsDocumentationSources(root),
+      history: new GitDocumentationHistory(root),
       mirror: docsMirror(root),
       root,
       clock: () => new Date(),

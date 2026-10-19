@@ -4,6 +4,10 @@
 // - fit(): a zoom never cuts the current step or a half-revealed box.
 // - Autoplay muted when 35% of the stage is in view; loops after a 2.6 s hold.
 // - Narrated mode (M): restarts with the audio as master clock and subtitles (C).
+// - Sound by choice: Play and a click on the stage play with sound. The reader's choice is told
+//   to the embedding page ({snagenticSound}), which remembers it and answers with
+//   {snagenticSoundPref}; after the reader's first click on the page ({snagenticActivate}), a
+//   player in view starts narrated. Browsers allow no sound before that click.
 // - Keys: Space, arrows, M, C. Reduced motion shows the last step, without motion.
 // - Height: posts {snagenticAnimH} to the embedding page.
 // - Recording (#record, video export): no controls, no autoplay or loop; the recorder calls
@@ -25,6 +29,8 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
   })();
   const hasAudio = !!(au && au.getAttribute("src"));
   let t = 0, playing = false, userPaused = false, mode = "silent", cur = -1, last = 0, raf = [], holdUntil = 0, cc = true;
+  let pref = false, activated = false, inView = false;
+  const tell = (on) => { if (!record) try { parent.postMessage({ snagenticSound: on }, "*"); } catch (_) {} };
   T.starts.forEach((s, k) => {
     if (k === 0) return;
     const i = document.createElement("i"); i.style.left = (s / T.total) * 100 + "%"; bar.appendChild(i);
@@ -89,7 +95,8 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
   function seek(x) { t = Math.max(0, Math.min(T.total - 0.05, x)); if (mode === "audio") au.currentTime = t; const k = idx(t); if (k !== cur) apply(k); draw(); }
   function setPlay(v) {
     playing = v; bPlay.textContent = v ? "❚❚" : "▶"; bPlay.title = v ? "Pause (Space)" : "Play (Space)";
-    if (mode === "audio") { if (v) au.play().catch(() => {}); else au.pause(); }
+    if (mode === "audio") { if (v) au.play().catch(() => { stopAudio(false); setPlay(true); }); else au.pause(); }
+    if (hasAudio && mode !== "audio") { bPlay.textContent = "▶"; bPlay.title = "Play with sound (Space)"; }
   }
   function frame(now) {
     requestAnimationFrame(frame);
@@ -106,8 +113,21 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
     sub.classList.remove("on"); root.classList.remove("audio");
     if (ended) { setPlay(false); userPaused = true; }
   }
-  bListen.onclick = () => (mode === "audio" ? stopAudio(false) : startAudio());
-  bPlay.onclick = () => { userPaused = playing; setPlay(!playing); };
+  // The main button always leads to narration: silent, it plays with sound from here; narrated, it
+  // pauses.
+  function playButton() {
+    if (hasAudio && mode !== "audio") { mode = "audio"; au.currentTime = t; userPaused = false; apply(cur); setPlay(true); markOn(); tell(true); return; }
+    userPaused = playing; setPlay(!playing);
+  }
+  const markOn = () => { bListen.classList.add("on"); bListen.textContent = "🔊 Narration on"; };
+  bListen.onclick = () => { if (mode === "audio") { stopAudio(false); tell(false); } else { startAudio(); tell(true); } };
+  bPlay.onclick = playButton;
+  root.addEventListener("click", playButton);
+  if (!record) addEventListener("message", (e) => {
+    const d = e.data || {};
+    if (typeof d.snagenticSoundPref === "boolean") pref = d.snagenticSoundPref;
+    if (d.snagenticActivate && !activated) { activated = true; if (pref && hasAudio && inView && mode !== "audio" && !userPaused) startAudio(); }
+  });
   bCC.onclick = () => { cc = !cc; bCC.classList.toggle("on", cc); sub.classList.toggle("on", mode === "audio" && cc && !!steps[cur].sub); };
   $("prev").onclick = () => seek(T.starts[Math.max(0, cur - (t - T.starts[cur] > 1.2 ? 0 : 1))] + 0.01);
   $("next").onclick = () => seek(T.starts[Math.min(N - 1, cur + 1)] + 0.01);
@@ -140,7 +160,8 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
     apply(0); draw();
     new IntersectionObserver((es) => es.forEach((en) => {
       const visible = en.isIntersecting && en.intersectionRatio >= 0.35;
-      if (visible && !userPaused && !playing) setPlay(true);
+      inView = visible;
+      if (visible && !userPaused && !playing) { if (pref && activated && hasAudio) startAudio(); else setPlay(true); }
       if (!visible && playing) setPlay(false);
     }), { threshold: [0, 0.35, 0.6] }).observe(root);
   }

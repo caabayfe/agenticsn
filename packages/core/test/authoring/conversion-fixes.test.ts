@@ -20,6 +20,33 @@ describe("fixConverted", () => {
     expect(outcome.refused[0]).toContain("Accessible from");
   });
 
+  it("refuses roles named by sys_id, which the transform writes for a role it can't read", () => {
+    const text =
+      "UiAction({\n    roles: ['a8bb6c5f77733110ca60b0b7cf5a9914', 'security_admin'],\n})";
+    const outcome = fixConverted("ua.now.ts", text);
+    expect(outcome.refused).toEqual([
+      expect.stringContaining("ua.now.ts: a role the SDK's conversion couldn't read"),
+    ]);
+  });
+
+  it("refuses views named by sys_id, which the transform writes for a view it can't resolve", () => {
+    const text =
+      "UiAction({\n    includeInViews: ['additional_info'],\n    excludeFromViews: ['4f3f54c59f6b320089c25ecec32e705f'],\n})";
+    expect(fixConverted("ua.now.ts", text).refused).toEqual([
+      expect.stringContaining("ua.now.ts: a view the SDK's conversion couldn't read"),
+    ]);
+  });
+
+  it("accepts an ACL's role named by sys_id, which its build resolves as a sys_id", () => {
+    const text = "Acl({\n    roles: ['a8bb6c5f77733110ca60b0b7cf5a9914'],\n})";
+    expect(fixConverted("acl.now.ts", text).refused).toEqual([]);
+  });
+
+  it("accepts roles named by name", () => {
+    const text = "Acl({\n    roles: ['itil', 'x_acme.admin'],\n})";
+    expect(fixConverted("acl.now.ts", text).refused).toEqual([]);
+  });
+
   it("leaves source the SDK's types accept as it is", () => {
     const text = "fieldMessageType: 'error',\naccessibleFrom: 'public',";
     expect(fixConverted("p.now.ts", text)).toEqual({ text, fixed: [], refused: [] });

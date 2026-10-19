@@ -4,7 +4,51 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-18
+
+### Added
+
+- An employee guide and an IT guide from one source (ADR-0037). `site.yaml` can declare an
+  `employees:` guide: tasks in the employees' words, a Start here list and the processes
+  explained in plain words. Employee pages show no evidence, citations, review labels or open
+  questions; the IT guide has the operator, configuration and open-questions pages. The site
+  opens on a map of cards, with a menu per guide that can be hidden, offline search, and a
+  client theme (`documentation/theme/theme.css`, copied from a commented template).
+- Links between pages and processes (spec 010b): `see:` references, checked by `docs check`.
+- `docs impact --base <ref>` (ADR-0039): each claim (sentence, list item or table row) a change
+  may make wrong, by reader (employees, operators, platform team), from Fluent source changed
+  since `base` and from instance changes since the page was pinned. The text is Markdown for a
+  pull request; `--format json` is for the agent.
+- Release notes (ADR-0039): one file per release, `documentation/changes/<release>.md`, with
+  notes for employees or IT linked to their pages. The site gets a What's new page per guide.
+- SN-MNT-017 (warn): a page pinned to a changed record since `base` with no release note
+  linking it.
+- Media defaults in `site.yaml` (`media: { audio, voice, video }`); recordings are cached and
+  reused until the animation, its audio or the player changes, and old ones are removed.
+  Players remember the reader's sound choice.
+
 ### Changed
+
+- SN-MNT-014 counts evidence on one field only when the change edits that field, and quotes
+  the first claim it affects; SN-MNT-015 quotes it too.
+- Every Use and Operate page shows its capability as an animation; `docs check` fails without
+  one (spec 010c).
+
+## [2.2.0] - 2026-10-18
+
+### Added
+
+- Verified process documentation (ADR-0036, spec 010). Pages describe a process for its users
+  and its operators, and every claim cites the mirror records behind it. `docs check` fails
+  when one of those records changes or disappears, and `docs pin` records it again once a person
+  has re-verified the page. `docs build` writes a static site, `docs serve` previews it, and
+  `docs video` records a narrated animation as an MP4 (ffmpeg, plus Piper or the system voice
+  for narration). The `servicenow-document` skill carries the method. No new MCP tool.
+
+### Changed
+
+- `adopt` shows what a load of each unit also sets, with the value, as plans do:
+  `adopted <unit>  (also sets: sys_ui_policy.ui_type = 0)` instead of the loss's name.
 
 - A plan's gate judges what the change introduced since each project last agreed with the
   instance (its ledger commit: the adoption or the last push), not since the last pull. Adopted
@@ -14,6 +58,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Every record of the classes checked on a PDI now adopts or is refused with a reason; none
+  fails unexplained. `adopt` now refuses, each with what to do:
+  - a global role whose suffix isn't its name, which the SDK would rewrite to the name (10);
+  - a UI action whose role or view the SDK's conversion couldn't read: it writes the sys_id,
+    and the build makes a row for a role or view that doesn't exist (20). These are not
+    dangling views on the instance;
+  - a menu for mobile, or with no device type, which the SDK would move to the browser (4);
+  - an advanced ACL with no script, which the SDK would write as not advanced (53 of 56).
+- Refusals found while converting (an empty script include access, a role or view the SDK
+  couldn't read) are reported as refusals, with what to do. They were reported as a failed
+  conversion whose hint said to check that the records still exist.
 - `adopt` brings in UI actions with an empty order (written as 100, as for menus), global tables
   with an empty access (written as `public`) and columns whose choice is `0` (written empty),
   each accepted only against those values; the table access only in global. It names, as a

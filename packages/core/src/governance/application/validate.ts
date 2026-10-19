@@ -17,7 +17,7 @@ import {
   undescribed,
   withRule,
 } from "./record-checks";
-import { changedUnits } from "./unit-versions";
+import { type ChangedUnit, changedUnits } from "./unit-versions";
 
 export { MAX_SCRIPT_BYTES, type Skipped };
 
@@ -75,7 +75,17 @@ function privilegesOnce(mirror: MirrorState): Privileges {
   };
 }
 
-interface ProjectCheck {
+// The fields an edit changes; none for a unit the change adds or deletes, which affects every
+// piece of evidence on the record (ADR-0039).
+function edited(item: ChangedUnit): { readonly changed?: readonly string[] } {
+  if (item.before === null || item.unit.head.action === "DELETE") return {};
+  const before = item.before.fields;
+  const now = item.now.fields;
+  const names = [...new Set([...Object.keys(before), ...Object.keys(now)])];
+  return { changed: names.filter((name) => before[name] !== now[name]).sort() };
+}
+
+export interface ProjectCheck {
   readonly units: number;
   readonly findings: Finding[];
   readonly inherited: Finding[];
@@ -103,7 +113,12 @@ async function checkUnits(
   for (const item of changed) {
     const path = `${project.path}/${item.unit.updateName}`;
     const source = Object.values(item.now.files)[0] ?? path;
-    touched.push({ table: item.unit.head.table, sysId: item.unit.head.sysId, source });
+    touched.push({
+      table: item.unit.head.table,
+      sysId: item.unit.head.sysId,
+      source,
+      ...edited(item),
+    });
     findings.push(...aclFindings(item, path, units));
     if (item.unit.head.action === "DELETE") continue;
     const current = checkVersion(deps.checker, item.now, privileges);
@@ -161,13 +176,16 @@ async function mirrorEdits(mirror: MirrorState): Promise<Finding[]> {
   );
 }
 
-// Checks what the change did to the workspace's Fluent source against the rules, reporting only
-// what it introduced since `base`, refuses edits to the mirror, and names the documentation pages
-// the change may make wrong.
-export async function validate(
+// The Fluent projects the change touched since `base` (or holding `paths`), each built and
+// checked.
+export async function checkSince(
   deps: ValidateDependencies,
   query: ValidateQuery,
-): Promise<Validation> {
+): Promise<{
+  readonly resolved: string;
+  readonly projects: readonly FluentProject[];
+  readonly checked: ProjectCheck[];
+}> {
   const resolved = await deps.mirror.resolve(query.base);
   if (resolved === null) {
     throw new UnknownBaseError(query.base);
@@ -184,13 +202,24 @@ export async function validate(
     if (base === null) throw new UnknownBaseError(own ?? query.base);
     checked.push(await checkProject(deps, privilegesOf, project, base));
   }
+  return { resolved, projects, checked };
+}
+
+// Checks what the change did to the workspace's Fluent source against the rules, reporting only
+// what it introduced since `base`, refuses edits to the mirror, and names the documentation pages
+// the change may make wrong.
+export async function validate(
+  deps: ValidateDependencies,
+  query: ValidateQuery,
+): Promise<Validation> {
+  const { resolved, projects, checked } = await checkSince(deps, query);
   const edits = query.paths === undefined ? await mirrorEdits(deps.mirror) : [];
   const documented =
     deps.documentation === undefined
       ? []
       : await documentationFindings(
           deps.documentation,
-          checked.flatMap((c) => c.touched),
+          { base: resolved, touched: checked.flatMap((c) => c.touched) },
           query.signal ?? new AbortController().signal,
         );
   const findings = ordered([...edits, ...checked.flatMap((c) => c.findings), ...documented]);

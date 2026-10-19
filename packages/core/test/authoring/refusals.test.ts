@@ -18,6 +18,13 @@ describe("knownRefusal", () => {
     );
   });
 
+  it("names a role whose suffix the SDK would rewrite to its name", () => {
+    expect(knownRefusal(field("sys_user_role", "suffix", "pd_shared.admin", "admin"))).toContain(
+      "would change its suffix from admin to pd_shared.admin",
+    );
+    expect(knownRefusal(field("sys_user_role", "suffix", "itil", ""))).toBeNull();
+  });
+
   it("names nothing for a difference that isn't refused by design", () => {
     expect(knownRefusal(field("sys_user_role", "description", "a", "b"))).toBeNull();
     expect(knownRefusal(field("sys_user_role_contains", "sys_policy", "read", "read"))).toBeNull();
@@ -101,5 +108,27 @@ describe("knownRefusal", () => {
         "the converted source does not build: ChoiceSet on table 'x_2222332_s11_e2e' is not allowed from scoped app 'x_2222332_s11'",
       ),
     ).toContain("adopt the column");
+  });
+});
+
+// What the SDK can't express on menus and ACLs (final census on main, 2026-10-18).
+describe("knownRefusal: menus and ACLs", () => {
+  it("names a menu the SDK would show in the browser, which it can't define for mobile", () => {
+    expect(
+      knownRefusal(field("sys_app_application", "device_type", "browser", "mobile")),
+    ).toContain("a menu for mobile");
+    expect(knownRefusal(field("sys_app_application", "device_type", "browser", ""))).toContain(
+      "a menu with no device type",
+    );
+    expect(
+      knownRefusal(field("sys_app_application", "device_type", "browser", "browser")),
+    ).toBeNull();
+  });
+
+  it("names an advanced ACL with no script, which the SDK would write as not advanced", () => {
+    expect(knownRefusal(field("sys_security_acl", "advanced", "false", "true"))).toContain(
+      "an advanced ACL with no script",
+    );
+    expect(knownRefusal(field("sys_security_acl", "advanced", "true", "false"))).toBeNull();
   });
 });

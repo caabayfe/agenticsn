@@ -120,7 +120,7 @@ export class SdkToolchain implements FluentToolchain {
       const transformed = await runtime.transform(copy, records, access.host, access.exchange);
       if (!transformed.success) return { ok: false, message: transformed.message };
       const refused = await fixConversion(copy, original);
-      if (refused.length > 0) return { ok: false, message: refused.join("; ") };
+      if (refused.length > 0) return { ok: false, message: refused.join("; "), refused };
       const second = await runtime.build(copy);
       if (!second.success)
         return {

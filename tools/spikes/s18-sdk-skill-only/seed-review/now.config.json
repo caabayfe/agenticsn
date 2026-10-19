@@ -1,0 +1,6 @@
+{
+  "scope": "x_2222332_s18rev",
+  "scopeId": "5b0e6c1d2a3f4e5d8c7b6a5f4e3d2c1b",
+  "name": "S18 incident tools",
+  "tsconfigPath": "./src/server/tsconfig.json"
+}

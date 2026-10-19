@@ -6,6 +6,8 @@ export {
   type BuildSiteOptions,
   type BuildSiteResult,
   buildSite,
+  type MediaRequest,
+  mediaOptions,
 } from "./application/build-site";
 export {
   assessDocumentation,
@@ -33,6 +35,7 @@ export {
   SURFACE_TABLES,
 } from "./domain/audience-checks";
 export { base64 } from "./domain/base64";
+export { type Claim, claimsOf, READERS, type Reader } from "./domain/claims";
 export {
   appliesTo,
   CONFIG_RECORD_TYPES,
@@ -95,8 +98,22 @@ export {
   LABELS,
   type Label,
   mapProse,
+  SEE_LINK,
   transcriptHtml,
 } from "./domain/prose";
+export { type Resolved, referencesOf, resolveReference } from "./domain/references";
+export {
+  NOTE_GUIDES,
+  type NoteGuide,
+  newNotes,
+  notedPages,
+  notePages,
+  parseRelease,
+  type Release,
+  type ReleaseNote,
+  repinnedPages,
+  unknownReleasePages,
+} from "./domain/releases";
 export {
   type Camera,
   type Cue,
@@ -127,6 +144,7 @@ export { isView, VIEWS, type View, viewMarks, viewOf } from "./domain/views";
 export type {
   AudioAssets,
   AudioCodec,
+  DocumentationHistory,
   DocumentationSources,
   MarkdownRenderer,
   MediaTools,
@@ -135,6 +153,7 @@ export type {
   PageSource,
   SceneSource,
   SiteOutput,
+  ThemeFile,
   VideoOptions,
   VideoOutput,
   VideoRenderer,

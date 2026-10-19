@@ -1,6 +1,13 @@
 // Public API of the governance context.
 
 export { type CheckQuery, type CheckResult, checkFiles } from "./application/check";
+export {
+  type DocumentationImpact,
+  type DocumentationImpactQuery,
+  documentationImpact,
+  type ImpactCause,
+  type ImpactItem,
+} from "./application/documentation-impact";
 export { type FluentKeysResult, writeFluentKeys } from "./application/fluent-keys";
 export {
   MAX_SCRIPT_BYTES,
@@ -25,6 +32,9 @@ export {
   KEYS_FILE as FLUENT_KEYS_FILE,
 } from "./domain/fluent-findings";
 export type {
+  ChangedRecord,
+  ClaimReader,
+  DocumentedClaim,
   DocumentedRecords,
   FluentProjects,
   MirrorState,

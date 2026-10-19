@@ -1,6 +1,6 @@
 # 010. Verified documentation site: plan
 
-- Status: P1–P3, the three audiences (`audiences.md`, A1–A4) and P4 done (2026-10-17); the Steward's drafting waits for the Steward
+- Status: P1–P3, the three audiences (`audiences.md`, A1–A4) and P4 done (2026-10-17); documentation impact (`impact.md`, ADR-0039 proposed) slice 1 built (2026-10-18); the Steward's drafting waits for the Steward
 - Date: 2026-10-17
 - Decision: ADR-0036
 - Requirements: G2, G3, ASR-01, ASR-08, ASR-09, ASR-10, ASR-13, ASR-15

@@ -22,6 +22,16 @@ const REFUSALS: readonly Refusal[] = [
     reason: (built, instance) =>
       `a protected role: the SDK would change its containment rows' protection from ${instance || "none"} to ${built || "none"} (read-only rows), which changes who may edit its grants; leave the role on the instance`,
   },
+  // A global role's suffix the instance holds and the SDK rewrites to the role's name (10 on
+  // pdi2, such as pd_shared.admin with suffix admin): the platform uses the suffix in scoped role
+  // names, so the change isn't cosmetic (product owner, 2026-10-18). An empty suffix is a loss.
+  {
+    table: "sys_user_role",
+    field: "suffix",
+    applies: (built, instance) => instance !== "" && built !== instance,
+    reason: (built, instance) =>
+      `a role whose suffix isn't its name: the SDK would change its suffix from ${instance} to ${built}; leave the role on the instance`,
+  },
   // The same for a protected UI policy's actions (34 on pdi2), refused alike (2026-10-17).
   {
     table: "sys_ui_policy_action",
@@ -40,6 +50,24 @@ const REFUSALS: readonly Refusal[] = [
         `a protected UI action: the SDK would change the protection of its ${table === "sys_ui_action_role" ? "roles" : "views"} from ${instance || "none"} to ${built || "none"}, which changes who may edit them; leave the action on the instance`,
     }),
   ),
+  // ApplicationMenu has no device type and builds browser: a menu for mobile (3 on pdi2), or
+  // with none (1), would move to the browser's navigator.
+  {
+    table: "sys_app_application",
+    field: "device_type",
+    applies: (built, instance) => built !== instance,
+    reason: (built, instance) =>
+      `${instance === "" ? "a menu with no device type" : `a menu for ${instance}`}: the SDK can't define a menu's device type and would write ${built}, which changes where it shows; leave the menu on the instance`,
+  },
+  // Acl builds an ACL with no script as not advanced, which changes how it is evaluated (3 on
+  // pdi2, all with an empty script).
+  {
+    table: "sys_security_acl",
+    field: "advanced",
+    applies: (built, instance) => instance === "true" && built === "false",
+    reason: () =>
+      "an advanced ACL with no script: the SDK would write it as not advanced, which changes how it is evaluated; clear Advanced on the instance (or add the script), then adopt again",
+  },
   // UiPolicy drops the UI type of a policy that runs no scripts and builds desktop (29 on pdi2).
   {
     table: "sys_ui_policy",
@@ -56,7 +84,7 @@ const CONVERSION_REFUSALS: readonly { readonly error: RegExp; readonly reason: s
   {
     error: /^Cannot coerce value to number/,
     reason:
-      "the SDK can't convert a number field left empty (for a UI policy that runs scripts, its UI type): set a value on the instance, then adopt again",
+      "the SDK can't convert a number field left empty (such as the UI type of a UI policy that runs scripts, or a field of a flow): set a value on the instance, then adopt again",
   },
   // Legacy values the SDK's types reject: protection read-only or true (modules, UI actions,
   // script includes) and script include access private (6 on pdi2).

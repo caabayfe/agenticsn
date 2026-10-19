@@ -73,6 +73,16 @@ describe("documentation sources on disk", () => {
     );
   });
 
+  it("reads the theme folder, with its images, as bytes; none when it is absent", async () => {
+    const sources = new FsDocumentationSources(root);
+    expect(await sources.theme()).toEqual([]);
+    write("documentation/theme/theme.css", ":root{--brand:#7B2D8E}");
+    write("documentation/theme/fonts/brand.woff2", "font");
+    const theme = await sources.theme();
+    expect(theme.map((file) => file.path)).toEqual(["fonts/brand.woff2", "theme.css"]);
+    expect(new TextDecoder().decode(theme[1]?.content)).toBe(":root{--brand:#7B2D8E}");
+  });
+
   it("has no site when documentation/site.yaml is absent", async () => {
     expect(await new FsDocumentationSources(root).site()).toBeNull();
   });

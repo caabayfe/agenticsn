@@ -143,6 +143,36 @@ platform's standard mechanism and the customer's process (ADR-0018).
   customer may rename them. Metadata may reference only anchors; a reference from pack metadata
   to any other data record is a finding. Customer-specific references live in data.
 
+### 8. Modules are agnostic to the instance, and follow ServiceNow SDK practice
+
+Added 2026-10-18 at the product owner's request: "the accelerators are agnostic to what
+exists in the instance", and "everything needs to follow the SDK best practice where possible,
+so we can have the right support from ServiceNow".
+
+**What a module may do:**
+- **Additive by default.** A module creates its own records. It never changes a client's
+  customization silently.
+- **SDK APIs as the SDK models them.** Scripts are in files (`Now.include`). `Record()` is
+  used only where the SDK has no API. Forms and lists are declared whole (`Form()`, `List()`).
+  snagentic never patches the SDK's output or writes configuration around it. SDK gaps are
+  reported to ServiceNow.
+- **Taking over an out-of-box layout.** Some modules need fields or lists on a form they do
+  not own (for example impact and urgency on the incident task form). Such a module:
+  - declares the whole layout in its source;
+  - lists the out-of-box record in `adopt.yaml`.
+
+  The install plan then checks each listed record on the instance:
+  - **untouched since the platform shipped it** (no customer update recorded under its update
+    name): the module takes it over, and the plan lists it under "Out-of-box records changed";
+  - **customized by the client:** the plan **blocks for review**, naming the record, and
+    nothing is merged or overwritten.
+
+  On a fresh baseline instance every layout is untouched, so the install runs without stops.
+- **Shipped records only.** A module may reference an out-of-box record shipped by a plugin
+  (the same sys_id on every instance); the plan checks it exists.
+- **Business keys for anything else.** Records the client owns, such as a group or a schedule,
+  are found by business key. Settings hold the key, not a sys_id.
+
 ## Consequences
 
 - A baseline instance is rebuilt by one approved command and re-runs after any failure.

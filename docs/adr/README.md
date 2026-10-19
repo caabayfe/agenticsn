@@ -17,7 +17,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0009](0009-engineering-practices.md) | Engineering practices: TDD, strict typing, enforced boundaries | Accepted |
 | [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013, 0024, 0026) |
 | [0011](0011-enforcement-layers.md) | Enforcement layers: what each control stops and who can bypass it | Accepted (amended by 0019) |
-| [0012](0012-production-read-only-by-construction.md) | Production access is read-only by construction | Accepted, pending spike (amended by 0013, 0021; by 0038, proposed) |
+| [0012](0012-production-read-only-by-construction.md) | Production access is read-only by construction | Accepted, pending spike (amended by 0013, 0021; by 0038) |
 | [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted (amended by 0018) |
 | [0014](0014-workspace-layout.md) | Synced data lives in a workspace with a standard layout | Accepted (amended by 0017) |
 | [0015](0015-yaml-writing-style.md) | YAML writing style | Accepted |
@@ -31,7 +31,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0023](0023-upgrade-and-update-notice.md) | `snagentic upgrade` and an update notice, with no silent self-update | Accepted |
 | [0024](0024-elevated-session-for-acl-writes.md) | ACLs are written through an elevated browser session | Superseded by 0031 |
 | [0025](0025-choices-and-layouts-as-editable-child-rows.md) | Choice lists, form and list layouts, and applications are delivered from files | Superseded by 0031 (authoring) |
-| [0026](0026-accelerators-as-content-packs.md) | Accelerators are versioned content packs, installed through the existing flow | Accepted (amended 2026-10-14; by 0031; by 0038, proposed) |
+| [0026](0026-accelerators-as-content-packs.md) | Accelerators are versioned content packs, installed through the existing flow | Accepted (amended 2026-10-14; by 0031; by 0038) |
 | [0027](0027-domains-are-record-attributes-written-explicitly.md) | A record's domain is an attribute, written explicitly on push | Accepted |
 | [0028](0028-flows-authored-in-fluent-delivered-by-push.md) | Flows are authored in Fluent and delivered by push, published into the batch | Accepted (amended 2026-10-14) |
 | [0029](0029-list-layouts-delivered-whole-through-fluent-load.md) | List layouts are delivered whole, through the Fluent load route | Superseded by 0031 (findings kept) |
@@ -43,7 +43,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0035](0035-pulls-scan-what-they-write-for-secrets.md) | Pulls scan what they write for secrets | Proposed |
 | [0036](0036-verified-documentation-site.md) | Verified documentation: pages anchored to the mirror, published as a static site | Accepted |
 | [0037](0037-an-employee-guide-and-an-it-guide-from-one-source.md) | An employee guide and an IT guide, published from one source | Accepted |
-| [0038](0038-accelerator-install-and-platform-components.md) | Accelerators install by plan; platform components install automatically on every instance | Proposed |
+| [0038](0038-accelerator-install-and-platform-components.md) | Accelerators install by plan; platform components install automatically on every instance | Accepted |
 | [0039](0039-a-change-shows-what-it-does-to-the-documentation.md) | A change shows what it does to the documentation, sentence by sentence | Accepted |
 
 Requirements referenced as `ASR-nn` are in

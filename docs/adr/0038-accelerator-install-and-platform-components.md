@@ -1,7 +1,7 @@
 # 0038. Accelerators install by plan; platform components install automatically on every instance
 
-- Status: Proposed (decisions of the product owner, 2026-10-18; to be accepted with spikes S-E and
-  S-F of spec 011)
+- Status: Accepted (product owner, 2026-10-19; decisions of 2026-10-18). Spike S-E passed; the
+  store application installer (I3) still waits for spike S-F of spec 011
 - Date: 2026-10-18
 - Requirements: G1, ASR-01, ASR-02, ASR-08, ASR-10, ASR-15, ASR-16
 - Amends: 0012 (one narrow write on test and production), 0026 (the rejected single install,

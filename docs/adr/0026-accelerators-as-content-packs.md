@@ -209,7 +209,7 @@ data/<entity>.csv                 data templates (unchanged)
 - A pack still holding `metadata/` or `patches/` (format 1) is refused with the new layout as
   the remedy. Nothing was converted: the only pack was a test fixture.
 
-## Amendment (ADR-0038, proposed 2026-10-18)
+## Amendment (ADR-0038, accepted 2026-10-19)
 
 Product owner decisions of 2026-10-18, recorded in ADR-0038:
 

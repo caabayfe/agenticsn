@@ -1,6 +1,6 @@
 # 010f. Every feature of a process is found and decided (ADR-0040)
 
-- Status: pilot built on incident (2026-10-18), ADR-0040 proposed
+- Status: built; incident documented on pdi2 (2026-10-19), ADR-0040 accepted
 
 ## 1. Why
 
@@ -70,3 +70,9 @@ The skill makes the walk a step of every process (as each role).
 written in the pilot, with Collaborate chat found to be the same Sidebar discussions), 7 to do,
 4 questions, 3 out of scope (major incident is its own process, CAB meetings belong to change,
 test SLA definitions). The card reads "4 of 15 features documented".
+
+On 2026-10-19 the seven to-do features were documented: knowledge, Agent Assist, templates
+(with Compose Email), dependency views and password reset as capabilities of their own; Copy
+Incident and attachments as sections of the log and work pages. Send Sms, found in the dependency
+views' application, became a feature of its own (a question: Notify is off). 19 features: 11
+documented, 5 questions, 3 out of scope; the card reads "11 of 16 features documented".

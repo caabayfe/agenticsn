@@ -1,6 +1,6 @@
 # 0040. Every feature of a process is found and has a decision
 
-- Status: Proposed (pilot on incident, pdi2)
+- Status: Accepted (product owner, 2026-10-19; piloted on incident, pdi2)
 - Date: 2026-10-18
 - Requirements: G2 (explain an instance), ASR-09
 - Amends: 0036 (what the documentation covers)

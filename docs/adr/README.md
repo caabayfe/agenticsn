@@ -44,7 +44,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0036](0036-verified-documentation-site.md) | Verified documentation: pages anchored to the mirror, published as a static site | Accepted |
 | [0037](0037-an-employee-guide-and-an-it-guide-from-one-source.md) | An employee guide and an IT guide, published from one source | Accepted |
 | [0039](0039-a-change-shows-what-it-does-to-the-documentation.md) | A change shows what it does to the documentation, sentence by sentence | Accepted |
-| [0040](0040-every-feature-of-a-process-has-a-decision.md) | Every feature of a process is found and has a decision | Proposed |
+| [0040](0040-every-feature-of-a-process-has-a-decision.md) | Every feature of a process is found and has a decision | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

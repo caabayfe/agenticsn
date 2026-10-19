@@ -109,7 +109,7 @@ go through development, an update set, validation and promotion.
   for any other kind before its handler runs. Removing such tools from the MCP surface for
   non-development instances comes with M7.
 
-## Amendment (ADR-0038, proposed 2026-10-18)
+## Amendment (ADR-0038, accepted 2026-10-19)
 
 One write is added for test and production instances: installing **platform components**
 (plugins and store applications) an accelerator needs, only at parity with a completed

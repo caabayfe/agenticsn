@@ -1,7 +1,14 @@
 import { platformWritten } from "../../metadata/domain/field-rules";
 import type { BuiltUnit, Fields, InstanceCopy, UnitRecord } from "./unit";
 import { type ChildSpec, unitSpec } from "./unit-specs";
-import { comparedValue, sameValue } from "./values";
+import {
+  comparedValue,
+  isNamedReference,
+  keyedReference,
+  namedField,
+  sameAttributes,
+  sameValue,
+} from "./values";
 
 // One comparison of a built unit with the instance's copy (ADR-0033 item 2).
 
@@ -44,39 +51,88 @@ export type Difference =
       readonly instance: readonly string[];
     };
 
+// A reference held as its keys, compared key by key with the instance's dot-walked values.
+function keyedDifferences(
+  table: string,
+  row: string,
+  field: string,
+  keys: ReadonlyMap<string, string>,
+  instance: Fields,
+): Difference[] {
+  return [...keys].flatMap(([key, built]): Difference[] => {
+    const actual = instance[`${field}.${key}`];
+    return actual === undefined || sameValue(built, actual)
+      ? []
+      : [{ kind: "field", table, row, field: `${field}.${key}`, built, instance: actual }];
+  });
+}
+
+// One field's difference, if any.
+function fieldDifference(
+  record: UnitRecord,
+  field: string,
+  instance: Fields,
+  row: string,
+): Difference[] {
+  const keys = keyedReference(record.fields[field] ?? "");
+  if (keys !== null) return keyedDifferences(record.table, row, field, keys, instance);
+  const [built, instanceField] = comparedValue(record, field);
+  // A field the instance does not answer is a column it does not have: the load cannot set
+  // it (the SDK writes sys_choice.inactive_on_update, which pdi2 has no column for).
+  const actual = instance[instanceField];
+  if (actual === undefined) return [];
+  // A reference compared by name that holds the instance's own sys_id is the same reference,
+  // even when the name can't be read (a role hidden from this user); a placeholder never is.
+  if (instanceField !== field && record.fields[field] === instance[field]) return [];
+  const same =
+    record.table === "sys_dictionary" && field === "attributes"
+      ? sameAttributes(built, actual)
+      : sameValue(built, actual);
+  return same ? [] : [{ kind: "field", table: record.table, row, field, built, instance: actual }];
+}
+
 function fieldDifferences(
   record: UnitRecord,
   instance: Fields,
   row: string,
   skip: ReadonlySet<string>,
 ): Difference[] {
-  const differences: Difference[] = [];
-  for (const field of Object.keys(record.fields).sort()) {
-    // A field the platform rewrites on save (an ACL's description) never equals what was sent.
-    if (IGNORED.has(field) || skip.has(field) || platformWritten(record.table, field)) continue;
-    const [built, instanceField] = comparedValue(record, field);
-    // A field the instance does not answer is a column it does not have: the load cannot set
-    // it (the SDK writes sys_choice.inactive_on_update, which pdi2 has no column for).
-    const actual = instance[instanceField];
-    if (actual === undefined) continue;
-    // A reference compared by name that holds the instance's own sys_id is the same reference,
-    // even when the name can't be read (a role hidden from this user); a placeholder never is.
-    if (instanceField !== field && record.fields[field] === instance[field]) continue;
-    if (!sameValue(built, actual)) {
-      differences.push({ kind: "field", table: record.table, row, field, built, instance: actual });
-    }
-  }
-  return differences;
+  return Object.keys(record.fields)
+    .sort()
+    .flatMap((field) =>
+      // A field the platform rewrites on save (an ACL's description) never equals what was sent.
+      IGNORED.has(field) || skip.has(field) || platformWritten(record.table, field)
+        ? []
+        : fieldDifference(record, field, instance, row),
+    );
 }
 
 const position = (fields: Fields) => Number(fields["position"] ?? 0);
 
+// An instance row's key; a named reference in the key is its name, as the build's rows hold it.
 const rowKey = (spec: ChildSpec, fields: Fields) =>
-  spec.key.map((field) => fields[field] ?? "").join("|");
+  spec.key
+    .map((field) =>
+      isNamedReference(spec.table, field)
+        ? (fields[namedField(spec.table, field)] ?? "")
+        : (fields[field] ?? ""),
+    )
+    .join("|");
 
-function keysOf(spec: ChildSpec, rows: readonly Fields[]): string[] {
-  const sorted = spec.ordered ? [...rows].sort((a, b) => position(a) - position(b)) : rows;
-  const keys = sorted.map((row) => rowKey(spec, row));
+// A built row's key, compared as each key field is compared.
+const builtKey = (spec: ChildSpec, row: UnitRecord) =>
+  spec.key.map((field) => comparedValue(row, field)[0]).join("|");
+
+function keysOf<T>(
+  spec: ChildSpec,
+  rows: readonly T[],
+  fields: (row: T) => Fields,
+  key: (row: T) => string,
+): string[] {
+  const sorted = spec.ordered
+    ? [...rows].sort((a, b) => position(fields(a)) - position(fields(b)))
+    : rows;
+  const keys = sorted.map(key);
   return spec.ordered ? keys : keys.sort();
 }
 
@@ -90,13 +146,17 @@ function childDifferences(
 ): Difference[] {
   const builtKeys = keysOf(
     spec,
-    built.map((row) => row.fields),
+    built,
+    (row) => row.fields,
+    (row) => builtKey(spec, row),
   );
   // A partial child's rows the build doesn't carry are left as they are by a load.
   const carried = new Set(builtKeys);
   const instanceKeys = keysOf(
     spec,
     spec.partial === true ? instance.filter((row) => carried.has(rowKey(spec, row))) : instance,
+    (row) => row,
+    (row) => rowKey(spec, row),
   );
   const differences: Difference[] = sameList(builtKeys, instanceKeys)
     ? []
@@ -106,7 +166,7 @@ function childDifferences(
   const skip = new Set([...Object.keys(spec.link), ...(spec.ordered ? ["position"] : [])]);
   const byKey = new Map(instance.map((row) => [rowKey(spec, row), row]));
   for (const row of built) {
-    const key = rowKey(spec, row.fields);
+    const key = builtKey(spec, row);
     const match = byKey.get(key);
     if (match !== undefined) differences.push(...fieldDifferences(row, match, key, skip));
   }

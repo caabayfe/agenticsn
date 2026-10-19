@@ -1,6 +1,6 @@
 // Composition root: the only place where adapters are wired to use cases.
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { INSTRUCTIONS, PROMPTS } from "@snagentic/agent-packs";
 import {
@@ -49,6 +49,7 @@ import { fetchTransport } from "./adapters/servicenow/fetch-transport";
 import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
+import { JsonInstallJournal } from "./adapters/state/json-install-journal";
 import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
 import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
@@ -147,10 +148,14 @@ const context: UseCaseContext = {
   // minimal test pack lives in tests/fixtures and never ships).
   packWorkspace: (root, instance) => new GitPackWorkspace(root, instance),
   dataTemplates: new CsvDataTemplates(),
-  packs: new LazyPackSource(loadPackSource),
+  packs: new LazyPackSource(() =>
+    loadPackSource(workspaceOverride === undefined ? process.cwd() : resolve(workspaceOverride)),
+  ),
   pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),
+  installJournal: (root, instance) =>
+    new JsonInstallJournal(join(root, instancePaths(instance).localState)),
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,
   upgrade: {

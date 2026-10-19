@@ -1,10 +1,10 @@
-import { dataOrder, selectCapabilities } from "../domain/capability-graph";
+import { dataOrder } from "../domain/capability-graph";
 import { LoadConfirmationRequiredError, TemplatesInvalidError } from "../domain/errors";
-import { parseManifest } from "../domain/manifest";
 import type { DataEntity } from "../domain/manifest-types";
-import type { Template } from "../domain/templates";
+import { stagingRow, type Template } from "../domain/templates";
 import type { DataTemplates, ImportSetWriter, ImportStatus, PackSource } from "../ports";
-import { type DataQuery, validateData } from "./validate-data";
+import { manifestOf } from "./check-pack";
+import { type DataQuery, readTemplates, validateData } from "./validate-data";
 
 export interface EntityLoad {
   readonly entity: string;
@@ -38,7 +38,7 @@ async function loadEntity(
   const index = (column: string) => template.columns.indexOf(column);
   for (const row of template.rows) {
     signal.throwIfAborted();
-    const values = Object.fromEntries(template.columns.map((c, i) => [c, (row[i] ?? "").trim()]));
+    const values = stagingRow(entity.table, template.columns, row);
     const { status } = await importer.post(entity.table, values, signal);
     counts[status] += 1;
     if (status === "error" || status === "skipped") {
@@ -63,16 +63,13 @@ export async function loadData(
   const report = await validateData(deps, query);
   const problems = report.entities.reduce((n, e) => n + e.problems.length, 0);
   if (!report.passed) throw new TemplatesInvalidError(query.pack, problems);
-  const outcome = parseManifest(await deps.packs.manifest(query.pack));
-  if (!outcome.ok) throw new TemplatesInvalidError(query.pack, outcome.problems.length);
-  const selected = selectCapabilities(outcome.manifest, {
-    ...(query.waves === undefined ? {} : { waves: query.waves }),
-    ...(query.capabilities === undefined ? {} : { capabilities: query.capabilities }),
-  }).capabilities;
+  const manifest = await manifestOf(deps.packs, query.pack);
+  const entities = dataOrder(manifest, report.selected);
+  const templates = await readTemplates(deps, query, entities);
   const loads: EntityLoad[] = [];
-  for (const entity of dataOrder(outcome.manifest, selected)) {
-    const template = await deps.templates.read(query.directory, entity.file);
-    if (template === null) continue;
+  for (const entity of entities) {
+    const template = templates.get(entity.entity);
+    if (template === undefined) continue;
     const load = await loadEntity(deps.importer, entity, template, query.signal);
     loads.push(load);
     if (load.failed.length > 0) return { entities: loads, stopped: true };

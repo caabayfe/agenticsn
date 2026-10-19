@@ -63,8 +63,11 @@ export class CsvDataTemplates implements DataTemplates {
 
   async read(directory: string, file: string): Promise<Template | null> {
     const text = await readFile(join(directory, file), "utf8").catch(() => null);
-    if (text === null) return null;
-    const [columns = [], ...rows] = parseCsv(text.replace(/^﻿/, ""));
+    return text === null ? null : this.parse(text);
+  }
+
+  parse(text: string): Template {
+    const [columns = [], ...rows] = parseCsv(text.replace(/^\uFEFF/, ""));
     return { columns: columns.map((c) => c.trim()), rows };
   }
 }

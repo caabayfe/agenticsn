@@ -1,13 +1,8 @@
 import { graphProblems } from "./capability-graph";
-import type {
-  Capability,
-  DataColumn,
-  DataEntity,
-  Manifest,
-  PluginRequirement,
-} from "./manifest-types";
+import type { Capability, Component, DataColumn, DataEntity, Manifest } from "./manifest-types";
 
-// Reads accelerator.yaml (ADR-0026). Pure: the document comes parsed.
+// Reads a pack's manifest (ADR-0026, format 2 by ADR-0038): accelerator.yaml with its modules
+// under `modules` (packDocument assembles it). Pure: the document comes parsed.
 
 export type ManifestOutcome =
   | { readonly ok: true; readonly manifest: Manifest }
@@ -15,7 +10,6 @@ export type ManifestOutcome =
 
 const ID = /^[a-z0-9][a-z0-9_-]*$/;
 const VERSION = /^\d+\.\d+\.\d+$/;
-const SCOPE = /^x_[a-z0-9]+_[a-z0-9_]+$/;
 
 type Fields = Readonly<Record<string, unknown>>;
 
@@ -27,12 +21,13 @@ const text = (value: unknown) => (typeof value === "string" ? value.trim() : "")
 const list = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
 const texts = (value: unknown) => list(value).map(text).filter(Boolean);
 
-function plugin(value: unknown): PluginRequirement | null {
+function component(value: unknown): Component | null {
   const fields = fieldsOf(value);
   const id = text(fields?.["id"]);
   if (fields === null || id === "") return null;
   const minVersion = text(fields["minVersion"]);
   return {
+    kind: fields["kind"] === "app" ? "app" : "plugin",
     id,
     minVersion: minVersion === "" ? null : minVersion,
     entitlement: fields["entitlement"] === "licensed" ? "licensed" : "free",
@@ -62,33 +57,29 @@ function entity(value: unknown): DataEntity | null {
     entity: name,
     file,
     table,
+    target: text(fields?.["target"]) || null,
     key,
     after: texts(fields?.["after"]),
     columns: columnsOf(fields?.["columns"]),
+    anchors: fields?.["anchors"] === true,
   };
 }
 
-function capability(id: string, value: unknown, problems: string[]): Capability {
+function capability(pack: string, id: string, value: unknown, problems: string[]): Capability {
   const fields = fieldsOf(value) ?? {};
-  const say = (problem: string) => problems.push(`capability ${id}: ${problem}`);
-  const wave = fields["wave"];
-  if (typeof wave !== "number" || !Number.isInteger(wave) || wave < 0) {
-    say("wave must be a whole number from 0");
-  }
-  const label = text(fields["label"]);
-  if (label === "") say("label is missing");
-  const plugins = list(fields["plugins"]).map(
-    (p, i) => plugin(p) ?? say(`plugin ${i + 1} needs an id`),
+  const say = (problem: string) => problems.push(`module ${id}: ${problem}`);
+  if (!ID.test(id)) say("its folder name must be lowercase letters, digits, - or _");
+  const components = list(fields["components"]).map(
+    (p, i) => component(p) ?? say(`component ${i + 1} needs an id`),
   );
   const data = list(fields["data"]).map(
     (d, i) => entity(d) ?? say(`data ${i + 1} needs entity, table and key`),
   );
   return {
     id,
-    wave: typeof wave === "number" ? wave : 0,
-    label,
+    label: text(fields["label"]) || `${pack}/${id}`,
     dependsOn: texts(fields["dependsOn"]),
-    plugins: plugins.filter((p): p is PluginRequirement => typeof p === "object"),
+    components: components.filter((c): c is Component => typeof c === "object"),
     data: data.filter((d): d is DataEntity => typeof d === "object"),
   };
 }
@@ -96,12 +87,30 @@ function capability(id: string, value: unknown, problems: string[]): Capability 
 function identity(fields: Fields, problems: string[]) {
   const id = text(fields["id"]);
   const version = text(fields["version"]);
-  const scope = text(fields["scope"]);
   if (!ID.test(id)) problems.push("id must be lowercase letters, digits, - or _");
   if (!VERSION.test(version)) problems.push("version must be major.minor.patch");
-  if (!SCOPE.test(scope)) problems.push("scope must be x_<vendor>_<name>");
   const requires = fieldsOf(fields["requires"]);
-  return { id, version, scope, requires: { snagentic: text(requires?.["snagentic"]) } };
+  const platform = fieldsOf(fields["platform"]);
+  return {
+    id,
+    version,
+    requires: { snagentic: text(requires?.["snagentic"]) },
+    tested: texts(platform?.["tested"]).map((t) => t.toLowerCase()),
+  };
+}
+
+function profilesOf(value: unknown, modules: ReadonlySet<string>, problems: string[]) {
+  const profiles: Record<string, readonly string[]> = {};
+  for (const [id, members] of Object.entries(fieldsOf(value) ?? {})) {
+    const named = texts(members);
+    if (!ID.test(id)) problems.push(`profile ${id}: lowercase letters, digits, - or _`);
+    if (named.length === 0) problems.push(`profile ${id}: names no module`);
+    for (const m of named.filter((m) => !modules.has(m))) {
+      problems.push(`profile ${id} names ${m}, which the pack does not have`);
+    }
+    profiles[id] = named;
+  }
+  return profiles;
 }
 
 // Reads and checks a manifest: every problem at once, so the pack's author fixes them together.
@@ -110,14 +119,15 @@ export function parseManifest(document: unknown): ManifestOutcome {
   if (fields === null) return { ok: false, problems: ["the manifest is not a mapping"] };
   const problems: string[] = [];
   const head = identity(fields, problems);
-  const entries = Object.entries(fieldsOf(fields["capabilities"]) ?? {});
-  if (entries.length === 0) problems.push("capabilities: at least one");
+  const entries = Object.entries(fieldsOf(fields["modules"]) ?? {});
+  if (entries.length === 0) problems.push("modules: at least one (modules/<module>/module.yaml)");
   const capabilities = entries
-    .map(([id, value]) => capability(id, value, problems))
+    .map(([id, value]) => capability(head.id, id, value, problems))
     .sort((a, b) => a.id.localeCompare(b.id));
+  const profiles = profilesOf(fields["profiles"], new Set(entries.map(([id]) => id)), problems);
   if (problems.length > 0) return { ok: false, problems };
   const graph = graphProblems(capabilities);
   return graph.length > 0
     ? { ok: false, problems: graph }
-    : { ok: true, manifest: { ...head, capabilities } };
+    : { ok: true, manifest: { ...head, profiles, capabilities } };
 }

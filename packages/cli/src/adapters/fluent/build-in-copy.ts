@@ -51,24 +51,28 @@ export async function buildInCopy<T>(
   }
 }
 
-// The project as `commit` held it (adopt --refresh converts as of the last ledger commit):
-// git archive piped into tar, so neither the index nor the working tree is touched.
+// The project as `commit` held it (adopt --refresh converts as of the last ledger commit): git
+// archive written to a file, then extracted, so neither the index nor the working tree is
+// touched. Not piped: streaming one process into the other failed now and then (pdi2, 2026-10-19).
 export const fromCommit =
   (workspace: string, project: string, commit: string): ProjectSource =>
   async (copy) => {
     const scratch = join(copy, "..", "commit");
     await mkdir(scratch, { recursive: true });
-    const archive = Bun.spawn(["git", "archive", "--format=tar", commit, "--", project], {
-      cwd: workspace,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const tar = Bun.spawn(["tar", "-x", "-C", scratch], { stdin: archive.stdout, stderr: "pipe" });
-    const [archived, extracted] = await Promise.all([archive.exited, tar.exited]);
+    const tarball = join(copy, "..", "commit.tar");
+    const archive = Bun.spawn(
+      ["git", "archive", "--format=tar", "-o", tarball, commit, "--", project],
+      { cwd: workspace, stdout: "ignore", stderr: "pipe" },
+    );
+    const archived = await archive.exited;
+    const tar =
+      archived === 0
+        ? Bun.spawn(["tar", "-x", "-f", tarball, "-C", scratch], { stderr: "pipe" })
+        : null;
+    const extracted = tar === null ? 1 : await tar.exited;
     if (archived !== 0 || extracted !== 0) {
-      throw new Error(
-        `could not read ${project} at ${commit}: ${await new Response(archive.stderr).text()}`,
-      );
+      const reason = await new Response((tar ?? archive).stderr).text();
+      throw new Error(`could not read ${project} at ${commit}: ${reason}`);
     }
     await cp(join(scratch, project), copy, { recursive: true });
   };

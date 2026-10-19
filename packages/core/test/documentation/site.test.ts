@@ -387,6 +387,13 @@ describe("docs build: media from site.yaml", () => {
       decode: async () => new Float32Array(10),
       encodeMp3: async () => new Uint8Array([1, 2]),
     },
+    voices: [
+      {
+        name: "piper",
+        available: async () => true,
+        speak: async () => new Float32Array(48_000).fill(0.2),
+      },
+    ],
     video: { available: async () => true, render: async () => new Uint8Array([9]) },
   };
 
@@ -416,6 +423,26 @@ describe("docs build: media from site.yaml", () => {
     expect(result.videos).toEqual([]);
   });
 
+  it("lets a flag override only its own setting, keeping the voice site.yaml asks for", async () => {
+    const video = await buildFor({ voice: "piper", video: false }, { flags: { video: true } });
+    expect(video.voice).toBe("piper");
+    expect(video.videos).toEqual(["asg"]);
+    const silent = await buildFor({ voice: "piper", video: true }, { flags: { voice: "none" } });
+    expect(silent.voice).toBe("none");
+    expect(silent.videos).toEqual(["asg"]);
+    const none = await buildFor({ voice: "piper", video: true }, { flags: {} });
+    expect(none.narrated).toEqual(["asg"]);
+    const off = await buildFor(
+      { voice: "piper", video: true },
+      { flags: { audio: false, voice: "none", video: false } },
+    );
+    expect(off.narrated).toEqual([]);
+    expect(await buildFor(undefined, { flags: { video: true } })).toMatchObject({
+      voice: "none",
+      videos: ["asg"],
+    });
+  });
+
   it("gives an audio track without video when site.yaml asks only for a voice", async () => {
     const result = await buildFor({ voice: "none", audio: true });
     expect(result.narrated).toEqual(["asg"]);
@@ -424,11 +451,12 @@ describe("docs build: media from site.yaml", () => {
 });
 
 describe("docs build: sound by the reader's choice", () => {
-  it("lets each player play with sound, remembers the reader's choice and passes on their first click", async () => {
+  it("narrates from the reader's first click unless they turned sound off, and remembers it", async () => {
     const { file } = await build();
     const page = file("processes/incident/operate/assign.html");
     expect(page).toContain('sandbox="allow-scripts" allow="autoplay"');
-    expect(page).toContain("localStorage.getItem(K)==='on'");
+    expect(page).toContain("on=true");
+    expect(page).toContain("localStorage.getItem(K)!=='off'");
     expect(page).toContain("snagenticSoundPref:on");
     expect(page).toContain("addEventListener('pointerdown',go)");
     expect(page).toContain("snagenticActivate:true");

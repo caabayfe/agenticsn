@@ -232,6 +232,7 @@ describe("snagentic docs", () => {
         evidence: [],
         problems: [],
         narrated: [],
+        voice: "none",
         missingSounds: [],
         videos: [],
         videosNotMade: [{ animation: "asg", reason: "no Chrome or Chromium browser" }],
@@ -252,6 +253,7 @@ describe("snagentic docs", () => {
         evidence: [],
         problems: [],
         narrated: ["asg"],
+        voice: "none",
         missingSounds: [],
         videos: ["asg"],
         videosNotMade: [],
@@ -289,7 +291,7 @@ describe("snagentic docs", () => {
     );
     expect(built.narrated).toEqual(["asg"]);
     expect(built.missingSounds).toEqual(["nope_1"]);
-    expect(docsBuild.render(built, "text")).toContain("audio tracks: asg");
+    expect(docsBuild.render(built, "text")).toContain("audio tracks (voice fake): asg");
     expect(docsBuild.render(built, "text")).toContain("cue sounds not found (left out): nope_1");
     expect(readFileSync(join(root, ".snagentic/site/animations/asg.mp3"))).toEqual(
       Buffer.from([1, 2, 3]),

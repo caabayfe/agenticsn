@@ -34,6 +34,8 @@ export interface BuildSiteResult {
   readonly check: DocsCheck;
   // Animations given an audio track, and cue sounds that were missing from them.
   readonly narrated: readonly string[];
+  // The voice the tracks were narrated with, "none" for music and effects only.
+  readonly voice: string;
   readonly missingSounds: readonly string[];
   // Animations rendered as video, and why the others couldn't be.
   readonly videos: readonly string[];
@@ -110,15 +112,36 @@ export function mediaOptions(request: MediaRequest): BuildSiteOptions {
 const fromSite = (media: SiteMedia | undefined): BuildSiteOptions =>
   media === undefined ? {} : mediaOptions(media);
 
+// Command-line flags: each replaces only its own setting in site.yaml, so `--video` alone keeps
+// the voice site.yaml asks for.
+export interface MediaFlags {
+  readonly flags: MediaRequest;
+}
+
+export const mediaWith = (flags: MediaRequest, site: SiteMedia | undefined): BuildSiteOptions =>
+  mediaOptions({
+    audio: flags.audio ?? site?.audio,
+    voice: flags.voice ?? site?.voice,
+    video: flags.video ?? site?.video,
+  });
+
+function optionsOf(
+  given: BuildSiteOptions | MediaFlags | undefined,
+  site: SiteMedia | undefined,
+): BuildSiteOptions {
+  if (given === undefined) return fromSite(site);
+  return "flags" in given ? mediaWith(given.flags, site) : given;
+}
+
 // `docs build`: the static site, with each page's evidence status as of now. A stale page is
 // built and says so; `docs check` is the gate. Without options it makes the media site.yaml asks
-// for.
+// for; with flags, site.yaml with the flags over it.
 export async function buildSite(
   deps: BuildSiteDependencies,
-  given?: BuildSiteOptions,
+  given?: BuildSiteOptions | MediaFlags,
 ): Promise<BuildSiteResult> {
   const docs = await loadDocumentation(deps.sources, deps.root);
-  const options = given ?? fromSite(docs.config.media);
+  const options = optionsOf(given, docs.config.media);
   const mirror = deps.mirror(docs.config.instance);
   const check = await assessDocumentation(docs, mirror, todayOf(deps.clock), deps.signal);
   const media = new Map<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>();
@@ -166,6 +189,7 @@ export async function buildSite(
     files: files.length,
     check,
     narrated: [...media.keys()],
+    voice: audio?.voice ?? "none",
     missingSounds: [...missing],
     videos: [...videos.keys()],
     videosNotMade: notMade,

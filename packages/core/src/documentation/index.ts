@@ -6,8 +6,10 @@ export {
   type BuildSiteOptions,
   type BuildSiteResult,
   buildSite,
+  type MediaFlags,
   type MediaRequest,
   mediaOptions,
+  mediaWith,
 } from "./application/build-site";
 export { type CensusResult, docsCensus, takeCensus } from "./application/census";
 export {

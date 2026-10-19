@@ -539,7 +539,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic docs build [options]
 ```
 
-Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate). --audio adds music and sound effects to the animations, --voice piper|system also narrates them, --video renders every animation as an MP4 on its page and names any it could not make. Without these flags it makes the media site.yaml asks for (media: audio, voice, video); recorded videos are reused until their animation changes.
+Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate). --audio adds music and sound effects to the animations, --voice piper|system also narrates them, --video renders every animation as an MP4 on its page and names any it could not make. It makes the media site.yaml asks for (media: audio, voice, video), each flag replacing only its own setting (--voice none for no narration); recorded videos are reused until their animation changes.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

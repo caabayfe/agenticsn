@@ -4,6 +4,37 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-19
+
+### Added
+
+- `accelerator install <pack> <instance>` (ADR-0038, spec 011): installs a pack's modules by a
+  plan the platform admin reads first. Without `--confirm` it writes the plan (components to
+  activate, each module's update set and source, out-of-box records it takes over, data, risks)
+  and changes nothing; with `--confirm <plan id>` it runs exactly that plan: components, each
+  module in dependency order through validate, plan and push into its own update set, then the
+  data, and commits the plan and a report. A run that stops resumes with the same command and
+  skips the modules it finished. Re-installing modules the branch already holds is an upgrade,
+  delivered together under one upgrade update set; a re-run may change records its own open
+  update sets hold.
+- Pack format 2: modules (`module.yaml`, with dependencies and the out-of-box records it takes
+  over in `adopt.yaml`), platform components and profiles, read from paths. `--profile`,
+  `--modules`, `--data` and `--demo` choose what is installed.
+- `take-over <table:sys_id...>` (ADR-0038 item 8): out-of-box records a project's source
+  declares whole, such as a form layout, become the branch's only while the platform's version
+  is untouched; a record the client customized is refused for review and nothing is written. An
+  install takes over a module's layouts before it plans the module.
+
+### Fixed
+
+- A built form carries the domain its composite wrapper names, and its sections compare by
+  caption, as the platform matches them on load: forms no longer show as not applied.
+- A reference written by keys (`Now.ref`) is held as its keys, so a build's random id no longer
+  shows as a difference.
+- Reading a project at a past commit goes through an archive file, not a pipe, which failed
+  intermittently.
+- The dictionary attribute the platform adds to a new table is accepted.
+
 ## [2.3.0] - 2026-10-18
 
 ### Added

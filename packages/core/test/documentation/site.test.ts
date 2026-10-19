@@ -466,6 +466,9 @@ describe("docs build: sound by the reader's choice", () => {
     const { file } = await build();
     const player = file("animations/asg.html");
     expect(player).toContain('root.addEventListener("click", playButton)');
+    // The sound button says what a click does, so a reader never turns sound off by mistake.
+    expect(player).toContain('Turn sound off"');
+    expect(player).not.toContain("Narration on");
     expect(player).toContain("parent.postMessage({ snagenticSound: on }");
     expect(player).toContain("d.snagenticActivate && !activated");
   });

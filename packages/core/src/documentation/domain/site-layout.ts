@@ -40,9 +40,10 @@ export function prefixOf(file: string): string {
 
 // Talks to the players on the page; nothing else is accepted. Sizes each from its height message,
 // remembers the reader's sound choice across pages (localStorage; a sandboxed player can't), and
-// tells the players about the reader's first click, after which browsers allow sound.
+// tells the players about the reader's first click, after which browsers allow sound. Sound is on
+// until the reader turns it off: browsers play an animation muted until that first click.
 const PLAYERS_SCRIPT =
-  "<script>(function(){var K='snagentic-sound',on=false,act=false;try{on=localStorage.getItem(K)==='on';}catch(x){}" +
+  "<script>(function(){var K='snagentic-sound',on=true,act=false;try{on=localStorage.getItem(K)!=='off';}catch(x){}" +
   "var all=function(){return document.querySelectorAll('iframe.player');};" +
   "var send=function(f,m){try{f.contentWindow.postMessage(m,'*');}catch(x){}};" +
   "addEventListener('message',function(e){all().forEach(function(f){if(e.source!==f.contentWindow||!e.data)return;" +

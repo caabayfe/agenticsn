@@ -234,3 +234,149 @@ nothing.
 | Plugin activations take long or stall | Budget per component, resume by re-run, progress id journaled |
 | Fluent creates records in a child domain incorrectly | Spike S-H first; per-account variation as data until it passes |
 | PDI demo data makes the baseline less clean | Modules never depend on platform demo items; the baseline is rebuilt on a fresh instance |
+
+## 10. Execution: the first slice (2026-10-18, autonomous run)
+
+**Target to show:** on pdi2, one command installs the `core` profile of the ITSM pack from
+`ntt-accelerators`:
+
+```
+snagentic accelerator install itsm pdi2 --profile core              # writes the plan for the admin
+snagentic accelerator install itsm pdi2 --profile core --confirm <plan-id>
+```
+
+It checks components, pushes the `foundation` module into its own update set batch, loads the
+fictional demo company from the module's CSV files, and commits an install report. Running it
+again changes nothing. Evidence: the plan and report in git, the update sets and records on pdi2.
+
+**Order of work:**
+
+| Step | What | Milestones |
+|---|---|---|
+| 1 | S-G: the minimal pack on the Fluent route, live, before any change | S-G |
+| 2 | Pack format 2: modules in folders (`modules/<m>/module.yaml`), components (plugin or app), profiles, no pack scope, no waves; the minimal pack converted; demo data read from the pack | I1 |
+| 3 | Packs from a path: `snagentic.yaml` `accelerators.paths` | I1 |
+| 4 | S-D: anchors through a Fluent `ImportSet`, live | S-D, I7 |
+| 5 | The `foundation` module in `ntt-accelerators`: properties, import set tables and transform maps, schedules, demo CSVs; installed step by step with the existing commands | content phase 1 |
+| 6 | Install plan document and plan id; the orchestrator, journal and lock, on development | I4, I5 |
+| 7 | `install` live on pdi2, twice; evidence recorded here | – |
+
+**Left for later, by design:** the components-only install on test and production (I6) waits for
+ADR-0038 to be accepted; the store application installer (I3) waits for spike S-F; the scope
+gate rule (I2) waits for S-E; generated module sheet sections (I8).
+
+**What "top quality" means for content**, checked for every module:
+- out-of-box first: platform plugins and their configuration before anything new, and nothing
+  that changes an out-of-box record where an extension point exists;
+- CSDM-aligned data: offerings carry support group, schedule and criticality; roles only through
+  groups;
+- every switch is a documented property with a default and its variations;
+- every module reinstalls with nothing changed, and its sheet says what it does with a data flow.
+
+### Results of the first slice (2026-10-18)
+
+| Step | Result |
+|---|---|
+| 1. S-G | Passed on pdi2: the minimal pack added, validated, planned and pushed on the Fluent route into its own batch, demo data loaded from the pack. Its records already existed from spec 005's M7, so creation was proven by step 5 |
+| 2–3. Format 2, pack paths | Built (`211789a`). `ntt-accelerators/packs` is read from the workspace's `accelerators.paths`; store applications are checked against the store application inventory |
+| 4. S-D | Passed: `tools/spikes/s-d-anchors/README.md`. Anchors are created with their fixed sys_id by the transform's map script (`setNewGuidValue`), matched on it when reloaded or renamed; other rows match on their business key. Found and fixed: a new table's collection row was refused on the next plan (`1d98d22`) |
+| 5. foundation | `ntt-accelerators` module with 11 entities: 262 units pushed (2 min 9 s), 156 demo rows loaded in 58 s, a second load changes nothing. Roles reach users through groups; offerings carry support group, schedule and criticality |
+| 6. install | Built (`4bc6e77`): plan document, plan id, journal, lock, resume |
+| 7. install live | `accelerator install itsm pdi2 --profile incident --demo`: plan `d4bab70c992a5db6`, then confirmed: foundation skipped (already as built), incident-core 0.1.0 created (5 units into its own update set), data unchanged, mirror refreshed, plan and report committed in 2 min 41 s. The storyline's incidents INC0010024–26 were routed by offering, raised for a VIP and fell back to the Service Desk as the sheet says |
+
+Found on the way, for the next steps:
+
+- **Choices are checked only on the instance.** A demo row with an inactive time zone was rejected
+  by the transform (correctly, with its reason) but only at load time. `validate-data` could check
+  choice values against the mirror before any load.
+- **`install` needs the keys step.** After `add`, the build's IDs must be committed (SN-MNT-010);
+  install does it through `fluent-keys` for the files the module copied.
+- **Activation of an inactive plugin** is wired and unit-tested but not exercised live: every
+  component was already active on pdi2.
+- **Left on pdi2:** the S-D probe table and transform map (update set "acc-sd probe"), the minimal
+  pack's update sets, three demo incidents.
+
+| Milestone | Status |
+|---|---|
+| I1 modules, components, profiles, pack paths | Done |
+| I4 install plan and plan id | Done |
+| I5 orchestrator, journal, lock (development) | Done |
+| I7 anchors and the demo data exception | Done, except the finding for metadata that references a non-anchor record |
+| I2, I3, I6, I8, I9 | Open (I6 waits for ADR-0038's acceptance; I3 for S-F; I2 for S-E) |
+
+## 11. Second slice: incident-relations and incident-task (2026-10-18)
+
+**Owner principle (2026-10-18): accelerators are agnostic to what exists on the instance.**
+A module must give the same result on a fresh instance, on a heavily customized one, and on
+one where it already ran. Concretely:
+1. it **adds**, and never replaces configuration a client may have changed (a form layout, a
+   related list, an out-of-box SLA);
+2. it finds existing records by **business key** (the incident Default view; the SLA named "P1
+   resolution"), never by an id seen on one instance;
+3. it states what it expects, and the install plan shows what is missing and what it will do
+   (create, skip or block);
+4. it never overwrites a client's customization silently.
+
+What was installed on pdi2 (`accelerator install itsm pdi2 --profile incident-advanced --demo`):
+- **`incident-relations` 0.1.0** (5 units): the Related Changes relationship and the
+  child-resolves-with-parent rule;
+- **`incident-task` 0.1.0** (11 units): task field inheritance, no resolution with active tasks
+  unless confirmed, the "all tasks complete" note, and the classic-form button and
+  confirmation.
+
+Each module went into its own update set. An update to a module re-pushed only the 2 changed
+rules.
+
+**Tested on pdi2 through the API:**
+- a task inherits the incident's fields, and one given its own values keeps them;
+- resolving an incident with an active task is refused.
+
+The classic-form confirmation (an onSubmit prompt, then the GlideAjax session flag) needs a
+signed-in browser session and is not yet exercised.
+
+**Found, and the work it adds:**
+
+| # | Finding | Work |
+|---|---|---|
+| F1 | A resumed install planned a finished module again, taking in later modules' files | **Fixed** (`72bc463`): a resumed run skips the modules its journal records as finished |
+| F2 | The platform cut a business rule name to the field's 40 characters, so the push reported "not applied as built" and the next plan refused it | **I11, length guard:** `validate` checks built string values against the dictionary's `max_length` from the mirror's catalog, before any push |
+| F3 | Placing related lists on the incident form needs changes to out-of-box layout records, and plan refuses records this branch never adopted | **I10, ensure rules:** see below |
+| F4 | `incident-core`'s fallback group property holds the demo anchor's sys_id. With a client's own data and no demo, the group does not exist | **I12, settings as data:** property values that depend on data are loaded with the data (an entity targeting `sys_properties`, matched on `name`), so each environment sets its own. `incident-core` ships an empty default |
+| F5 | A record removed with the Table API was captured in the user's Default update set, and collided with the module's set | Spike tools only. Product removals go through snagentic |
+
+**I10 ensure rules (proposal; needs an ADR because it is a new content kind):**
+- **What a module declares:** `modules/<m>/ensure.yaml`, a list of declarative facts about
+  configuration it does not own. For example:
+  - "table `incident`, view `Default`, has the related list `incident_task.incident`";
+  - "the SLA definition named `Priority 1 resolution (1 hour)` is inactive".
+- **Planning:** each fact is resolved by business key against the mirror. The install plan
+  lists, for each fact:
+  - already true: nothing to do;
+  - missing: add it, appended after the client's own entries;
+  - target absent: skip, with the reason;
+  - conflicting: block for review.
+- **Applying:** on a development instance, the install applies each change into the module's
+  update set, so it promotes with the rest of the module. Facts are additive. A deactivation
+  never deletes.
+- **Supported kinds:** each kind is a small, tested operation, and nothing is free-form. The
+  first ones are:
+  - related list entries;
+  - form section fields;
+  - active flags.
+
+## 12. Third slice: SDK practice and validation in both interfaces (2026-10-18/19)
+
+The incident task was validated in Service Operations Workspace and in the classic UI, with
+browser recordings. What this needed and found:
+
+| # | Finding | Work |
+|---|---|---|
+| F6 | A take-over of an untouched out-of-box layout, for the SDK's whole-layout `Form()` | **Built:** the `take-over` command, and the install step before each module's push (`b3e1b8a`) |
+| F7 | The SDK writes a form's domain on its composite wrapper, and the platform matches sections by caption | **Fixed** (`authoring`) |
+| F8 | `Now.ref` by keys gets a new id every build; the platform does not resolve it for related list containers | **Fixed** in snagentic (keyed references held as keys); the pack restates shipped containers by their real sys_id |
+| F9 | Re-installs planned module by module mixed modules' changes; the working branch decides which modules are present | **Fixed:** upgrade mode, `present()`, collisions allowed with the install's own update sets |
+| F10 | Piping `git archive` into `tar` failed now and then | **Fixed:** the archive is written to a file |
+| F11 | Spike S-E: customizing a store application's scope (`sn_sow_inc`) through its own child update set | **Passed** |
+| F12 | Server modules are refused in configuration projects | `Now.include` is the SDK way for these projects |
+| F13 | The platform's `fluent/load` creates a related list entry but refuses to update or delete one ("invalid scope") | **I13 (new):** deliver `sys_ui_related_list` whole, entries inside, as the platform records it (as snagentic 1.x did), so related lists can change after their first install |
+| F14 | Record names over a field's length are cut by the platform (twice: a business rule, a data source) | **I11**, now urgent |

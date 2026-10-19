@@ -1,15 +1,14 @@
 import type { InventoryReader } from "../../plugins/index";
+import type { Selection } from "../domain/capability-graph";
 import { PackNotAddableError } from "../domain/errors";
 import { type Adoption, materialize } from "../domain/materialize";
 import { carried } from "../domain/upgrade";
 import type { PackSource, PackWorkspace } from "../ports";
 import { checkPack } from "./check-pack";
 
-export interface AddQuery {
+export interface AddQuery extends Selection {
   readonly pack: string;
   readonly instance: { readonly root: string; readonly name: string };
-  readonly waves?: readonly number[];
-  readonly capabilities?: readonly string[];
   readonly snagentic: string;
 }
 
@@ -30,7 +29,7 @@ export interface AddResult {
   readonly conflicts: readonly string[];
 }
 
-// Writes a pack's selected capabilities into the workspace: their Fluent source into the
+// Writes a pack's selected modules into the workspace: their Fluent source into the
 // projects under source/, committed to the pack branch and merged (ADR-0026, item 2, as amended
 // by ADR-0031), and lists the out-of-box records to adopt. Nothing on the instance changes;
 // plan_push and push deliver it.
@@ -44,7 +43,7 @@ export async function addPack(
 ): Promise<AddResult> {
   const check = await checkPack(deps, query);
   const problems = [
-    ...check.unknown.map((u) => `the pack has no capability ${u}`),
+    ...check.unknown.map((u) => `the pack has no ${u.startsWith("profile ") ? u : `module ${u}`}`),
     ...(check.report?.problems ?? []),
     ...(check.report?.capabilities ?? [])
       .filter((c) => c.state !== "ready")

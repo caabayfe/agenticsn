@@ -248,36 +248,39 @@ waivers:
 ### Accelerators
 
 An accelerator pack is ready-made Fluent source and data templates for one product area, in
-capabilities you install wave by wave (ADR-0026, ADR-0031). snagentic never activates plugins or
+modules you install by profile or one by one (ADR-0026, ADR-0031, ADR-0038). snagentic never activates plugins or
 loads data on its own, and a pack's source goes through `validate`, `plan-push` and `push` like
 your own:
 
 ```sh
 snagentic accelerator list
-snagentic accelerator check <pack> dev     # each capability: ready, needs-plugins, not-entitled or blocked
+snagentic accelerator check <pack> --instance dev  # each module: ready, needs-components, not-entitled or blocked
 snagentic accelerator add <pack> dev       # writes source/<scope>/..., on the branch accelerator/<pack>/dev, merged here
 snagentic adopt --instance dev <table>:<sys_id>   # for each record add lists, then edit it as its note says
 snagentic validate && snagentic plan-push  # then push as usual
 ```
 
-`check` reads the mirrored plugin list, so pull after activating a plugin; for a capability that
-is not ready it prints the commands that make it ready. `add` refuses until every selected
-capability is ready and the latest pull is integrated (`--waves` or `--capabilities` select
-fewer). It copies the pack's Fluent source into the projects under `source/`, and lists the
+`check` reads the mirrored plugin and application list, so pull after activating a plugin or
+installing an application; for a module that is not ready it prints the commands that make it
+ready, and it warns when the pack was not tested on the instance's platform release. `add`
+refuses until every selected module is ready and the latest pull is integrated. Without a
+selection it takes every module; `--profile <name>` takes a profile's modules and `--modules`
+names them one by one, each with the modules it depends on. It copies the pack's Fluent source into the projects under `source/`, and lists the
 out-of-box records the pack customizes: adopt each one, then make the change its note
 describes in the adopted source. snagentic never changes an out-of-box record for you. Adding
 the same version again changes nothing. A later version merges with your edits: conflicts are
 left for you, and a file the new version no longer ships is kept and reported, never deleted.
-The gate blocks a planned project that a capability no longer ready ships source into
+The gate blocks a planned project that a module no longer ready ships source into
 (SN-MNT-012).
 
 The pack's data (groups, locations, offerings) comes as CSV templates, one per entity. Fill
 them in a directory outside the workspace: customer data is never committed, and snagentic
-refuses a directory git tracks. After the push:
+refuses a directory git tracks. `--demo` uses the pack's own fictional demo data instead. After
+the push:
 
 ```sh
-snagentic accelerator validate-data <pack> ~/customer-data              # mandatory fields, references, repeated keys
-snagentic accelerator load <pack> dev ~/customer-data --confirm         # development instances only
+snagentic accelerator validate-data <pack> --data ~/customer-data       # mandatory fields, references, repeated keys
+snagentic accelerator load <pack> dev --data ~/customer-data --confirm  # development instances only
 ```
 
 `load` validates everything first, then posts one row per request through the pack's import set

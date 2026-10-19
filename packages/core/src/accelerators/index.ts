@@ -4,15 +4,30 @@ export { type AddQuery, type AddResult, addPack } from "./application/add-pack";
 export {
   checkPack,
   listPacks,
+  manifestOf,
   type PackCheck,
   type PackQuery,
   type PackSummary,
 } from "./application/check-pack";
 export { type EntityLoad, type LoadResult, loadData } from "./application/load-data";
 export { packFindings } from "./application/pack-gate";
-export { type DataQuery, validateData } from "./application/validate-data";
-export { dataOrder, selectCapabilities } from "./domain/capability-graph";
 export {
+  type InstallPlanDependencies,
+  type InstallQuery,
+  planInstall,
+} from "./application/plan-install";
+export {
+  type InstallResult,
+  type InstallRunDependencies,
+  installPack,
+} from "./application/run-install";
+export { type DataQuery, type DataSource, validateData } from "./application/validate-data";
+export { dataOrder, type Selection, selectCapabilities } from "./domain/capability-graph";
+export {
+  DataSourceRequiredError,
+  InstallBlockedError,
+  InstallLockedError,
+  InstallPlanChangedError,
   InvalidPackError,
   LoadConfirmationRequiredError,
   PackNotAddableError,
@@ -20,13 +35,25 @@ export {
   TemplatesInvalidError,
   TrackedDataError,
 } from "./domain/errors";
+export { installPlanDocument, installReportDocument } from "./domain/install-document";
+export {
+  type ComponentAction,
+  type InstallPlan,
+  type InstallRecord,
+  type InstallStepRecord,
+  installPlanId,
+  type PlannedComponent,
+  type PlannedEntity,
+  type PlannedModule,
+  plannedComponents,
+} from "./domain/install-plan";
 export { type ManifestOutcome, parseManifest } from "./domain/manifest";
 export type {
   Capability,
+  Component,
   DataColumn,
   DataEntity,
   Manifest,
-  PluginRequirement,
 } from "./domain/manifest-types";
 export {
   type Adoption,
@@ -36,17 +63,26 @@ export {
   materialize,
 } from "./domain/materialize";
 export {
+  demoPath,
+  isPackOnly,
+  moduleOf,
+  PACK_MANIFEST,
+  packDocument,
+  workspacePathOf,
+} from "./domain/pack-layout";
+export {
   type CapabilityReport,
   type CapabilityState,
-  type InstalledPlugin,
+  type ComponentCheck,
+  type ComponentState,
+  type InstalledComponent,
   olderThan,
-  type PluginCheck,
-  type PluginState,
   type PreflightReport,
   preflight,
 } from "./domain/preflight";
 export {
   type EntityReport,
+  stagingRow,
   type Template,
   type TemplateReport,
   validateTemplates,
@@ -56,6 +92,8 @@ export type {
   DataTemplates,
   ImportSetWriter,
   ImportStatus,
+  InstallJournal,
+  InstallSteps,
   PackSource,
   PackWorkspace,
 } from "./ports";

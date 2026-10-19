@@ -1,20 +1,21 @@
 import { checkPack, InstanceName, listPacks, VERSION } from "@snagentic/core";
 import { z } from "zod";
-import { PackSummary } from "./accelerator-list";
+import { PackSummary, SelectionInput, selectionOf } from "./accelerator-schemas";
 import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
-const Capability = z.object({
+const Module = z.object({
   id: z.string(),
-  wave: z.number(),
-  state: z.enum(["ready", "needs-plugins", "not-entitled", "blocked"]),
-  plugins: z
+  state: z.enum(["ready", "needs-components", "not-entitled", "blocked"]),
+  components: z
     .array(
       z.object({
+        kind: z.enum(["plugin", "app"]),
         id: z.string(),
         state: z.enum(["active", "inactive", "missing", "too-old"]),
         version: z.string().nullable(),
         minVersion: z.string().nullable(),
+        entitlement: z.enum(["free", "licensed"]),
       }),
     )
     .readonly(),
@@ -25,15 +26,14 @@ export const acceleratorCheck = defineUseCase({
   group: "accelerator",
   name: "check",
   description:
-    "Accelerator packs (ADR-0026): without a pack, list them; with one, what its capabilities " +
-    "install and, with an instance, whether they can be installed there: each capability's " +
-    "state (ready, needs-plugins, not-entitled, blocked) and the exact commands that fix it. " +
-    "Reads the mirror only, never the instance.",
+    "Accelerator packs (ADR-0026, ADR-0038): without a pack, list them; with one, the modules " +
+    "a profile or a list installs and, with an instance, whether they can be installed there: " +
+    "each module's state (ready, needs-components, not-entitled, blocked) and the exact " +
+    "commands that fix it. Reads the mirror only, never the instance.",
   input: z.object({
     pack: z.string().optional().describe("the pack id; omit to list the packs"),
-    instance: z.string().optional().describe("check against this instance's mirrored plugins"),
-    waves: z.array(z.number()).optional().describe("install these waves (default: all)"),
-    capabilities: z.array(z.string()).optional().describe("install these capabilities"),
+    instance: z.string().optional().describe("check against this instance's mirrored components"),
+    ...SelectionInput,
   }),
   output: z.object({
     packs: z.array(PackSummary).readonly(),
@@ -41,14 +41,15 @@ export const acceleratorCheck = defineUseCase({
     unknown: z.array(z.string()).readonly(),
     data: z.array(z.string()).readonly().describe("data entities to load, in order"),
     problems: z.array(z.string()).readonly(),
-    capabilities: z.array(Capability).readonly(),
+    warnings: z.array(z.string()).readonly(),
+    modules: z.array(Module).readonly(),
   }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
   mcpName: "accelerator",
   arguments: ["pack"],
   async handle(input, context) {
-    const empty = { selected: [], unknown: [], data: [], problems: [], capabilities: [] };
+    const empty = { selected: [], unknown: [], data: [], problems: [], warnings: [], modules: [] };
     if (input.pack === undefined) return { packs: await listPacks(context.packs), ...empty };
     const instance =
       input.instance === undefined
@@ -60,8 +61,7 @@ export const acceleratorCheck = defineUseCase({
         pack: input.pack,
         snagentic: VERSION,
         ...(instance === undefined ? {} : { instance }),
-        ...(input.waves === undefined ? {} : { waves: input.waves }),
-        ...(input.capabilities === undefined ? {} : { capabilities: input.capabilities }),
+        ...selectionOf(input),
       },
     );
     return {
@@ -70,7 +70,8 @@ export const acceleratorCheck = defineUseCase({
       unknown: result.unknown,
       data: result.data,
       problems: result.report?.problems ?? [],
-      capabilities: result.report?.capabilities ?? [],
+      warnings: result.report?.warnings ?? [],
+      modules: result.report?.capabilities ?? [],
     };
   },
   render(output) {
@@ -80,12 +81,15 @@ export const acceleratorCheck = defineUseCase({
     }
     return [
       `${pack.id} ${pack.version}: installs ${output.selected.join(", ")}`,
-      ...output.unknown.map((u) => `unknown capability: ${u}`),
+      ...output.unknown.map((u) => `unknown: ${u}`),
       ...output.problems.map((p) => `problem: ${p}`),
-      ...output.capabilities.flatMap((c) => [
-        `${c.state.padEnd(13)} ${c.id} (wave ${c.wave})`,
-        ...c.plugins.filter((p) => p.state !== "active").map((p) => `  plugin ${p.id}: ${p.state}`),
-        ...c.next.map((n) => `  next: ${n}`),
+      ...output.warnings.map((w) => `warning: ${w}`),
+      ...output.modules.flatMap((m) => [
+        `${m.state.padEnd(16)} ${m.id}`,
+        ...m.components
+          .filter((c) => c.state !== "active")
+          .map((c) => `  ${c.kind} ${c.id}: ${c.state}`),
+        ...m.next.map((n) => `  next: ${n}`),
       ]),
       output.data.length === 0 ? "" : `data to load, in order: ${output.data.join(", ")}`,
     ]
@@ -94,7 +98,7 @@ export const acceleratorCheck = defineUseCase({
   },
   exitCode: (output) =>
     output.problems.length + output.unknown.length > 0 ||
-    output.capabilities.some((c) => c.state !== "ready")
+    output.modules.some((m) => m.state !== "ready")
       ? 1
       : 0,
 });

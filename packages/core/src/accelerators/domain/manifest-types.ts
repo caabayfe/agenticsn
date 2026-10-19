@@ -1,6 +1,10 @@
-// An accelerator pack's manifest, accelerator.yaml (ADR-0026).
+// An accelerator pack's manifest (ADR-0026, format 2 by ADR-0038): accelerator.yaml for the pack,
+// and one modules/<module>/module.yaml per module. A module is called a capability in the code.
 
-export interface PluginRequirement {
+// A plugin or a store application a module needs, installed by the platform's installer.
+export interface Component {
+  readonly kind: "plugin" | "app";
+  // A plugin id, or an application's scope.
   readonly id: string;
   // null: any version.
   readonly minVersion: string | null;
@@ -23,18 +27,21 @@ export interface DataEntity {
   readonly columns: readonly DataColumn[];
   // The import set table; its transform map coalesces on `key`.
   readonly table: string;
+  // The table its transform map writes, shown in the install plan; null when not named.
+  readonly target: string | null;
   readonly key: readonly string[];
   // Entities that must be loaded first (their records are referenced).
   readonly after: readonly string[];
+  // Rows the pack owns carry a fixed sys_id in a sys_id column (ADR-0038, item 7): anchors.
+  readonly anchors: boolean;
 }
 
 export interface Capability {
   readonly id: string;
-  readonly wave: number;
-  // Names the capability's update sets.
+  // Names the module's update sets.
   readonly label: string;
   readonly dependsOn: readonly string[];
-  readonly plugins: readonly PluginRequirement[];
+  readonly components: readonly Component[];
   readonly data: readonly DataEntity[];
 }
 
@@ -42,7 +49,10 @@ export interface Manifest {
   readonly id: string;
   readonly version: string;
   readonly requires: { readonly snagentic: string };
-  readonly scope: string;
+  // Platform releases the pack was tested on (lowercase family names); empty: none recorded.
+  readonly tested: readonly string[];
+  // Named sets of modules, by profile id.
+  readonly profiles: Readonly<Record<string, readonly string[]>>;
   // By id.
   readonly capabilities: readonly Capability[];
 }

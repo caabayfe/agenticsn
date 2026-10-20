@@ -1,6 +1,6 @@
 # 010g. Open questions are records (ADR-0041)
 
-- Status: proposed; on-call piloted on paper (2026-10-20), nothing built
+- Status: accepted (2026-10-20); on-call piloted on paper, building
 
 ## 1. Why
 

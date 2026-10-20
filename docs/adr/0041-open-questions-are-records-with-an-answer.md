@@ -1,6 +1,6 @@
 # 0041. Open questions are records, each with someone to ask and an answer
 
-- Status: Proposed (2026-10-20)
+- Status: Accepted (product owner, 2026-10-20; piloted on on-call, pdi2)
 - Date: 2026-10-20
 - Requirements: G2 (explain an instance), ASR-09
 - Amends: 0036 (pages and evidence), 0040 (`status: question` features)

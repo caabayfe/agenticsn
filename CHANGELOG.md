@@ -4,14 +4,30 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-10-20
+
 ### Added
 
+- `docs census <process>` (ADR-0040) lists every application that reaches a process's tables,
+  from the mirror: form and workspace actions (also on the tables they extend, such as task),
+  business rules, client scripts, UI policies, notifications, SLA definitions, and tables that
+  refer to the process. `processes/<process>/features.yaml` gives each a decision (documented,
+  todo, out-of-scope or question) and records what only the screen shows (`seen`). `docs check`
+  warns about what no feature claims and fails a documented feature without real capabilities.
+  The IT guide shows a Features table on each process page and the coverage on its card.
+- Each record a page cites, and each record in a process's configuration index, links to its
+  form on the instance, from the workspace's instance profile. Screen evidence and the employee
+  guide stay unlinked.
+- Narration starts at the reader's first click on the page, unless they chose silence before.
 - An accelerator's `adopt.yaml` entry may say `when_absent: create` (ADR-0038, item 8): an
   out-of-box record that ships only with demo data is created from the module's source where
   the instance lacks it, instead of stopping the install. The plan says so for each record.
 
 ### Fixed
 
+- `docs build --video` (or `--audio`, `--voice`) replaces only its own setting in site.yaml's
+  media, so the voice site.yaml asks for is kept.
+- The sound button says what a click does ("Turn sound off", "Listen with sound").
 - A plan refuses a value longer than its field (spec 011, I11): the platform cut such values
   without an error (a business rule's and a data source's name), so the push reported them as
   not applied as built. The plan reads the lengths of the text fields of the tables it would

@@ -18,6 +18,9 @@ export interface Adoption {
   readonly table: string;
   readonly sysId: string;
   readonly note: string;
+  // What the install does where the instance lacks the record: stop for review, or create it
+  // from the module's source (a record that ships only with demo data, restated whole).
+  readonly whenAbsent: "stop" | "create";
 }
 
 export interface MaterializeInput {
@@ -52,18 +55,24 @@ const text = (entry: Readonly<Record<string, unknown>>, key: string) => {
 
 function adoptionsOf(capability: string, path: string, document: unknown, problems: string[]) {
   if (!Array.isArray(document)) {
-    problems.push(`${path}: a list of { table, sys_id, note }`);
+    problems.push(`${path}: a list of { table, sys_id, note, when_absent? }`);
     return [];
   }
   return document.flatMap((item: unknown, index): Adoption[] => {
     const entry =
       item !== null && typeof item === "object" ? Object.fromEntries(Object.entries(item)) : {};
-    const adoption = {
+    const whenAbsent = text(entry, "when_absent");
+    const adoption: Adoption = {
       capability,
       table: text(entry, "table"),
       sysId: text(entry, "sys_id"),
       note: text(entry, "note"),
+      whenAbsent: whenAbsent === "create" ? "create" : "stop",
     };
+    if (whenAbsent !== "" && whenAbsent !== "create") {
+      problems.push(`${path}: entry ${index + 1} when_absent can only be create`);
+      return [];
+    }
     if (adoption.table !== "" && SYS_ID.test(adoption.sysId) && adoption.note !== "") {
       return [adoption];
     }

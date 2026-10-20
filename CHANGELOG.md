@@ -19,6 +19,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   form on the instance, from the workspace's instance profile. Screen evidence and the employee
   guide stay unlinked.
 - Narration starts at the reader's first click on the page, unless they chose silence before.
+- An accelerator's `adopt.yaml` entry may say `when_absent: create` (ADR-0038, item 8): an
+  out-of-box record that ships only with demo data is created from the module's source where
+  the instance lacks it, instead of stopping the install. The plan says so for each record.
 
 ### Fixed
 
@@ -29,6 +32,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   without an error (a business rule's and a data source's name), so the push reported them as
   not applied as built. The plan reads the lengths of the text fields of the tables it would
   load, inherited fields included, and names the field and both lengths.
+- A resumed `accelerator install` delivers the module it stopped at in that module's own
+  update set: the stopped run had added the module's files, so the resume counted it as
+  installed before and moved it into the upgrade update set.
+- A project that does not build is reported with its first five errors, not only the first:
+  the first is often a consequence of a later one.
 
 ## [2.4.0] - 2026-10-19
 

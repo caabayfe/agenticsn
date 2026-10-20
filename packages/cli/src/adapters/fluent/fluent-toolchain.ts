@@ -14,8 +14,19 @@ import { fixConverted } from "@snagentic/core";
 import { fromCommit, fromWorkingTree } from "./build-in-copy";
 import { builtUnitOf, isEmptyUpdate } from "./built-units";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
+import type { FluentBuildError } from "./sdk-runtime";
 
 const NOT_SOURCE = new Set(["node_modules", "dist", ".now"]);
+const SHOWN_ERRORS = 5;
+
+// Every error the build reports, up to a few: the first is often a consequence of a later one
+// (an unresolved data pill of a step whose id the SDK refused).
+function buildErrors(errors: readonly FluentBuildError[]): string {
+  if (errors.length === 0) return "the build failed";
+  const shown = errors.slice(0, SHOWN_ERRORS).map((e) => `${e.file}:${e.line} ${e.message}`);
+  const more = errors.length > SHOWN_ERRORS ? ` and ${errors.length - SHOWN_ERRORS} more` : "";
+  return `${shown.join("; ")}${more}`;
+}
 
 // Source files of a project folder, project-relative, with their content.
 async function sourceFiles(root: string): Promise<Map<string, string>> {
@@ -76,16 +87,7 @@ export class SdkToolchain implements FluentToolchain {
     try {
       await fromWorkingTree(join(this.workspace, project.path))(copy);
       const outcome = await runtime.build(copy);
-      if (!outcome.success) {
-        const first = outcome.errors[0];
-        return {
-          ok: false,
-          message:
-            first === undefined
-              ? "the build failed"
-              : `${first.file}:${first.line} ${first.message}`,
-        };
-      }
+      if (!outcome.success) return { ok: false, message: buildErrors(outcome.errors) };
       const files = await builtFiles(copy);
       return { ok: true, units: unitsOf(files), files };
     } finally {

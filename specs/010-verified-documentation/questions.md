@@ -50,6 +50,10 @@ cites evidence `E09: { answered: Q11, how: …, result: … }`.
 | Q5 | The tracker page and the process card count | site |
 | Q6 | The skill: write questions, not sections; how to migrate a process | golden |
 | Q7 | Migrate pdi2's nine processes, one agent pass each, reviewed | `docs check` clean |
+| Q8 | `documentation/questions.yaml`, cited `[shared/Q01]`; the tracker's "Across processes" (amendment, item 7) | site, check |
+| Q9 | `possible-duplicate` (shared record across files, or near-identical wording) and `distinct` | check |
+| Q10 | `snagentic docs questions` with `--about`, `--search`, `--process`, `--status`; the skill looks first | use case, golden |
+| Q11 | Consolidate pdi2: one pass over all processes' questions, shared ones moved to the shared file | `docs check` without possible-duplicate |
 | later | `docs questions export` / `import`, if owners need it | — |
 
 ## 4. Pilot: on-call on paper

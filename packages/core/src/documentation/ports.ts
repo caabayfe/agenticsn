@@ -34,6 +34,10 @@ export interface DocumentationSources {
   theme?(): Promise<readonly ThemeFile[]>;
   // processes/<id>/features.yaml, parsed (ADR-0040).
   features?(): Promise<readonly { readonly path: string; readonly features: unknown }[]>;
+  // processes/<id>/questions.yaml, parsed (ADR-0041).
+  questions?(): Promise<readonly { readonly path: string; readonly questions: unknown }[]>;
+  // Sets questions[<id>].about[<index>].hash in a questions.yaml, keyed "<id>#<index>".
+  pinQuestions?(path: string, hashes: ReadonlyMap<string, string>): Promise<void>;
   // changes/<release>.md: one file per release, with its notes (ADR-0039).
   releases?(): Promise<readonly PageSource[]>;
   // Sets evidence.<id>.hash in a page's front matter, keeping the rest of the file as written.

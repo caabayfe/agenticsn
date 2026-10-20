@@ -4,6 +4,7 @@ import { featureProblems, type ProcessFeatures } from "./features";
 import { type DocPage, type PageProblem, pageProblems, type Section } from "./page";
 import type { Process, ProcessCapability } from "./process";
 import { animationsOf } from "./prose";
+import type { ProcessQuestions } from "./questions";
 import { referencesOf, resolveReference } from "./references";
 import { type Release, unknownReleasePages } from "./releases";
 import type { Scene } from "./scene";
@@ -20,6 +21,8 @@ export interface DocSet {
   readonly releases: readonly Release[];
   // processes/<id>/features.yaml (ADR-0040).
   readonly features: readonly ProcessFeatures[];
+  // processes/<id>/questions.yaml (ADR-0041).
+  readonly questions: readonly ProcessQuestions[];
 }
 
 const ERRORS = [
@@ -39,6 +42,8 @@ const ERRORS = [
   "unknown-guide-page",
   "unknown-release-page",
   "undocumented-feature",
+  "unknown-question",
+  "bad-question",
 ] as const;
 const WARNINGS = [
   "uncited-evidence",
@@ -50,6 +55,10 @@ const WARNINGS = [
   "unchecked-surface",
   "recheck-seen",
   "undecided-feature",
+  "answered-not-applied",
+  "unasked-question",
+  "question-may-be-moot",
+  "unstructured-question",
 ] as const;
 export const DOCS_PROBLEM_KINDS = [...ERRORS, ...WARNINGS] as const;
 export type DocsProblemKind = (typeof DOCS_PROBLEM_KINDS)[number];

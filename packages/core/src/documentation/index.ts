@@ -18,6 +18,7 @@ export {
   checkDocs,
   type DocsCheck,
   type EvidenceResult,
+  type QuestionAnchorResult,
 } from "./application/check-docs";
 export { configIndex } from "./application/config-index";
 export {
@@ -129,6 +130,14 @@ export {
   SEE_LINK,
   transcriptHtml,
 } from "./domain/prose";
+export {
+  type ProcessQuestions,
+  parseQuestions,
+  QUESTION_KINDS,
+  type Question,
+  type QuestionKind,
+  type QuestionStatus,
+} from "./domain/questions";
 export { type Resolved, referencesOf, resolveReference } from "./domain/references";
 export {
   NOTE_GUIDES,

@@ -26,6 +26,28 @@ export interface PinDocsResult {
 const pinnable = (check: DocsCheck) =>
   check.evidence.filter((item) => item.status === "changed" || item.status === "unpinned");
 
+// What open questions are about is pinned like evidence, so a later change is noticed.
+async function pinQuestions(
+  deps: CheckDocsDependencies,
+  check: DocsCheck,
+  query: PinDocsQuery,
+): Promise<void> {
+  const parts = query.page?.split("/") ?? [];
+  const process = parts[0] === "processes" ? parts[1] : parts[0];
+  const byFile = new Map<string, Map<string, string>>();
+  for (const item of check.questionAnchors ?? []) {
+    if (process !== undefined && !item.path.startsWith(`processes/${process}/`)) continue;
+    if (item.current === null || (item.status !== "changed" && item.status !== "unpinned"))
+      continue;
+    const hashes = byFile.get(item.path) ?? new Map<string, string>();
+    hashes.set(item.key, item.current);
+    byFile.set(item.path, hashes);
+  }
+  for (const [path, hashes] of byFile) {
+    await deps.sources.pinQuestions?.(path, hashes);
+  }
+}
+
 // `docs pin`: after the author has re-verified the claims, records the mirror's current hashes
 // so the next check compares with them.
 export async function pinDocs(
@@ -61,6 +83,7 @@ export async function pinDocs(
       await deps.sources.pinHashes(page.path, hashes);
     }
   }
+  await pinQuestions(deps, check, query);
   const brief = ({ page, id, anchor }: { page: string; id: string; anchor: string }) => ({
     page,
     id,

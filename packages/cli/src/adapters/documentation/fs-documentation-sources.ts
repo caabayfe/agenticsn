@@ -9,7 +9,7 @@ import {
   splitFrontMatter,
   type ThemeFile,
 } from "@snagentic/core";
-import { isMap, parse, parseDocument } from "yaml";
+import { isMap, isSeq, parse, parseDocument } from "yaml";
 
 const FOLDER = "documentation";
 
@@ -88,6 +88,17 @@ export class FsDocumentationSources implements DocumentationSources {
     return files;
   }
 
+  async questions() {
+    const files: { path: string; questions: unknown }[] = [];
+    for (const path of await list(this.root, "processes/*/questions.yaml")) {
+      files.push({
+        path,
+        questions: parsed(path, await readFile(join(this.root, path), "utf8")) ?? {},
+      });
+    }
+    return files;
+  }
+
   pages(): Promise<readonly PageSource[]> {
     return this.markdown(PAGES);
   }
@@ -129,6 +140,28 @@ export class FsDocumentationSources implements DocumentationSources {
       });
     }
     return scenes;
+  }
+
+  // Sets questions[i].about[j].hash for keys "<id>#<j>", keeping comments and order.
+  async pinQuestions(path: string, hashes: ReadonlyMap<string, string>): Promise<void> {
+    const file = join(this.root, path);
+    const document = parseDocument(await readFile(file, "utf8"));
+    const items = document.get("questions");
+    if (!isSeq(items)) return;
+    items.items.forEach((item, index) => {
+      if (!isMap(item)) return;
+      const id = String(item.get("id"));
+      for (const [key, hash] of hashes) {
+        const [question, anchor] = key.split("#");
+        if (
+          question === id &&
+          isMap(document.getIn(["questions", index, "about", Number(anchor)]))
+        ) {
+          document.setIn(["questions", index, "about", Number(anchor), "hash"], hash);
+        }
+      }
+    });
+    await writeFile(file, document.toString({ lineWidth: 0 }));
   }
 
   // Edits the front matter as a YAML document, so comments and order stay as the author wrote.

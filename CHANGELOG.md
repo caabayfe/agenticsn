@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- `accelerator install` checks the platform fields each module reads before anything changes
+  (ADR-0038 item 8, proposed amendment). A module lists them in `module.yaml` (`fields`, with
+  the plugin that ships each and `when_missing: stop | warn`); the fields its data columns fill
+  are added. The check reads the mirror, a table's parents included. A missing field blocks its
+  module, or is a warning saying what the module loses, and names the plugin to repair or
+  activate. The plan lists the missing fields and counts the rest.
+
 ## [2.5.0] - 2026-10-20
 
 ### Added

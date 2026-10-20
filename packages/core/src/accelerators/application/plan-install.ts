@@ -11,7 +11,9 @@ import {
 import type { Manifest } from "../domain/manifest-types";
 import { materialize } from "../domain/materialize";
 import { moduleOf } from "../domain/pack-layout";
-import type { DataTemplates, PackSource, PackWorkspace } from "../ports";
+import { fieldIssues, requiredFields } from "../domain/required-fields";
+import type { DataTemplates, PackSource, PackWorkspace, SchemaReader } from "../ports";
+import { checkFields } from "./check-fields";
 import { checkPack, manifestOf, selectionOf } from "./check-pack";
 import { type DataSource, validateData } from "./validate-data";
 
@@ -27,6 +29,27 @@ export interface InstallPlanDependencies {
   readonly inventory: InventoryReader;
   readonly workspace: PackWorkspace;
   readonly templates: DataTemplates;
+  // The mirror's tables, for the platform fields the modules read (plan gap G13).
+  readonly schema: SchemaReader;
+}
+
+// The selected modules' platform fields against the mirror; none checked before its first pull.
+async function plannedFields(
+  deps: InstallPlanDependencies,
+  manifest: Manifest,
+  selected: readonly string[],
+  instance: string,
+) {
+  const modules = manifest.capabilities.filter((c) => selected.includes(c.id));
+  if (!modules.some((m) => requiredFields(m).length > 0)) {
+    return { fields: [], problems: [], warnings: [] };
+  }
+  if (!(await deps.schema.ready())) {
+    const problem = `pull ${instance} first: the mirror holds no tables, so the fields the modules read cannot be checked`;
+    return { fields: [], problems: [problem], warnings: [] };
+  }
+  const fields = await checkFields(modules, deps.schema);
+  return { fields, ...fieldIssues(fields) };
 }
 
 // What each selected module writes on its own, and its update set's label.
@@ -89,6 +112,7 @@ export async function planInstall(
     rows: data.entities.find((d) => d.entity === e.entity)?.rows ?? 0,
     anchors: e.anchors,
   }));
+  const required = await plannedFields(deps, manifest, selected, query.instance.name);
   const mirrorCommit = (await deps.workspace.mirrorCommit()) ?? "";
   const problems = [
     ...check.unknown.map((u) => `the pack has no ${u.startsWith("profile ") ? u : `module ${u}`}`),
@@ -96,6 +120,7 @@ export async function planInstall(
       ? [`pull ${query.instance.name} first: the mirror has no component inventory`]
       : []),
     ...blockingProblems(components, report),
+    ...required.problems,
     ...built.problems,
     ...data.entities.flatMap((e) => e.problems.map((p) => `data ${e.entity}: ${p}`)),
   ];
@@ -106,9 +131,10 @@ export async function planInstall(
     selection,
     modules: built.modules,
     components,
+    fields: required.fields,
     data: { source: query.source.kind, entities },
     problems,
-    warnings: report.warnings,
+    warnings: [...report.warnings, ...required.warnings],
     basis: { mirrorCommit, content: contentOf(files, selected) },
   };
   return { ...plan, planId: installPlanId(plan) };

@@ -3,6 +3,7 @@ import type {
   InstallRecord,
   InstallStepRecord,
   PlannedComponent,
+  PlannedField,
 } from "./install-plan";
 
 // The install plan and report as Markdown, written for the platform admin who approves the
@@ -64,6 +65,41 @@ function components(plan: InstallPlan): string[] {
         `${ACTION[c.action]}${c.action === "none" ? "" : `: ${c.reason}`}`,
       ]),
     ),
+    "",
+    ...fields(plan.fields),
+  ];
+}
+
+function fieldAction(f: PlannedField): string {
+  if (f.whenMissing === "warn") return `install anyway: ${f.note ?? "the module works without it"}`;
+  return "**blocked**: repair or activate the plugin that ships it, then pull";
+}
+
+// The platform fields the modules read (plan gap G13): a missing one blocks its module, unless
+// the module declared it can do without. Present fields are only counted.
+function fields(planned: readonly PlannedField[]): string[] {
+  const missing = planned.filter((f) => f.state !== "present");
+  const present = planned.length - missing.length;
+  if (planned.length === 0) return [];
+  return [
+    "**Platform fields the modules read**, checked against the mirror:",
+    "",
+    ...(missing.length === 0
+      ? [`All ${present} field(s) are on the instance.`]
+      : [
+          ...table(
+            ["Field", "Module", "On the instance", "Ships with", "The install will"],
+            missing.map((f) => [
+              `\`${f.table}.${f.field}\``,
+              f.module,
+              `**${f.state === "missing" ? "missing" : "no table"}**`,
+              f.from ?? "–",
+              fieldAction(f),
+            ]),
+          ),
+          "",
+          `The other ${present} field(s) the modules read are on the instance.`,
+        ]),
   ];
 }
 

@@ -139,3 +139,12 @@ export interface InstallJournal {
   lock(): Promise<boolean>;
   unlock(): Promise<void>;
 }
+
+// The instance's tables as the mirror holds them, read without calling the instance (ADR-0026):
+// what the install plan checks a module's required fields against (plan gap G13).
+export interface SchemaReader {
+  // Whether the mirror holds any table yet (false before the first pull).
+  ready(): Promise<boolean>;
+  // A table's fields, its parents' included; null when the mirror has no such table.
+  fieldsOf(table: string): Promise<readonly string[] | null>;
+}

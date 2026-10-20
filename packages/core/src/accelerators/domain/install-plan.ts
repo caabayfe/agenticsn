@@ -3,6 +3,7 @@ import { sha256Hex } from "../../kernel/sha256";
 import type { Selection } from "./capability-graph";
 import type { Adoption } from "./materialize";
 import type { ComponentCheck, PreflightReport } from "./preflight";
+import type { FieldCheck } from "./required-fields";
 
 // The install plan a platform admin approves by its id before anything changes (ADR-0038,
 // items 2 and 3). Pure: built from the pack, the selection and the instance's mirrored facts.
@@ -40,6 +41,9 @@ export interface PlannedEntity {
   readonly anchors: boolean;
 }
 
+// A platform field a module reads, as the mirror shows it (plan gap G13).
+export type PlannedField = FieldCheck;
+
 export interface InstallPlan {
   readonly planId: string;
   readonly pack: string;
@@ -49,6 +53,8 @@ export interface InstallPlan {
   // Module ids, dependencies first.
   readonly modules: readonly PlannedModule[];
   readonly components: readonly PlannedComponent[];
+  // The platform fields the modules read, each with its state on the instance.
+  readonly fields: readonly PlannedField[];
   readonly data: {
     readonly source: "demo" | "directory";
     readonly entities: readonly PlannedEntity[];
@@ -120,6 +126,7 @@ export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
       version: c.version,
       action: c.action,
     })),
+    fields: plan.fields.map((f) => `${f.module} ${f.table}.${f.field} ${f.state}`),
     data: {
       source: plan.data.source,
       entities: plan.data.entities.map((e) => ({ entity: e.entity, rows: e.rows })),

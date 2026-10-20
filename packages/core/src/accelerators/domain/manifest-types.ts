@@ -17,6 +17,20 @@ export interface DataColumn {
   readonly required: boolean;
   // The entity whose business key this column holds, or null.
   readonly references: string | null;
+  // The target table's field the column fills, or null when the manifest does not name it.
+  readonly field: string | null;
+}
+
+// A platform field a module reads, which the instance must have (plan gap G13): checked against
+// the mirror before an install. `stop` blocks the module; `warn` installs it, saying what is lost.
+export interface RequiredField {
+  readonly table: string;
+  readonly field: string;
+  // The plugin that ships the field, to repair or activate when it is missing; null when unnamed.
+  readonly from: string | null;
+  readonly whenMissing: "stop" | "warn";
+  // What the module loses without it (for `warn`).
+  readonly note: string | null;
 }
 
 // A kind of record the pack loads per instance through an import set table (spike S-B).
@@ -43,6 +57,8 @@ export interface Capability {
   readonly dependsOn: readonly string[];
   readonly components: readonly Component[];
   readonly data: readonly DataEntity[];
+  // Declared in module.yaml's `fields`; the data columns' fields are added when checked.
+  readonly fields: readonly RequiredField[];
 }
 
 export interface Manifest {

@@ -380,3 +380,22 @@ browser recordings. What this needed and found:
 | F12 | Server modules are refused in configuration projects | `Now.include` is the SDK way for these projects |
 | F13 | The platform's `fluent/load` creates a related list entry but refuses to update or delete one ("invalid scope") | **I13 (new):** deliver `sys_ui_related_list` whole, entries inside, as the platform records it (as snagentic 1.x did), so related lists can change after their first install |
 | F14 | Record names over a field's length are cut by the platform (twice: a business rule, a data source) | **I11**, now urgent |
+
+## 13. Platform fields and plugin repair (2026-10-20, autonomous run)
+
+The ITSM pack's major-incident module found that pdi2 lacks `incident.problem_id`, `rfc` and
+`caused_by` (pack gap G13): absent from the dictionary and from every mirror since the first full
+pull (2026-10-12), with no deletion in the audit or an update set. The product owner asked for a
+check before installs and for a repair function, and delegated the decisions.
+
+| # | Item | State |
+|---|---|---|
+| I14 | **Platform fields check:** `fields` in module.yaml, data column fields added; the install plan checks them against the mirror through the knowledge index (`mirrorSchema`), blocks or warns, names the plugin; ADR-0038 item 8, proposed amendment | **Built** (branch `feat/accelerator-field-check`); live on pdi2: of the 93 fields the ITSM modules read, it reports exactly `incident.caused_by`, `incident.rfc` (incident-relations) and `incident.problem_id` (major-incident) |
+| S-R | **Spike, plugin repair:** does the App Manager's repair (`GET /api/sn_appclient/v1/appmanager/plugin/repair?plugin_id=<id>&load_demo_data=false`, an internal API; it reinstalls the plugin and its dependencies, overwriting changes to their records) restore deleted dictionary entries? | **Not run:** starting the repair needs the owner's approval in the session (it cannot be undone). The first candidate is `com.snc.incident`, which ships the incident table's base fields |
+| I15 | **`plugins repair`:** plan (what the repair overwrites, from the mirror; which missing fields should come back), then `--confirm`: start, follow, pull, compare; development only | Waits for S-R. If the spike shows deleted records are not restored, it is not built, and a factory reset is the advice for such an instance |
+
+Decisions taken under the owner's delegation (to confirm): F1 declare fields by hand plus data
+columns automatically; F2 `stop` by default; F3 check the mirror, not the instance; F4 name the
+plugin. The plan lists only the fields not on the instance, and counts the rest (93 rows were
+unreadable).
+

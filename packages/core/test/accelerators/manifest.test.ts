@@ -80,6 +80,7 @@ describe("accelerator manifest (ADR-0026, ADR-0038)", () => {
         { kind: "app", id: "sn_oncall_mobile", minVersion: "2.1.0", entitlement: "licensed" },
       ],
       data: [],
+      fields: [],
     });
     expect(manifest.capabilities[0]?.data.map((d) => [d.entity, d.anchors])).toEqual([
       ["company", false],

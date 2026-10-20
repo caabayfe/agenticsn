@@ -1,6 +1,7 @@
 // Public API of the accelerators context (ADR-0026).
 
 export { type AddQuery, type AddResult, addPack } from "./application/add-pack";
+export { checkFields } from "./application/check-fields";
 export {
   checkPack,
   listPacks,
@@ -10,6 +11,7 @@ export {
   type PackSummary,
 } from "./application/check-pack";
 export { type EntityLoad, type LoadResult, loadData } from "./application/load-data";
+export { mirrorSchema } from "./application/mirror-schema";
 export { packFindings } from "./application/pack-gate";
 export {
   type InstallPlanDependencies,
@@ -44,6 +46,7 @@ export {
   installPlanId,
   type PlannedComponent,
   type PlannedEntity,
+  type PlannedField,
   type PlannedModule,
   plannedComponents,
 } from "./domain/install-plan";
@@ -54,6 +57,7 @@ export type {
   DataColumn,
   DataEntity,
   Manifest,
+  RequiredField,
 } from "./domain/manifest-types";
 export {
   type Adoption,
@@ -81,6 +85,12 @@ export {
   preflight,
 } from "./domain/preflight";
 export {
+  type FieldCheck,
+  type FieldState,
+  fieldIssues,
+  requiredFields,
+} from "./domain/required-fields";
+export {
   type EntityReport,
   stagingRow,
   type Template,
@@ -96,4 +106,5 @@ export type {
   InstallSteps,
   PackSource,
   PackWorkspace,
+  SchemaReader,
 } from "./ports";

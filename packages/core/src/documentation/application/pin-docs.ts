@@ -15,6 +15,8 @@ export interface PinDocsResult {
     readonly id: string;
     readonly anchor: string;
   }[];
+  // What open questions are about, pinned in questions.yaml (ADR-0041): path, <id>#<index>.
+  readonly questions: readonly { readonly path: string; readonly key: string }[];
   // Evidence whose record is gone: nothing to pin, the claim must be rewritten.
   readonly missing: readonly {
     readonly page: string;
@@ -31,7 +33,7 @@ async function pinQuestions(
   deps: CheckDocsDependencies,
   check: DocsCheck,
   query: PinDocsQuery,
-): Promise<void> {
+): Promise<readonly { readonly path: string; readonly key: string }[]> {
   const parts = query.page?.split("/") ?? [];
   const process = parts[0] === "processes" ? parts[1] : parts[0];
   const byFile = new Map<string, Map<string, string>>();
@@ -46,6 +48,7 @@ async function pinQuestions(
   for (const [path, hashes] of byFile) {
     await deps.sources.pinQuestions?.(path, hashes);
   }
+  return [...byFile].flatMap(([path, hashes]) => [...hashes.keys()].map((key) => ({ path, key })));
 }
 
 // `docs pin`: after the author has re-verified the claims, records the mirror's current hashes
@@ -83,7 +86,7 @@ export async function pinDocs(
       await deps.sources.pinHashes(page.path, hashes);
     }
   }
-  await pinQuestions(deps, check, query);
+  const questions = await pinQuestions(deps, check, query);
   const brief = ({ page, id, anchor }: { page: string; id: string; anchor: string }) => ({
     page,
     id,
@@ -91,6 +94,7 @@ export async function pinDocs(
   });
   return {
     pinned: toPin.map(brief),
+    questions,
     missing: check.evidence.filter((item) => item.status === "missing").map(brief),
   };
 }

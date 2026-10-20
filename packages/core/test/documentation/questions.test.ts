@@ -194,7 +194,8 @@ describe("docs pin: questions", () => {
         },
       ],
     });
-    await pinDocs({ ...run, sources }, {});
+    const result = await pinDocs({ ...run, sources }, {});
     expect(pinned.get(PATH)).toEqual(new Map([["Q01#0", "aaa"]]));
+    expect(result.questions).toEqual([{ path: PATH, key: "Q01#0" }]);
   });
 });

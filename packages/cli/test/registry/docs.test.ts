@@ -134,6 +134,14 @@ describe("snagentic docs", () => {
       "pinned 1 evidence\n  processes/incident/configure/assign.md E01",
     );
     expect(readFileSync(join(root, PAGE), "utf8")).toContain("hash: h1");
+    expect(
+      docsPin.render(
+        { ...pinned, questions: [{ path: "processes/incident/questions.yaml", key: "Q01#0" }] },
+        "text",
+      ),
+    ).toContain(
+      "pinned 1 records that open questions are about\n  processes/incident/questions.yaml Q01#0",
+    );
 
     write(RECORD, "_meta:\n  hash: h2\nname: Set group\n");
     const stale = await docsCheck.handle({}, context(), run);

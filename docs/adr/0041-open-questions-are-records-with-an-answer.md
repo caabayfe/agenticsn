@@ -1,6 +1,7 @@
 # 0041. Open questions are records, each with someone to ask and an answer
 
-- Status: Accepted (product owner, 2026-10-20; piloted on on-call, pdi2)
+- Status: Accepted (product owner, 2026-10-20; piloted on on-call, pdi2); amended 2026-10-20
+  (items 7–9: questions shared across processes)
 - Date: 2026-10-20
 - Requirements: G2 (explain an instance), ASR-09
 - Amends: 0036 (pages and evidence), 0040 (`status: question` features)
@@ -61,6 +62,25 @@ in 109 sections on 100 pages, and 41 feature notes. They can't be tracked:
    (`docs questions export`, `docs questions import`) is a later step, built only if owners need
    it.
 
+### Amendment (2026-10-20): one question, however many processes ask it
+
+Migrating pdi2 process by process left duplicates across processes: 20 records are the `about`
+of questions in several processes, and 16 pairs from different processes are worded almost
+alike (SMS through Notify is asked in four, alert simulation word for word in two).
+
+7. **Questions about the instance live once, in `documentation/questions.yaml`**, cited as
+   `[shared/Q01]`: a platform setting that several processes depend on (Notify, the inbound
+   email address, AI Search). `who` may be any process's role. The tracker lists them first,
+   "Across processes", with every page in every process each one holds back. A question that
+   has the same shape but a different answer per process (do automation errors create change
+   tasks, and incident tasks?) is one shared question naming the processes in its `ask`.
+8. **`docs check` warns `possible-duplicate`** for two open questions in different files that
+   are about the same record, or for any two whose wording is nearly the same. When they truly
+   differ, `distinct: [incident/Q31]` on one of them silences the warning.
+9. **`snagentic docs questions` lists the questions**, filtered by record (`--about`), by words
+   (`--search`), by process or by status, so an author finds the existing question before
+   writing a new one. The skill makes this the first step of asking.
+
 ## Consequences
 
 - Each unknown is asked once, of one role, and closes once; the owner gets a short list of
@@ -70,6 +90,10 @@ in 109 sections on 100 pages, and 41 feature notes. They can't be tracked:
   values can mostly be closed by the next walk or a better mirror read, without the owner.
 - Migration is work: each process's sections are rewritten as citations by an agent pass and
   reviewed. Until then the old sections still build, with a warning.
+- Cross-process duplicates are found by the check and prevented by the lookup; a shared
+  question is answered once for every process it holds back.
+- The duplicate warning is a heuristic: shared records and similar wording find most
+  duplicates, and an author can mark the pair it misjudges as `distinct`.
 - An answer no page applies is visible, so documentation can't silently lag behind decisions.
 - `question-may-be-moot` depends on the question naming the right records; a question about
   something absent from the mirror (a table with no records) can't be noticed this way.

@@ -46,6 +46,8 @@ export interface SiteInput {
   readonly features?: readonly ProcessFeatures[];
   // The client's theme files, by path inside documentation/theme/.
   readonly theme?: readonly { readonly path: string; readonly content: Uint8Array }[];
+  // The instance's address, from the workspace's profile, to link cited records to their forms.
+  readonly instanceUrl?: string;
 }
 
 export interface Built {
@@ -184,7 +186,11 @@ export function verification(b: Built, page: DocPage, folded: boolean): string {
   if (page.evidence.length === 0) {
     return "";
   }
-  const table = evidenceTable(page.evidence, b.input.statuses.get(page.path) ?? new Map());
+  const table = evidenceTable(
+    page.evidence,
+    b.input.statuses.get(page.path) ?? new Map(),
+    b.input.instanceUrl,
+  );
   return folded
     ? `<details class="verified"><summary>How this page was checked (${page.evidence.length} records)</summary>${table}</details>`
     : `<h2 id="evidence">Evidence</h2>${table}`;

@@ -4,7 +4,7 @@ import { type PlayerMedia, playerHtml } from "../domain/player";
 import type { Scene } from "../domain/scene";
 import { siteFiles } from "../domain/site";
 import type { SiteMedia } from "../domain/site-config";
-import type { MarkdownRenderer, MediaTools, SiteOutput } from "../ports";
+import type { MarkdownRenderer, MediaTools, MirrorRecords, SiteOutput } from "../ports";
 import { type AudioOptions, audioTrack } from "./audio-tracks";
 import {
   assessDocumentation,
@@ -13,12 +13,15 @@ import {
   todayOf,
 } from "./check-docs";
 import { configIndex } from "./config-index";
-import { loadDocumentation } from "./load-documentation";
+import { type Documentation, loadDocumentation } from "./load-documentation";
 
 export interface BuildSiteDependencies extends CheckDocsDependencies {
   readonly markdown: MarkdownRenderer;
   readonly output: SiteOutput;
   readonly media: MediaTools;
+  // The address of the instance named in site.yaml, from the workspace's profiles; null when the
+  // workspace has no profile for it, and the records are then named without links.
+  readonly instanceUrl?: (instance: string) => Promise<string | null>;
 }
 
 export interface BuildSiteOptions {
@@ -133,6 +136,19 @@ function optionsOf(
   return "flags" in given ? mediaWith(given.flags, site) : given;
 }
 
+async function indexesOf(
+  docs: Documentation,
+  mirror: MirrorRecords,
+  check: DocsCheck,
+  signal: AbortSignal,
+): Promise<ReadonlyMap<string, ConfigIndex>> {
+  const indexes = new Map<string, ConfigIndex>();
+  for (const process of docs.processes) {
+    indexes.set(process.id, await configIndex(docs, process, mirror, check, signal));
+  }
+  return indexes;
+}
+
 // `docs build`: the static site, with each page's evidence status as of now. A stale page is
 // built and says so; `docs check` is the gate. Without options it makes the media site.yaml asks
 // for; with flags, site.yaml with the flags over it.
@@ -163,10 +179,8 @@ export async function buildSite(
     audio,
     options.video,
   );
-  const indexes = new Map<string, ConfigIndex>();
-  for (const process of docs.processes) {
-    indexes.set(process.id, await configIndex(docs, process, mirror, check, deps.signal));
-  }
+  const indexes = await indexesOf(docs, mirror, check, deps.signal);
+  const instanceUrl = (await deps.instanceUrl?.(docs.config.instance)) ?? null;
   const files = siteFiles({
     config: docs.config,
     processes: docs.processes,
@@ -182,6 +196,7 @@ export async function buildSite(
     theme: (await deps.sources.theme?.()) ?? [],
     releases: docs.releases,
     features: docs.features,
+    ...(instanceUrl === null ? {} : { instanceUrl }),
   });
   await deps.output.replace(files);
   return {

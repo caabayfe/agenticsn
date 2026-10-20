@@ -148,7 +148,12 @@ async function deliver(
   const finished = new Set(
     record.current.steps.filter((s) => s.outcome !== "stopped").map((s) => s.step),
   );
-  const before = await installedBefore(deps, plan);
+  // A module this install's journal records was added by this install, not before it: a resumed
+  // run keeps it in its own update set although the workspace now holds its files.
+  const journaled = new Set(record.current.steps.map((s) => s.step));
+  const before = (await installedBefore(deps, plan)).filter(
+    (m) => !journaled.has(`module ${m.id}`),
+  );
   const done = before.map((m) => m.id);
   const upgradeLabel = `${plan.pack} ${plan.version} upgrade`;
   // Every update set this install names, in this run or an earlier one.

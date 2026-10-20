@@ -500,6 +500,32 @@ describe("running an install (ADR-0038, item 2)", () => {
     ).toBe(true);
   });
 
+  it("resumes a stopped module in its own update set, though the workspace holds its files", async () => {
+    const first = fakeSteps({ notApplied: { incident: 1 } });
+    const { journal } = memoryJournal();
+    const plan = await planInstall(deps(READY), QUERY);
+    await installPack(deps(READY, { steps: first.steps, journal }), {
+      ...QUERY,
+      confirm: plan.planId,
+    });
+    // The stopped run added both modules to the workspace: neither was installed before it.
+    const second = fakeSteps();
+    const resumed = await installPack(
+      {
+        ...deps(READY, { steps: second.steps, journal }),
+        workspace: workspace("m1", [
+          "source/global/src/fluent/imports.now.ts",
+          "source/global/src/fluent/incident.now.ts",
+        ]),
+      },
+      { ...QUERY, confirm: plan.planId },
+    );
+    expect(second.calls.filter((c) => c.startsWith("plan"))).toEqual(["plan ITSM: incident 0.1.0"]);
+    expect(resumed.steps.map((s) => s.step)).not.toContain(
+      "modules already installed: foundation, incident",
+    );
+  });
+
   it("re-installs the modules already in the workspace together, under one upgrade update set", async () => {
     const { steps, calls } = fakeSteps();
     const ready = {

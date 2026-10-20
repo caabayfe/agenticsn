@@ -25,6 +25,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - `docs build --video` (or `--audio`, `--voice`) replaces only its own setting in site.yaml's
   media, so the voice site.yaml asks for is kept.
 - The sound button says what a click does ("Turn sound off", "Listen with sound").
+- A plan refuses a value longer than its field (spec 011, I11): the platform cut such values
+  without an error (a business rule's and a data source's name), so the push reported them as
+  not applied as built. The plan reads the lengths of the text fields of the tables it would
+  load, inherited fields included, and names the field and both lengths.
 
 ## [2.4.0] - 2026-10-19
 

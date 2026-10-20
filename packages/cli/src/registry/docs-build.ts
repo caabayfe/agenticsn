@@ -1,4 +1,4 @@
-import { buildSite, type MediaRequest } from "@snagentic/core";
+import { buildSite, listInstances, type MediaRequest } from "@snagentic/core";
 import { z } from "zod";
 import { checkLines, DocsProblemSchema, EvidenceResultSchema } from "./docs-check";
 import { defineUseCase, type UseCaseContext } from "./use-case";
@@ -40,7 +40,13 @@ export async function buildDocs(
 ) {
   const root = await workspaceRoot(context);
   const docs = context.documentation(root);
-  const built = await buildSite({ ...docs, root, signal, clock: context.clock }, { flags: input });
+  const instanceUrl = async (instance: string) =>
+    (await listInstances(root, context.profiles)).find((profile) => profile.name === instance)
+      ?.url ?? null;
+  const built = await buildSite(
+    { ...docs, root, signal, clock: context.clock, instanceUrl },
+    { flags: input },
+  );
   return {
     root: built.root,
     files: built.files,

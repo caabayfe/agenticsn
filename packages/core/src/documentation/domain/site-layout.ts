@@ -1,6 +1,7 @@
 import { anchorOf, type Evidence, type EvidenceStatus } from "./evidence";
 import { escapeHtml } from "./html";
 import { iconSvg } from "./icons";
+import { recordHtml } from "./instance-links";
 import type { DocPage, Section } from "./page";
 import type { SiteConfig } from "./site-config";
 import { MENU_SCRIPT } from "./site-menu-script";
@@ -98,14 +99,22 @@ function statusBadge(status: EvidenceStatus | undefined): string {
   return `<span class="status status-${value}">${value}</span>`;
 }
 
+// Screen evidence names where it was seen; record evidence links to the record.
+function anchorHtml(item: Evidence, instanceUrl: string | undefined): string {
+  return item.kind === "record"
+    ? recordHtml(instanceUrl, item.table, item.sysId, anchorOf(item))
+    : `<code>${escapeHtml(anchorOf(item))}</code>`;
+}
+
 export function evidenceTable(
   evidence: readonly Evidence[],
   statuses: ReadonlyMap<string, EvidenceStatus>,
+  instanceUrl?: string,
 ): string {
   const rows = evidence.map(
     (item) =>
       `<tr id="${item.id}"><td>${item.id}</td><td>${escapeHtml(item.how)}</td>` +
-      `<td><code>${escapeHtml(anchorOf(item))}</code></td><td>${escapeHtml(item.result)}</td>` +
+      `<td>${anchorHtml(item, instanceUrl)}</td><td>${escapeHtml(item.result)}</td>` +
       `<td>${statusBadge(statuses.get(item.id))}</td></tr>`,
   );
   return (

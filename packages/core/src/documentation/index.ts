@@ -89,6 +89,7 @@ export {
   undecided,
 } from "./domain/features";
 export { escapeHtml, scriptJson } from "./domain/html";
+export { recordUrl } from "./domain/instance-links";
 export { MediaToolMissingError, UnknownVoiceError } from "./domain/media-errors";
 export {
   dbToGain,

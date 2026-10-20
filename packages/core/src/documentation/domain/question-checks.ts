@@ -1,5 +1,6 @@
 import { openQuestionsOf } from "./open-questions";
 import type { DocPage } from "./page";
+import { possibleDuplicates } from "./question-duplicates";
 import {
   findQuestion,
   type ProcessQuestions,
@@ -7,6 +8,7 @@ import {
   type Question,
   questionCitationsOf,
   questionRef,
+  SHARED,
 } from "./questions";
 import { type DocSet, type DocsProblem, docsProblem } from "./structure";
 
@@ -114,17 +116,29 @@ function oneQuestionProblems(
   cited: ReadonlySet<string>,
 ): readonly DocsProblem[] {
   const at = declared.path;
-  const process = docs.processes.find((item) => item.id === declared.process);
-  const roles = new Set<string>([...QUESTION_ASKEES, ...(process?.roles ?? []).map((r) => r.id)]);
+  // A shared question may be for any process's role.
+  const processes =
+    declared.process === SHARED
+      ? docs.processes
+      : docs.processes.filter((item) => item.id === declared.process);
+  const roles = new Set<string>([
+    ...QUESTION_ASKEES,
+    ...processes.flatMap((item) => item.roles.map((role) => role.id)),
+  ]);
   const problems: DocsProblem[] = [];
   if (!roles.has(question.who)) {
     problems.push(
       docsProblem("bad-question", at, `${question.id}: who ${question.who} is no role`),
     );
   }
-  for (const ref of question.after) {
-    if (findQuestion(docs.questions, ref, declared.process) === null) {
-      problems.push(docsProblem("unknown-question", at, `${question.id} after ${ref}`));
+  for (const [field, refs] of [
+    ["after", question.after],
+    ["distinct", question.distinct],
+  ] as const) {
+    for (const ref of refs) {
+      if (findQuestion(docs.questions, ref, declared.process) === null) {
+        problems.push(docsProblem("unknown-question", at, `${question.id} ${field} ${ref}`));
+      }
     }
   }
   if (inCycle(docs, key(declared.process, question.id))) {
@@ -144,8 +158,11 @@ export function questionProblems(docs: DocSet): readonly DocsProblem[] {
   return [
     ...docs.pages.flatMap((page) => pageQuestionProblems(docs, page)),
     ...featureQuestionProblems(docs),
+    ...possibleDuplicates(docs.questions).map((pair) =>
+      docsProblem("possible-duplicate", pair.path, `${pair.first} ~ ${pair.second}: ${pair.why}`),
+    ),
     ...docs.questions.flatMap((declared) => [
-      ...(processIds.has(declared.process)
+      ...(processIds.has(declared.process) || declared.process === SHARED
         ? []
         : [docsProblem("unknown-process", declared.path, declared.process)]),
       ...declared.questions.flatMap((question) =>

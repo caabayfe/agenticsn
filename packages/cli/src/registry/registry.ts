@@ -16,6 +16,7 @@ import { docsCensus } from "./docs-census";
 import { docsCheck } from "./docs-check";
 import { docsImpact } from "./docs-impact";
 import { docsPin } from "./docs-pin";
+import { docsQuestions } from "./docs-questions";
 import { docsServe } from "./docs-serve";
 import { docsVideo } from "./docs-video";
 import { doctor } from "./doctor";
@@ -80,6 +81,7 @@ export const USE_CASES: readonly UseCase[] = [
   acceleratorLoad,
   docsCensus,
   docsCheck,
+  docsQuestions,
   docsImpact,
   docsPin,
   docsBuild,

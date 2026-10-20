@@ -1,9 +1,10 @@
 import { escapeHtml } from "./html";
 import { recordHtml } from "./instance-links";
 import { openQuestionsOf } from "./open-questions";
+import type { DocPage } from "./page";
 import type { Process } from "./process";
 import { citersOf } from "./question-checks";
-import { type ProcessQuestions, type Question, questionRef } from "./questions";
+import { type ProcessQuestions, type Question, questionRef, SHARED } from "./questions";
 import { type Built, bodyHtml, checked, guideCrumbs, link, questionSite } from "./site-context";
 import { layout, OPEN_QUESTIONS, pageFile, prefixOf } from "./site-layout";
 import { navFor } from "./site-nav";
@@ -46,37 +47,42 @@ function answerHtml(question: Question): string {
   return `<p><strong>${label}:</strong> ${escapeHtml(question.answer)}${who}</p>`;
 }
 
-function questionHtml(b: Built, process: Process, question: Question): string {
-  const pages = citersOf(b.input, process.id, question.id).map((page) =>
-    link(prefix, pageFile(page, page.section === "use" ? "user" : "operator"), page.title),
-  );
-  const waiting = waitingOn(b, process.id, question.id);
+// A shared question's pages name their process, since they come from several.
+function pageLink(b: Built, process: string, page: DocPage): string {
+  const owner = b.input.processes.find((item) => item.id === page.process);
+  const text = process === SHARED ? `${owner?.title ?? page.process}: ${page.title}` : page.title;
+  return link(prefix, pageFile(page, page.section === "use" ? "user" : "operator"), text);
+}
+
+function questionHtml(b: Built, process: string, question: Question): string {
+  const pages = citersOf(b.input, process, question.id).map((page) => pageLink(b, process, page));
+  const waiting = waitingOn(b, process, question.id);
   const about = question.about.map((item) =>
     recordHtml(b.input.instanceUrl, item.table, item.sysId, `${item.table}/${item.sysId}`),
   );
   const facts = [
     pages.length === 0 ? "" : `On ${pages.join(", ")}`,
-    question.after.length === 0 ? "" : `Waits on ${questionLinks(question.after, process.id)}`,
-    waiting.length === 0 ? "" : `Holds back ${questionLinks(waiting, process.id)}`,
+    question.after.length === 0 ? "" : `Waits on ${questionLinks(question.after, process)}`,
+    waiting.length === 0 ? "" : `Holds back ${questionLinks(waiting, process)}`,
     about.length === 0 ? "" : `About ${about.join(", ")}`,
   ].filter((fact) => fact !== "");
   const kind = `<span class="label label-${question.kind}">${escapeHtml(KIND_TEXT[question.kind])}</span>`;
   return (
-    `<div class="question" id="${questionAnchor(process.id, question.id)}">` +
+    `<div class="question" id="${questionAnchor(process, question.id)}">` +
     `<p><strong>${question.id}</strong> ${escapeHtml(question.ask)} ${kind}</p>${answerHtml(question)}` +
     `${facts.length === 0 ? "" : `<p class="mute">${facts.join(" · ")}</p>`}</div>`
   );
 }
 
 // A process's questions: open ones by who answers them, then the closed ones.
-function declaredHtml(b: Built, process: Process, declared: ProcessQuestions): string {
+function declaredHtml(b: Built, process: string, declared: ProcessQuestions): string {
   const open = declared.questions.filter((question) => question.status === "open");
   const closed = declared.questions.filter((question) => question.status !== "open");
   const askees = [...new Set(open.map((question) => question.who))];
   const groups = askees.map((who) => {
     const mine = open.filter((question) => question.who === who);
     const items = mine.map((question) => questionHtml(b, process, question)).join("");
-    return `<h3>For ${escapeHtml(whoText(process, who))} (${mine.length})</h3>${items}`;
+    return `<h3>For ${escapeHtml(whoText(b.input.processes, process, who))} (${mine.length})</h3>${items}`;
   });
   const done =
     closed.length === 0
@@ -86,8 +92,8 @@ function declaredHtml(b: Built, process: Process, declared: ProcessQuestions): s
 }
 
 // Pages not yet migrated: their open-question sections, as written.
-function sectionsHtml(b: Built, process: Process): string {
-  const mine = openQuestionsOf(b.input.pages).filter((item) => item.page.process === process.id);
+function sectionsHtml(b: Built, process: string): string {
+  const mine = openQuestionsOf(b.input.pages).filter((item) => item.page.process === process);
   return mine
     .map((question) => {
       const view = question.page.section === "use" ? "user" : "operator";
@@ -107,10 +113,13 @@ function sectionsHtml(b: Built, process: Process): string {
 // platform team should answer, and who should answer it (ADR-0041). Employee pages leave them
 // out (ADR-0037).
 export function openQuestionsHtml(b: Built, processes: readonly Process[]): string {
-  const parts = processes.flatMap((process) => {
+  // Questions about the instance come first: one answer serves every process they hold back.
+  const sections = [{ id: SHARED, title: "Across processes" }, ...processes];
+  const parts = sections.flatMap((process) => {
     const declared = (b.input.questions ?? []).find((item) => item.process === process.id);
     const body =
-      (declared === undefined ? "" : declaredHtml(b, process, declared)) + sectionsHtml(b, process);
+      (declared === undefined ? "" : declaredHtml(b, process.id, declared)) +
+      sectionsHtml(b, process.id);
     return body === "" ? [] : [`<h2>${escapeHtml(process.title)}</h2>${body}`];
   });
   const main = `<h1>Open questions</h1>

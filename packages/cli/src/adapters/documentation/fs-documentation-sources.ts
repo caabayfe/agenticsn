@@ -88,8 +88,13 @@ export class FsDocumentationSources implements DocumentationSources {
     return files;
   }
 
+  // processes/<id>/questions.yaml, and questions.yaml for the questions processes share.
   async questions() {
     const files: { path: string; questions: unknown }[] = [];
+    const shared = await textIfExists(join(this.root, "questions.yaml"));
+    if (shared !== null) {
+      files.push({ path: "questions.yaml", questions: parsed("questions.yaml", shared) ?? {} });
+    }
     for (const path of await list(this.root, "processes/*/questions.yaml")) {
       files.push({
         path,

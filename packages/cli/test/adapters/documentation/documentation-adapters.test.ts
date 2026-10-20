@@ -100,7 +100,9 @@ questions:
 `;
     write("documentation/processes/incident/questions.yaml", yaml);
     const sources = new FsDocumentationSources(root);
+    write("documentation/questions.yaml", "questions: []\n");
     expect(await sources.questions()).toEqual([
+      { path: "questions.yaml", questions: { questions: [] } },
       { path: "processes/incident/questions.yaml", questions: expect.anything() },
     ]);
     await sources.pinQuestions(

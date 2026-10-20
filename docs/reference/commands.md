@@ -544,6 +544,25 @@ Changes the instance: no. MCP tool: none.
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `docs questions`
+
+```
+snagentic docs questions [options]
+```
+
+List the documentation's questions (ADR-0041): processes/<process>/questions.yaml and the shared documentation/questions.yaml. Before asking a new question, look for it here and cite the one that exists ([Q01], [<process>/Q01] or [shared/Q01]). --about a record (<table>/<sys_id> or a sys_id), --search words, --process, --status (open by default, or all).
+
+Changes the instance: no. MCP tool: none.
+
+Options:
+
+- `--about <value>`: questions about this record: <table>/<sys_id>
+- `--search <value>`: words that must all appear in the question
+- `--process <value>`: a process id, or shared
+- `--status <value>`: open (default), answered, dropped or all (one of: open, answered, dropped, all)
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `docs impact`
 
 ```

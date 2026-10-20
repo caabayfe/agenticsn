@@ -59,6 +59,7 @@ const WARNINGS = [
   "unasked-question",
   "question-may-be-moot",
   "unstructured-question",
+  "possible-duplicate",
 ] as const;
 export const DOCS_PROBLEM_KINDS = [...ERRORS, ...WARNINGS] as const;
 export type DocsProblemKind = (typeof DOCS_PROBLEM_KINDS)[number];

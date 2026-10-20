@@ -12,6 +12,10 @@ export const QUESTION_STATUSES = ["open", "answered", "dropped"] as const;
 export type QuestionStatus = (typeof QUESTION_STATUSES)[number];
 // Who answers, besides a role of the process.
 export const QUESTION_ASKEES = ["owner", "platform"] as const;
+// documentation/questions.yaml: questions about the instance that several processes depend on,
+// cited as shared/Q01 (ADR-0041, item 7).
+export const SHARED = "shared";
+export const SHARED_PATH = "questions.yaml";
 
 export interface Question {
   readonly id: string;
@@ -23,6 +27,8 @@ export interface Question {
   readonly about: readonly RecordEvidence[];
   // Questions it waits on, as cited: Q01, or on-call/Q01.
   readonly after: readonly string[];
+  // Questions it looks like but isn't, as cited: silences possible-duplicate.
+  readonly distinct: readonly string[];
   readonly status: QuestionStatus;
   // Answered: what, by whom, when (YYYY-MM-DD). Dropped: why, in `answer`.
   readonly answer?: string;
@@ -95,8 +101,9 @@ function questionOf(path: string, raw: unknown): Question {
   }
   const about = Array.isArray(fields["about"]) ? fields["about"] : [];
   const after = strings(fields["after"]);
-  const wrong = after.find((ref) => !QUESTION_REF.test(ref));
-  if (wrong !== undefined) fail(path, id, `after names ${wrong}, not a question`);
+  const distinct = strings(fields["distinct"]);
+  const wrong = [...after, ...distinct].find((ref) => !QUESTION_REF.test(ref));
+  if (wrong !== undefined) fail(path, id, `${wrong} is not a question`);
   return {
     id,
     ask,
@@ -104,12 +111,16 @@ function questionOf(path: string, raw: unknown): Question {
     who,
     about: about.map((item, index) => parseAnchor(path, `${id}#${index}`, item)),
     after,
+    distinct,
     status,
     ...closing(path, id, status, fields),
   };
 }
 
-// `path` is processes/<id>/questions.yaml.
+export const processOfQuestions = (path: string): string =>
+  path === SHARED_PATH ? SHARED : (path.split("/")[1] ?? "");
+
+// `path` is processes/<id>/questions.yaml, or questions.yaml for the shared ones.
 export function parseQuestions(path: string, raw: unknown): ProcessQuestions {
   const items = fieldsOf(raw)["questions"];
   const questions = Array.isArray(items) ? items.map((item) => questionOf(path, item)) : [];
@@ -118,7 +129,7 @@ export function parseQuestions(path: string, raw: unknown): ProcessQuestions {
   if (twice !== undefined) {
     throw new DocumentationSourceError(path, `question ${twice} is listed twice`);
   }
-  return { path, process: path.split("/")[1] ?? "", questions };
+  return { path, process: processOfQuestions(path), questions };
 }
 
 // The question ids a page cites, as written.

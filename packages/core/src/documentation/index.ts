@@ -25,6 +25,11 @@ export {
   type DocumentationLookup,
   documentationLookup,
 } from "./application/documented-records";
+export {
+  type ListedQuestion,
+  listQuestions,
+  type QuestionsQuery,
+} from "./application/list-questions";
 export { type Documentation, loadDocumentation } from "./application/load-documentation";
 export { type PinDocsQuery, type PinDocsResult, pinDocs } from "./application/pin-docs";
 export {
@@ -130,6 +135,7 @@ export {
   SEE_LINK,
   transcriptHtml,
 } from "./domain/prose";
+export { type DuplicatePair, possibleDuplicates } from "./domain/question-duplicates";
 export {
   type ProcessQuestions,
   parseQuestions,

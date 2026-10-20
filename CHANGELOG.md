@@ -4,6 +4,28 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-10-20
+
+### Added
+
+- `docs census <process>` (ADR-0040) lists every application that reaches a process's tables,
+  from the mirror: form and workspace actions (also on the tables they extend, such as task),
+  business rules, client scripts, UI policies, notifications, SLA definitions, and tables that
+  refer to the process. `processes/<process>/features.yaml` gives each a decision (documented,
+  todo, out-of-scope or question) and records what only the screen shows (`seen`). `docs check`
+  warns about what no feature claims and fails a documented feature without real capabilities.
+  The IT guide shows a Features table on each process page and the coverage on its card.
+- Each record a page cites, and each record in a process's configuration index, links to its
+  form on the instance, from the workspace's instance profile. Screen evidence and the employee
+  guide stay unlinked.
+- Narration starts at the reader's first click on the page, unless they chose silence before.
+
+### Fixed
+
+- `docs build --video` (or `--audio`, `--voice`) replaces only its own setting in site.yaml's
+  media, so the voice site.yaml asks for is kept.
+- The sound button says what a click does ("Turn sound off", "Listen with sound").
+
 ## [2.4.0] - 2026-10-19
 
 ### Added

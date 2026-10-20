@@ -87,6 +87,7 @@ function fakeSteps(
     notApplied?: Record<string, number>;
     nothingFor?: string[];
     customized?: string[];
+    absent?: string[];
   } = {},
 ) {
   const calls: string[] = [];
@@ -112,7 +113,14 @@ function fakeSteps(
       const customized = records
         .filter((r) => (options.customized ?? []).includes(r.sysId))
         .map((r) => `${r.table} ${r.sysId}`);
-      return { taken: records.length - customized.length, customized, absent: [] };
+      const absent = records
+        .filter((r) => (options.absent ?? []).includes(r.sysId))
+        .map((r) => `${r.table} ${r.sysId}`);
+      return {
+        taken: records.length - customized.length - absent.length,
+        customized,
+        absent,
+      };
     },
     planPush: async (label, _signal, own) => {
       calls.push(`plan ${label}`);
@@ -366,6 +374,62 @@ describe("deciding what the install does with each component", () => {
     expect(calls).not.toContain("plan ITSM: foundation 0.1.0");
   });
 
+  it("stops at a module whose out-of-box record the instance lacks, naming it", async () => {
+    const { steps } = fakeSteps({ absent: ["a".repeat(32)] });
+    const packs = memoryPacks({ itsm: packFiles(WITH_ADOPT) });
+    const ready = { ...deps(ACTIVE, { steps }), packs };
+    const plan = await planInstall(ready, QUERY);
+    const result = await installPack(ready, { ...QUERY, confirm: plan.planId });
+    expect(result.stopped?.detail).toContain(
+      `not on the instance: sys_properties ${"a".repeat(32)}`,
+    );
+  });
+
+  it("creates a lacking out-of-box record the module restates whole and may create", async () => {
+    const { steps, calls } = fakeSteps({ absent: ["a".repeat(32)] });
+    const creates: PackFixture = {
+      ...PACK,
+      files: {
+        ...PACK.files,
+        "modules/foundation/adopt.yaml": JSON.stringify([
+          {
+            table: "contract_sla",
+            sys_id: "a".repeat(32),
+            note: "a demo SLA, restated inactive",
+            when_absent: "create",
+          },
+        ]),
+      },
+    };
+    const ready = { ...deps(ACTIVE, { steps }), packs: memoryPacks({ itsm: packFiles(creates) }) };
+    const plan = await planInstall(ready, QUERY);
+    expect(installPlanDocument(plan)).toContain(
+      `| foundation | contract_sla ${"a".repeat(32)} | a demo SLA, restated inactive (created where the instance lacks it) |`,
+    );
+    const result = await installPack(ready, { ...QUERY, confirm: plan.planId });
+    expect(result.stopped).toBeNull();
+    expect(calls).toContain("plan ITSM: foundation 0.1.0");
+  });
+
+  it("names an adopt entry whose when_absent is not create", async () => {
+    const wrong: PackFixture = {
+      ...PACK,
+      files: {
+        ...PACK.files,
+        "modules/foundation/adopt.yaml": JSON.stringify([
+          { table: "contract_sla", sys_id: "a".repeat(32), note: "n", when_absent: "skip" },
+        ]),
+      },
+    };
+    const plan = await planInstall(
+      { ...deps(ACTIVE), packs: memoryPacks({ itsm: packFiles(wrong) }) },
+      QUERY,
+    );
+    expect(plan.problems.join("\n")).toContain(
+      "modules/foundation/adopt.yaml: entry 1 when_absent can only be create",
+    );
+  });
+
   it("lists the out-of-box records a module customizes in the plan", async () => {
     const withAdopt: PackFixture = {
       ...PACK,
@@ -389,6 +453,7 @@ describe("deciding what the install does with each component", () => {
         table: "sys_properties",
         sysId: "a".repeat(32),
         note: "set the value to true",
+        whenAbsent: "stop",
       },
     ]);
     expect(installPlanDocument(plan)).toContain(

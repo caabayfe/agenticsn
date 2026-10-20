@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- An accelerator's `adopt.yaml` entry may say `when_absent: create` (ADR-0038, item 8): an
+  out-of-box record that ships only with demo data is created from the module's source where
+  the instance lacks it, instead of stopping the install. The plan says so for each record.
+
 ### Fixed
 
 - A plan refuses a value longer than its field (spec 011, I11): the platform cut such values

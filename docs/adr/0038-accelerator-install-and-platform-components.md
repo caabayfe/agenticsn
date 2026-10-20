@@ -168,6 +168,13 @@ so we can have the right support from ServiceNow".
     nothing is merged or overwritten.
 
   On a fresh baseline instance every layout is untouched, so the install runs without stops.
+
+  Amended 2026-10-20 at the product owner's request ("if they don't exist, create them"): some
+  out-of-box records ship only with demo data (the incident SLAs), so a valid instance may lack
+  them. An `adopt.yaml` entry may say `when_absent: create`: where the instance lacks the
+  record, the install creates it from the module's source, which restates it whole, instead of
+  stopping. Every instance ends with the same records. Without it, a lacking record stops the
+  module for review, as before.
 - **Shipped records only.** A module may reference an out-of-box record shipped by a plugin
   (the same sys_id on every instance); the plan checks it exists.
 - **Business keys for anything else.** Records the client owns, such as a group or a schedule,

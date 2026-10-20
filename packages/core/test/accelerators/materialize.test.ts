@@ -59,7 +59,13 @@ describe("materializing a pack (ADR-0026, ADR-0031, ADR-0038)", () => {
 
   it("lists the out-of-box records a module customizes, with what to change after adopting", () => {
     expect(run(["base"]).adoptions).toEqual([
-      { capability: "base", table: "contract_sla", sysId: SLA, note: "set duration to 4 hours" },
+      {
+        capability: "base",
+        table: "contract_sla",
+        sysId: SLA,
+        note: "set duration to 4 hours",
+        whenAbsent: "stop",
+      },
     ]);
   });
 
@@ -79,7 +85,7 @@ describe("materializing a pack (ADR-0026, ADR-0031, ADR-0038)", () => {
       "modules/base/adopt.yaml: entry 1 needs table, sys_id (32 hexadecimal characters) and note",
       "modules/base/adopt.yaml: entry 2 needs table, sys_id (32 hexadecimal characters) and note",
       "modules/base/adopt.yaml: entry 3 needs table, sys_id (32 hexadecimal characters) and note",
-      "modules/extra/adopt.yaml: a list of { table, sys_id, note }",
+      "modules/extra/adopt.yaml: a list of { table, sys_id, note, when_absent? }",
     ]);
   });
 

@@ -79,7 +79,7 @@ async function components(
   }
 }
 
-// A module's out-of-box layouts become this branch's only where the client never changed them:
+// A module's out-of-box records become this branch's only where the client never changed them:
 // otherwise the module stops for the admin's review, before anything of it is pushed.
 async function takeOver(
   deps: InstallRunDependencies,
@@ -88,9 +88,13 @@ async function takeOver(
 ) {
   if (adoptions.length === 0) return;
   const result = await deps.steps.takeOver(adoptions, signal);
+  // A record the module may create is pushed from its source where the instance lacks it.
+  const created = new Set(
+    adoptions.filter((a) => a.whenAbsent === "create").map((a) => `${a.table} ${a.sysId}`),
+  );
   const refused = [
     ...result.customized.map((r) => `customized on the instance: ${r}`),
-    ...result.absent.map((r) => `not on the instance: ${r}`),
+    ...result.absent.filter((r) => !created.has(r)).map((r) => `not on the instance: ${r}`),
   ];
   if (refused.length > 0) {
     throw new Error(`${refused.join("; ")} (review it, then resume or drop it from the module)`);

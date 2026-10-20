@@ -140,6 +140,7 @@ describe("mirror records on disk", () => {
     expect(await mirror.list("sys_script", signal)).toEqual([
       {
         sysId: "0c1345dd0783f01028ef0a701ad300fa",
+        scope: "global",
         fields: { name: "Set group", collection: "incident" },
         updatedBy: "admin",
         updatedOn: "2026-05-01 10:00:00",

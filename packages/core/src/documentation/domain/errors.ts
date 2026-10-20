@@ -21,3 +21,14 @@ export class NoDocumentationError extends SnagenticError {
     );
   }
 }
+
+export class UnknownProcessError extends SnagenticError {
+  constructor(process: string, known: readonly string[]) {
+    super(
+      "unknown-process",
+      "usage",
+      `the documentation has no process ${process}`,
+      `name one of: ${known.join(", ") || "(none yet)"}`,
+    );
+  }
+}

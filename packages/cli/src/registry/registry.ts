@@ -12,6 +12,7 @@ import { authLogout } from "./auth-logout";
 import { check } from "./check";
 import { describe } from "./describe";
 import { docsBuild } from "./docs-build";
+import { docsCensus } from "./docs-census";
 import { docsCheck } from "./docs-check";
 import { docsImpact } from "./docs-impact";
 import { docsPin } from "./docs-pin";
@@ -77,6 +78,7 @@ export const USE_CASES: readonly UseCase[] = [
   acceleratorValidateData,
   acceleratorInstall,
   acceleratorLoad,
+  docsCensus,
   docsCheck,
   docsImpact,
   docsPin,

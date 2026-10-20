@@ -5,9 +5,11 @@ import {
   evidenceStatus,
   seenStatus,
 } from "../domain/evidence";
+import { undecided } from "../domain/features";
 import type { DocPage } from "../domain/page";
 import { type DocsProblem, docsProblem, structureProblems } from "../domain/structure";
 import type { DocumentationSources, MirrorRecords } from "../ports";
+import { takeCensus } from "./census";
 import { type Documentation, loadDocumentation } from "./load-documentation";
 
 export interface CheckDocsDependencies {
@@ -99,12 +101,38 @@ export async function assessDocumentation(
 
 export const todayOf = (clock: () => Date) => clock().toISOString().slice(0, 10);
 
+// Applications the census finds that no feature names, for each process with a features.yaml
+// (ADR-0040). Only docs check runs the census: it reads the whole mirror's dictionary.
+async function undecidedProblems(
+  docs: Documentation,
+  mirror: MirrorRecords,
+  signal: AbortSignal,
+): Promise<readonly DocsProblem[]> {
+  const problems: DocsProblem[] = [];
+  for (const declared of docs.features) {
+    const process = docs.processes.find((item) => item.id === declared.process);
+    if (process === undefined) continue;
+    for (const group of undecided(await takeCensus(process, mirror, signal), declared)) {
+      const what = group.items
+        .map(
+          (item) =>
+            `${item.kind.toLowerCase()}: ${item.names.slice(0, 3).join(", ")}${item.names.length > 3 ? ", …" : ""}`,
+        )
+        .join("; ");
+      problems.push(
+        docsProblem("undecided-feature", declared.path, `${group.scope} (${group.title}): ${what}`),
+      );
+    }
+  }
+  return problems;
+}
+
 export async function checkDocs(deps: CheckDocsDependencies): Promise<DocsCheck> {
   const docs = await loadDocumentation(deps.sources, deps.root);
-  return assessDocumentation(
-    docs,
-    deps.mirror(docs.config.instance),
-    todayOf(deps.clock),
-    deps.signal,
-  );
+  const mirror = deps.mirror(docs.config.instance);
+  const check = await assessDocumentation(docs, mirror, todayOf(deps.clock), deps.signal);
+  return {
+    ...check,
+    problems: [...check.problems, ...(await undecidedProblems(docs, mirror, deps.signal))],
+  };
 }

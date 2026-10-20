@@ -1,5 +1,6 @@
 import { checkedOnSurface, platformWords } from "./audience-checks";
 import { unknownGuidePages } from "./employee-guide";
+import { featureProblems, type ProcessFeatures } from "./features";
 import { type DocPage, type PageProblem, pageProblems, type Section } from "./page";
 import type { Process, ProcessCapability } from "./process";
 import { animationsOf } from "./prose";
@@ -17,6 +18,8 @@ export interface DocSet {
   readonly scenes: readonly Scene[];
   // documentation/changes/<release>.md (ADR-0039).
   readonly releases: readonly Release[];
+  // processes/<id>/features.yaml (ADR-0040).
+  readonly features: readonly ProcessFeatures[];
 }
 
 const ERRORS = [
@@ -35,6 +38,7 @@ const ERRORS = [
   "missing-animation",
   "unknown-guide-page",
   "unknown-release-page",
+  "undocumented-feature",
 ] as const;
 const WARNINGS = [
   "uncited-evidence",
@@ -45,6 +49,7 @@ const WARNINGS = [
   "platform-words",
   "unchecked-surface",
   "recheck-seen",
+  "undecided-feature",
 ] as const;
 export const DOCS_PROBLEM_KINDS = [...ERRORS, ...WARNINGS] as const;
 export type DocsProblemKind = (typeof DOCS_PROBLEM_KINDS)[number];
@@ -214,6 +219,11 @@ export function structureProblems(docs: DocSet): readonly DocsProblem[] {
     ...(docs.config.employees?.how ?? [])
       .filter((id) => !processIds.includes(id))
       .map((id) => docsProblem("unknown-guide-page", "site.yaml", `how: ${id}`)),
+    ...docs.features.flatMap((declared) =>
+      featureProblems(declared, docs.processes).map((problem) =>
+        docsProblem(problem.kind, declared.path, problem.detail),
+      ),
+    ),
     ...unknownReleasePages(docs.releases, docs.pages, processIds).map((item) =>
       docsProblem("unknown-release-page", item.path, `see:${item.target}`),
     ),

@@ -95,7 +95,13 @@ describe("accelerator add (ADR-0026, ADR-0031)", () => {
         "source/global/src/fluent/rule.now.ts",
       ],
       adoptions: [
-        { capability: "base", table: "contract_sla", sysId: SLA, note: "set duration to 4h" },
+        {
+          capability: "base",
+          table: "contract_sla",
+          sysId: SLA,
+          note: "set duration to 4h",
+          whenAbsent: "stop",
+        },
       ],
       removed: [],
       conflicts: [],

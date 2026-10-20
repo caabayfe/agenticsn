@@ -76,6 +76,18 @@ describe("SdkToolchain", () => {
   );
 
   it(
+    "names every error of a project that does not build, not only the first",
+    async () => {
+      const { root } = workspace("const a = (x: string) => x\nconst b = (y: number) => y\n");
+      const outcome = await new SdkToolchain(root, loadFluentRuntime).build(project);
+      if (outcome.ok) throw new Error("built");
+      expect(outcome.message).toContain("src/fluent/p.now.ts:1 ");
+      expect(outcome.message).toContain("src/fluent/p.now.ts:2 ");
+    },
+    SDK_BUILD_TIMEOUT,
+  );
+
+  it(
     "drafts a transform in a copy: the units before and after, and the files it wrote",
     async () => {
       const { root, dir } = workspace();

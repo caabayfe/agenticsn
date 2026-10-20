@@ -88,7 +88,11 @@ function modules(plan: InstallPlan): string[] {
     "",
     ...table(
       ["Module", "Record", "What changes"],
-      adoptions.map((a) => [a.module, `${a.table} ${a.sysId}`, a.note]),
+      adoptions.map((a) => [
+        a.module,
+        `${a.table} ${a.sysId}`,
+        a.whenAbsent === "create" ? `${a.note} (created where the instance lacks it)` : a.note,
+      ]),
     ),
   ];
 }

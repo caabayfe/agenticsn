@@ -380,3 +380,24 @@ browser recordings. What this needed and found:
 | F12 | Server modules are refused in configuration projects | `Now.include` is the SDK way for these projects |
 | F13 | The platform's `fluent/load` creates a related list entry but refuses to update or delete one ("invalid scope") | **I13 (new):** deliver `sys_ui_related_list` whole, entries inside, as the platform records it (as snagentic 1.x did), so related lists can change after their first install |
 | F14 | Record names over a field's length are cut by the platform (twice: a business rule, a data source) | **I11**, now urgent |
+
+## 13. Platform fields and plugin repair (2026-10-20, autonomous run)
+
+The ITSM pack's major-incident module found that pdi2 lacks `incident.problem_id`, `rfc` and
+`caused_by` (pack gap G13): absent from the dictionary and from every mirror since the first full
+pull (2026-10-12), with no deletion in the audit or an update set. The product owner asked for a
+check before installs and for a repair function, and delegated the decisions.
+
+| # | Item | State |
+|---|---|---|
+| I14 | **Platform fields check:** `fields` in module.yaml, data column fields added; the install plan checks them against the mirror through the knowledge index (`mirrorSchema`), blocks or warns, names the plugin; ADR-0038 item 8, proposed amendment | **Built** (branch `feat/accelerator-field-check`); live on pdi2: of the 93 fields the ITSM modules read, it reports exactly `incident.caused_by`, `incident.rfc` (incident-relations) and `incident.problem_id` (major-incident) |
+| S-R | **Spike, plugin repair** (run 2026-10-21 with the owner's approval): the App Manager's repair (`GET /api/sn_appclient/v1/appmanager/plugin/repair?plugin_id=<id>&load_demo_data=false`, an internal API, followed through `/api/sn_cicd/progress/<id>`) on `com.snc.incident`, then `com.snc.problem` | **Done. Repair does not restore missing dictionary entries.** Both succeeded in about 3 minutes and recreated only missing UI layouts: list layouts (incident `portal` view, sys_attachment, task_time_worked, itil_appointment, problem) and problem's Default and reference related-list containers, which pdi2 also lacked. No field came back (incident still has 35). The log says admin lacks the `maint` role: a customer-run repair reloads less than one ServiceNow runs. Nothing existing was overwritten: a re-install of ITSM 0.3.0 found every module as built. `com.snc.change_management` (rfc, caused_by) was not repaired: the two results show the pattern |
+| I15 | **`plugins repair`** | **Not built** (decision from S-R): it cannot restore missing fields, the case that motivated it. For such an instance the field check (I14) names the gap; the remedies are a ServiceNow support case (they hold `maint`) or a factory reset |
+
+Also found: an upgrade from an older pack version stops when a record is held in that version's update set still in progress (`snagentic: itsm 0.1.0 upgrade` held ACCRelatedChanges): the install counts only the current version's update sets as its own. **Gap (new):** count every update set an earlier install of the same pack created.
+
+Decisions taken under the owner's delegation (to confirm): F1 declare fields by hand plus data
+columns automatically; F2 `stop` by default; F3 check the mirror, not the instance; F4 name the
+plugin. The plan lists only the fields not on the instance, and counts the rest (93 rows were
+unreadable).
+

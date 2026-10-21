@@ -185,6 +185,8 @@ const deps = (
     inventory: inventory(states),
     workspace: workspace(extra.mirror),
     templates,
+    // The fixture declares no platform fields: the mirror's schema is never asked.
+    schema: { ready: async () => true, fieldsOf: async () => [] },
     steps: extra.steps ?? fakeSteps().steps,
     journal: extra.journal ?? memoryJournal().journal,
     now: () => {

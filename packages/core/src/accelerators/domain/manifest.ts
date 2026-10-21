@@ -1,5 +1,12 @@
 import { graphProblems } from "./capability-graph";
-import type { Capability, Component, DataColumn, DataEntity, Manifest } from "./manifest-types";
+import type {
+  Capability,
+  Component,
+  DataColumn,
+  DataEntity,
+  Manifest,
+  RequiredField,
+} from "./manifest-types";
 
 // Reads a pack's manifest (ADR-0026, format 2 by ADR-0038): accelerator.yaml with its modules
 // under `modules` (packDocument assembles it). Pure: the document comes parsed.
@@ -38,10 +45,12 @@ function columnsOf(value: unknown): DataColumn[] {
   return Object.entries(fieldsOf(value) ?? {}).map(([name, rules]) => {
     const r = fieldsOf(rules);
     const references = text(r?.["references"]);
+    const field = text(r?.["field"]);
     return {
       name,
       required: r?.["required"] === true,
       references: references === "" ? null : references,
+      field: field === "" ? null : field,
     };
   });
 }
@@ -65,6 +74,31 @@ function entity(value: unknown): DataEntity | null {
   };
 }
 
+const FIELD = /^[a-z0-9_]+\.[a-z0-9_]+$/;
+
+// One entry of a module's `fields`: { field: table.field, from?, when_missing?, note? }.
+function requiredField(value: unknown, say: (problem: string) => void): RequiredField | null {
+  const fields = fieldsOf(value);
+  const name = text(fields?.["field"]);
+  const when = text(fields?.["when_missing"]) || "stop";
+  if (!FIELD.test(name)) {
+    say("must be table.field");
+    return null;
+  }
+  if (when !== "stop" && when !== "warn") {
+    say("when_missing is stop or warn");
+    return null;
+  }
+  const [table = "", field = ""] = name.split(".");
+  return {
+    table,
+    field,
+    from: text(fields?.["from"]) || null,
+    whenMissing: when,
+    note: text(fields?.["note"]) || null,
+  };
+}
+
 function capability(pack: string, id: string, value: unknown, problems: string[]): Capability {
   const fields = fieldsOf(value) ?? {};
   const say = (problem: string) => problems.push(`module ${id}: ${problem}`);
@@ -75,12 +109,16 @@ function capability(pack: string, id: string, value: unknown, problems: string[]
   const data = list(fields["data"]).map(
     (d, i) => entity(d) ?? say(`data ${i + 1} needs entity, table and key`),
   );
+  const required = list(fields["fields"]).map((f, i) =>
+    requiredField(f, (problem) => say(`field ${i + 1} ${problem}`)),
+  );
   return {
     id,
     label: text(fields["label"]) || `${pack}/${id}`,
     dependsOn: texts(fields["dependsOn"]),
     components: components.filter((c): c is Component => typeof c === "object"),
     data: data.filter((d): d is DataEntity => typeof d === "object"),
+    fields: required.filter((f): f is RequiredField => f !== null),
   };
 }
 

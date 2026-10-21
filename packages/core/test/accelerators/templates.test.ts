@@ -17,14 +17,18 @@ const entity = (
   anchors: false,
 });
 
-const GROUP = entity("group", ["name"], [{ name: "name", required: true, references: null }]);
+const GROUP = entity(
+  "group",
+  ["name"],
+  [{ name: "name", required: true, references: null, field: null }],
+);
 const OFFERING = entity(
   "offering",
   ["name"],
   [
-    { name: "name", required: true, references: null },
-    { name: "support_group", required: true, references: "group" },
-    { name: "notes", required: false, references: null },
+    { name: "name", required: true, references: null, field: null },
+    { name: "support_group", required: true, references: "group", field: null },
+    { name: "notes", required: false, references: null, field: null },
   ],
   ["group"],
 );

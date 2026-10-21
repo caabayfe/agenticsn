@@ -1,7 +1,8 @@
-import { getInstance, InstanceName, installPack, VERSION } from "@snagentic/core";
+import { getInstance, InstanceName, installPack, mirrorSchema, VERSION } from "@snagentic/core";
 import { z } from "zod";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
 import { callerFor, installSteps } from "./install-steps";
+import { knowledgeSession } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
@@ -53,6 +54,7 @@ export const acceleratorInstall = defineUseCase({
         inventory: context.inventory,
         workspace: context.packWorkspace(root, name),
         templates: context.dataTemplates,
+        schema: mirrorSchema(() => knowledgeSession(context, String(name), run.progress)),
         steps: installSteps(
           context,
           { root, instance: name, pack: input.pack },

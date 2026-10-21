@@ -177,6 +177,22 @@ so we can have the right support from ServiceNow".
   module for review, as before.
 - **Shipped records only.** A module may reference an out-of-box record shipped by a plugin
   (the same sys_id on every instance); the plan checks it exists.
+- **Platform fields it reads.** Proposed amendment, 2026-10-20 (pack gap G13; the product
+  owner delegated the decisions F1-F4 and is to confirm them). pdi2 lacks
+  `incident.problem_id`, `rfc` and `caused_by`, which shipped forms use, and modules reading
+  them failed quietly. A module lists the platform fields it reads in `module.yaml`:
+  `fields: [{ field: table.field, from: plugin, when_missing: stop | warn, note }]`. The fields
+  its data columns fill are added without a declaration (the pack's own `u_` and `x_` names are
+  left out). The install plan checks them against the mirror (a field of the table or one of
+  its parents), never the instance:
+  - a missing field blocks its module (`stop`, the default), or is a warning saying what the
+    module loses (`warn`);
+  - each names the plugin that ships it, to repair or activate before a new pull;
+  - the plan lists the fields that are not on the instance and counts the rest; a pull that
+    brings a field back makes a new plan id.
+
+  Older snagentic versions ignore the key, so a pack can declare fields before it requires the
+  version that checks them.
 - **Business keys for anything else.** Records the client owns, such as a group or a schedule,
   are found by business key. Settings hold the key, not a sys_id.
 

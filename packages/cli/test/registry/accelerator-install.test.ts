@@ -74,6 +74,35 @@ describe("accelerator install (ADR-0038)", () => {
     expect(text).toContain(`--confirm ${planId}`);
   });
 
+  it("blocks a module that reads a platform field until the mirror holds the instance's tables", async () => {
+    const { context } = await installing();
+    // A pack whose module declares the platform field it reads (plan gap G13).
+    const files = new Map([
+      [
+        "accelerator.yaml",
+        JSON.stringify({ id: "fields", version: "0.1.0", requires: { snagentic: ">=2.0.0" } }),
+      ],
+      [
+        "modules/base/module.yaml",
+        JSON.stringify({ label: "Fields: base", fields: [{ field: "incident.caused_by" }] }),
+      ],
+      ["modules/base/source/global/src/fluent/base.now.ts", "// base"],
+    ]);
+    const packs = {
+      ids: async () => ["fields"],
+      files: async () => files,
+      parse: (text: string) => JSON.parse(text),
+    };
+    const { output } = await executeUseCase(
+      acceleratorInstall,
+      { pack: "fields", instance: "pdi", demo: true },
+      { ...context, packs },
+    );
+    expect((output as { problems: string[] }).problems).toContain(
+      "pull pdi first: the mirror holds no tables, so the fields the modules read cannot be checked",
+    );
+  });
+
   it("refuses a confirmation that is not the current plan's id", async () => {
     const { context } = await installing();
     const run = executeUseCase(

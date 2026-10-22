@@ -84,6 +84,15 @@ export interface ProseContext {
   readonly videos?: ReadonlySet<string>;
   // For employees (ADR-0037): no citations and no review labels, which are for the IT readers.
   readonly plain?: boolean;
+  // Where a cited question (Q03, on-call/Q03) is tracked, or null when nowhere (ADR-0041).
+  readonly question?: (ref: string) => string | null;
+}
+
+function questionCite(ref: string, context: ProseContext): string {
+  const href = context.question?.(ref) ?? null;
+  return href === null
+    ? `<span class="cite question">${ref}</span>`
+    : `<a class="cite question" href="${href}">${ref}</a>`;
 }
 
 function cite(id: string, context: ProseContext): string {
@@ -107,6 +116,9 @@ export function expandProse(markdown: string, context: ProseContext): string {
       )
       .replace(/ ?\[(E\d+)\]/g, (all: string, id: string) =>
         context.plain === true ? "" : all.replace(`[${id}]`, cite(id, context)),
+      )
+      .replace(/ ?\[((?:[a-z][a-z0-9-]*\/)?Q\d+)\]/g, (all: string, ref: string) =>
+        context.plain === true ? "" : all.replace(`[${ref}]`, questionCite(ref, context)),
       )
       .replace(SEE_LINK, (_, target: string) => `](${context.link?.(target) ?? "#unknown-link"})`)
       .replace(

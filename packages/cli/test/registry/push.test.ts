@@ -19,6 +19,8 @@ async function workspace(source: string) {
 }
 
 describe("push (ADR-0031 item 4)", () => {
+  // Plans, pushes and plans again, with the gate checking the loaded project in full each time
+  // (#102): about 3 s here and 5 s on a CI runner, so it gets more than the default 5 s.
   it("loads a reviewed plan, stamped, into the branch's update sets, and commits the ledger", async () => {
     const { context, root, loads, tables, git } = await workspace("Edited in source.");
     const plan = await executeUseCase(planPush, {}, context);
@@ -53,7 +55,7 @@ describe("push (ADR-0031 item 4)", () => {
     expect(await git("status", "--porcelain", "--", "source")).toBe("");
     const again = await executeUseCase(planPush, {}, context);
     expect(planPush.render(again.output as never, "text")).toContain("nothing to push");
-  });
+  }, 15_000);
 
   it("refuses without confirmation", async () => {
     const { context } = await workspace("Edited in source.");

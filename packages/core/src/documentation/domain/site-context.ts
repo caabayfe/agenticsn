@@ -1,11 +1,13 @@
 import type { ConfigIndex } from "./config-index";
 import type { EvidenceStatus } from "./evidence";
+import type { ProcessFeatures } from "./features";
 import { escapeHtml } from "./html";
 import { withoutOpenQuestions } from "./open-questions";
 import type { DocPage, Section } from "./page";
 import type { PlayerMedia } from "./player";
 import { OVERVIEW, type Process, type ProcessCapability } from "./process";
 import { expandProse } from "./prose";
+import { findQuestion, type ProcessQuestions } from "./questions";
 import { resolveReference } from "./references";
 import type { Release } from "./releases";
 import type { Scene } from "./scene";
@@ -19,6 +21,7 @@ import {
   prefixOf,
   staleIds,
 } from "./site-layout";
+import { pageQuestionsHtml, type QuestionSite, questionHref } from "./site-questions";
 import { capabilityAudience } from "./structure";
 import { type View, viewOf } from "./views";
 
@@ -41,8 +44,14 @@ export interface SiteInput {
   readonly videos?: ReadonlyMap<string, Uint8Array>;
   // The release files, for the What's new pages (ADR-0039).
   readonly releases?: readonly Release[];
+  // Each process's features.yaml (ADR-0040).
+  readonly features?: readonly ProcessFeatures[];
   // The client's theme files, by path inside documentation/theme/.
   readonly theme?: readonly { readonly path: string; readonly content: Uint8Array }[];
+  // The instance's address, from the workspace's profile, to link cited records to their forms.
+  readonly instanceUrl?: string;
+  // Each process's questions.yaml (ADR-0041).
+  readonly questions?: readonly ProcessQuestions[];
 }
 
 export interface Built {
@@ -153,6 +162,13 @@ function linkFor(b: Built, page: DocPage, prefix: string, view?: View) {
   };
 }
 
+export const questionSite = (b: Built): QuestionSite => ({
+  questions: b.input.questions ?? [],
+  processes: b.input.processes,
+  pages: b.input.pages,
+  tracked: b.input.config.employees !== undefined,
+});
+
 // `plain`: for employees, without citations, review labels or open questions (ADR-0037).
 export function bodyHtml(
   b: Built,
@@ -164,7 +180,7 @@ export function bodyHtml(
   const viewed = view === undefined ? page.body : viewOf(page.body, view);
   const markdown = plain ? withoutOpenQuestions(viewed) : viewed;
   const prefix = prefixOf(file);
-  return b.input.markdown(
+  const html = b.input.markdown(
     expandProse(markdown, {
       evidence: new Set(page.evidence.map((item) => item.id)),
       citeTarget: null,
@@ -173,15 +189,26 @@ export function bodyHtml(
       link: linkFor(b, page, prefix, view),
       videos: new Set(b.input.videos?.keys() ?? []),
       plain,
+      question: (ref) => {
+        const found = findQuestion(b.input.questions ?? [], ref, page.process);
+        return found === null
+          ? null
+          : questionHref(questionSite(b), prefix, found.process, found.question.id);
+      },
     }),
   );
+  return plain ? html : html + pageQuestionsHtml(questionSite(b), page, prefix);
 }
 
 export function verification(b: Built, page: DocPage, folded: boolean): string {
   if (page.evidence.length === 0) {
     return "";
   }
-  const table = evidenceTable(page.evidence, b.input.statuses.get(page.path) ?? new Map());
+  const table = evidenceTable(
+    page.evidence,
+    b.input.statuses.get(page.path) ?? new Map(),
+    b.input.instanceUrl,
+  );
   return folded
     ? `<details class="verified"><summary>How this page was checked (${page.evidence.length} records)</summary>${table}</details>`
     : `<h2 id="evidence">Evidence</h2>${table}`;

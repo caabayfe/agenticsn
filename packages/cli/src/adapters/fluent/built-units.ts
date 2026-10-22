@@ -1,6 +1,7 @@
 import { gunzipSync } from "node:zlib";
 import {
   type BuiltUnit,
+  keyedValue,
   type UnitAction,
   type UnitRecord,
   UnreadableBuildError,
@@ -66,14 +67,29 @@ function opened(value: string): string {
 const isRecord = (node: Node) =>
   attributesOf(node)["action"] !== undefined && tagOf(node) !== "#text";
 
+// One field element: its value, and the name it references a record by, if any.
+function fieldOf(tag: string, child: Node): { value: string; name?: string } {
+  const attributes = attributesOf(child);
+  // A reference written by keys (Now.ref with keys): no display value, two or more keys.
+  const keys = Object.keys(attributes).filter((key) => key !== "display_value");
+  if (attributes["display_value"] === undefined && keys.length >= 2) {
+    return { value: keyedValue(attributes) };
+  }
+  // A form's link to a section names the section by its caption, as the platform matches it.
+  const name =
+    tag === "sys_ui_section" ? (attributes["caption"] ?? attributes["name"]) : attributes["name"];
+  const value = opened(textOf(child));
+  return name === undefined ? { value } : { value, name };
+}
+
 function recordOf(node: Node): UnitRecord {
   const fields: Record<string, string> = {};
   const referenceNames: Record<string, string> = {};
   for (const child of childrenOf(node)) {
     const tag = tagOf(child);
     if (tag.startsWith("#") || isRecord(child)) continue;
-    fields[tag] = opened(textOf(child));
-    const name = attributesOf(child)["name"];
+    const { value, name } = fieldOf(tag, child);
+    fields[tag] = value;
     if (name !== undefined) referenceNames[tag] = name;
   }
   const action: UnitAction =
@@ -112,13 +128,23 @@ export function isEmptyUpdate(xml: string): boolean {
   return xml.replace(/<\?xml[^>]*\?>/, "").trim() === "";
 }
 
+// A form's composite names its domain on the wrapper (<sys_ui_form_sections sys_domain=...>),
+// not on the form record: the head carries it, as the platform matches forms by domain.
+function withWrapperDomain(root: Node, head: UnitRecord): UnitRecord {
+  if (head.fields["sys_domain"] !== undefined) return head;
+  const wrapper = childrenOf(root).find((node) => childrenOf(node).some(isRecord));
+  const domain = wrapper === undefined ? undefined : attributesOf(wrapper)["sys_domain"];
+  return domain === undefined ? head : { ...head, fields: { ...head.fields, sys_domain: domain } };
+}
+
 export function builtUnitOf(file: string, xml: string): BuiltUnit {
   const document = parser.parse(xml) as Node[];
   const root = document.find((node) => tagOf(node) === "record_update");
   if (root === undefined) throw new UnreadableBuildError(file, "it is not an update record");
   const records = recordsIn(root);
-  const head = headOf(records, attributesOf(root)["table"]);
-  if (head === undefined) throw new UnreadableBuildError(file, "no record names the unit");
+  const found = headOf(records, attributesOf(root)["table"]);
+  if (found === undefined) throw new UnreadableBuildError(file, "no record names the unit");
+  const head = withWrapperDomain(root, found);
   const name = file.slice(file.lastIndexOf("/") + 1).replace(/\.xml$/, "");
-  return { updateName: name, file, head, children: records.filter((r) => r !== head) };
+  return { updateName: name, file, head, children: records.filter((r) => r !== found) };
 }

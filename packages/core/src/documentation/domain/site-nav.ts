@@ -1,9 +1,14 @@
 import { employeePage, explained } from "./employee-guide";
 import { escapeHtml } from "./html";
 import { iconSvg } from "./icons";
-import { openQuestionsOf } from "./open-questions";
 import type { Process } from "./process";
-import { type Built, capabilitiesFor, configurePages, understandPages } from "./site-context";
+import {
+  type Built,
+  capabilitiesFor,
+  configurePages,
+  questionSite,
+  understandPages,
+} from "./site-context";
 import {
   EMPLOYEES_HOME,
   IT_HOME,
@@ -12,6 +17,7 @@ import {
   prefixOf,
   sectionHome,
 } from "./site-layout";
+import { openQuestionCount } from "./site-questions";
 import { whatsNewOf } from "./site-releases";
 
 // Which menu a page shows: the site map has none; with an employee guide, its pages (Use pages,
@@ -120,7 +126,7 @@ function itSide(b: Built, processes: readonly Process[], prefix: string, current
             : []),
         ]);
   });
-  const questions = openQuestionsOf(b.input.pages).length;
+  const questions = openQuestionCount(questionSite(b));
   const open =
     single || questions === 0
       ? ""

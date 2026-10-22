@@ -119,3 +119,13 @@ makes the same change land.
 **Expected:** the build writes the type's length when the source gives none, as the platform's
 own form does, or the load reports the refused record.
 **snagentic:** plan refuses the change, naming the `maxLength` to add.
+
+## 11. A record trigger with no condition builds a flow that never runs
+
+Found by the spec 009 scenarios (L8 A1, pdi2, 2026-10-18). `trigger.record.created` with
+`condition: ''` builds `condition` as an empty string in the trigger's inputs. The flow publishes,
+its `sys_flow_record_trigger` is registered and active, yet no record ever starts it: no context,
+no log. With `condition: '^EQ'`, as Flow Designer writes "no condition", the same flow ran within
+10 s. None of the 113 active record triggers on the PDI has an empty condition.
+**Expected:** the build writes `^EQ` for an empty or missing condition, or refuses it.
+**snagentic:** rule SN-MNT-018 blocks the change, naming `condition: '^EQ'`.

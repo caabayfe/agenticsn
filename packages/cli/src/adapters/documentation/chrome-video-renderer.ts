@@ -9,6 +9,7 @@ import {
   type VideoOptions,
   type VideoRenderer,
 } from "@snagentic/core";
+import { childEnvironment } from "../child-environment";
 import { DevToolsClient, field } from "./devtools-client";
 import { MediaToolFailedError, runTool, toolAvailable } from "./run-tool";
 
@@ -170,7 +171,7 @@ export class ChromeVideoRenderer implements VideoRenderer {
         "--no-default-browser-check",
         "about:blank",
       ],
-      { stdout: "ignore", stderr: "ignore", signal },
+      { stdout: "ignore", stderr: "ignore", env: childEnvironment(), signal },
     );
     let client: DevToolsClient | undefined;
     try {

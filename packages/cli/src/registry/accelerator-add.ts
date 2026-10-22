@@ -1,5 +1,6 @@
 import { addPack, InstanceName, VERSION } from "@snagentic/core";
 import { z } from "zod";
+import { SelectionInput, selectionOf } from "./accelerator-schemas";
 import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
@@ -7,16 +8,15 @@ export const acceleratorAdd = defineUseCase({
   group: "accelerator",
   name: "add",
   description:
-    "Write an accelerator pack's capabilities into the workspace (ADR-0026, ADR-0031): their " +
+    "Write an accelerator pack's modules into the workspace (ADR-0026, ADR-0031, ADR-0038): their " +
     "Fluent source into the projects under source/, committed to the branch accelerator/<pack>/" +
     "<instance> and merged into this one, and the out-of-box records they customize, to adopt " +
     "and edit next. Changes nothing on the instance: validate, plan_push and push deliver it. " +
-    "Refuses until accelerator check says every capability is ready.",
+    "Refuses until accelerator check says every module is ready.",
   input: z.object({
     pack: z.string(),
     instance: z.string(),
-    waves: z.array(z.number()).optional().describe("add these waves (default: all)"),
-    capabilities: z.array(z.string()).optional().describe("add these capabilities"),
+    ...SelectionInput,
   }),
   output: z.object({
     pack: z.string(),
@@ -56,8 +56,7 @@ export const acceleratorAdd = defineUseCase({
         pack: input.pack,
         instance: { root, name },
         snagentic: VERSION,
-        ...(input.waves === undefined ? {} : { waves: input.waves }),
-        ...(input.capabilities === undefined ? {} : { capabilities: input.capabilities }),
+        ...selectionOf(input),
       },
     );
   },

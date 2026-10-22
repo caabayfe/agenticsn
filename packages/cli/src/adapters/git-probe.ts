@@ -1,5 +1,6 @@
 import type { EnvironmentProbe } from "@snagentic/core";
 import { failedCheck, okCheck } from "./check-results";
+import { childEnvironment } from "./child-environment";
 
 export interface GitVersionResult {
   readonly exitCode: number;
@@ -13,7 +14,11 @@ const MINIMUM = { major: 2, minor: 30 } as const;
 const INSTALL_HINT = "install git 2.30 or newer and make sure it is on PATH";
 
 async function spawnGitVersion(): Promise<GitVersionResult> {
-  const process = Bun.spawn(["git", "--version"], { stdout: "pipe", stderr: "ignore" });
+  const process = Bun.spawn(["git", "--version"], {
+    stdout: "pipe",
+    stderr: "ignore",
+    env: childEnvironment(),
+  });
   const stdout = await new Response(process.stdout).text();
   return { exitCode: await process.exited, stdout };
 }

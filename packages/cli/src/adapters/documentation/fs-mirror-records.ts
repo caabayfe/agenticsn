@@ -49,7 +49,7 @@ export class FsMirrorRecords implements MirrorRecords {
     return this.mirrorHead();
   }
 
-  private async find(table: string, sysId: string): Promise<string | null> {
+  private async locate(table: string, sysId: string): Promise<string | null> {
     if (!existsSync(this.metadata)) {
       return null;
     }
@@ -61,7 +61,7 @@ export class FsMirrorRecords implements MirrorRecords {
   }
 
   async read(table: string, sysId: string): Promise<MirrorRecord | null> {
-    const base = await this.find(table, sysId);
+    const base = await this.locate(table, sysId);
     if (base === null) {
       return null;
     }
@@ -88,7 +88,28 @@ export class FsMirrorRecords implements MirrorRecords {
     return { hash: typeof hash === "string" ? hash : "", fields, children };
   }
 
-  async list(table: string, signal: AbortSignal): Promise<readonly MirrorListing[]> {
+  list(table: string, signal: AbortSignal): Promise<readonly MirrorListing[]> {
+    return this.scan(table, signal, () => true);
+  }
+
+  // Reads each file's text first and parses only those with a line `<field>: <value>`, so a
+  // search of the dictionary (143,000 records on a PDI) stays fast.
+  find(
+    table: string,
+    field: string,
+    values: readonly string[],
+    signal: AbortSignal,
+  ): Promise<readonly MirrorListing[]> {
+    const wanted = new Set(values);
+    const line = new RegExp(`^${field}: ['"]?([^'"\n]*)['"]?$`, "m");
+    return this.scan(table, signal, (text) => wanted.has(line.exec(text)?.[1] ?? "\u0000"));
+  }
+
+  private async scan(
+    table: string,
+    signal: AbortSignal,
+    keep: (text: string) => boolean,
+  ): Promise<readonly MirrorListing[]> {
     if (!existsSync(this.metadata)) {
       return [];
     }
@@ -100,13 +121,18 @@ export class FsMirrorRecords implements MirrorRecords {
       if (sysId === undefined || leaf.slice(0, -`--${sysId}.yaml`.length).includes(".")) {
         continue;
       }
-      const parsed = fromYamlStrings(await readFile(join(this.metadata, path), "utf8"));
+      const source = await readFile(join(this.metadata, path), "utf8");
+      if (!keep(source)) {
+        continue;
+      }
+      const parsed = fromYamlStrings(source);
       const record = isMap(parsed) ? parsed : {};
       const meta = isMap(record["_meta"]) ? record["_meta"] : {};
       const updatedBy = text(meta["sys_updated_by"]);
       const updatedOn = text(meta["sys_updated_on"]);
       listings.push({
         sysId,
+        scope: path.slice(0, path.indexOf("/")),
         fields: textFields(record),
         ...(updatedBy === undefined ? {} : { updatedBy }),
         ...(updatedOn === undefined ? {} : { updatedOn }),

@@ -63,6 +63,17 @@ function installer(tables: Record<string, Row[]>, loads: string[]): FluentInstal
   };
 }
 
+const EMPTY_KEYS = `import '@servicenow/sdk/global'
+
+declare global {
+    namespace Now {
+        namespace Internal {
+            interface Keys extends KeysRegistry {}
+        }
+    }
+}
+`;
+
 const git = (root: string, ...args: string[]) =>
   runGitOrThrow(["-c", "user.name=t", "-c", "user.email=t@t", ...args], root);
 
@@ -95,6 +106,9 @@ export async function unitWorkspace(options: {
   await authoring.writeLedger(project, withEntries(new Map(), "pdi", new Map([[SI_UNIT, entry]])));
   await mkdir(join(ws.root, project.path, "src/fluent"), { recursive: true });
   await writeFile(join(ws.root, project.path, "src/fluent/si.now.ts"), `// ${options.source}\n`);
+  // The keys file the SDK writes for this source, committed as fluent-keys would.
+  await mkdir(join(ws.root, project.path, "src/fluent/generated"), { recursive: true });
+  await writeFile(join(ws.root, project.path, "src/fluent/generated/keys.ts"), EMPTY_KEYS);
   await git(ws.root, "add", "-A");
   await git(ws.root, "commit", "-qm", "adopt");
   const xml = builtXml(options.source);

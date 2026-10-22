@@ -158,6 +158,37 @@ describe("plan's gate on adopted code", () => {
     expect(plan.gate.passed).toBe(true);
   });
 
+  it("blocks a project never pushed even when its source was committed before the base", async () => {
+    // A workspace with no pull judges from HEAD, where committed source is already there.
+    const { deps, project, builds } = unitSetup({ ledger: null });
+    builds.set(project.path, [scriptInclude("New.", "b".repeat(32))]);
+    const governance = governanceOf({
+      [project.path]: { now: [legacy], base: [legacy], unchanged: true },
+    });
+    const workspace = { ...deps.authoring.workspace, ledgerCommit: async () => null };
+    const { plan } = await computeUnitPlan(
+      { ...deps, governance, authoring: { ...deps.authoring, workspace } },
+      QUERY,
+    );
+    expect(plan.units.map((u) => u.operation)).toEqual(["create"]);
+    expect(plan.gate.passed).toBe(false);
+    expect(plan.ready).toBe(false);
+  });
+
+  it("judges a pushed project from its ledger even when the change since the base left it", async () => {
+    const { deps, project } = unitSetup({ source: "Edited in source." });
+    const governance = governanceOf({
+      [project.path]: { now: [legacy], base: [legacy], unchanged: true, at: { pushed: [] } },
+    });
+    const workspace = { ...deps.authoring.workspace, ledgerCommit: async () => "pushed" };
+    const { plan } = await computeUnitPlan(
+      { ...deps, governance, authoring: { ...deps.authoring, workspace } },
+      QUERY,
+    );
+    expect(plan.units.map((u) => u.operation)).toEqual(["load"]);
+    expect(plan.gate.passed).toBe(false);
+  });
+
   it("still blocks a project with no ledger on everything it holds", async () => {
     const { deps, project } = unitSetup();
     const governance = governanceOf({ [project.path]: { now: [legacy], base: null } });

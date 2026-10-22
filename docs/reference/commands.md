@@ -254,6 +254,22 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `take-over`
+
+```
+snagentic take-over <records...> [options]
+```
+
+Take over out-of-box records the workspace's source declares whole, such as a form layout (ADR-0038 item 8). A record still as the platform shipped it (no customer update) is recorded in the ledger as this branch's, so the next plan loads the source over it. A record the client customized is refused and nothing is written. Name records table:sys_id.
+
+Changes the instance: **yes, development instances only**. MCP tool: none.
+
+Options:
+
+- `--instance <value>`: the development instance holding the records
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `plan-push`
 
 ```
@@ -404,7 +420,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic accelerator list [options]
 ```
 
-List the accelerator packs snagentic ships, with their capabilities and waves (ADR-0026).
+List the accelerator packs snagentic ships and those under the workspace's pack paths (snagentic.yaml accelerators.paths), with their modules and profiles (ADR-0026, ADR-0038).
 
 Changes the instance: no. MCP tool: none.
 
@@ -416,15 +432,15 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic accelerator check [pack] [options]
 ```
 
-Accelerator packs (ADR-0026): without a pack, list them; with one, what its capabilities install and, with an instance, whether they can be installed there: each capability's state (ready, needs-plugins, not-entitled, blocked) and the exact commands that fix it. Reads the mirror only, never the instance.
+Accelerator packs (ADR-0026, ADR-0038): without a pack, list them; with one, the modules a profile or a list installs and, with an instance, whether they can be installed there: each module's state (ready, needs-components, not-entitled, blocked) and the exact commands that fix it. Reads the mirror only, never the instance.
 
 Changes the instance: no. MCP tool: `accelerator`.
 
 Options:
 
-- `--instance <value>`: check against this instance's mirrored plugins
-- `--waves <numbers...>`: install these waves (default: all)
-- `--capabilities <values...>`: install these capabilities
+- `--instance <value>`: check against this instance's mirrored components
+- `--profile <value>`: install this profile's modules
+- `--modules <values...>`: install these modules (with what they need)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -434,49 +450,85 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic accelerator add <pack> <instance> [options]
 ```
 
-Write an accelerator pack's capabilities into the workspace (ADR-0026, ADR-0031): their Fluent source into the projects under source/, committed to the branch accelerator/<pack>/<instance> and merged into this one, and the out-of-box records they customize, to adopt and edit next. Changes nothing on the instance: validate, plan_push and push deliver it. Refuses until accelerator check says every capability is ready.
+Write an accelerator pack's modules into the workspace (ADR-0026, ADR-0031, ADR-0038): their Fluent source into the projects under source/, committed to the branch accelerator/<pack>/<instance> and merged into this one, and the out-of-box records they customize, to adopt and edit next. Changes nothing on the instance: validate, plan_push and push deliver it. Refuses until accelerator check says every module is ready.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
 Options:
 
-- `--waves <numbers...>`: add these waves (default: all)
-- `--capabilities <values...>`: add these capabilities
+- `--profile <value>`: install this profile's modules
+- `--modules <values...>`: install these modules (with what they need)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
 ### `accelerator validate-data`
 
 ```
-snagentic accelerator validate-data <pack> <data> [options]
+snagentic accelerator validate-data <pack> [options]
 ```
 
-Check an accelerator pack's data templates (one CSV per entity in a directory) before any load: mandatory fields, references that resolve, repeated keys (ADR-0026). Needs no instance, so it also checks data for test and production, which snagentic never loads. Refuses a directory git tracks: customer data is never committed.
+Check an accelerator pack's data templates (one CSV per entity in a directory, or the pack's demo set with --demo) before any load: mandatory fields, references that resolve, repeated keys (ADR-0026). Needs no instance, so it also checks data for test and production, which snagentic never loads. Refuses a directory git tracks: customer data is never committed.
 
 Changes the instance: no. MCP tool: none.
 
 Options:
 
-- `--waves <numbers...>`: check these waves' entities (default: all)
-- `--capabilities <values...>`: check these capabilities' entities
+- `--data <value>`: the directory with the templates, outside the workspace
+- `--demo`: use the pack's fictional demo data
+- `--profile <value>`: install this profile's modules
+- `--modules <values...>`: install these modules (with what they need)
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `accelerator install`
+
+```
+snagentic accelerator install <pack> <instance> [options]
+```
+
+Install an accelerator pack's modules on a development instance (ADR-0038). Without --confirm it writes the install plan for the platform admin (components to activate, each module's update set and source, out-of-box records changed, data to load, risks) and changes nothing. With --confirm <plan id> it runs exactly that plan: components, then each module through validate, plan_push and push into its own update set, then the data, then commits the plan and a report. A run that stops resumes with the same command.
+
+Changes the instance: **yes, development instances only**. MCP tool: none.
+
+Options:
+
+- `--profile <value>`: install this profile's modules
+- `--modules <values...>`: install these modules (with what they need)
+- `--data <value>`: the directory with the templates, outside the workspace
+- `--demo`: use the pack's fictional demo data
+- `--confirm <value>`: the plan id the admin approved
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
 ### `accelerator load`
 
 ```
-snagentic accelerator load <pack> <instance> <data> [options]
+snagentic accelerator load <pack> <instance> [options]
 ```
 
-Load an accelerator pack's data templates into a development instance through the pack's import set tables (ADR-0026): every template is validated first and nothing loads until all pass; then each entity in order, one row per request, never retried, stopping after the first entity with rows the instance did not take. Reports counts and the business keys of failed rows, never other values. Test and production are loaded on the instance itself.
+Load an accelerator pack's data templates (a directory, or the pack's demo set with --demo) into a development instance through the pack's import set tables (ADR-0026): every template is validated first and nothing loads until all pass; then each entity in order, one row per request, never retried, stopping after the first entity with rows the instance did not take. Reports counts and the business keys of failed rows, never other values. Test and production are loaded on the instance itself.
 
 Changes the instance: **yes, development instances only**. MCP tool: none.
 
 Options:
 
-- `--waves <numbers...>`: load these waves' entities (default: all)
-- `--capabilities <values...>`: load these capabilities' entities
+- `--data <value>`: the directory with the templates, outside the workspace
+- `--demo`: use the pack's fictional demo data
+- `--profile <value>`: install this profile's modules
+- `--modules <values...>`: install these modules (with what they need)
 - `--confirm`: confirm that this writes records
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `docs census`
+
+```
+snagentic docs census <process> [options]
+```
+
+List every application that reaches a documented process's tables, from the mirror: form and workspace actions (also those on the tables they extend, such as task), business rules, client scripts, UI policies, notifications, SLA definitions, and tables that refer to the process. Each application must be named by a feature in processes/<process>/features.yaml (documented, todo, out-of-scope or question); the ones no feature names are listed as undecided. Features only visible on screen (workspace buttons, side panels) are found by walking the form as each role. Reads only the mirror.
+
+Changes the instance: no. MCP tool: none.
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -489,6 +541,25 @@ snagentic docs check [options]
 Check the workspace's documentation (documentation/) against the instance's mirror: evidence whose record changed or is gone, citations of unknown evidence, missing animations, and the sections: shared pages, end user and operator guides, configure pages. Exits 1 when a page is no longer true or a source has an error. Reads only the mirror.
 
 Changes the instance: no. MCP tool: none.
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
+### `docs questions`
+
+```
+snagentic docs questions [options]
+```
+
+List the documentation's questions (ADR-0041): processes/<process>/questions.yaml and the shared documentation/questions.yaml. Before asking a new question, look for it here and cite the one that exists ([Q01], [<process>/Q01] or [shared/Q01]). --about a record (<table>/<sys_id> or a sys_id), --search words, --process, --status (open by default, or all).
+
+Changes the instance: no. MCP tool: none.
+
+Options:
+
+- `--about <value>`: questions about this record: <table>/<sys_id>
+- `--search <value>`: words that must all appear in the question
+- `--process <value>`: a process id, or shared
+- `--status <value>`: open (default), answered, dropped or all (one of: open, answered, dropped, all)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -527,7 +598,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic docs build [options]
 ```
 
-Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate). --audio adds music and sound effects to the animations, --voice piper|system also narrates them, --video renders every animation as an MP4 on its page and names any it could not make. Without these flags it makes the media site.yaml asks for (media: audio, voice, video); recorded videos are reused until their animation changes.
+Build the documentation as a static site (HTML, CSS, self-contained animations) in .snagentic/site/, for any web server. Each page shows its evidence status against the mirror; a stale page is built and says so (docs check is the gate). --audio adds music and sound effects to the animations, --voice piper|system also narrates them, --video renders every animation as an MP4 on its page and names any it could not make. It makes the media site.yaml asks for (media: audio, voice, video), each flag replacing only its own setting (--voice none for no narration); recorded videos are reused until their animation changes.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
@@ -672,8 +743,8 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `instance` (string, required)
   - `id` (string, required): the plugin id, such as com.snc.incident_ai
   - `confirm` (boolean, optional): confirm that this changes the instance
-- `accelerator`: Accelerator packs (ADR-0026): without a pack, list them; with one, what its capabilities install and, with an instance, whether they can be installed there: each capability's state (ready, needs-plugins, not-entitled, blocked) and the exact commands that fix it. Reads the mirror only, never the instance.
+- `accelerator`: Accelerator packs (ADR-0026, ADR-0038): without a pack, list them; with one, the modules a profile or a list installs and, with an instance, whether they can be installed there: each module's state (ready, needs-components, not-entitled, blocked) and the exact commands that fix it. Reads the mirror only, never the instance.
   - `pack` (string, optional): the pack id; omit to list the packs
-  - `instance` (string, optional): check against this instance's mirrored plugins
-  - `waves` (array, optional): install these waves (default: all)
-  - `capabilities` (array, optional): install these capabilities
+  - `instance` (string, optional): check against this instance's mirrored components
+  - `profile` (string, optional): install this profile's modules
+  - `modules` (array, optional): install these modules (with what they need)

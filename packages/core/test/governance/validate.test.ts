@@ -92,6 +92,32 @@ describe("validate", () => {
     expect(fromPull.passed).toBe(false);
   });
 
+  it("checks a project it is told to include even when the change since the base left it", async () => {
+    const unit = unitOf("sys_script_include", { ...DESCRIBED, script: "eval(a); /*SN-SEC-001*/" });
+    const deps = governanceOf({
+      [GLOBAL]: { now: [unit], base: [unit], unchanged: true, at: { pushed: [] } },
+    });
+    expect(await validate(deps, { base: "HEAD" })).toMatchObject({ fluentProjects: 0 });
+    const result = await validate(deps, {
+      base: "HEAD",
+      include: [GLOBAL],
+      bases: { [GLOBAL]: "pushed" },
+    });
+    expect(result).toMatchObject({ fluentProjects: 1, units: 1, passed: false });
+  });
+
+  it("judges a project with no base as new in full: it never agreed with the instance", async () => {
+    const unit = unitOf("sys_script_include", { ...DESCRIBED, script: "eval(a); /*SN-SEC-001*/" });
+    const deps = governanceOf({ [GLOBAL]: { now: [unit], base: [unit], unchanged: true } });
+    const result = await validate(deps, {
+      base: "HEAD",
+      include: [GLOBAL],
+      bases: { [GLOBAL]: null },
+    });
+    expect(result.findings.map((f) => f.ruleId)).toEqual(["SN-SEC-001"]);
+    expect(result.passed).toBe(false);
+  });
+
   it("checks nothing in units the change left as they were", async () => {
     const unit = unitOf("sys_script_include", { ...DESCRIBED, script: "eval(a); /*SN-SEC-001*/" });
     const result = await validate(governanceOf({ [GLOBAL]: { now: [unit], base: [unit] } }), {

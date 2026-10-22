@@ -1,8 +1,10 @@
 import { coverage, type FeatureStatus, featureCapability, type ProcessFeatures } from "./features";
 import { escapeHtml } from "./html";
 import type { Process } from "./process";
-import { type Built, link } from "./site-context";
+import { findQuestion } from "./questions";
+import { type Built, link, questionSite } from "./site-context";
 import { pageFile, prefixOf } from "./site-layout";
+import { questionHref } from "./site-questions";
 
 // The features of a process on its IT page (ADR-0040): each with its decision and the pages that
 // document it, so a reader sees what is covered and what was left out, and why.
@@ -38,13 +40,28 @@ function pagesOf(b: Built, process: Process, refs: readonly string[], file: stri
     .join(", ");
 }
 
+// The question a feature waits on, linked to the tracker.
+function askedHtml(b: Built, own: string, ref: string | undefined, file: string): string {
+  if (ref === undefined) return "";
+  const found = findQuestion(b.input.questions ?? [], ref, own);
+  if (found === null) return escapeHtml(ref);
+  const href = questionHref(questionSite(b), prefixOf(file), found.process, found.question.id);
+  const name = href === null ? escapeHtml(ref) : `<a href="${href}">${escapeHtml(ref)}</a>`;
+  return `${name}: ${escapeHtml(found.question.ask)}`;
+}
+
 export function featuresHtml(b: Built, process: Process, file: string): string {
   const declared = featuresOf(b, process);
   if (declared === undefined || declared.features.length === 0) return "";
   const rows = declared.features.map((feature) => {
     const status = STATUS[feature.status];
     const pages = pagesOf(b, process, feature.capabilities, file);
-    const note = feature.note === undefined ? "" : escapeHtml(feature.note);
+    const note = [
+      feature.note === undefined ? "" : escapeHtml(feature.note),
+      askedHtml(b, declared.process, feature.question, file),
+    ]
+      .filter((part) => part !== "")
+      .join(" ");
     return `<tr><td>${escapeHtml(feature.title)}</td><td><span class="label label-${status.label}">${status.text}</span></td><td>${pages}${pages !== "" && note !== "" ? "<br>" : ""}${note}</td></tr>`;
   });
   return `<h2>Features</h2>

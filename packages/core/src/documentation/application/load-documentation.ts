@@ -2,6 +2,7 @@ import { NoDocumentationError } from "../domain/errors";
 import { parseFeatures } from "../domain/features";
 import { parseDocPage } from "../domain/page";
 import { parseProcess } from "../domain/process";
+import { parseQuestions } from "../domain/questions";
 import { parseRelease } from "../domain/releases";
 import { parseScene } from "../domain/scene";
 import { parseSiteConfig } from "../domain/site-config";
@@ -30,5 +31,8 @@ export async function loadDocumentation(
   const features = ((await sources.features?.()) ?? []).map((source) =>
     parseFeatures(source.path, source.features),
   );
-  return { config, processes, pages, scenes, releases, features };
+  const questions = ((await sources.questions?.()) ?? []).map((source) =>
+    parseQuestions(source.path, source.questions),
+  );
+  return { config, processes, pages, scenes, releases, features, questions };
 }

@@ -2,6 +2,7 @@ import type { CensusGroup } from "./census";
 import { DocumentationSourceError } from "./errors";
 import { fieldsOf, textOf } from "./fields";
 import type { Process, ProcessCapability } from "./process";
+import { QUESTION_REF } from "./questions";
 
 // processes/<process>/features.yaml (ADR-0040): the process's features, each with the
 // applications the census found it in, or what a person saw on screen, and a decision.
@@ -17,6 +18,8 @@ export interface Feature {
   readonly capabilities: readonly string[];
   // Why it is out of scope and who decided, or what to ask.
   readonly note?: string;
+  // The question it waits on (ADR-0041): Q07, or <process>/Q07.
+  readonly question?: string;
   // Found by looking at the screen: who, when (YYYY-MM-DD) and where.
   readonly seen?: { readonly by: string; readonly on: string; readonly where: string };
 }
@@ -67,10 +70,20 @@ function featureOf(path: string, raw: unknown): Feature {
     );
   }
   const note = textOf(fields["note"]);
-  if ((status === "out-of-scope" || status === "question") && note === undefined) {
+  const question = textOf(fields["question"]);
+  if (question !== undefined && !QUESTION_REF.test(question)) {
+    throw new DocumentationSourceError(path, `feature ${id}: question ${question} is not Q01…`);
+  }
+  if (status === "out-of-scope" && note === undefined) {
     throw new DocumentationSourceError(
       path,
-      `feature ${id}: ${status} needs a note (${status === "question" ? "what to ask" : "why, and who decided"})`,
+      `feature ${id}: out-of-scope needs a note (why, and who decided)`,
+    );
+  }
+  if (status === "question" && note === undefined && question === undefined) {
+    throw new DocumentationSourceError(
+      path,
+      `feature ${id}: question needs question: Q01, or a note`,
     );
   }
   const seen = seenOf(path, id, fields["seen"]);
@@ -85,6 +98,7 @@ function featureOf(path: string, raw: unknown): Feature {
     status,
     capabilities: strings(fields["capabilities"]),
     ...(note === undefined ? {} : { note }),
+    ...(question === undefined ? {} : { question }),
     ...(seen === undefined ? {} : { seen }),
   };
 }

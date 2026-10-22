@@ -196,6 +196,7 @@ export async function buildSite(
     theme: (await deps.sources.theme?.()) ?? [],
     releases: docs.releases,
     features: docs.features,
+    questions: docs.questions,
     ...(instanceUrl === null ? {} : { instanceUrl }),
   });
   await deps.output.replace(files);

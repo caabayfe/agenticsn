@@ -78,5 +78,8 @@ export function platformWords(markdown: string, extra: readonly string[]): reado
 // True when some evidence was checked where the reader works: a record of their surface's
 // tables, or a person's check on the screen.
 export function checkedOnSurface(evidence: readonly Evidence[], view: View): boolean {
-  return evidence.some((item) => item.kind === "seen" || SURFACE_TABLES[view].includes(item.table));
+  return evidence.some(
+    (item) =>
+      item.kind === "seen" || (item.kind === "record" && SURFACE_TABLES[view].includes(item.table)),
+  );
 }

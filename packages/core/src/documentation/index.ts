@@ -18,12 +18,18 @@ export {
   checkDocs,
   type DocsCheck,
   type EvidenceResult,
+  type QuestionAnchorResult,
 } from "./application/check-docs";
 export { configIndex } from "./application/config-index";
 export {
   type DocumentationLookup,
   documentationLookup,
 } from "./application/documented-records";
+export {
+  type ListedQuestion,
+  listQuestions,
+  type QuestionsQuery,
+} from "./application/list-questions";
 export { type Documentation, loadDocumentation } from "./application/load-documentation";
 export { type PinDocsQuery, type PinDocsResult, pinDocs } from "./application/pin-docs";
 export {
@@ -129,6 +135,15 @@ export {
   SEE_LINK,
   transcriptHtml,
 } from "./domain/prose";
+export { type DuplicatePair, possibleDuplicates } from "./domain/question-duplicates";
+export {
+  type ProcessQuestions,
+  parseQuestions,
+  QUESTION_KINDS,
+  type Question,
+  type QuestionKind,
+  type QuestionStatus,
+} from "./domain/questions";
 export { type Resolved, referencesOf, resolveReference } from "./domain/references";
 export {
   NOTE_GUIDES,

@@ -2,10 +2,18 @@ import { employeePage, explained } from "./employee-guide";
 import { escapeHtml } from "./html";
 import { iconSvg } from "./icons";
 import type { Process } from "./process";
-import { type Built, capabilitiesFor, checked, configurePages, link } from "./site-context";
+import {
+  type Built,
+  capabilitiesFor,
+  checked,
+  configurePages,
+  link,
+  questionSite,
+} from "./site-context";
 import { coverageText } from "./site-features";
 import { EMPLOYEES_HOME, IT_HOME, layout, pageFile, prefixOf, sectionHome } from "./site-layout";
 import { navFor } from "./site-nav";
+import { openQuestionCount } from "./site-questions";
 
 interface Card {
   readonly icon: string | undefined;
@@ -75,8 +83,7 @@ function processCard(b: Built, process: Process): Card {
     summary:
       (b.input.config.employees === undefined
         ? process.summary
-        : (process.itSummary ?? process.summary)) +
-      (coverageText(b, process) === null ? "" : ` (${coverageText(b, process)}.)`),
+        : (process.itSummary ?? process.summary)) + cardCounts(b, process),
     links: [
       ...links,
       ...(configurePages(b, process).length > 0
@@ -84,6 +91,16 @@ function processCard(b: Built, process: Process): Card {
         : []),
     ],
   };
+}
+
+// "(4 of 12 features documented; 3 open questions.)", or nothing.
+function cardCounts(b: Built, process: Process): string {
+  const questions = openQuestionCount(questionSite(b), process.id);
+  const parts = [
+    coverageText(b, process),
+    questions === 0 ? null : `${questions} open question${questions === 1 ? "" : "s"}`,
+  ].filter((part) => part !== null);
+  return parts.length === 0 ? "" : ` (${parts.join("; ")}.)`;
 }
 
 // The IT guide's cards. Beside an employee guide, a process with nothing for IT (such as the

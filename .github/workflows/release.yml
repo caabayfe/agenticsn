@@ -30,8 +30,16 @@ jobs:
         run: bun scripts/check-release.ts "${GITHUB_REF_NAME}"
       # As verify.yml: the documentation media tests (ADR-0036) need ffmpeg, and the coverage
       # gate counts them.
+      # The Ubuntu mirror is sometimes slow enough to eat the whole job (2026-10-22): each try
+      # gets 4 minutes, and a second try follows a stalled one.
       - name: ffmpeg
-        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+        timeout-minutes: 9
+        run: |
+          for try in 1 2; do
+            timeout 240 sh -c 'sudo apt-get update -q && sudo apt-get install -y -q ffmpeg' && exit 0
+            echo "ffmpeg install try $try stalled or failed"
+          done
+          exit 1
       - run: bun run verify
 
   binary:

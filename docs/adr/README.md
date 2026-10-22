@@ -47,6 +47,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0039](0039-a-change-shows-what-it-does-to-the-documentation.md) | A change shows what it does to the documentation, sentence by sentence | Accepted |
 | [0040](0040-every-feature-of-a-process-has-a-decision.md) | Every feature of a process is found and has a decision | Accepted |
 | [0041](0041-open-questions-are-records-with-an-answer.md) | Open questions are records, each with someone to ask and an answer | Accepted |
+| [0042](0042-modules-add-to-shipped-layouts-by-business-key.md) | Modules add to shipped layouts through ensure rules, found by table and view | Proposed |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

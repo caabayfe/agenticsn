@@ -344,7 +344,14 @@ signed-in browser session and is not yet exercised.
 | F4 | `incident-core`'s fallback group property holds the demo anchor's sys_id. With a client's own data and no demo, the group does not exist | **I12, settings as data:** property values that depend on data are loaded with the data (an entity targeting `sys_properties`, matched on `name`), so each environment sets its own. `incident-core` ships an empty default |
 | F5 | A record removed with the Table API was captured in the user's Default update set, and collided with the module's set | Spike tools only. Product removals go through snagentic |
 
-**I10 ensure rules (proposal; needs an ADR because it is a new content kind):**
+**KCS finding (2026-10-22, ITSM pack 0.5.0 on pdi2):** activating `com.snc.incident.knowledge`
+replaced the incident Default view's related-list container (`5b6aff5b…`) with the plugin's
+(`454c3bdf…`), with no audit row or update set entry; the lists incident-relations had added were
+gone, and the next install stopped on the missing adopted record. Pack 0.5.0 pins the plugin's
+container as an interim. I10 is proposed as ADR-0042.
+
+**I10 ensure rules (proposed as ADR-0042, which adds: facts resolved after the components step,
+delivered as generated Fluent through the SDK, and checked again after the install):**
 - **What a module declares:** `modules/<m>/ensure.yaml`, a list of declarative facts about
   configuration it does not own. For example:
   - "table `incident`, view `Default`, has the related list `incident_task.incident`";

@@ -31,6 +31,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   then went unchecked: on pdi2 a script include with `eval` planned as ready. A project the push
   loads is now judged from its ledger commit, and one that never agreed with the instance (no
   ledger) is judged in full. Found by the spec 009 scenarios (L8).
+- Plan refuses a change to a column whose source gives no `maxLength`, naming the length to add
+  (the instance's, or 40, or 32 for a reference). The platform refuses to update a column with
+  an empty length ("Length change not allowed") while the load answers success, so a column
+  created without one could never change: push reported it as not applied and the next plan
+  tried again. Found by the spec 009 scenarios (L3-1, pdi2).
 
 ## [2.5.0] - 2026-10-20
 

@@ -106,6 +106,20 @@ beside the instance's own row. That row gets a new random sys_id on every build.
 fails naming the record it couldn't read; and a build's generated sys_ids are stable.
 **snagentic:** refuses, naming the role or view it couldn't read (since PR #93).
 
+## 10. A column built with no `maxLength` can never be changed by a load
+
+Found by the spec 009 scenarios (L8, pdi2, 2026-10-18), not by the census. A column whose source
+gives no `maxLength` (any `IntegerColumn`, `BooleanColumn`, `DateTimeColumn`, `ReferenceColumn`
+or `ChoiceColumn` written without one) builds `<max_length/>`. The first load inserts it, and the
+instance stores the empty length. Every later load of that column is refused by the platform's
+`DictionaryUpdateLoader` ("Length change not allowed. Invalid new length (-1) for field …",
+syslog), while `/api/fluent/load` answers success: a label or default change never lands.
+Reproduced on 5 columns of 5 types; giving the column `maxLength` (40, or 32 for a reference)
+makes the same change land.
+**Expected:** the build writes the type's length when the source gives none, as the platform's
+own form does, or the load reports the refused record.
+**snagentic:** plan refuses the change, naming the `maxLength` to add.
+
 ## 11. A record trigger with no condition builds a flow that never runs
 
 Found by the spec 009 scenarios (L8 A1, pdi2, 2026-10-18). `trigger.record.created` with

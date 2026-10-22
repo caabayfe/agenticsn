@@ -69,6 +69,16 @@ export function planUnit(
   if (entry === undefined) return { kind: "not-adopted", differences };
   if (entry.instance !== copy.version) return { kind: "drift", differences };
   if (entry.build === digest) return { kind: "none" };
+  return decideLoad(unit, copy, differences);
+}
+
+// A changed unit the branch adopted: loaded, unless the load would replace other domains' rows
+// or the platform would refuse it while answering success.
+function decideLoad(
+  unit: BuiltUnit,
+  copy: InstanceCopy,
+  differences: readonly Difference[],
+): UnitDecision {
   if (copy.foreignRows > 0) {
     return {
       kind: "unsafe",

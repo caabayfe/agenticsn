@@ -417,7 +417,7 @@ ADR-0038 section 6, proposed amendment.
 
 | # | Item | State |
 |---|---|---|
-| S-U | **Spike, completing update sets** on pdi2: (1) setting a parent set to complete through the Table API, and whether its scope children follow or each needs its own write; (2) on a second instance or a re-import, whether preview flags an older set committed after a newer one ("newer local update") | To run |
+| S-U | **Spike, completing update sets** (run 2026-10-22 on pdi2, by the owner): a throwaway parent with a global child and a `sn_comm_management` child, the parent set to complete with one Table API `PATCH` (business rules run, UI actions do not) | **Done. Completing the parent completes its children**, in the global and the scoped child alike: the install writes the parent only. The throwaway sets were deleted. Not run: whether a target's preview flags an older set committed after a newer one; it needs a second instance or a UI import, and completing the earlier sets in order prevents the case whatever the preview does. Also found: `snagentic: ACC itsm/foundation 0.1.0` (264 updates, a manual push from spec 005) follows neither the install's naming nor a report, so it stays someone else's set: an upgrade touching its records stops, as decided |
 | I16 | **Earlier update sets in upgrades**, test first: | To build |
 | | 1. Core domain, pure: which open sets are the pack's own and earlier (install reports, or the naming pattern for an older version, with an optional ` [scope]` child); a newer version's set and someone else's set are not. Moves `ownedBy` out of `packages/cli` | |
 | | 2. Install reports record the update sets of each step in a structured form; older reports are read from their table | |

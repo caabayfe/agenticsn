@@ -1,6 +1,6 @@
 # 012. Security hardening: plan
 
-- Status: Draft (2026-10-22). Step 1 in progress
+- Status: Draft (2026-10-22). Step 1 in this PR (#121); step 2 in #122 (stacked); step 3 in #123
 - Date: 2026-10-22
 - Source: code audit 2026-10-21 (`docs/reports/code-audit-2026-10-21.md`, PR #120), findings
   A-01 to A-04, A-09, A-10, A-12, A-13 and the security areas of its section 7
@@ -80,6 +80,13 @@ Effort: S under 1 day, M 1 to 3 days, L over 3 days.
    expiry. Test the comparison as a script with fixtures.
 
 ### Step 3. `childEnvironment()`
+
+Outcome (2026-10-22, #123): 11 spawn sites, not 6: five more inherited the environment by
+setting no `env`. The helper drops what `isCredentialVariable()` names and keeps the rest; an
+architecture test fails on a spawn without it. Not an allowlist: git and gh need `HOME`,
+`SSH_AUTH_SOCK`, proxies and `GH_TOKEN`, and only snagentic's own secrets are its to withhold.
+`NO_TELEMETRY` stays on `process.env`, because the in-process SDK reads it there and it isn't
+a secret.
 
 - First test: `it("does not pass instance credentials to git")`.
 - One adapter helper builds each child's environment from an allowlist per tool (git, gh,

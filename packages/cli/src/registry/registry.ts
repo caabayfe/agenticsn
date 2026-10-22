@@ -1,5 +1,6 @@
 import { acceleratorAdd } from "./accelerator-add";
 import { acceleratorCheck } from "./accelerator-check";
+import { acceleratorInstall } from "./accelerator-install";
 import { acceleratorList } from "./accelerator-list";
 import { acceleratorLoad } from "./accelerator-load";
 import { acceleratorValidateData } from "./accelerator-validate-data";
@@ -11,9 +12,11 @@ import { authLogout } from "./auth-logout";
 import { check } from "./check";
 import { describe } from "./describe";
 import { docsBuild } from "./docs-build";
+import { docsCensus } from "./docs-census";
 import { docsCheck } from "./docs-check";
 import { docsImpact } from "./docs-impact";
 import { docsPin } from "./docs-pin";
+import { docsQuestions } from "./docs-questions";
 import { docsServe } from "./docs-serve";
 import { docsVideo } from "./docs-video";
 import { doctor } from "./doctor";
@@ -30,6 +33,7 @@ import { pluginsList } from "./plugins-list";
 import { pull } from "./pull";
 import { push } from "./push";
 import { status } from "./status";
+import { takeOver } from "./take-over";
 import { updateSetsCollisions } from "./update-sets-collisions";
 import { updateSetsExport } from "./update-sets-export";
 import { updateSetsList } from "./update-sets-list";
@@ -58,6 +62,7 @@ export const USE_CASES: readonly UseCase[] = [
   fluentKeys,
   check,
   adopt,
+  takeOver,
   planPush,
   push,
   agentInstall,
@@ -72,8 +77,11 @@ export const USE_CASES: readonly UseCase[] = [
   acceleratorCheck,
   acceleratorAdd,
   acceleratorValidateData,
+  acceleratorInstall,
   acceleratorLoad,
+  docsCensus,
   docsCheck,
+  docsQuestions,
   docsImpact,
   docsPin,
   docsBuild,

@@ -1,15 +1,19 @@
+import type { OpenSet } from "./domain/earlier-sets";
+import type { InstallRecord } from "./domain/install-plan";
 import type { MaterializedFile } from "./domain/materialize";
 import type { Template } from "./domain/templates";
 import type { PreviousAdd } from "./domain/upgrade";
 
-// Where accelerator packs come from: the first-party packs embedded in snagentic (ADR-0026).
+// Where accelerator packs come from: the packs embedded in snagentic and those under the
+// workspace's pack paths (ADR-0026, ADR-0038).
 export interface PackSource {
   // Pack ids, sorted.
   ids(): Promise<readonly string[]>;
-  // A pack's accelerator.yaml, parsed; null when there is no such pack.
-  manifest(id: string): Promise<unknown | null>;
-  // Every file of the pack, by path in the pack ("source/base/global/...").
+  // Every file of the pack, by path in the pack ("modules/<module>/..."); empty when there is no
+  // such pack.
   files(id: string): Promise<ReadonlyMap<string, string>>;
+  // A pack's YAML document, parsed.
+  parse(text: string): unknown;
 }
 
 // The workspace side of `accelerator add` for one instance (ADR-0026, item 2): the pack's files,
@@ -22,6 +26,10 @@ export interface PackWorkspace {
   includes(commit: string): Promise<boolean>;
   // A YAML document's text, parsed.
   parse(text: string): unknown;
+  // The reports of the pack's earlier installs on this instance, as committed.
+  installReports(pack: string): Promise<readonly string[]>;
+  // Which of these workspace paths the working branch holds (tracked in git).
+  present(paths: readonly string[]): Promise<readonly string[]>;
   // What the pack's last add wrote and kept; both empty before its first add.
   previous(pack: string): Promise<PreviousAdd>;
   // Commits the files onto the mirror commit as the pack branch's next commit, with the `keep`
@@ -45,6 +53,8 @@ export interface DataTemplates {
   tracked(directory: string): Promise<boolean>;
   // A template, parsed; null when the file is missing.
   read(directory: string, file: string): Promise<Template | null>;
+  // A template's text, parsed (the pack's own demo set).
+  parse(text: string): Template;
 }
 
 export type ImportStatus = "inserted" | "updated" | "ignored" | "skipped" | "error";
@@ -57,4 +67,95 @@ export interface ImportSetWriter {
     row: Readonly<Record<string, string>>,
     signal: AbortSignal,
   ): Promise<{ readonly status: ImportStatus; readonly sysId: string }>;
+}
+
+// The steps an install runs, each one an existing use case (ADR-0038, item 2): the install only
+// orders them, skips what is done and records what happened. Every write goes through these.
+export interface InstallSteps {
+  // Activates an installed, inactive plugin and waits for the platform's installer to finish.
+  activatePlugin(id: string, signal: AbortSignal): Promise<{ readonly seconds: number }>;
+  // pull, then integrate: the mirror (and its component inventory) catches up with the instance.
+  refresh(signal: AbortSignal): Promise<void>;
+  // accelerator add for these modules: the workspace files it wrote, and those the merge left in
+  // conflict.
+  add(
+    modules: readonly string[],
+    signal: AbortSignal,
+  ): Promise<{ readonly copied: readonly string[]; readonly conflicts: readonly string[] }>;
+  // fluent-keys for the projects holding these files, committed (rule SN-MNT-010).
+  keys(paths: readonly string[], signal: AbortSignal): Promise<void>;
+  // take-over for the out-of-box records a module declares whole (ADR-0038 item 8): those
+  // untouched since shipped become this branch's; customized or absent ones are named.
+  takeOver(
+    records: readonly { readonly table: string; readonly sysId: string }[],
+    signal: AbortSignal,
+  ): Promise<{
+    readonly taken: number;
+    readonly customized: readonly string[];
+    readonly absent: readonly string[];
+  }>;
+  // plan_push under `label`. A record held only in update sets of `own` labels (this install's
+  // own, from an earlier run) is no collision: the install changes its own records.
+  planPush(
+    label: string,
+    signal: AbortSignal,
+    own: readonly string[],
+  ): Promise<{
+    readonly planId: string;
+    readonly ready: boolean;
+    readonly units: number;
+    readonly problems: readonly string[];
+  }>;
+  push(
+    planId: string,
+    label: string,
+    signal: AbortSignal,
+  ): Promise<{
+    readonly units: number;
+    readonly notApplied: number;
+    readonly notCaptured: number;
+    readonly updateSets: readonly string[];
+  }>;
+  load(
+    modules: readonly string[],
+    source: { readonly kind: "demo" } | { readonly kind: "directory"; readonly directory: string },
+    signal: AbortSignal,
+  ): Promise<{
+    readonly entities: readonly {
+      readonly entity: string;
+      readonly counts: Readonly<Record<ImportStatus, number>>;
+      readonly failed: readonly string[];
+    }[];
+    readonly stopped: boolean;
+  }>;
+  // Sets these update sets (top-level) to complete on the development instance; their scope
+  // children follow (spec 011, spike S-U).
+  completeUpdateSets(sets: readonly OpenSet[], signal: AbortSignal): Promise<void>;
+  // Writes a workspace file (the plan and the report), relative to the workspace root.
+  writeFile(path: string, text: string): Promise<void>;
+  commit(paths: readonly string[], message: string): Promise<string>;
+}
+
+// The instance's install journal and lock (local state, never committed).
+export interface InstallJournal {
+  read(): Promise<InstallRecord | null>;
+  write(record: InstallRecord): Promise<void>;
+  clear(): Promise<void>;
+  // False when another install holds the lock.
+  lock(): Promise<boolean>;
+  unlock(): Promise<void>;
+}
+
+// The instance's update sets in progress, read live (ADR-0018).
+export interface OpenUpdateSets {
+  open(signal: AbortSignal): Promise<readonly OpenSet[]>;
+}
+
+// The instance's tables as the mirror holds them, read without calling the instance (ADR-0026):
+// what the install plan checks a module's required fields against (plan gap G13).
+export interface SchemaReader {
+  // Whether the mirror holds any table yet (false before the first pull).
+  ready(): Promise<boolean>;
+  // A table's fields, its parents' included; null when the mirror has no such table.
+  fieldsOf(table: string): Promise<readonly string[] | null>;
 }

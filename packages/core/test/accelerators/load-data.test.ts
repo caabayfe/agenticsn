@@ -5,42 +5,39 @@ import {
   type ImportStatus,
   LoadConfirmationRequiredError,
   loadData,
-  type PackSource,
   TemplatesInvalidError,
 } from "@snagentic/core";
+import { memoryPacks, packFiles } from "../support/memory-packs";
 
-const MANIFEST = {
-  id: "minimal",
-  version: "1.0.0",
-  requires: { snagentic: ">=1.6.0" },
-  scope: "x_snagentic_min",
-  capabilities: {
-    base: {
-      wave: 0,
-      label: "base",
-      data: [
-        {
-          entity: "location",
-          table: "imp_location",
-          key: ["name"],
-          after: ["company"],
-          columns: { name: { required: true } },
-        },
-        {
-          entity: "company",
-          table: "imp_company",
-          key: ["name"],
-          columns: { name: { required: true } },
-        },
-      ],
+const packs = memoryPacks({
+  minimal: packFiles({
+    pack: { id: "minimal", version: "1.0.0", requires: { snagentic: ">=1.6.0" } },
+    modules: {
+      base: {
+        label: "base",
+        data: [
+          {
+            entity: "location",
+            table: "imp_location",
+            key: ["name"],
+            after: ["company"],
+            columns: { name: { required: true } },
+          },
+          {
+            entity: "company",
+            table: "imp_company",
+            key: ["name"],
+            columns: { name: { required: true } },
+          },
+        ],
+      },
     },
-  },
-};
-const packs: PackSource = {
-  ids: async () => ["minimal"],
-  manifest: async () => MANIFEST,
-  files: async () => new Map(),
-};
+    files: {
+      "modules/base/data/demo/company.csv": "name\nDemo company\n",
+      "modules/base/data/demo/location.csv": "name\nDemo city\n",
+    },
+  }),
+});
 const TEMPLATES: Record<string, { columns: string[]; rows: string[][] }> = {
   "company.csv": {
     columns: ["name", "notes"],
@@ -54,6 +51,10 @@ const TEMPLATES: Record<string, { columns: string[]; rows: string[][] }> = {
 const templates = (files = TEMPLATES): DataTemplates => ({
   tracked: async () => false,
   read: async (_d, file) => files[file] ?? null,
+  parse: (text) => {
+    const [head = "", ...rows] = text.trim().split("\n");
+    return { columns: head.split(","), rows: rows.map((r) => r.split(",")) };
+  },
 });
 
 function importer(
@@ -71,7 +72,7 @@ function importer(
 
 const QUERY = {
   pack: "minimal",
-  directory: "/d",
+  source: { kind: "directory" as const, directory: "/d" },
   confirm: true,
   signal: new AbortController().signal,
 };
@@ -129,6 +130,19 @@ describe("accelerator load (ADR-0026, item 3)", () => {
       loadData({ packs, templates: templates(broken), importer: writer }, QUERY),
     ).rejects.toThrow(TemplatesInvalidError);
     expect(posted).toEqual([]);
+  });
+
+  it("loads the pack's demo data, in load order, from the pack itself", async () => {
+    const { writer, posted } = importer();
+    const result = await loadData(
+      { packs, templates: templates({}), importer: writer },
+      { ...QUERY, source: { kind: "demo" } },
+    );
+    expect(posted.map((p) => `${p.table} ${p.row["name"]}`)).toEqual([
+      "imp_company Demo company",
+      "imp_location Demo city",
+    ]);
+    expect(result.stopped).toBe(false);
   });
 
   it("needs confirmation, and stops when cancelled", async () => {

@@ -1,4 +1,4 @@
-import { buildSite, type MediaRequest, mediaOptions } from "@snagentic/core";
+import { buildSite, listInstances, type MediaRequest } from "@snagentic/core";
 import { z } from "zod";
 import { checkLines, DocsProblemSchema, EvidenceResultSchema } from "./docs-check";
 import { defineUseCase, type UseCaseContext } from "./use-case";
@@ -11,6 +11,7 @@ export const DocsBuildOutput = z.object({
   evidence: z.array(EvidenceResultSchema),
   problems: z.array(DocsProblemSchema),
   narrated: z.array(z.string()),
+  voice: z.string(),
   missingSounds: z.array(z.string()),
   videos: z.array(z.string()),
   videosNotMade: z.array(z.object({ animation: z.string(), reason: z.string() })),
@@ -32,12 +33,6 @@ export const AudioInput = {
     .describe("also render every animation as an MP4 on its page (needs ffmpeg and Chrome)"),
 };
 
-// No media flag: the build makes what site.yaml asks for. Any flag: exactly what the flags say.
-const options = (input: MediaRequest) =>
-  input.audio === undefined && input.voice === undefined && input.video === undefined
-    ? undefined
-    : mediaOptions(input);
-
 export async function buildDocs(
   context: UseCaseContext,
   signal: AbortSignal,
@@ -45,7 +40,13 @@ export async function buildDocs(
 ) {
   const root = await workspaceRoot(context);
   const docs = context.documentation(root);
-  const built = await buildSite({ ...docs, root, signal, clock: context.clock }, options(input));
+  const instanceUrl = async (instance: string) =>
+    (await listInstances(root, context.profiles)).find((profile) => profile.name === instance)
+      ?.url ?? null;
+  const built = await buildSite(
+    { ...docs, root, signal, clock: context.clock, instanceUrl },
+    { flags: input },
+  );
   return {
     root: built.root,
     files: built.files,
@@ -58,6 +59,7 @@ export async function buildDocs(
     })),
     problems: [...built.check.problems],
     narrated: [...built.narrated],
+    voice: built.voice,
     missingSounds: [...built.missingSounds],
     videos: [...built.videos],
     videosNotMade: built.videosNotMade.map((item) => ({ ...item })),
@@ -73,9 +75,9 @@ export const docsBuild = defineUseCase({
     ".snagentic/site/, for any web server. Each page shows its evidence status against the mirror; " +
     "a stale page is built and says so (docs check is the gate). --audio adds music and sound " +
     "effects to the animations, --voice piper|system also narrates them, --video renders every " +
-    "animation as an MP4 on its page and names any it could not make. Without these flags it makes " +
-    "the media site.yaml asks for (media: audio, voice, video); recorded videos are reused until " +
-    "their animation changes.",
+    "animation as an MP4 on its page and names any it could not make. It makes the media site.yaml " +
+    "asks for (media: audio, voice, video), each flag replacing only its own setting (--voice none " +
+    "for no narration); recorded videos are reused until their animation changes.",
   input: z.object(AudioInput),
   output: DocsBuildOutput,
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
@@ -84,7 +86,11 @@ export const docsBuild = defineUseCase({
   render(output) {
     const state = output.ok ? "" : " (some pages are out of date)";
     const audio =
-      output.narrated.length === 0 ? [] : [`audio tracks: ${output.narrated.join(", ")}`];
+      output.narrated.length === 0
+        ? []
+        : [
+            `audio tracks (${output.voice === "none" ? "no voice: music and effects only" : `voice ${output.voice}`}): ${output.narrated.join(", ")}`,
+          ];
     const missing =
       output.missingSounds.length === 0
         ? []

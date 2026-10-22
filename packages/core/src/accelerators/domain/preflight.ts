@@ -1,31 +1,34 @@
-import type { Manifest, PluginRequirement } from "./manifest-types";
+import type { Component, Manifest } from "./manifest-types";
 
-// Whether a pack's capabilities can be installed on an instance, from the mirror's plugin
+// Whether a pack's modules can be installed on an instance, from the mirror's component
 // inventory alone (ADR-0026: check reads no instance). Pure.
 
-export type PluginState = "active" | "inactive" | "missing" | "too-old";
-// Most serious first: a capability takes the first that applies.
-export type CapabilityState = "not-entitled" | "needs-plugins" | "blocked" | "ready";
+export type ComponentState = "active" | "inactive" | "missing" | "too-old";
+// Most serious first: a module takes the first that applies.
+export type CapabilityState = "not-entitled" | "needs-components" | "blocked" | "ready";
 
-export interface InstalledPlugin {
+export interface InstalledComponent {
+  readonly kind: Component["kind"];
+  // A plugin's id, or a store application's scope.
   readonly id: string;
   readonly active: boolean;
   readonly version: string;
 }
 
-export interface PluginCheck {
+export interface ComponentCheck {
+  readonly kind: Component["kind"];
   readonly id: string;
-  readonly state: PluginState;
-  // Installed version, or null when the instance does not have the plugin.
+  readonly state: ComponentState;
+  // Installed version, or null when the instance does not have it.
   readonly version: string | null;
   readonly minVersion: string | null;
+  readonly entitlement: Component["entitlement"];
 }
 
 export interface CapabilityReport {
   readonly id: string;
-  readonly wave: number;
   readonly state: CapabilityState;
-  readonly plugins: readonly PluginCheck[];
+  readonly components: readonly ComponentCheck[];
   // Commands that make it installable, in order.
   readonly next: readonly string[];
 }
@@ -33,6 +36,8 @@ export interface CapabilityReport {
 export interface PreflightReport {
   // About the pack as a whole; any problem stops the install.
   readonly problems: readonly string[];
+  // About the pack as a whole; shown, never blocking.
+  readonly warnings: readonly string[];
   readonly capabilities: readonly CapabilityReport[];
 }
 
@@ -48,60 +53,83 @@ export function olderThan(a: string, b: string): boolean {
   return false;
 }
 
-function checkPlugin(
-  required: PluginRequirement,
-  installed: InstalledPlugin | undefined,
-): PluginCheck {
-  const base = { id: required.id, minVersion: required.minVersion };
+function checkComponent(
+  required: Component,
+  installed: InstalledComponent | undefined,
+): ComponentCheck {
+  const base = {
+    kind: required.kind,
+    id: required.id,
+    minVersion: required.minVersion,
+    entitlement: required.entitlement,
+  };
   if (installed === undefined) return { ...base, state: "missing", version: null };
   const old = required.minVersion !== null && olderThan(installed.version, required.minVersion);
   const state = old ? "too-old" : installed.active ? "active" : "inactive";
   return { ...base, state, version: installed.version };
 }
 
-function ownState(plugins: readonly PluginCheck[], required: readonly PluginRequirement[]) {
-  const licensed = (id: string) =>
-    required.some((r) => r.id === id && r.entitlement === "licensed");
-  if (plugins.some((p) => p.state === "missing" && licensed(p.id))) return "not-entitled";
-  return plugins.some((p) => p.state !== "active") ? "needs-plugins" : "ready";
+function ownState(components: readonly ComponentCheck[]): CapabilityState {
+  if (components.some((c) => c.state === "missing" && c.entitlement === "licensed")) {
+    return "not-entitled";
+  }
+  return components.some((c) => c.state !== "active") ? "needs-components" : "ready";
 }
 
-function nextSteps(plugins: readonly PluginCheck[], instance: string): string[] {
-  const inactive = plugins.filter((p) => p.state === "inactive");
+function nextSteps(components: readonly ComponentCheck[], instance: string): string[] {
+  const inactive = components.filter((c) => c.state === "inactive" && c.kind === "plugin");
   if (inactive.length === 0) return [];
   return [
-    ...inactive.map((p) => `snagentic plugins activate ${instance} ${p.id} --confirm`),
+    ...inactive.map((c) => `snagentic plugins activate ${instance} ${c.id} --confirm`),
     `snagentic pull ${instance}`,
   ];
 }
 
+function packProblems(manifest: Manifest, snagentic: string): string[] {
+  const needed = manifest.requires.snagentic.replace(/^>=\s*/, "");
+  return needed !== "" && olderThan(snagentic, needed)
+    ? [
+        `the pack needs snagentic ${manifest.requires.snagentic}; this is ${snagentic}: upgrade with snagentic upgrade`,
+      ]
+    : [];
+}
+
+function packWarnings(manifest: Manifest, family: string | null): string[] {
+  if (family === null || manifest.tested.length === 0) return [];
+  return manifest.tested.includes(family.toLowerCase())
+    ? []
+    : [
+        `the pack was tested on ${manifest.tested.join(", ")}; this instance runs ${family}: review the plan with care`,
+      ];
+}
+
 export function preflight(input: {
   readonly manifest: Manifest;
-  // Capability ids, dependencies first (selectCapabilities).
+  // Module ids, dependencies first (selectCapabilities).
   readonly selected: readonly string[];
-  readonly plugins: readonly InstalledPlugin[];
+  readonly components: readonly InstalledComponent[];
   readonly snagentic: string;
   readonly instance: string;
+  // The instance's platform family ("australia"), when known.
+  readonly family?: string | null;
 }): PreflightReport {
-  const installed = new Map(input.plugins.map((p) => [p.id, p]));
+  const keyOf = (c: { readonly kind: string; readonly id: string }) => `${c.kind}:${c.id}`;
+  const installed = new Map(input.components.map((c) => [keyOf(c), c]));
   const states = new Map<string, CapabilityState>();
   const capabilities = input.selected.flatMap((id) => {
     const capability = input.manifest.capabilities.find((c) => c.id === id);
     if (capability === undefined) return [];
-    const plugins = capability.plugins.map((r) => checkPlugin(r, installed.get(r.id)));
-    const own = ownState(plugins, capability.plugins);
+    const components = capability.components.map((r) => checkComponent(r, installed.get(keyOf(r))));
+    const own = ownState(components);
     const waiting = capability.dependsOn.some((d) => states.get(d) !== "ready");
     const state: CapabilityState = own === "ready" && waiting ? "blocked" : own;
     states.set(id, state);
-    const next = own === "not-entitled" ? [] : nextSteps(plugins, input.instance);
-    return [{ id, wave: capability.wave, state, plugins, next }];
+    const next = own === "not-entitled" ? [] : nextSteps(components, input.instance);
+    return [{ id, state, components, next }];
   });
-  const needed = input.manifest.requires.snagentic.replace(/^>=\s*/, "");
-  const problems =
-    needed !== "" && olderThan(input.snagentic, needed)
-      ? [
-          `the pack needs snagentic ${input.manifest.requires.snagentic}; this is ${input.snagentic}: upgrade with snagentic upgrade`,
-        ]
-      : [];
-  return { problems, capabilities };
+  return {
+    problems: packProblems(input.manifest, input.snagentic),
+    warnings: packWarnings(input.manifest, input.family ?? null),
+    capabilities,
+  };
 }

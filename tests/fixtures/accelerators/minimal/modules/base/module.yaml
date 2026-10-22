@@ -1,0 +1,10 @@
+label: "snagentic test pack: base"
+components: []
+data:
+  - entity: location
+    table: imp_location
+    key: [name]
+    after: []
+    columns:
+      name: { required: true }
+      city: { required: true }

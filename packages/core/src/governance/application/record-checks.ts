@@ -10,6 +10,7 @@ import { BEHAVIOR_CLASSES } from "../../knowledge/index";
 import { type AclState, aclHits } from "../domain/acl-checks";
 import { evidenceOf, type Finding } from "../domain/findings";
 import { flowTriggerHits } from "../domain/flow-checks";
+import { roleHits } from "../domain/role-checks";
 import type { RecordVersion, ScriptChecker } from "../ports";
 import { type ChangedUnit, rolesOf } from "./unit-versions";
 
@@ -175,6 +176,19 @@ export function aclFindings(
 // What a change to a flow does to whether it can run.
 export function flowFindings(changed: ChangedUnit, path: string): Finding[] {
   return flowTriggerHits(changed.unit).flatMap((hit) =>
+    withRule(hit.ruleId, {
+      path,
+      field: hit.field,
+      line: null,
+      message: hit.message,
+      evidence: "",
+    }),
+  );
+}
+
+// What a change to roles does to who holds the privileged roles.
+export function roleFindings(changed: ChangedUnit, path: string): Finding[] {
+  return roleHits(changed.unit).flatMap((hit) =>
     withRule(hit.ruleId, {
       path,
       field: hit.field,

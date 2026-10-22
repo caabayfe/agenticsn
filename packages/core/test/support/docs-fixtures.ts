@@ -169,6 +169,8 @@ export function fakeSources(
     others?: { path: string; process: unknown }[];
     theme?: { path: string; content: Uint8Array }[];
     releases?: PageSource[];
+    features?: { path: string; features: unknown }[];
+    questions?: { path: string; questions: unknown }[];
   } = {},
 ) {
   const pinned = new Map<string, Map<string, string>>();
@@ -182,7 +184,12 @@ export function fakeSources(
     scenes: async () => options.scenes ?? [scene],
     ...(options.theme === undefined ? {} : { theme: async () => options.theme ?? [] }),
     ...(options.releases === undefined ? {} : { releases: async () => options.releases ?? [] }),
+    ...(options.features === undefined ? {} : { features: async () => options.features ?? [] }),
+    ...(options.questions === undefined ? {} : { questions: async () => options.questions ?? [] }),
     pinHashes: async (path, hashes) => {
+      pinned.set(path, new Map(hashes));
+    },
+    pinQuestions: async (path, hashes) => {
       pinned.set(path, new Map(hashes));
     },
   };

@@ -6,24 +6,33 @@ const manifest = (() => {
     id: "itsm",
     version: "1.0.0",
     requires: { snagentic: ">=1.8.0" },
-    scope: "x_nttdata_acc",
-    capabilities: {
+    platform: { tested: ["australia", "zurich"] },
+    modules: {
       foundation: {
-        wave: 0,
         label: "foundation",
-        plugins: [{ id: "com.snc.cmdb.csdm", minVersion: "2.0.0", entitlement: "free" }],
+        components: [
+          { kind: "plugin", id: "com.snc.cmdb.csdm", minVersion: "2.0.0", entitlement: "free" },
+        ],
       },
       incident: {
-        wave: 1,
         label: "incident",
         dependsOn: ["foundation"],
-        plugins: [{ id: "com.snc.on_call_rotation", minVersion: null, entitlement: "free" }],
+        components: [
+          { kind: "plugin", id: "com.snc.on_call_rotation", minVersion: null, entitlement: "free" },
+        ],
       },
       ai: {
-        wave: 1,
         label: "ai",
         dependsOn: ["incident"],
-        plugins: [{ id: "com.glide.now_assist", minVersion: null, entitlement: "licensed" }],
+        components: [
+          { kind: "plugin", id: "com.glide.now_assist", minVersion: null, entitlement: "licensed" },
+        ],
+      },
+      mobile: {
+        label: "mobile",
+        components: [
+          { kind: "app", id: "sn_mobile_agent", minVersion: "3.0.0", entitlement: "free" },
+        ],
       },
     },
   });
@@ -31,7 +40,16 @@ const manifest = (() => {
   return outcome.manifest;
 })();
 
-const plugin = (id: string, active: boolean, version = "3.1.0") => ({ id, active, version });
+const installed = (id: string, active: boolean, version = "3.1.0") => ({
+  kind: "plugin" as const,
+  id,
+  active,
+  version,
+});
+const installedApp = (scope: string, active: boolean, version = "3.1.0") => ({
+  ...installed(scope, active, version),
+  kind: "app" as const,
+});
 
 const run = (
   overrides: Partial<Parameters<typeof preflight>[0]> = {},
@@ -39,20 +57,29 @@ const run = (
   preflight({
     manifest: manifest as Manifest,
     selected: ["foundation", "incident", "ai"],
-    plugins: [plugin("com.snc.cmdb.csdm", true), plugin("com.snc.on_call_rotation", false)],
+    components: [
+      installed("com.snc.cmdb.csdm", true),
+      installed("com.snc.on_call_rotation", false),
+    ],
     snagentic: "1.8.0",
     instance: "pdi2",
     ...overrides,
   });
 
-describe("accelerator preflight (ADR-0026)", () => {
-  it("is ready where every required plugin is active at the version asked", () => {
+describe("accelerator preflight (ADR-0026, ADR-0038)", () => {
+  it("is ready where every required component is active at the version asked", () => {
     expect(run().capabilities[0]).toEqual({
       id: "foundation",
-      wave: 0,
       state: "ready",
-      plugins: [
-        { id: "com.snc.cmdb.csdm", state: "active", version: "3.1.0", minVersion: "2.0.0" },
+      components: [
+        {
+          kind: "plugin",
+          id: "com.snc.cmdb.csdm",
+          state: "active",
+          version: "3.1.0",
+          minVersion: "2.0.0",
+          entitlement: "free",
+        },
       ],
       next: [],
     });
@@ -61,8 +88,8 @@ describe("accelerator preflight (ADR-0026)", () => {
   it("names the exact activate command, then a pull, for a plugin that is installed but inactive", () => {
     expect(run().capabilities[1]).toMatchObject({
       id: "incident",
-      state: "needs-plugins",
-      plugins: [{ id: "com.snc.on_call_rotation", state: "inactive" }],
+      state: "needs-components",
+      components: [{ id: "com.snc.on_call_rotation", state: "inactive" }],
       next: [
         "snagentic plugins activate pdi2 com.snc.on_call_rotation --confirm",
         "snagentic pull pdi2",
@@ -74,39 +101,69 @@ describe("accelerator preflight (ADR-0026)", () => {
     expect(run().capabilities[2]).toMatchObject({
       id: "ai",
       state: "not-entitled",
-      plugins: [{ id: "com.glide.now_assist", state: "missing" }],
+      components: [{ id: "com.glide.now_assist", state: "missing" }],
       next: [],
     });
   });
 
   it("reports a free plugin the instance lacks, or has at an older version", () => {
     const report = run({
-      plugins: [
-        plugin("com.snc.cmdb.csdm", true, "1.9.4"),
-        plugin("com.snc.on_call_rotation", true),
+      components: [
+        installed("com.snc.cmdb.csdm", true, "1.9.4"),
+        installed("com.snc.on_call_rotation", true),
       ],
     });
     expect(report.capabilities[0]).toMatchObject({
-      state: "needs-plugins",
-      plugins: [{ state: "too-old", version: "1.9.4", minVersion: "2.0.0" }],
+      state: "needs-components",
+      components: [{ state: "too-old", version: "1.9.4", minVersion: "2.0.0" }],
     });
-    const missing = run({ plugins: [] }).capabilities[0];
-    expect(missing).toMatchObject({ state: "needs-plugins", plugins: [{ state: "missing" }] });
+    const missing = run({ components: [] }).capabilities[0];
+    expect(missing).toMatchObject({
+      state: "needs-components",
+      components: [{ state: "missing" }],
+    });
   });
 
-  it("is blocked when a capability it depends on is not ready", () => {
+  it("checks a store application like a plugin, and names it in needs-components", () => {
+    const check = (components: Parameters<typeof preflight>[0]["components"]) =>
+      run({ selected: ["mobile"], components }).capabilities[0];
+    expect(check([])).toMatchObject({
+      id: "mobile",
+      state: "needs-components",
+      components: [{ kind: "app", id: "sn_mobile_agent", state: "missing" }],
+      next: [],
+    });
+    expect(check([installedApp("sn_mobile_agent", true, "2.5.0")])).toMatchObject({
+      state: "needs-components",
+      components: [{ kind: "app", state: "too-old", version: "2.5.0", minVersion: "3.0.0" }],
+    });
+    // An inactive application has no activate command: plugins activate is for plugins.
+    expect(check([installedApp("sn_mobile_agent", false)])).toMatchObject({
+      state: "needs-components",
+      components: [{ kind: "app", state: "inactive" }],
+      next: [],
+    });
+    expect(check([installedApp("sn_mobile_agent", true)])?.state).toBe("ready");
+    // A plugin with the application's scope as its id is not the application.
+    expect(check([installed("sn_mobile_agent", true)])?.state).toBe("needs-components");
+  });
+
+  it("is blocked when a module it depends on is not ready", () => {
     const report = run({
-      plugins: [plugin("com.snc.cmdb.csdm", false), plugin("com.snc.on_call_rotation", true)],
+      components: [
+        installed("com.snc.cmdb.csdm", false),
+        installed("com.snc.on_call_rotation", true),
+      ],
     });
     expect(report.capabilities.map((c) => [c.id, c.state])).toEqual([
-      ["foundation", "needs-plugins"],
+      ["foundation", "needs-components"],
       ["incident", "blocked"],
       // Its own missing licence comes first: nothing else would make it installable.
       ["ai", "not-entitled"],
     ]);
   });
 
-  it("reports only the capabilities selected", () => {
+  it("reports only the modules selected", () => {
     expect(run({ selected: ["foundation"] }).capabilities.map((c) => c.id)).toEqual(["foundation"]);
   });
 
@@ -115,5 +172,16 @@ describe("accelerator preflight (ADR-0026)", () => {
       "the pack needs snagentic >=1.8.0; this is 1.7.2: upgrade with snagentic upgrade",
     ]);
     expect(run().problems).toEqual([]);
+  });
+
+  it("warns, without blocking, when the instance runs a platform family the pack was not tested on", () => {
+    const report = run({ family: "Yokohama" });
+    expect(report.warnings).toEqual([
+      "the pack was tested on australia, zurich; this instance runs Yokohama: review the plan with care",
+    ]);
+    expect(report.problems).toEqual([]);
+    expect(run({ family: "Zurich" }).warnings).toEqual([]);
+    expect(run({ family: null }).warnings).toEqual([]);
+    expect(run().warnings).toEqual([]);
   });
 });

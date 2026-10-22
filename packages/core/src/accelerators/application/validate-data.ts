@@ -1,37 +1,56 @@
-import { dataOrder, selectCapabilities } from "../domain/capability-graph";
-import { InvalidPackError, PackNotFoundError, TrackedDataError } from "../domain/errors";
-import { parseManifest } from "../domain/manifest";
+import { dataOrder, type Selection, selectCapabilities } from "../domain/capability-graph";
+import { TrackedDataError } from "../domain/errors";
+import type { DataEntity } from "../domain/manifest-types";
+import { demoPath } from "../domain/pack-layout";
 import { type Template, type TemplateReport, validateTemplates } from "../domain/templates";
 import type { DataTemplates, PackSource } from "../ports";
+import { manifestOf, selectionOf } from "./check-pack";
 
-export interface DataQuery {
+// Where the templates come from: a customer's directory outside git, or the pack's own
+// fictional demo set (modules/<module>/data/demo/, ADR-0038).
+export type DataSource =
+  | { readonly kind: "directory"; readonly directory: string }
+  | { readonly kind: "demo" };
+
+export interface DataQuery extends Selection {
   readonly pack: string;
-  readonly directory: string;
-  readonly waves?: readonly number[];
-  readonly capabilities?: readonly string[];
+  readonly source: DataSource;
 }
 
-// Checks a data directory's templates against the pack's data entities, without an instance
+// The templates of a selection's entities, by entity, from the query's source.
+export async function readTemplates(
+  deps: { readonly packs: PackSource; readonly templates: DataTemplates },
+  query: DataQuery,
+  entities: readonly (DataEntity & { readonly module: string })[],
+): Promise<Map<string, Template>> {
+  const templates = new Map<string, Template>();
+  const files = query.source.kind === "demo" ? await deps.packs.files(query.pack) : null;
+  for (const entity of entities) {
+    const text = files?.get(demoPath(entity.module, entity.file));
+    const template =
+      query.source.kind === "directory"
+        ? await deps.templates.read(query.source.directory, entity.file)
+        : text === undefined
+          ? null
+          : deps.templates.parse(text);
+    if (template !== null) templates.set(entity.entity, template);
+  }
+  return templates;
+}
+
+// Checks a data set's templates against the pack's data entities, without an instance
 // (ADR-0026, item 3: the same check runs before any load, and stands alone for test and
 // production, which snagentic never loads).
 export async function validateData(
   deps: { readonly packs: PackSource; readonly templates: DataTemplates },
   query: DataQuery,
 ): Promise<TemplateReport & { readonly selected: readonly string[] }> {
-  const document = await deps.packs.manifest(query.pack);
-  if (document === null) throw new PackNotFoundError(query.pack, await deps.packs.ids());
-  const outcome = parseManifest(document);
-  if (!outcome.ok) throw new InvalidPackError(query.pack, outcome.problems);
-  if (await deps.templates.tracked(query.directory)) throw new TrackedDataError(query.directory);
-  const { capabilities: selected } = selectCapabilities(outcome.manifest, {
-    ...(query.waves === undefined ? {} : { waves: query.waves }),
-    ...(query.capabilities === undefined ? {} : { capabilities: query.capabilities }),
-  });
-  const entities = dataOrder(outcome.manifest, selected);
-  const templates = new Map<string, Template>();
-  for (const entity of entities) {
-    const template = await deps.templates.read(query.directory, entity.file);
-    if (template !== null) templates.set(entity.entity, template);
+  const manifest = await manifestOf(deps.packs, query.pack);
+  if (query.source.kind === "directory" && (await deps.templates.tracked(query.source.directory))) {
+    throw new TrackedDataError(query.source.directory);
   }
+  const { capabilities: selected } = selectCapabilities(manifest, selectionOf(query));
+  const entities = dataOrder(manifest, selected);
+  const templates = await readTemplates(deps, query, entities);
   return { selected, ...validateTemplates(entities, templates) };
 }

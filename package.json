@@ -18,13 +18,20 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
-    "@types/bun": "^1.4.2",
+    "@types/bun": "^1.4.3",
     "@types/estree": "^1.0.9",
-    "dependency-cruiser": "^18.5.0",
-    "eslint": "^10.12.0",
+    "dependency-cruiser": "^18.6.0",
+    "eslint": "^10.13.0",
     "espree": "^11.2.0",
     "fast-check": "^4.10.2",
     "typescript": "^6",
     "yaml": "^2.9.1"
+  },
+  "overrides": {
+    "@fastify/static": "10.1.7",
+    "fastify": "5.12.7",
+    "handlebars": "4.7.10",
+    "joi": "17.13.8",
+    "undici": "7.30.1"
   }
 }

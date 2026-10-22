@@ -8,6 +8,7 @@ import {
 import type { BuiltUnit } from "../../authoring/domain/unit";
 import { BEHAVIOR_CLASSES } from "../../knowledge/index";
 import { type AclState, aclHits } from "../domain/acl-checks";
+import { serializedObjectHits } from "../domain/built-values";
 import { evidenceOf, type Finding } from "../domain/findings";
 import { flowTriggerHits } from "../domain/flow-checks";
 import { roleHits } from "../domain/role-checks";
@@ -189,6 +190,19 @@ export function flowFindings(changed: ChangedUnit, path: string): Finding[] {
 // What a change to roles does to who holds the privileged roles.
 export function roleFindings(changed: ChangedUnit, path: string): Finding[] {
   return roleHits(changed.unit).flatMap((hit) =>
+    withRule(hit.ruleId, {
+      path,
+      field: hit.field,
+      line: null,
+      message: hit.message,
+      evidence: "",
+    }),
+  );
+}
+
+// Values the build wrote that can't be what the source meant.
+export function builtValueFindings(changed: ChangedUnit, path: string): Finding[] {
+  return serializedObjectHits(changed.unit).flatMap((hit) =>
     withRule(hit.ruleId, {
       path,
       field: hit.field,

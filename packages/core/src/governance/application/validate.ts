@@ -11,6 +11,7 @@ import type { DocumentedRecords, FluentProjects, MirrorState, ScriptChecker } fr
 import { documentationFindings, type TouchedRecord } from "./documentation-checks";
 import {
   aclFindings,
+  builtValueFindings,
   checkVersion,
   flowFindings,
   MAX_SCRIPT_BYTES,
@@ -127,6 +128,7 @@ async function checkUnits(
     });
     findings.push(
       ...aclFindings(item, path, units),
+      ...builtValueFindings(item, path),
       ...flowFindings(item, path),
       ...roleFindings(item, path),
     );

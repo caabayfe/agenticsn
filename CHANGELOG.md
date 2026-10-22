@@ -18,6 +18,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - Rule SN-MNT-018 blocks a record-triggered flow whose condition is empty. The platform registers
   such a trigger but never runs the flow, without an error; Flow Designer writes "no condition" as
   `^EQ`, which the finding names. Found by the spec 009 scenarios (L8 A1, pdi2).
+- Rule SN-MNT-019 blocks a built value of `[object Object]`, whole or as a list item. Passing an
+  object where a record holds text, such as a `Role` in `Record({ table: 'sys_app_module', data:
+  { roles: [agent] } })`, makes the SDK write that string; build and instance then agree, so no
+  plan showed it, and the modules required a role nobody holds. Found by the spec 009 scenarios
+  (L8 A7, pdi2).
 
 ### Fixed
 

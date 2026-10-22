@@ -2,7 +2,8 @@
 
 - Status: Accepted (product owner, 2026-10-19; decisions of 2026-10-18). Spike S-E passed; the
   store application installer (I3) still waits for spike S-F of spec 011. Section 6 amended
-  (upgrades complete the pack's earlier update sets), accepted 2026-10-22
+  (upgrades complete the pack's earlier update sets), accepted 2026-10-22. Item 8 amended by 0042
+  (layouts a module does not own are ensure rules, found by table and view)
 - Date: 2026-10-18
 - Requirements: G1, ASR-01, ASR-02, ASR-08, ASR-10, ASR-15, ASR-16
 - Amends: 0012 (one narrow write on test and production), 0026 (the rejected single install,

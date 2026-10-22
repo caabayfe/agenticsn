@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-10-22
+
 ### Added
 
 - `accelerator install` checks the platform fields each module reads before anything changes
@@ -23,6 +25,25 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   { roles: [agent] } })`, makes the SDK write that string; build and instance then agree, so no
   plan showed it, and the modules required a role nobody holds. Found by the spec 009 scenarios
   (L8 A7, pdi2).
+- Open questions are records (ADR-0041). `processes/<process>/questions.yaml` declares each
+  question once: what to ask, its kind (decide, check, hidden), who answers it, the records it
+  is about, what it waits on, and its status with the answer. Pages cite `[Q03]` as they cite
+  evidence; the IT guide's open-questions page becomes the tracker, by who answers, with the
+  pages each question holds back. `features.yaml` takes `question: Q07`, and an answer is
+  evidence. `docs check` reports unknown or malformed questions and warns about answers not yet
+  applied, questions a changed record may have made moot, and old `{label=OPEN-QUESTION}`
+  sections, which are still read and shown until the process is migrated. `docs pin` names the
+  records it pinned for open questions, and the document skill writes questions to
+  `questions.yaml`.
+- Questions several processes depend on live in `documentation/questions.yaml`, cited
+  `[shared/Q01]`, and the tracker lists them first. `docs check` warns about possible duplicates
+  across files (`distinct:` silences a pair that truly differs). `snagentic docs questions` lists
+  questions by record (`--about`), words (`--search`), process or status, with the pages and
+  features that cite each.
+- An accelerator upgrade completes the pack's earlier update sets still in progress (ADR-0038
+  section 6, spec 011 I16): the plan lists them, oldest first, and once approved completes them
+  before its first push, so they are promoted before the new sets and the newer version of a
+  record wins. Someone else's set, or a newer version's, still stops the push.
 
 ### Fixed
 
@@ -42,6 +63,22 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   list: the field's other choices would go on every instance it reaches. The refusal says to
   adopt the field's choice set and add the choice there, which keeps every choice. Found by the
   spec 009 scenarios (L8 A2, pdi2); nothing was changed on the instance.
+- A record the ledger holds that was deleted on the instance (a plugin activation removed some
+  on pdi2) is planned as a create, shown with its ledger version and a note, instead of refused;
+  a ledger entry whose record is gone from both the source and the instance is planned as
+  forget, and push drops it (ADR-0033 items 4 and 5).
+- An accelerator install's plan names the upgrade update set for modules already installed, and
+  orders one version's sets as they were created, not by name.
+
+### Security
+
+- Processes snagentic starts (git, gh, tar, the media tools, Chrome, and a downloaded binary
+  during `upgrade`) no longer receive instance credentials: every `SNAGENTIC_<NAME>_PASSWORD`
+  variable is dropped from their environment, and the rest is kept (spec 012, step 3).
+- The ServiceNow SDK's vulnerable dependencies are overridden with patched versions (handlebars,
+  fastify, @fastify/static, joi, undici): `bun audit` goes from 32 advisories, 2 critical, to 7,
+  none critical. The 7 left are recorded with their reason in `docs/security/advisories.md`, and
+  a weekly check fails on any new one (spec 012, step 2).
 
 ## [2.5.0] - 2026-10-20
 

@@ -45,7 +45,7 @@ function summary(plan: InstallPlan): string[] {
     `- **Selection:** ${selectionText(plan)}: ${plan.modules.map((m) => m.id).join(", ")}`,
     `- **Changes:** ${activations} component(s) activated; ${plan.modules.length} module(s) delivered from ${files} source file(s), each into its own update set; ${rows} ${plan.data.source === "demo" ? "fictional demo" : "customer"} data row(s) loaded`,
     "",
-    "**It will not:** delete any record, change a record the plan does not list, write to a test or production instance, or move an update set. Customizations are promoted with the platform's own update set process.",
+    "**It will not:** delete any record, change a record the plan does not list, write to a test or production instance, move, commit or cancel an update set, or complete an update set the plan does not list. Customizations are promoted with the platform's own update set process.",
   ];
 }
 
@@ -119,6 +119,7 @@ function modules(plan: InstallPlan): string[] {
         [...new Set(m.files.map((f) => f.split("/").slice(0, 2).join("/")))].join(", "),
       ]),
     ),
+    ...promotionOrder(plan),
     "",
     "**Out-of-box records changed** (an upgrade skips a customized record: review each):",
     "",
@@ -129,6 +130,30 @@ function modules(plan: InstallPlan): string[] {
         `${a.table} ${a.sysId}`,
         a.whenAbsent === "create" ? `${a.note} (created where the instance lacks it)` : a.note,
       ]),
+    ),
+  ];
+}
+
+// The pack's earlier update sets still in progress are completed first (ADR-0038, section 6):
+// with a record in two sets, the one committed last on the target wins.
+function promotionOrder(plan: InstallPlan): string[] {
+  if (plan.earlierSets.length === 0) return [];
+  const rows = [
+    ...plan.earlierSets.map((s) => [s.name, "completed by the install, before the first push"]),
+    // Modules already installed go into the upgrade set, new ones into their own: the run
+    // decides which, from the working branch.
+    [
+      `snagentic: ${plan.pack} ${plan.version} upgrade (modules already installed), then each new module's update set`,
+      "this install",
+    ],
+  ];
+  return [
+    "",
+    "**Update sets, in promotion order.** Earlier installs of this pack left these update sets in progress. The install completes them (their scope children follow) so they are promoted before this install's, and the newer version of a record wins. Promote them in this order:",
+    "",
+    ...table(
+      ["#", "Update set", "Made by"],
+      rows.map(([name = "", by = ""], i) => [String(i + 1), name, by]),
     ),
   ];
 }

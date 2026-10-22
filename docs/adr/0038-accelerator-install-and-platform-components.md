@@ -1,7 +1,8 @@
 # 0038. Accelerators install by plan; platform components install automatically on every instance
 
 - Status: Accepted (product owner, 2026-10-19; decisions of 2026-10-18). Spike S-E passed; the
-  store application installer (I3) still waits for spike S-F of spec 011
+  store application installer (I3) still waits for spike S-F of spec 011. Section 6 amended
+  (upgrades complete the pack's earlier update sets), accepted 2026-10-22
 - Date: 2026-10-18
 - Requirements: G1, ASR-01, ASR-02, ASR-08, ASR-10, ASR-15, ASR-16
 - Amends: 0012 (one narrow write on test and production), 0026 (the rejected single install,
@@ -129,6 +130,38 @@ component installer, under the conditions above.
 
 `push` leaves each module's update sets in progress. Completing them, and promoting them, is the
 platform's standard mechanism and the customer's process (ADR-0018).
+
+**Upgrades complete the earlier versions' update sets.** Amendment accepted by the product owner
+(2026-10-22), made at their request ("an upgrade should be a standard action"). Pack 0.3.1 could not be
+installed on pdi2: `ACCRelatedChanges` sat in `snagentic: itsm 0.1.0 upgrade`, still in progress,
+and the install stopped rather than take the record over. Taking it over is not enough: with the
+record in two sets in progress, whichever is committed last on UAT wins, so promoting the 0.1.0
+set after the 0.3.1 one would silently bring the old version back. Cancelling the old set is
+worse: it holds records the new version does not change again, which would never reach UAT.
+
+- **Upgrades never stop for the pack's own earlier sets.** A set is the pack's own when an
+  earlier install of the pack recorded pushing into it (the install reports committed in the
+  workspace, whose delivered steps are written and read by one function) or when its name follows the pack's naming (`snagentic: <module label>
+  <version>`, `snagentic: <pack> <version> upgrade`, with an optional ` [scope]` child) for a
+  version older than the one installed. Renamed modules are still found through the reports.
+- **The plan lists them.** It reads the update sets live (ADR-0018) and lists every earlier set
+  of the pack still in progress, whichever module made it: completing them all keeps one
+  promotion order. The list is part of the plan id: a set completed or added since makes a new
+  plan.
+- **The run completes them first.** On the development instance, before the first push, the
+  install sets each listed set (parent and children) to complete. This is a change of state, not
+  a promotion: it is undone by setting the set back to in progress, and nothing leaves the
+  instance. The report gives the promotion order: the earlier sets, oldest first, then the new
+  ones.
+- **Still stops:** a record held in an update set that is not the pack's own (someone else's
+  work in progress, ADR-0018), and a set of a **newer** version of the pack (a downgrade). The
+  push's collision check is unchanged: it reads only sets in progress, so once the earlier sets
+  are complete their records no longer collide.
+- Test and production are unchanged: never written, and promotion stays the customer's process.
+
+The plan's "will not move an update set" still holds: the install never moves, retrieves,
+commits or cancels a set. On development it completes the pack's own earlier sets that the admin
+approved in the plan.
 
 ### 7. Packs are read from a path; pack-owned records are anchors
 

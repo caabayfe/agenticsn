@@ -1,10 +1,17 @@
-import { getInstance, InstanceName, installPack, mirrorSchema, VERSION } from "@snagentic/core";
+import {
+  completeUpdateSets,
+  InstanceName,
+  installPack,
+  mirrorSchema,
+  openUpdateSets,
+  VERSION,
+} from "@snagentic/core";
 import { z } from "zod";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
+import { connect } from "./connect";
 import { callerFor, installSteps } from "./install-steps";
 import { knowledgeSession } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
-import { workspaceRoot } from "./workspace-root";
 
 const Step = z.object({
   step: z.string(),
@@ -45,9 +52,10 @@ export const acceleratorInstall = defineUseCase({
   mcp: false,
   arguments: ["pack", "instance"],
   async handle(input, context, run) {
-    const root = await workspaceRoot(context);
+    // Update sets are read live (ADR-0018): the plan lists the pack's earlier ones in progress.
+    const connection = await connect(context, input.instance, run.signal);
+    const { root, profile, reader, pager } = connection;
     const name = InstanceName.parse(input.instance);
-    const profile = await getInstance(root, name, context.profiles);
     const result = await installPack(
       {
         packs: context.packs,
@@ -55,11 +63,23 @@ export const acceleratorInstall = defineUseCase({
         workspace: context.packWorkspace(root, name),
         templates: context.dataTemplates,
         schema: mirrorSchema(() => knowledgeSession(context, String(name), run.progress)),
-        steps: installSteps(
-          context,
-          { root, instance: name, pack: input.pack },
-          callerFor(context, run),
-        ),
+        updateSets: {
+          open: (signal) =>
+            openUpdateSets({ pager, statistics: reader, now: context.clock }, signal),
+        },
+        steps: {
+          ...installSteps(
+            context,
+            { root, instance: name, pack: input.pack },
+            callerFor(context, run),
+          ),
+          completeUpdateSets: (sets, signal) =>
+            completeUpdateSets(
+              reader.writer,
+              sets.map((s) => s.sysId),
+              signal,
+            ),
+        },
         journal: context.installJournal(root, name),
         now: context.clock,
       },

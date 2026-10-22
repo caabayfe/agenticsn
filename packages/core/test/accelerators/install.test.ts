@@ -10,6 +10,7 @@ import {
   type InventoryReader,
   installPack,
   installPlanDocument,
+  type OpenSet,
   type PackWorkspace,
   planInstall,
   plannedComponents,
@@ -72,8 +73,13 @@ const templates: DataTemplates = {
   },
 };
 
-const workspace = (mirror = "m1", held: readonly string[] = []): PackWorkspace => ({
+const workspace = (
+  mirror = "m1",
+  held: readonly string[] = [],
+  reports: readonly string[] = [],
+): PackWorkspace => ({
   mirrorCommit: async () => mirror,
+  installReports: async () => reports,
   includes: async () => true,
   present: async (paths) => paths.filter((p) => held.includes(p)),
   parse: (text) => JSON.parse(text),
@@ -147,6 +153,9 @@ function fakeSteps(
         stopped: false,
       };
     },
+    completeUpdateSets: async (sets) => {
+      calls.push(`complete ${sets.map((set) => set.name).join(", ")}`);
+    },
     writeFile: async (path, text) => {
       files.set(path, text);
     },
@@ -177,13 +186,20 @@ function memoryJournal(start: InstallRecord | null = null, locked = false) {
 
 const deps = (
   states: Record<string, "active" | "inactive">,
-  extra: { steps?: InstallSteps; journal?: InstallJournal; mirror?: string } = {},
+  extra: {
+    steps?: InstallSteps;
+    journal?: InstallJournal;
+    mirror?: string;
+    open?: readonly OpenSet[];
+    reports?: readonly string[];
+  } = {},
 ) => {
   const clock = { ms: 0 };
   return {
     packs: memoryPacks({ itsm: packFiles(PACK) }),
     inventory: inventory(states),
-    workspace: workspace(extra.mirror),
+    workspace: workspace(extra.mirror, [], extra.reports),
+    updateSets: { open: async () => extra.open ?? [] },
     templates,
     // The fixture declares no platform fields: the mirror's schema is never asked.
     schema: { ready: async () => true, fieldsOf: async () => [] },
@@ -646,5 +662,105 @@ describe("running an install (ADR-0038, item 2)", () => {
     await expect(
       installPack(deps(READY, { journal }), { ...QUERY, confirm: plan.planId }),
     ).rejects.toBeInstanceOf(InstallLockedError);
+  });
+});
+
+// ADR-0038, section 6 (proposed amendment, 2026-10-22).
+describe("an upgrade over the pack's earlier update sets still in progress", () => {
+  const set = (name: string, parent = "") => ({
+    sysId: `id ${name}`,
+    name,
+    parent,
+    createdOn: "2026-10-18 10:00:00",
+  });
+  const UPGRADE: PackFixture = { ...PACK, pack: { ...PACK.pack, version: "0.3.1" } };
+  const OPEN = [
+    set("snagentic: itsm 0.3.0 upgrade"),
+    set("snagentic: itsm 0.1.0 upgrade"),
+    set("snagentic: itsm 0.1.0 upgrade [sn_sow_inc]", "id snagentic: itsm 0.1.0 upgrade"),
+    set("snagentic: ITSM: foundation 0.3.1"),
+    set("snagentic: someone's fix"),
+  ];
+  const upgradeDeps = (extra: Parameters<typeof deps>[1] = {}) => ({
+    ...deps(ACTIVE, { open: OPEN, ...extra }),
+    packs: memoryPacks({ itsm: packFiles(UPGRADE) }),
+  });
+
+  it("plans to complete the pack's older sets, oldest first, and leaves the others open", async () => {
+    const plan = await planInstall(upgradeDeps(), QUERY);
+    expect(plan.earlierSets.map((s) => s.name)).toEqual([
+      "snagentic: itsm 0.1.0 upgrade",
+      "snagentic: itsm 0.3.0 upgrade",
+    ]);
+    expect(plan.problems).toEqual([]);
+  });
+
+  it("finds a renamed module's set through the install reports in the workspace", async () => {
+    const renamed = set("snagentic: ITSM: basics 0.1.0");
+    const report = "| module basics | done | 2 unit(s) into snagentic: ITSM: basics 0.1.0 | 3 |";
+    const plan = await planInstall(upgradeDeps({ open: [renamed], reports: [report] }), QUERY);
+    expect(plan.earlierSets).toEqual([renamed]);
+  });
+
+  it("tells the admin which sets it completes and the order to promote them in", async () => {
+    const text = installPlanDocument(await planInstall(upgradeDeps(), QUERY));
+    expect(text).toContain("## 2. Customizations, by module");
+    expect(text).toContain(
+      "| 1 | snagentic: itsm 0.1.0 upgrade | completed by the install, before the first push |",
+    );
+    expect(text).toContain(
+      "| 3 | snagentic: itsm 0.3.1 upgrade (modules already installed), then each new module's update set | this install |",
+    );
+    expect(text).not.toContain("| 4 |");
+    expect(text).toContain("or complete an update set the plan does not list");
+  });
+
+  it("makes a new plan id when an earlier set is completed or opened since", async () => {
+    const before = await planInstall(upgradeDeps(), QUERY);
+    const after = await planInstall(upgradeDeps({ open: OPEN.slice(1) }), QUERY);
+    expect(after.planId).not.toBe(before.planId);
+  });
+
+  it("completes them after the components and before the first push, once", async () => {
+    const { steps, calls } = fakeSteps();
+    const { journal, state } = memoryJournal();
+    const ready = upgradeDeps({ steps, journal });
+    const plan = await planInstall(ready, QUERY);
+    const result = await installPack(ready, { ...QUERY, confirm: plan.planId });
+    expect(result.stopped).toBeNull();
+    const complete = "complete snagentic: itsm 0.1.0 upgrade, snagentic: itsm 0.3.0 upgrade";
+    expect(calls.filter((c) => c.startsWith("complete"))).toEqual([complete]);
+    expect(calls.indexOf(complete)).toBeLessThan(calls.findIndex((c) => c.startsWith("plan ")));
+    expect(result.steps[0]).toMatchObject({
+      step: "complete earlier update sets",
+      outcome: "done",
+      detail:
+        "snagentic: itsm 0.1.0 upgrade, snagentic: itsm 0.3.0 upgrade: promote them before this install's update sets",
+    });
+    expect(state.cleared).toBe(true);
+  });
+
+  it("does not complete them again when a stopped run resumes", async () => {
+    const { steps, calls } = fakeSteps();
+    const ready = upgradeDeps({ steps });
+    const plan = await planInstall(ready, QUERY);
+    const done = {
+      step: "complete earlier update sets",
+      outcome: "done" as const,
+      detail: "",
+      seconds: 1,
+    };
+    const { journal } = memoryJournal({ planId: plan.planId, startedAt: "t", steps: [done] });
+    await installPack({ ...ready, journal }, { ...QUERY, confirm: plan.planId });
+    expect(calls.some((c) => c.startsWith("complete"))).toBe(false);
+  });
+
+  it("adds no step when no earlier set is open", async () => {
+    const { steps, calls } = fakeSteps();
+    const ready = upgradeDeps({ steps, open: [] });
+    const plan = await planInstall(ready, QUERY);
+    expect(installPlanDocument(plan)).not.toContain("Update sets, in promotion order");
+    await installPack(ready, { ...QUERY, confirm: plan.planId });
+    expect(calls.some((c) => c.startsWith("complete"))).toBe(false);
   });
 });

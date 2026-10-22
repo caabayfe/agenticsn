@@ -394,10 +394,35 @@ check before installs and for a repair function, and delegated the decisions.
 | S-R | **Spike, plugin repair** (run 2026-10-21 with the owner's approval): the App Manager's repair (`GET /api/sn_appclient/v1/appmanager/plugin/repair?plugin_id=<id>&load_demo_data=false`, an internal API, followed through `/api/sn_cicd/progress/<id>`) on `com.snc.incident`, then `com.snc.problem` | **Done. Repair does not restore missing dictionary entries.** Both succeeded in about 3 minutes and recreated only missing UI layouts: list layouts (incident `portal` view, sys_attachment, task_time_worked, itil_appointment, problem) and problem's Default and reference related-list containers, which pdi2 also lacked. No field came back (incident still has 35). The log says admin lacks the `maint` role: a customer-run repair reloads less than one ServiceNow runs. Nothing existing was overwritten: a re-install of ITSM 0.3.0 found every module as built. `com.snc.change_management` (rfc, caused_by) was not repaired: the two results show the pattern |
 | I15 | **`plugins repair`** | **Not built** (decision from S-R): it cannot restore missing fields, the case that motivated it. For such an instance the field check (I14) names the gap; the remedies are a ServiceNow support case (they hold `maint`) or a factory reset |
 
-Also found: an upgrade from an older pack version stops when a record is held in that version's update set still in progress (`snagentic: itsm 0.1.0 upgrade` held ACCRelatedChanges): the install counts only the current version's update sets as its own. **Gap (new):** count every update set an earlier install of the same pack created.
+Also found: an upgrade from an older pack version stops when a record is held in that version's update set still in progress (`snagentic: itsm 0.1.0 upgrade` held ACCRelatedChanges): the install counts only the current version's update sets as its own. **Gap (new):** count every update set an earlier install of the same pack created. Addressed by I16 (section 14).
 
 Decisions taken under the owner's delegation (to confirm): F1 declare fields by hand plus data
 columns automatically; F2 `stop` by default; F3 check the mirror, not the instance; F4 name the
 plugin. The plan lists only the fields not on the instance, and counts the rest (93 rows were
 unreadable).
 
+
+## 14. Upgrades over earlier update sets still in progress (2026-10-22)
+
+Pack 0.3.1 could not be installed on pdi2: `ACCRelatedChanges` sat in `snagentic: itsm 0.1.0
+upgrade`, still in progress, and the install counts as its own only the update sets named with
+the current version (`run-install.ts`, `ownedBy` in `install-steps.ts`). Every pack upgrade on a
+development instance stops the same way until the older sets are completed by hand.
+
+The product owner decided (2026-10-22): an upgrade is a standard action and never stops for the
+pack's own earlier sets; those sets are **completed**, not taken over or cancelled, so they are
+promoted before the new ones. Taking a record over leaves it in two sets in progress, and the one
+committed last on UAT wins; cancelling loses the records the new version does not change again.
+ADR-0038 section 6, amendment accepted by the product owner (2026-10-22).
+
+| # | Item | State |
+|---|---|---|
+| S-U | **Spike, completing update sets** (run 2026-10-22 on pdi2, by the owner): a throwaway parent with a global child and a `sn_comm_management` child, the parent set to complete with one Table API `PATCH` (business rules run, UI actions do not) | **Done. Completing the parent completes its children**, in the global and the scoped child alike: the install writes the parent only. The throwaway sets were deleted. Not run: whether a target's preview flags an older set committed after a newer one; it needs a second instance or a UI import, and completing the earlier sets in order prevents the case whatever the preview does. Also found: `snagentic: ACC itsm/foundation 0.1.0` (264 updates, a manual push from spec 005) follows neither the install's naming nor a report, so it stays someone else's set: an upgrade touching its records stops, as decided |
+| I16 | **Earlier update sets in upgrades** (branch `feat/accelerator-upgrade-sets`): | **Built and live-tested** |
+| | 1. Core domain, pure (`earlier-sets.ts`): the pack's top-level sets in progress from an older version, oldest first, known by the reports or by the naming pattern; a newer version's set, another pack's, a manual push's and a label that only starts alike are not | Built |
+| | 2. Install reports: a delivered step's detail is written and read back by one pair of functions (`deliveredDetail`, `recordedSets`), which also read the reports older versions wrote; the workspace reads the committed reports of the pack on the instance | Built |
+| | 3. Plan: reads the update sets in progress live (`openUpdateSets`), lists every earlier set of the pack, whichever module made it (one promotion order); the list enters the plan id only when not empty, so other plans keep their ids; the plan document lists them with this install's sets in promotion order | Built |
+| | 4. Run: `complete earlier update sets`, after the components and before the first push, journaled so a resume skips it; completes the parents (`completeUpdateSets`), the children follow | Built |
+| | 5. Unchanged: the push's collision check (`ownedBy`) reads only sets in progress, so it needs no change: a record in someone else's set, or a newer version's, still stops the module | Unchanged |
+| | 6. Live (2026-10-22, plan `41e7aaf82bdd589c`, profile `incident-advanced`): the plan listed the seven earlier ITSM sets (0.1.0, 0.1.1, 0.3.0), the run completed them in 3.1 s (every scope child followed), then pushed 1 unit, `ACCRelatedChanges`, the record that had stopped the 0.3.1 install, into `snagentic: itsm 0.3.1 upgrade`; data 159 rows unchanged; installed. `snagentic: ACC itsm/foundation 0.1.0` and the other manual-push sets stayed in progress. The first plan showed two faults, fixed before the run: it named each module's set for this install (modules already installed go into the upgrade set) and ordered one version's sets by name, not creation | Done |
+| | Planning now connects to the instance (the live read): `accelerator install` without `--confirm` needs the credential it already needed to run | |

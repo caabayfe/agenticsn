@@ -139,6 +139,50 @@ describe("GitDeliveryWorkspace", () => {
 });
 
 describe("plan-push rendering", () => {
+  it("says which units are created again and which are only forgotten", () => {
+    const unit = {
+      project: "source/global",
+      scope: "global",
+      table: "sys_ui_related_list_entry",
+      sysId: "e",
+      name: "entry",
+      changes: [],
+      losses: [],
+      alsoSets: [],
+    };
+    const text = planPush.render(
+      {
+        instance: "pdi",
+        planId: "0123456789abcdef",
+        label: "b",
+        updateSets: ["snagentic: b"],
+        units: [
+          {
+            ...unit,
+            updateName: "sys_ui_related_list_entry_a",
+            operation: "create",
+            ledger: "0|t",
+          },
+          { ...unit, updateName: "sys_ui_related_list_b", operation: "forget", ledger: "0|t" },
+          { ...unit, updateName: "sys_ui_related_list_entry_c", operation: "create", ledger: null },
+        ],
+        problems: [],
+        gate: { passed: true, blocking: [], waived: [], warnings: 0, waiverProblems: [] },
+        collisions: [],
+        ready: true,
+        next: [],
+      },
+      "text",
+    );
+    expect(text).toContain(
+      "create sys_ui_related_list_entry_a  source/global  (deleted on the instance since it last agreed with source: created again)",
+    );
+    expect(text).toContain(
+      "forget sys_ui_related_list_b  source/global  (gone from source and from the instance: only its ledger entry is dropped)",
+    );
+    expect(text).toContain("create sys_ui_related_list_entry_c  source/global\n");
+  });
+
   it("shows units, what they also set, waived findings, waiver problems and records held elsewhere", () => {
     const finding = {
       ruleId: "SN-MNT-006",

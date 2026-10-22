@@ -1,7 +1,8 @@
 # 0033. Plans compare the build with the instance; owned records have a base
 
 - Status: Accepted (product owner, 2026-10-16). Revised the same day, before any code: the
-  comparison reads the instance's live copy, not the mirror (see Context)
+  comparison reads the instance's live copy, not the mirror (see Context). Items 4 and 5 amended
+  (records gone from the instance), accepted by the product owner 2026-10-22
 - Date: 2026-10-16
 - Requirements: ASR-02 (write safety), ASR-10 (reviewability), ASR-13 (determinism), ASR-16
 - Relates to: 0031 (Fluent authoring), 0032 (the SDK's connector), 0030 (stamping), 0027 (domains),
@@ -81,6 +82,26 @@ indexed requests.
    - its ledger and live hashes;
    - the normalized digest of its built file;
    - the gate.
+
+### Amendment (2026-10-22): records gone from the instance
+
+Accepted by the product owner on 2026-10-22, when ITSM pack 0.5.0 met it on pdi2: activating
+*KCS Integration for Incident Management* replaced the incident form's related-list container
+and removed the entries a module had added, with no audit row and no update set entry. Items 4
+and 5 refused both cases, and neither remedy applied: there was nothing to refresh, and a
+`Now.del` for the old container would be promoted to every instance under the update name the
+plugin's container shares.
+
+- **Item 4:** a candidate unit the ledger holds and the instance no longer does is **created
+  again**, instead of refused as drift. The plan shows it as a create with the ledger's version
+  and no live one, with the note "deleted on the instance since it last agreed with source", and
+  the plan id covers both, so approving the plan approves the re-creation. Only candidates are
+  read (their build moved), so a deletion of an unchanged unit is still not seen; ADR-0042
+  proposes checking a module's facts after an install for that.
+- **Item 5:** a ledger entry with no definition and no `Now.del` whose record is **also gone
+  from the instance** is **forgotten**: the plan lists it as `forget`, and push drops the entry
+  and loads nothing. A record still on the instance, or one the plan cannot read, is still a
+  blocking finding.
 
 ## Consequences
 

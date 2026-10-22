@@ -38,7 +38,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0030](0030-what-the-platform-does-not-record-is-loaded.md) | What the platform does not record is loaded as the update it records | Superseded by 0031 (findings kept) |
 | [0031](0031-changes-are-authored-in-fluent.md) | Changes are authored in Fluent; the mirror is read-only | Accepted |
 | [0032](0032-the-sdk-runs-behind-snagentics-connector.md) | The SDK runs in-process, behind snagentic's connector | Accepted |
-| [0033](0033-plans-compare-the-build-with-the-instance.md) | Plans compare the build with the instance; owned records have a base | Accepted |
+| [0033](0033-plans-compare-the-build-with-the-instance.md) | Plans compare the build with the instance; owned records have a base | Accepted (amended 2026-10-22) |
 | [0034](0034-the-mirror-keeps-typed-property-values-and-names-what-it-leaves-out.md) | The mirror keeps typed property values and names what it leaves out | Accepted |
 | [0035](0035-pulls-scan-what-they-write-for-secrets.md) | Pulls scan what they write for secrets | Proposed |
 | [0036](0036-verified-documentation-site.md) | Verified documentation: pages anchored to the mirror, published as a static site | Accepted |

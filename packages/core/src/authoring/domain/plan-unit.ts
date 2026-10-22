@@ -50,10 +50,10 @@ export function planUnit(
   entry: LedgerEntry | undefined,
 ): UnitDecision {
   if (isDeletion(unit)) return decideDeletion(copy, entry);
-  if (copy === null) {
-    // Adopted and then deleted on the instance: drift, not a silent re-create.
-    return entry === undefined ? { kind: "create" } : { kind: "drift", differences: [] };
-  }
+  // Not on the instance: created, or created again when it agreed with source before (a plugin
+  // activation can remove a record without a trace). The plan shows the ledger's version beside
+  // no live one, so approving it approves the re-creation (ADR-0033 as amended, 2026-10-22).
+  if (copy === null) return { kind: "create" };
   const comparable = unitSpec(unit.head.table).comparable;
   const differences = comparable ? compareUnit(unit, copy) : [];
   if (comparable && differences.length === 0) {

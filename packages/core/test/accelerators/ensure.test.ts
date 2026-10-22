@@ -131,6 +131,26 @@ describe("the Fluent a module's facts become", () => {
     expect(none).toEqual({ text: "", containers: [] });
   });
 
+  it("keeps an entry id the module gave before, so moving a list to ensure.yaml recreates nothing", () => {
+    const problems: string[] = [];
+    const [kept] = ensureFactsOf(
+      "incident-relations",
+      "modules/incident-relations/ensure.yaml",
+      [{ ...FACT, kind: "related_list", id: "3ca1ca8f29547f4dc1502e09484e17e7" }],
+      problems,
+    );
+    expect(kept && ensureEntryId("itsm", kept)).toBe("3ca1ca8f29547f4dc1502e09484e17e7");
+    ensureFactsOf(
+      "m",
+      "modules/m/ensure.yaml",
+      [{ ...FACT, kind: "related_list", id: "nope" }],
+      problems,
+    );
+    expect(problems).toEqual([
+      "modules/m/ensure.yaml: entry 1 id must be a sys_id (32 hexadecimal characters)",
+    ]);
+  });
+
   it("gives each fact the same entry id wherever the pack is installed", () => {
     expect(ensureEntryId("itsm", FACT)).toBe(ensureEntryId("itsm", { ...FACT, note: "changed" }));
     expect(ensureEntryId("itsm", FACT)).not.toBe(ensureEntryId("itsm", { ...FACT, view: "sow" }));

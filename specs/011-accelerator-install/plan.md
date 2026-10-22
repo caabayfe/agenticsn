@@ -384,6 +384,8 @@ delivered as generated Fluent through the SDK, and checked again after the insta
   list already there (someone else's entry) is left, a view with no layout is skipped.
 - Each container added to is taken over like an adopted record, so one the client customized
   stops for review (the "conflicting" case, for now).
+- An entry may keep the sys_id the module gave it before (`id`): a list a module added from its
+  source moves to `ensure.yaml` without being deleted and created again.
 - Not yet: the after-install check, form fields and active flags; dropping a fact from
   `ensure.yaml` leaves the generated entry, which then needs a `Now.del` as any removed definition.
 

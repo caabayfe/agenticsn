@@ -15,6 +15,9 @@ export interface EnsureFact {
   readonly view: string;
   readonly list: string;
   readonly note: string;
+  // The entry's sys_id when the module gave it one before (a list it added from its source, now
+  // moved to ensure.yaml): kept, so nothing is deleted or created again. Otherwise derived.
+  readonly id?: string;
 }
 
 // A table's related lists for one view, as the instance holds them now.
@@ -33,6 +36,8 @@ export interface ListState {
 // missing: the module adds it; present: already true (someone else's entry); ours: the module's
 // entry is there; absent: no list layout for that table and view on the instance.
 export type FactStatus = "missing" | "present" | "ours" | "absent";
+
+const SYS_ID = /^[0-9a-f]{32}$/;
 
 const text = (entry: Readonly<Record<string, unknown>>, key: string) => {
   const value = entry[key];
@@ -70,12 +75,19 @@ export function ensureFactsOf(
       problems.push(`${path}: entry ${index + 1} needs table, view, list and note`);
       return [];
     }
-    return [fact];
+    const id = text(entry, "id");
+    if (id === "") return [fact];
+    if (!SYS_ID.test(id)) {
+      problems.push(`${path}: entry ${index + 1} id must be a sys_id (32 hexadecimal characters)`);
+      return [];
+    }
+    return [{ ...fact, id }];
   });
 }
 
 // The module's entry for a fact: the same sys_id wherever the pack is installed.
 export const ensureEntryId = (pack: string, fact: EnsureFact): string =>
+  fact.id ??
   sha256Hex(
     ["ensure", pack, fact.capability, fact.kind, fact.table, fact.view, fact.list].join("/"),
   ).slice(0, 32);

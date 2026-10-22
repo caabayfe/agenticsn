@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "eslint": "^10.12.0"
+    "eslint": "^10.13.0"
   },
   "devDependencies": {
     "@snagentic/core": "workspace:*"

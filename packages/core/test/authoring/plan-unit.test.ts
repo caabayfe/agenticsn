@@ -130,3 +130,100 @@ describe("planUnit (ADR-0033 item 4)", () => {
     });
   });
 });
+
+// pdi2, 2026-10-18 (spec 009 L3-1): the platform's DictionaryUpdateLoader refuses an update whose
+// max_length is empty ("Length change not allowed. Invalid new length (-1)"), while fluent/load
+// answers success. A column the load created without maxLength could never change again.
+describe("planUnit on a column whose source gives no max length", () => {
+  const column = (fields: Record<string, string>) =>
+    unit(
+      "sys_dictionary_x_app_request_urgent",
+      record("sys_dictionary", "d".repeat(32), {
+        name: "x_app_request",
+        element: "urgent",
+        internal_type: "boolean",
+        column_label: "Urgent request",
+        ...fields,
+      }),
+    );
+  const held = (fields: Record<string, string>) =>
+    copy(
+      {
+        sys_id: "d".repeat(32),
+        name: "x_app_request",
+        element: "urgent",
+        internal_type: "boolean",
+        column_label: "Urgent",
+        ...fields,
+      },
+      [],
+      VERSION,
+    );
+  const known = (built: ReturnType<typeof column>) => entry({ build: "before", instance: VERSION });
+
+  it("refuses the change, naming the maxLength the platform needs", () => {
+    const built = column({ max_length: "" });
+    const decision = planUnit(built, unitDigest(built), held({ max_length: "" }), known(built));
+    expect(decision).toMatchObject({ kind: "unsafe" });
+    expect(decision.kind === "unsafe" && decision.reason).toContain("maxLength: 40");
+  });
+
+  it("names the instance's own length when it holds one, and 32 for a reference", () => {
+    const built = column({ max_length: "" });
+    const decision = planUnit(built, unitDigest(built), held({ max_length: "80" }), known(built));
+    expect(decision.kind === "unsafe" && decision.reason).toContain("maxLength: 80");
+    const reference = column({ max_length: "", internal_type: "reference" });
+    const asReference = planUnit(
+      reference,
+      unitDigest(reference),
+      held({ max_length: "", internal_type: "reference" }),
+      known(reference),
+    );
+    expect(asReference.kind === "unsafe" && asReference.reason).toContain("maxLength: 32");
+  });
+
+  it("loads the change once the source gives a length", () => {
+    const built = column({ max_length: "40" });
+    const decision = planUnit(built, unitDigest(built), held({ max_length: "" }), known(built));
+    expect(decision).toMatchObject({ kind: "load" });
+  });
+
+  it("creates a column with no length: the platform accepts it on insert", () => {
+    const built = column({ max_length: "" });
+    expect(planUnit(built, unitDigest(built), null, undefined)).toEqual({ kind: "create" });
+  });
+});
+
+// pdi2, 2026-10-18 (spec 009 L8 A2): Record({ table: 'sys_choice' }) on incident.category builds a
+// lone choice named sys_choice_incident_category, the update name of the field's whole choice
+// list. An update of that name replaces the list where it is committed: the field's other
+// choices would go.
+describe("planUnit on a lone choice that carries its list's update name", () => {
+  const lone = unit(
+    "sys_choice_incident_category",
+    record("sys_choice", "c".repeat(32), {
+      name: "incident",
+      element: "category",
+      value: "snfx_training",
+      label: "Training",
+      language: "en",
+    }),
+  );
+
+  it("refuses it, naming the choice set to adopt", () => {
+    const decision = planUnit(lone, unitDigest(lone), null, undefined);
+    expect(decision).toMatchObject({ kind: "unsafe" });
+    expect(decision.kind === "unsafe" && decision.reason).toContain(
+      "adopt the choice set of incident.category",
+    );
+  });
+
+  it("plans a choice set, which carries every choice of the list", () => {
+    const set = unit(
+      "sys_choice_incident_category",
+      record("sys_choice_set", "d".repeat(32), { name: "incident", element: "category" }),
+      [lone.head],
+    );
+    expect(planUnit(set, unitDigest(set), null, undefined)).toEqual({ kind: "create" });
+  });
+});

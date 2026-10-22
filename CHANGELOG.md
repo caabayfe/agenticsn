@@ -12,6 +12,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   are added. The check reads the mirror, a table's parents included. A missing field blocks its
   module, or is a warning saying what the module loses, and names the plugin to repair or
   activate. The plan lists the missing fields and counts the rest.
+- Rule SN-SEC-009 blocks a role that contains `admin`, `security_admin` or `maint`: everyone
+  granted that role would hold the privileged one. Found by the spec 009 scenarios (L8 A6,
+  pdi2), where a scoped role containing `admin` passed every check.
 
 ### Fixed
 

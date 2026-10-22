@@ -8,6 +8,7 @@ import {
   type PackWorkspace,
   type PreviousAdd,
 } from "@snagentic/core";
+import { childEnvironment } from "../child-environment";
 import { runGit, runGitOrThrow } from "../git/run-git";
 import { fromYamlStrings } from "../yaml/own-style";
 
@@ -29,7 +30,7 @@ async function git(cwd: string, args: string[], env: Record<string, string>, inp
     stdin: input === undefined ? "ignore" : new TextEncoder().encode(input),
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, GIT_TERMINAL_PROMPT: "0", ...env },
+    env: childEnvironment({ GIT_TERMINAL_PROMPT: "0", ...env }),
   });
   const [out, err, code] = await Promise.all([
     new Response(child.stdout).text(),

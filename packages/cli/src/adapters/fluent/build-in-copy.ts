@@ -1,6 +1,7 @@
 import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { childEnvironment } from "../child-environment";
 import { runGitOrThrow } from "../git/run-git";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
 import type { FluentBuildOutcome } from "./sdk-runtime";
@@ -62,12 +63,15 @@ export const fromCommit =
     const tarball = join(copy, "..", "commit.tar");
     const archive = Bun.spawn(
       ["git", "archive", "--format=tar", "-o", tarball, commit, "--", project],
-      { cwd: workspace, stdout: "ignore", stderr: "pipe" },
+      { cwd: workspace, stdout: "ignore", stderr: "pipe", env: childEnvironment() },
     );
     const archived = await archive.exited;
     const tar =
       archived === 0
-        ? Bun.spawn(["tar", "-x", "-f", tarball, "-C", scratch], { stderr: "pipe" })
+        ? Bun.spawn(["tar", "-x", "-f", tarball, "-C", scratch], {
+            stderr: "pipe",
+            env: childEnvironment(),
+          })
         : null;
     const extracted = tar === null ? 1 : await tar.exited;
     if (archived !== 0 || extracted !== 0) {

@@ -394,10 +394,34 @@ check before installs and for a repair function, and delegated the decisions.
 | S-R | **Spike, plugin repair** (run 2026-10-21 with the owner's approval): the App Manager's repair (`GET /api/sn_appclient/v1/appmanager/plugin/repair?plugin_id=<id>&load_demo_data=false`, an internal API, followed through `/api/sn_cicd/progress/<id>`) on `com.snc.incident`, then `com.snc.problem` | **Done. Repair does not restore missing dictionary entries.** Both succeeded in about 3 minutes and recreated only missing UI layouts: list layouts (incident `portal` view, sys_attachment, task_time_worked, itil_appointment, problem) and problem's Default and reference related-list containers, which pdi2 also lacked. No field came back (incident still has 35). The log says admin lacks the `maint` role: a customer-run repair reloads less than one ServiceNow runs. Nothing existing was overwritten: a re-install of ITSM 0.3.0 found every module as built. `com.snc.change_management` (rfc, caused_by) was not repaired: the two results show the pattern |
 | I15 | **`plugins repair`** | **Not built** (decision from S-R): it cannot restore missing fields, the case that motivated it. For such an instance the field check (I14) names the gap; the remedies are a ServiceNow support case (they hold `maint`) or a factory reset |
 
-Also found: an upgrade from an older pack version stops when a record is held in that version's update set still in progress (`snagentic: itsm 0.1.0 upgrade` held ACCRelatedChanges): the install counts only the current version's update sets as its own. **Gap (new):** count every update set an earlier install of the same pack created.
+Also found: an upgrade from an older pack version stops when a record is held in that version's update set still in progress (`snagentic: itsm 0.1.0 upgrade` held ACCRelatedChanges): the install counts only the current version's update sets as its own. **Gap (new):** count every update set an earlier install of the same pack created. Addressed by I16 (section 14).
 
 Decisions taken under the owner's delegation (to confirm): F1 declare fields by hand plus data
 columns automatically; F2 `stop` by default; F3 check the mirror, not the instance; F4 name the
 plugin. The plan lists only the fields not on the instance, and counts the rest (93 rows were
 unreadable).
 
+
+## 14. Upgrades over earlier update sets still in progress (2026-10-22)
+
+Pack 0.3.1 could not be installed on pdi2: `ACCRelatedChanges` sat in `snagentic: itsm 0.1.0
+upgrade`, still in progress, and the install counts as its own only the update sets named with
+the current version (`run-install.ts`, `ownedBy` in `install-steps.ts`). Every pack upgrade on a
+development instance stops the same way until the older sets are completed by hand.
+
+The product owner decided (2026-10-22): an upgrade is a standard action and never stops for the
+pack's own earlier sets; those sets are **completed**, not taken over or cancelled, so they are
+promoted before the new ones. Taking a record over leaves it in two sets in progress, and the one
+committed last on UAT wins; cancelling loses the records the new version does not change again.
+ADR-0038 section 6, proposed amendment.
+
+| # | Item | State |
+|---|---|---|
+| S-U | **Spike, completing update sets** on pdi2: (1) setting a parent set to complete through the Table API, and whether its scope children follow or each needs its own write; (2) on a second instance or a re-import, whether preview flags an older set committed after a newer one ("newer local update") | To run |
+| I16 | **Earlier update sets in upgrades**, test first: | To build |
+| | 1. Core domain, pure: which open sets are the pack's own and earlier (install reports, or the naming pattern for an older version, with an optional ` [scope]` child); a newer version's set and someone else's set are not. Moves `ownedBy` out of `packages/cli` | |
+| | 2. Install reports record the update sets of each step in a structured form; older reports are read from their table | |
+| | 3. Plan: read open update sets live, list the pack's earlier sets still in progress and the records the upgrade changes in them; the list enters the plan id; the plan document says they will be completed and in what order to promote | |
+| | 4. Run: complete them (parent and children) before the first push, as a journaled step, so a resume skips it; the report gives the promotion order | |
+| | 5. Unchanged: a record held in someone else's set, or in a newer version's set, still stops the module | |
+| | 6. Live: install pack 0.3.1 on pdi2 over the 0.1.0, 0.1.1 and 0.3.0 sets still in progress | |

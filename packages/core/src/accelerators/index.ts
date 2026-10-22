@@ -10,6 +10,7 @@ export {
   type PackQuery,
   type PackSummary,
 } from "./application/check-pack";
+export { ensureLayouts, readLayouts } from "./application/ensure-layouts";
 export { type EntityLoad, type LoadResult, loadData } from "./application/load-data";
 export { mirrorSchema } from "./application/mirror-schema";
 export { packFindings } from "./application/pack-gate";
@@ -32,6 +33,15 @@ export {
   type PackNaming,
   recordedSets,
 } from "./domain/earlier-sets";
+export {
+  type EnsureFact,
+  ensureEntryId,
+  ensureFactsOf,
+  ensureSource,
+  type FactStatus,
+  factStatus,
+  type ListState,
+} from "./domain/ensure";
 export {
   DataSourceRequiredError,
   InstallBlockedError,

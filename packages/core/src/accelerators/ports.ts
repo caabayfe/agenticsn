@@ -1,4 +1,5 @@
 import type { OpenSet } from "./domain/earlier-sets";
+import type { EnsureFact, ListState } from "./domain/ensure";
 import type { InstallRecord } from "./domain/install-plan";
 import type { MaterializedFile } from "./domain/materialize";
 import type { Template } from "./domain/templates";
@@ -131,6 +132,8 @@ export interface InstallSteps {
   // Sets these update sets (top-level) to complete on the development instance; their scope
   // children follow (spec 011, spike S-U).
   completeUpdateSets(sets: readonly OpenSet[], signal: AbortSignal): Promise<void>;
+  // The related-list layouts the facts name, read live, one per fact in order (ADR-0042).
+  layouts(facts: readonly EnsureFact[], signal: AbortSignal): Promise<readonly ListState[]>;
   // Writes a workspace file (the plan and the report), relative to the workspace root.
   writeFile(path: string, text: string): Promise<void>;
   commit(paths: readonly string[], message: string): Promise<string>;

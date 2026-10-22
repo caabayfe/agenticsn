@@ -99,6 +99,7 @@ function plannedModules(
       label: `${labelOf(manifest, id)} ${manifest.version}`,
       files: result.files.map((f) => f.path),
       adoptions: result.adoptions,
+      ensures: result.ensures,
     };
   });
   return { modules, problems };

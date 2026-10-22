@@ -41,6 +41,7 @@ export {
   type InstanceKind,
   type InstanceProfile,
   instanceHost,
+  isCredentialVariable,
   type NewProfile,
   type OAuthClientCredentials,
   secretName,

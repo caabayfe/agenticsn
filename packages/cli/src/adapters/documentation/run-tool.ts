@@ -1,3 +1,5 @@
+import { childEnvironment } from "../child-environment";
+
 // Runs an external media program (ffmpeg, piper, say) with an argument list, never a shell.
 export interface ToolResult {
   readonly exitCode: number;
@@ -14,6 +16,7 @@ export async function runTool(
     stdin: stdin === undefined ? "ignore" : new Blob([stdin]),
     stdout: "pipe",
     stderr: "pipe",
+    env: childEnvironment(),
     signal,
   });
   const [stdout, stderr, exitCode] = await Promise.all([

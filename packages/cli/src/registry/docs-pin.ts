@@ -18,7 +18,11 @@ export const docsPin = defineUseCase({
       .optional()
       .describe("a page path, a process or <process>/<topic> (default: all)"),
   }),
-  output: z.object({ pinned: z.array(Item), missing: z.array(Item) }),
+  output: z.object({
+    pinned: z.array(Item),
+    questions: z.array(z.object({ path: z.string(), key: z.string() })),
+    missing: z.array(Item),
+  }),
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: false,
   arguments: ["page"],
@@ -28,12 +32,22 @@ export const docsPin = defineUseCase({
       { ...context.documentation(root), root, signal: run.signal, clock: context.clock },
       input.page === undefined ? {} : { page: input.page },
     );
-    return { pinned: [...result.pinned], missing: [...result.missing] };
+    return {
+      pinned: [...result.pinned],
+      questions: [...result.questions],
+      missing: [...result.missing],
+    };
   },
   render(output) {
     return [
       `pinned ${output.pinned.length} evidence`,
       ...output.pinned.map((item) => `  ${item.page} ${item.id} ${item.anchor}`),
+      ...(output.questions.length === 0
+        ? []
+        : [
+            `pinned ${output.questions.length} records that open questions are about`,
+            ...output.questions.map((item) => `  ${item.path} ${item.key}`),
+          ]),
       ...(output.missing.length === 0
         ? []
         : [

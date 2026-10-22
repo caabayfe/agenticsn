@@ -1,5 +1,7 @@
-import { join } from "node:path";
-import type { PackSource } from "@snagentic/core";
+import { readFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { MANIFEST_FILE, type PackSource } from "@snagentic/core";
+import { parse } from "yaml";
 import { DirectoryPackSource } from "./directory-pack-source";
 import { EmbeddedPackSource, type EmbeddedPacks } from "./embedded-pack-source";
 import { PACK_ROOTS } from "./pack-roots";
@@ -35,8 +37,61 @@ export async function loadEmbeddedPacks(
 const fromSource = async (): Promise<PackSource> =>
   new DirectoryPackSource(PACK_ROOTS.map((r) => join(import.meta.dir, "../../../../..", r)));
 
-export const loadPackSource = (): Promise<PackSource> =>
+const shipped = (): Promise<PackSource> =>
   typeof SNAGENTIC_EMBEDDED_PACKS === "undefined" ? fromSource() : loadEmbeddedPacks();
+
+const field = (value: unknown, key: string): unknown =>
+  typeof value === "object" && value !== null && key in value
+    ? Object.fromEntries(Object.entries(value))[key]
+    : undefined;
+
+// A workspace manifest's pack paths (`accelerators.paths`), resolved from its directory.
+function pathsIn(text: string, dir: string): string[] {
+  const paths = field(field(parse(text), "accelerators"), "paths");
+  return Array.isArray(paths)
+    ? paths.filter((p): p is string => typeof p === "string").map((p) => resolve(dir, p))
+    : [];
+}
+
+// The pack paths of the workspace holding `start`; none outside a workspace.
+export async function workspacePackRoots(start: string): Promise<string[]> {
+  for (let dir = resolve(start); ; dir = dirname(dir)) {
+    const text = await readFile(join(dir, MANIFEST_FILE), "utf8").catch(() => null);
+    if (text !== null) return pathsIn(text, dir);
+    if (dirname(dir) === dir) return [];
+  }
+}
+
+// Packs from several sources: a pack id in an earlier source hides the same id in a later one,
+// so a workspace's pack path can carry a newer version of a pack snagentic ships.
+export class LayeredPackSource implements PackSource {
+  constructor(private readonly sources: readonly PackSource[]) {}
+
+  async ids(): Promise<readonly string[]> {
+    const ids = new Set<string>();
+    for (const source of this.sources) for (const id of await source.ids()) ids.add(id);
+    return [...ids].sort();
+  }
+
+  async files(id: string): Promise<ReadonlyMap<string, string>> {
+    for (const source of this.sources) {
+      const files = await source.files(id);
+      if (files.size > 0) return files;
+    }
+    return new Map();
+  }
+
+  parse(text: string): unknown {
+    return parse(text);
+  }
+}
+
+// The packs snagentic ships, under the workspace's pack paths (ADR-0038, item 7).
+export async function loadPackSource(start: string): Promise<PackSource> {
+  const roots = await workspacePackRoots(start);
+  const own = await shipped();
+  return roots.length === 0 ? own : new LayeredPackSource([new DirectoryPackSource(roots), own]);
+}
 
 // A pack source loaded once, on first use.
 export class LazyPackSource implements PackSource {
@@ -53,8 +108,8 @@ export class LazyPackSource implements PackSource {
     return (await this.source()).ids();
   }
 
-  async manifest(id: string): Promise<unknown | null> {
-    return (await this.source()).manifest(id);
+  parse(text: string): unknown {
+    return parse(text);
   }
 
   async files(id: string): Promise<ReadonlyMap<string, string>> {

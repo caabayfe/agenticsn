@@ -61,6 +61,8 @@ export interface ProjectBuilds {
   readonly scripts?: ReadonlyMap<string, string>;
   readonly keys?: { readonly committed: string | null; readonly built: string } | null;
   readonly declaredSdk?: string | null;
+  // Left as it was since the base commit: changedSince doesn't name it.
+  readonly unchanged?: boolean;
 }
 
 interface FluentBuildErrorLike {
@@ -85,7 +87,11 @@ export function fakeProjects(projects: Record<string, ProjectBuilds>, sdkVersion
     scripts: builds.scripts ?? new Map(),
   });
   const fluent: FluentProjects = {
-    changedSince: async () => Object.keys(projects).sort().map(of),
+    changedSince: async () =>
+      Object.keys(projects)
+        .filter((p) => projects[p]?.unchanged !== true)
+        .sort()
+        .map(of),
     holding: async (paths) =>
       Object.keys(projects)
         .filter((p) => paths.some((path) => path.startsWith(`${p}/`)))

@@ -1,6 +1,6 @@
 import type { Capability, DataEntity, Manifest } from "./manifest-types";
 
-// The capabilities of a pack form a graph by dependsOn, and its data entities one by after
+// The modules of a pack form a graph by dependsOn, and its data entities one by after
 // (spec 005 plan, M1). Pure.
 
 type Edges = ReadonlyMap<string, readonly string[]>;
@@ -34,23 +34,11 @@ function dependencyProblems(capabilities: readonly Capability[]): string[] {
   const problems = capabilities.flatMap((c) =>
     c.dependsOn
       .filter((d) => !byId.has(d))
-      .map((d) => `capability ${c.id} depends on ${d}, which the pack does not have`),
+      .map((d) => `module ${c.id} depends on ${d}, which the pack does not have`),
   );
   if (problems.length > 0) return problems;
   const cycle = cycleIn([...byId.keys()], new Map(capabilities.map((c) => [c.id, c.dependsOn])));
-  if (cycle !== null) {
-    return [`capabilities depend on each other in a cycle: ${cycle.join(" → ")}`];
-  }
-  return capabilities.flatMap((c) =>
-    c.dependsOn.flatMap((d) => {
-      const wave = byId.get(d)?.wave ?? 0;
-      return wave > c.wave
-        ? [
-            `capability ${c.id} (wave ${c.wave}) depends on ${d}, which is in a later wave (${wave})`,
-          ]
-        : [];
-    }),
-  );
+  return cycle === null ? [] : [`modules depend on each other in a cycle: ${cycle.join(" → ")}`];
 }
 
 // Every capability a capability reaches through dependsOn, itself included.
@@ -89,7 +77,7 @@ function afterProblem(
   }
   return where.reachable.has(by)
     ? null
-    : `data entity ${entity} loads after ${before}, which capability ${capability} does not reach (depend on ${by})`;
+    : `data entity ${entity} loads after ${before}, which module ${capability} does not reach (depend on ${by})`;
 }
 
 function dataProblems(capabilities: readonly Capability[]): string[] {
@@ -130,31 +118,46 @@ function dependenciesFirst(roots: readonly string[], next: (node: string) => rea
   return ordered;
 }
 
-// The capabilities to install: those named, and those of the waves named (all when neither
-// is), with every capability they depend on, dependencies first.
+export interface Selection {
+  // A profile's modules.
+  readonly profile?: string;
+  // Modules named one by one.
+  readonly modules?: readonly string[];
+}
+
+// The modules to install: the profile's and those named (every module when neither is given),
+// with every module they depend on, dependencies first.
 export function selectCapabilities(
   manifest: Manifest,
-  ask: { readonly waves?: readonly number[]; readonly capabilities?: readonly string[] },
+  ask: Selection,
 ): { readonly capabilities: readonly string[]; readonly unknown: readonly string[] } {
   const byId = new Map(manifest.capabilities.map((c) => [c.id, c]));
-  const named = ask.capabilities ?? [];
-  const everything = ask.waves === undefined && ask.capabilities === undefined;
-  const roots = manifest.capabilities
-    .filter((c) => everything || named.includes(c.id) || (ask.waves ?? []).includes(c.wave))
-    .sort((a, b) => a.wave - b.wave || a.id.localeCompare(b.id))
-    .map((c) => c.id);
+  const profile = ask.profile === undefined ? [] : manifest.profiles[ask.profile];
+  const named = [...(profile ?? []), ...(ask.modules ?? [])];
+  const everything = ask.profile === undefined && ask.modules === undefined;
+  const roots = everything ? manifest.capabilities.map((c) => c.id) : named;
+  const unknown = [
+    ...(profile === undefined ? [`profile ${ask.profile}`] : []),
+    ...named.filter((id) => !byId.has(id)),
+  ];
   return {
-    capabilities: dependenciesFirst(roots, (id) => byId.get(id)?.dependsOn ?? []),
-    unknown: named.filter((id) => !byId.has(id)),
+    capabilities: dependenciesFirst(
+      roots.filter((id) => byId.has(id)),
+      (id) => byId.get(id)?.dependsOn ?? [],
+    ),
+    unknown,
   };
 }
 
-// The data entities of the selected capabilities, each after the ones it names.
-export function dataOrder(manifest: Manifest, selected: readonly string[]): DataEntity[] {
+// The data entities of the selected modules, each after the ones it names, with its module.
+export function dataOrder(
+  manifest: Manifest,
+  selected: readonly string[],
+): (DataEntity & { readonly module: string })[] {
   const entities = manifest.capabilities
     .filter((c) => selected.includes(c.id))
     .sort((a, b) => selected.indexOf(a.id) - selected.indexOf(b.id))
-    .flatMap((c) => c.data);
+    .flatMap((c) => c.data.map((d) => ({ ...d, module: c.id })));
   const byName = new Map(entities.map((e) => [e.entity, e]));
   const order = dependenciesFirst(
     entities.map((e) => e.entity),

@@ -8,8 +8,10 @@ import { FsMirrorRecords } from "../../src/adapters/documentation/fs-mirror-reco
 import { FsSiteOutput } from "../../src/adapters/documentation/fs-site-output";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import { docsBuild } from "../../src/registry/docs-build";
+import { docsCensus } from "../../src/registry/docs-census";
 import { docsCheck } from "../../src/registry/docs-check";
 import { docsPin } from "../../src/registry/docs-pin";
+import { docsQuestions } from "../../src/registry/docs-questions";
 import { docsServe } from "../../src/registry/docs-serve";
 import { docsVideo } from "../../src/registry/docs-video";
 import type { UseCaseContext } from "../../src/registry/use-case";
@@ -93,6 +95,31 @@ afterEach(() => {
 });
 
 describe("snagentic docs", () => {
+  it("census lists the applications that reach the process, from the mirror (ADR-0040)", async () => {
+    write(
+      "documentation/processes/incident/process.yaml",
+      "title: Incident management\ntables: [incident]\ncapabilities:\n  - id: assign\n    title: Assign an incident\n",
+    );
+    write(RECORD, "_meta:\n  hash: h1\nname: Set group\ncollection: incident\n");
+    const output = await docsCensus.handle({ process: "incident" }, context(), run);
+    expect(output).toEqual({
+      process: "incident",
+      tables: ["incident"],
+      groups: [
+        {
+          scope: "global",
+          title: "Platform (global)",
+          records: 1,
+          items: [{ kind: "Business rules", count: 1, names: ["Set group"] }],
+          features: [],
+        },
+      ],
+      undecided: [expect.objectContaining({ scope: "global" })],
+      declared: false,
+    });
+    expect(progress).toContain("reading the mirror for everything that reaches the process");
+  });
+
   it("check reports unpinned evidence and passes; pin records the hash; a mirror change then fails", async () => {
     const first = await docsCheck.handle({}, context(), run);
     expect(first.ok).toBe(true);
@@ -108,6 +135,14 @@ describe("snagentic docs", () => {
       "pinned 1 evidence\n  processes/incident/configure/assign.md E01",
     );
     expect(readFileSync(join(root, PAGE), "utf8")).toContain("hash: h1");
+    expect(
+      docsPin.render(
+        { ...pinned, questions: [{ path: "processes/incident/questions.yaml", key: "Q01#0" }] },
+        "text",
+      ),
+    ).toContain(
+      "pinned 1 records that open questions are about\n  processes/incident/questions.yaml Q01#0",
+    );
 
     write(RECORD, "_meta:\n  hash: h2\nname: Set group\n");
     const stale = await docsCheck.handle({}, context(), run);
@@ -206,6 +241,7 @@ describe("snagentic docs", () => {
         evidence: [],
         problems: [],
         narrated: [],
+        voice: "none",
         missingSounds: [],
         videos: [],
         videosNotMade: [{ animation: "asg", reason: "no Chrome or Chromium browser" }],
@@ -226,6 +262,7 @@ describe("snagentic docs", () => {
         evidence: [],
         problems: [],
         narrated: ["asg"],
+        voice: "none",
         missingSounds: [],
         videos: ["asg"],
         videosNotMade: [],
@@ -263,7 +300,7 @@ describe("snagentic docs", () => {
     );
     expect(built.narrated).toEqual(["asg"]);
     expect(built.missingSounds).toEqual(["nope_1"]);
-    expect(docsBuild.render(built, "text")).toContain("audio tracks: asg");
+    expect(docsBuild.render(built, "text")).toContain("audio tracks (voice fake): asg");
     expect(docsBuild.render(built, "text")).toContain("cue sounds not found (left out): nope_1");
     expect(readFileSync(join(root, ".snagentic/site/animations/asg.mp3"))).toEqual(
       Buffer.from([1, 2, 3]),
@@ -286,5 +323,35 @@ describe("snagentic docs", () => {
     expect(progress[0]).toContain("recording asg in real time");
     expect(docsVideo.render(result, "text")).toContain("wrote /videos/asg.mp4");
     expect(docsVideo.exitCode(result)).toBe(0);
+  });
+});
+
+describe("docs questions", () => {
+  it("lists the questions already asked, so an author cites one instead of asking again", async () => {
+    write(
+      "documentation/questions.yaml",
+      "questions:\n  - id: Q01\n    ask: Is SMS wanted?\n    kind: decide\n    who: owner\n  - id: Q02\n    ask: Is chat wanted?\n    kind: decide\n    who: owner\n    status: answered\n    answer: No.\n    by: owner\n    on: 2026-10-20\n",
+    );
+    const open = await docsQuestions.handle({ search: "sms" }, context(), run);
+    expect(docsQuestions.render(open, "text")).toBe("shared/Q01 [decide, owner] Is SMS wanted?");
+    const all = await docsQuestions.handle({ status: "all", search: "chat" }, context(), run);
+    expect(docsQuestions.render(all, "text")).toBe(
+      "shared/Q02 [decide, owner, answered] Is chat wanted?\n  answer: No.",
+    );
+    const none = await docsQuestions.handle({ search: "fax" }, context(), run);
+    expect(docsQuestions.render(none, "text")).toBe("no questions match");
+    expect(docsQuestions.exitCode(none)).toBe(0);
+    const listed = {
+      ref: "shared/Q01",
+      ask: "Is SMS wanted?",
+      kind: "decide" as const,
+      who: "owner",
+      status: "open" as const,
+      about: [],
+      citedBy: ["processes/incident/configure/assign.md"],
+    };
+    expect(docsQuestions.render({ questions: [listed] }, "text")).toContain(
+      "\n  on processes/incident/configure/assign.md",
+    );
   });
 });

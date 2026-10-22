@@ -30,9 +30,23 @@ export interface SeenEvidence extends EvidenceBase {
   readonly where: string;
 }
 
-export type Evidence = RecordEvidence | SeenEvidence;
+// A fact someone decided: the answer to one of the documentation's questions (ADR-0041),
+// cited as Q03, or on-call/Q03 from another process.
+export interface AnsweredEvidence extends EvidenceBase {
+  readonly kind: "answered";
+  readonly question: string;
+}
 
-export type EvidenceStatus = "fresh" | "changed" | "missing" | "unpinned" | "seen" | "recheck";
+export type Evidence = RecordEvidence | SeenEvidence | AnsweredEvidence;
+
+export type EvidenceStatus =
+  | "fresh"
+  | "changed"
+  | "missing"
+  | "unpinned"
+  | "seen"
+  | "recheck"
+  | "answered";
 
 // Seen evidence asks to be checked again after this many days.
 export const SEEN_RECHECK_DAYS = 90;
@@ -41,6 +55,7 @@ const EVIDENCE_ID = /^E\d+$/;
 const RECORD = /^([a-z][a-z0-9_]*)\/([A-Za-z0-9_]{1,64})$/;
 const NAME = /^[a-z][a-z0-9_]*$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const QUESTION = /^(?:[a-z][a-z0-9-]*\/)?Q\d+$/;
 
 function dateText(value: unknown): string | undefined {
   return value instanceof Date ? value.toISOString().slice(0, 10) : text(value);
@@ -97,12 +112,29 @@ function recordEvidence(
   };
 }
 
+// A record anchor outside a page, such as what a question is about; `id` names it in errors.
+export function parseAnchor(path: string, id: string, raw: unknown): RecordEvidence {
+  return recordEvidence(path, { id, how: "", result: "" }, fieldsOf(raw));
+}
+
+function answeredEvidence(path: string, base: EvidenceBase, raw: unknown): AnsweredEvidence {
+  const question = text(raw);
+  if (question === undefined || !QUESTION.test(question)) {
+    throw new DocumentationSourceError(
+      path,
+      `evidence ${base.id}: answered names a question, Q03 or <process>/Q03`,
+    );
+  }
+  return { kind: "answered", ...base, question };
+}
+
 function oneEvidence(path: string, id: string, raw: unknown): Evidence {
   if (!EVIDENCE_ID.test(id)) {
     throw new DocumentationSourceError(path, `evidence id ${id} must be E followed by digits`);
   }
   const item = fieldsOf(raw);
   const base = { id, how: text(item["how"]) ?? "", result: text(item["result"]) ?? "" };
+  if (item["answered"] !== undefined) return answeredEvidence(path, base, item["answered"]);
   return item["seen"] === undefined
     ? recordEvidence(path, base, item)
     : seenEvidence(path, base, item["seen"]);
@@ -138,6 +170,9 @@ export function seenStatus(evidence: SeenEvidence, today: string): EvidenceStatu
 export function anchorOf(evidence: Evidence): string {
   if (evidence.kind === "seen") {
     return `seen by ${evidence.by} on ${evidence.on}: ${evidence.where}`;
+  }
+  if (evidence.kind === "answered") {
+    return `answer to ${evidence.question}`;
   }
   const record = `${evidence.table}/${evidence.sysId}`;
   if (evidence.children !== undefined) {

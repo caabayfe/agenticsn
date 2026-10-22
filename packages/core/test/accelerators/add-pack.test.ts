@@ -1,44 +1,38 @@
 import { describe, expect, it } from "bun:test";
 import {
   addPack,
+  InvalidPackError,
   type InventoryReader,
   type MaterializedFile,
   PackNotAddableError,
   type PackSource,
   type PackWorkspace,
 } from "@snagentic/core";
+import { memoryPacks, type PackFixture, packFiles } from "../support/memory-packs";
 
 const SLA = "3d5fd9f1c0a8016400cbc76ea0b4c9a4";
 
-const MINIMAL = {
-  id: "minimal",
-  version: "1.0.0",
-  requires: { snagentic: ">=1.8.0" },
-  scope: "x_snagentic_min",
-  capabilities: {
-    base: { wave: 0, label: "base" },
+const ADOPT = JSON.stringify([{ table: "contract_sla", sys_id: SLA, note: "set duration to 4h" }]);
+const FIXTURE: PackFixture = {
+  pack: { id: "minimal", version: "1.0.0", requires: { snagentic: ">=1.8.0" } },
+  modules: {
+    base: { label: "base" },
     extra: {
-      wave: 1,
       label: "extra",
       dependsOn: ["base"],
-      plugins: [{ id: "com.snc.on_call_rotation", entitlement: "free" }],
+      components: [{ kind: "plugin", id: "com.snc.on_call_rotation", entitlement: "free" }],
     },
   },
+  files: {
+    "modules/base/source/x_snagentic_min/src/fluent/app.now.ts": "Record({})\n",
+    "modules/base/adopt.yaml": ADOPT,
+    "modules/extra/source/global/src/fluent/rule.now.ts": "BusinessRule({})\n",
+  },
 };
+const FILES = packFiles(FIXTURE);
 
-const ADOPT = JSON.stringify([{ table: "contract_sla", sys_id: SLA, note: "set duration to 4h" }]);
-const FILES = new Map([
-  ["accelerator.yaml", "id: minimal"],
-  ["source/base/x_snagentic_min/src/fluent/app.now.ts", "Record({})\n"],
-  ["adopt/base.yaml", ADOPT],
-  ["source/extra/global/src/fluent/rule.now.ts", "BusinessRule({})\n"],
-]);
-
-const packs = (files: ReadonlyMap<string, string> = FILES): PackSource => ({
-  ids: async () => ["minimal"],
-  manifest: async (id) => (id === "minimal" ? MINIMAL : null),
-  files: async () => files,
-});
+const packs = (files: ReadonlyMap<string, string> = FILES): PackSource =>
+  memoryPacks({ minimal: files });
 
 const inventory = (onCall: "active" | "inactive"): InventoryReader => ({
   read: async (_r, _i, file) =>
@@ -61,8 +55,10 @@ function fakeWorkspace(
     message?: string;
   } = {};
   const workspace: PackWorkspace = {
+    installReports: async () => [],
     mirrorCommit: async () => (state.mirror === undefined ? "m1" : state.mirror),
     includes: async () => state.integrated ?? true,
+    present: async () => [],
     parse: (text) => JSON.parse(text),
     previous: async () => state.previous ?? { written: [], kept: [] },
     commit: async (_pack, _mirror, files, message, keep) => {
@@ -100,7 +96,13 @@ describe("accelerator add (ADR-0026, ADR-0031)", () => {
         "source/global/src/fluent/rule.now.ts",
       ],
       adoptions: [
-        { capability: "base", table: "contract_sla", sysId: SLA, note: "set duration to 4h" },
+        {
+          capability: "base",
+          table: "contract_sla",
+          sysId: SLA,
+          note: "set duration to 4h",
+          whenAbsent: "stop",
+        },
       ],
       removed: [],
       conflicts: [],
@@ -140,10 +142,21 @@ describe("accelerator add (ADR-0026, ADR-0031)", () => {
     const { workspace, calls } = fakeWorkspace();
     const add = addPack(
       { packs: packs(), inventory: inventory("inactive"), workspace },
-      { ...QUERY, capabilities: ["extra", "nope"] },
+      { ...QUERY, modules: ["extra", "nope"] },
     );
     await expect(add).rejects.toThrow(PackNotAddableError);
-    await expect(add).rejects.toThrow("the pack has no capability nope; extra is needs-plugins");
+    await expect(add).rejects.toThrow("the pack has no module nope; extra is needs-components");
+    expect(calls.committed).toBeUndefined();
+  });
+
+  it("refuses a profile the pack does not have", async () => {
+    const { workspace, calls } = fakeWorkspace();
+    await expect(
+      addPack(
+        { packs: packs(), inventory: inventory("active"), workspace },
+        { ...QUERY, profile: "full" },
+      ),
+    ).rejects.toThrow("the pack has no profile full");
     expect(calls.committed).toBeUndefined();
   });
 
@@ -161,9 +174,9 @@ describe("accelerator add (ADR-0026, ADR-0031)", () => {
   it("refuses a pack still in format 1, and writes nothing", async () => {
     const { workspace, calls } = fakeWorkspace();
     const old = new Map([...FILES, ["patches/base/sla.yaml", "table: contract_sla"]]);
-    await expect(
-      addPack({ packs: packs(old), inventory: inventory("active"), workspace }, QUERY),
-    ).rejects.toThrow("patches/base/sla.yaml: pack format 1");
+    const add = addPack({ packs: packs(old), inventory: inventory("active"), workspace }, QUERY);
+    await expect(add).rejects.toThrow(InvalidPackError);
+    await expect(add).rejects.toThrow("pack format 1");
     expect(calls.committed).toBeUndefined();
   });
 });

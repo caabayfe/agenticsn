@@ -107,9 +107,9 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
     else { if (now < holdUntil) return; t += dt; if (t >= T.total) { holdUntil = now + 2600; t = 0; apply(0); } }
     const k = idx(t); if (k !== cur) apply(k); draw();
   }
-  function startAudio() { mode = "audio"; bListen.classList.add("on"); bListen.textContent = "🔊 Narration on"; userPaused = false; au.currentTime = 0; t = 0; apply(0); setPlay(true); }
+  function startAudio() { mode = "audio"; bListen.classList.add("on"); bListen.textContent = "🔇 Turn sound off"; bListen.title = "Turn sound off (M)"; userPaused = false; au.currentTime = 0; t = 0; apply(0); setPlay(true); }
   function stopAudio(ended) {
-    au.pause(); mode = "silent"; bListen.classList.remove("on"); bListen.textContent = "🔊 Listen with sound";
+    au.pause(); mode = "silent"; bListen.classList.remove("on"); bListen.textContent = "🔊 Listen with sound"; bListen.title = "Restart with sound (M)";
     sub.classList.remove("on"); root.classList.remove("audio");
     if (ended) { setPlay(false); userPaused = true; }
   }
@@ -119,7 +119,7 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
     if (hasAudio && mode !== "audio") { mode = "audio"; au.currentTime = t; userPaused = false; apply(cur); setPlay(true); markOn(); tell(true); return; }
     userPaused = playing; setPlay(!playing);
   }
-  const markOn = () => { bListen.classList.add("on"); bListen.textContent = "🔊 Narration on"; };
+  const markOn = () => { bListen.classList.add("on"); bListen.textContent = "🔇 Turn sound off"; bListen.title = "Turn sound off (M)"; };
   bListen.onclick = () => { if (mode === "audio") { stopAudio(false); tell(false); } else { startAudio(); tell(true); } };
   bPlay.onclick = playButton;
   root.addEventListener("click", playButton);

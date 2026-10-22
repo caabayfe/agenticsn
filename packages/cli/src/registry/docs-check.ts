@@ -7,7 +7,7 @@ export const EvidenceResultSchema = z.object({
   page: z.string(),
   id: z.string(),
   anchor: z.string(),
-  status: z.enum(["fresh", "changed", "missing", "unpinned", "seen", "recheck"]),
+  status: z.enum(["fresh", "changed", "missing", "unpinned", "seen", "recheck", "answered"]),
 });
 
 export const DocsProblemSchema = z.object({

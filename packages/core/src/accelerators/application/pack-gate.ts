@@ -1,7 +1,7 @@
 import { ruleById } from "../../advice/index";
 import type { Finding } from "../../governance/index";
 import type { InventoryReader } from "../../plugins/index";
-import { capabilityOf, workspacePathOf } from "../domain/materialize";
+import { moduleOf, workspacePathOf } from "../domain/pack-layout";
 import type { CapabilityReport } from "../domain/preflight";
 import type { PackSource } from "../ports";
 import { checkPack, listPacks } from "./check-pack";
@@ -12,7 +12,7 @@ const RULE = "SN-MNT-012";
 function owners(files: ReadonlyMap<string, string>): Map<string, Set<string>> {
   const found = new Map<string, Set<string>>();
   for (const path of files.keys()) {
-    const capability = capabilityOf(path);
+    const capability = moduleOf(path);
     const project = workspacePathOf(path)?.split("/").slice(0, 2).join("/");
     if (capability === null || project === undefined) continue;
     found.set(project, (found.get(project) ?? new Set()).add(capability));
@@ -23,7 +23,7 @@ function owners(files: ReadonlyMap<string, string>): Map<string, Set<string>> {
 function findingOf(pack: string, project: string, state: CapabilityReport): Finding | null {
   const rule = ruleById(RULE);
   if (rule === undefined || state.state === "ready") return null;
-  const plugins = state.plugins.filter((p) => p.state !== "active").map((p) => p.id);
+  const components = state.components.filter((c) => c.state !== "active").map((c) => c.id);
   return {
     ruleId: rule.id,
     severity: rule.severity,
@@ -32,7 +32,7 @@ function findingOf(pack: string, project: string, state: CapabilityReport): Find
     root: "workspace",
     field: null,
     line: null,
-    message: `capability ${state.id} of ${pack} is ${state.state}${plugins.length > 0 ? `: ${plugins.join(", ")}` : ""}`,
+    message: `module ${state.id} of ${pack} is ${state.state}${components.length > 0 ? `: ${components.join(", ")}` : ""}`,
     evidence: "",
     why: rule.why,
     remediation:

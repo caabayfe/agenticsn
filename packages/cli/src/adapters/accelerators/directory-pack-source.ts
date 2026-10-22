@@ -5,8 +5,8 @@ import { parse } from "yaml";
 
 const MANIFEST = "accelerator.yaml";
 
-// Packs as directories holding an accelerator.yaml, under each root (ADR-0026). A root that
-// does not exist holds no packs.
+// Packs as directories holding an accelerator.yaml, under each root (ADR-0026, ADR-0038). A root
+// that does not exist holds no packs. A pack found under an earlier root hides one under a later.
 export class DirectoryPackSource implements PackSource {
   constructor(private readonly roots: readonly string[]) {}
 
@@ -41,8 +41,7 @@ export class DirectoryPackSource implements PackSource {
     return new Map([...files].sort(([a], [b]) => a.localeCompare(b)));
   }
 
-  async manifest(id: string): Promise<unknown | null> {
-    const path = await this.where(id);
-    return path === null ? null : parse(await readFile(path, "utf8"));
+  parse(text: string): unknown {
+    return parse(text);
   }
 }

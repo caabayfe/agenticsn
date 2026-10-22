@@ -5,62 +5,86 @@ import {
   type InventoryReader,
   listPacks,
   PackNotFoundError,
-  type PackSource,
 } from "@snagentic/core";
+import { memoryPacks, type PackFixture, packFiles } from "../support/memory-packs";
 
-const MINIMAL = {
-  id: "minimal",
-  version: "1.0.0",
-  requires: { snagentic: ">=1.8.0" },
-  scope: "x_snagentic_min",
-  capabilities: {
+const MINIMAL: PackFixture = {
+  pack: {
+    id: "minimal",
+    version: "1.0.0",
+    requires: { snagentic: ">=1.8.0" },
+    profiles: { core: ["base"] },
+  },
+  modules: {
     base: {
-      wave: 0,
       label: "base",
       data: [{ entity: "location", table: "imp_location", key: ["name"], after: [] }],
     },
     extra: {
-      wave: 1,
       label: "extra",
       dependsOn: ["base"],
-      plugins: [{ id: "com.snc.on_call_rotation", entitlement: "free" }],
+      components: [{ kind: "plugin", id: "com.snc.on_call_rotation", entitlement: "free" }],
     },
   },
 };
-
-const packs = (documents: Record<string, unknown>): PackSource => ({
-  ids: async () => Object.keys(documents).sort(),
-  manifest: async (id) => documents[id] ?? null,
-  files: async () => new Map(),
-});
 
 const inventory = (rows: Record<string, string>[] | null): InventoryReader => ({
   read: async (_root, _instance, file) => (file === "plugins" ? rows : null),
 });
 
 const deps = (rows: Record<string, string>[] | null = []) => ({
-  packs: packs({ minimal: MINIMAL }),
+  packs: memoryPacks({ minimal: packFiles(MINIMAL) }),
   inventory: inventory(rows),
 });
 
 describe("accelerator list and check", () => {
-  it("lists the packs with their capabilities and waves", async () => {
-    expect(await listPacks(packs({ minimal: MINIMAL }))).toEqual([
+  it("checks a store application against the store application inventory, by scope", async () => {
+    const withApp: PackFixture = {
+      ...MINIMAL,
+      modules: {
+        base: {
+          label: "base",
+          components: [{ kind: "app", id: "sn_ex_sp", minVersion: "39.0.0", entitlement: "free" }],
+        },
+      },
+    };
+    const read = (apps: Record<string, string>[]): InventoryReader => ({
+      read: async (_root, _instance, file) => (file === "store_apps" ? apps : []),
+    });
+    const check = async (apps: Record<string, string>[]) =>
+      (
+        await checkPack(
+          { packs: memoryPacks({ minimal: packFiles(withApp) }), inventory: read(apps) },
+          {
+            pack: "minimal",
+            instance: { root: "/w", name: "pdi2" },
+            snagentic: "2.2.0",
+          },
+        )
+      ).report?.capabilities[0];
+    const app = { scope: "sn_ex_sp", version: "39.0.12", active: "true" };
+    expect((await check([app]))?.state).toBe("ready");
+    expect((await check([{ ...app, active: "false" }]))?.components[0]?.state).toBe("inactive");
+    expect((await check([]))?.components[0]).toMatchObject({ kind: "app", state: "missing" });
+  });
+
+  it("lists the packs with their modules and profiles", async () => {
+    expect(await listPacks(memoryPacks({ minimal: packFiles(MINIMAL) }))).toEqual([
       {
         id: "minimal",
         version: "1.0.0",
-        scope: "x_snagentic_min",
-        capabilities: [
-          { id: "base", wave: 0, label: "base" },
-          { id: "extra", wave: 1, label: "extra" },
+        modules: [
+          { id: "base", label: "base" },
+          { id: "extra", label: "extra" },
         ],
+        profiles: { core: ["base"] },
       },
     ]);
   });
 
   it("shows what a selection installs, without an instance", async () => {
     expect(
-      await checkPack(deps(), { pack: "minimal", waves: [1], snagentic: "1.8.0" }),
+      await checkPack(deps(), { pack: "minimal", modules: ["extra"], snagentic: "1.8.0" }),
     ).toMatchObject({
       selected: ["base", "extra"],
       unknown: [],
@@ -69,7 +93,16 @@ describe("accelerator list and check", () => {
     });
   });
 
-  it("checks the selection against the instance's mirrored plugins", async () => {
+  it("selects a profile's modules, and reports a profile the pack does not have", async () => {
+    expect(
+      await checkPack(deps(), { pack: "minimal", profile: "core", snagentic: "1.8.0" }),
+    ).toMatchObject({ selected: ["base"], unknown: [] });
+    expect(
+      await checkPack(deps(), { pack: "minimal", profile: "full", snagentic: "1.8.0" }),
+    ).toMatchObject({ selected: [], unknown: ["profile full"] });
+  });
+
+  it("checks the selection against the instance's mirrored components", async () => {
     const rows = [{ id: "com.snc.on_call_rotation", active: "inactive", version: "1.2.0" }];
     const result = await checkPack(deps(rows), {
       pack: "minimal",
@@ -78,7 +111,7 @@ describe("accelerator list and check", () => {
     });
     expect(result.report?.capabilities.map((c) => [c.id, c.state])).toEqual([
       ["base", "ready"],
-      ["extra", "needs-plugins"],
+      ["extra", "needs-components"],
     ]);
   });
 
@@ -96,14 +129,25 @@ describe("accelerator list and check", () => {
       PackNotFoundError,
     );
     await expect(
-      checkPack({ ...deps(), packs: packs({}) }, { pack: "itsm", snagentic: "1.8.0" }),
+      checkPack({ ...deps(), packs: memoryPacks({}) }, { pack: "itsm", snagentic: "1.8.0" }),
     ).rejects.toThrow("no accelerator pack itsm");
   });
 
   it("refuses a pack whose manifest is not valid", async () => {
-    const broken = { ...deps(), packs: packs({ minimal: { ...MINIMAL, version: "x" } }) };
+    const invalid = packFiles({ ...MINIMAL, pack: { ...MINIMAL.pack, version: "x" } });
+    const broken = { ...deps(), packs: memoryPacks({ minimal: invalid }) };
     await expect(checkPack(broken, { pack: "minimal", snagentic: "1.8.0" })).rejects.toThrow(
       InvalidPackError,
+    );
+  });
+
+  it("refuses a pack still in format 1, naming the new layout", async () => {
+    const old = new Map([
+      ["accelerator.yaml", JSON.stringify({ ...MINIMAL.pack, capabilities: MINIMAL.modules })],
+    ]);
+    const broken = { ...deps(), packs: memoryPacks({ minimal: old }) };
+    await expect(checkPack(broken, { pack: "minimal", snagentic: "1.8.0" })).rejects.toThrow(
+      "pack format 1",
     );
   });
 });

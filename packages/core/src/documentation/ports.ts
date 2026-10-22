@@ -32,6 +32,12 @@ export interface DocumentationSources {
   // documentation/theme/: the client's theme.css and the images and fonts it uses, by path inside
   // the folder. Absent or empty: the site ships its template.
   theme?(): Promise<readonly ThemeFile[]>;
+  // processes/<id>/features.yaml, parsed (ADR-0040).
+  features?(): Promise<readonly { readonly path: string; readonly features: unknown }[]>;
+  // processes/<id>/questions.yaml, parsed (ADR-0041).
+  questions?(): Promise<readonly { readonly path: string; readonly questions: unknown }[]>;
+  // Sets questions[<id>].about[<index>].hash in a questions.yaml, keyed "<id>#<index>".
+  pinQuestions?(path: string, hashes: ReadonlyMap<string, string>): Promise<void>;
   // changes/<release>.md: one file per release, with its notes (ADR-0039).
   releases?(): Promise<readonly PageSource[]>;
   // Sets evidence.<id>.hash in a page's front matter, keeping the rest of the file as written.
@@ -50,6 +56,8 @@ export interface DocumentationHistory {
 // it last.
 export interface MirrorListing {
   readonly sysId: string;
+  // The application (scope folder) that holds it.
+  readonly scope?: string;
   readonly fields: Readonly<Record<string, string>>;
   readonly updatedBy?: string;
   readonly updatedOn?: string;
@@ -60,6 +68,14 @@ export interface MirrorRecords {
   read(table: string, sysId: string): Promise<MirrorRecord | null>;
   // Every record of a table, for the configuration index.
   list(table: string, signal: AbortSignal): Promise<readonly MirrorListing[]>;
+  // The records of a table whose field holds one of the values, filtered before parsing; the
+  // census uses it on large tables (ADR-0040).
+  find?(
+    table: string,
+    field: string,
+    values: readonly string[],
+    signal: AbortSignal,
+  ): Promise<readonly MirrorListing[]>;
   head(): Promise<string | null>;
 }
 

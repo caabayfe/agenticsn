@@ -25,6 +25,7 @@ import {
   unitPlanId,
 } from "../domain/unit-plan";
 import type { DeliveryWorkspace } from "../ports";
+import { withoutCutValues } from "./field-lengths";
 import { gateFor } from "./plan-gate";
 
 // What a push would load, and whether it may (ADR-0031, ADR-0033): every project under source/
@@ -234,11 +235,17 @@ async function uncommittedSource(deps: UnitPlanDependencies): Promise<UnitProble
 
 // Each project's ledger commit, where it last agreed with the instance (adopt or push): the
 // gate's base for it (decision D). A project with no committed ledger keeps the plan's base.
-async function ledgerBases(deps: UnitPlanDependencies): Promise<Record<string, string>> {
-  const bases: Record<string, string> = {};
+// Each project's ledger commit; a project the push would load with none never agreed with the
+// instance, so its base is null and the gate judges all of it.
+async function ledgerBases(
+  deps: UnitPlanDependencies,
+  loading: readonly string[],
+): Promise<Record<string, string | null>> {
+  const bases: Record<string, string | null> = {};
   for (const project of await deps.authoring.workspace.projects()) {
     const commit = await deps.authoring.workspace.ledgerCommit(project).catch(() => null);
     if (commit !== null) bases[project.path] = commit;
+    else if (loading.includes(project.path)) bases[project.path] = null;
   }
   return bases;
 }
@@ -248,18 +255,20 @@ export async function computeUnitPlan(
   query: UnitPlanQuery,
 ): Promise<{ readonly plan: UnitPushPlan; readonly loads: readonly ProjectLoad[] }> {
   const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
-  const loads: ProjectLoad[] = [];
+  const built: ProjectLoad[] = [];
   const problems: UnitProblem[] = await uncommittedSource(deps);
   const userDomain = sessionDomain(deps);
   for (const project of await deps.authoring.workspace.projects()) {
     const planned = await planProject(deps, project, query.instance, userDomain);
-    if (planned.load !== null) loads.push(planned.load);
+    if (planned.load !== null) built.push(planned.load);
     problems.push(...planned.problems);
   }
+  const { loads, problems: cut } = await withoutCutValues(deps.reader, built, deps.signal);
+  problems.push(...cut);
   const units = loads.flatMap((load) => load.units);
   const base = (await deps.workspace.mirrorCommit()) ?? "HEAD";
-  const bases = await ledgerBases(deps);
-  const gate = await gateFor(deps, base, [...new Set(units.map((u) => u.project))], bases);
+  const loading = [...new Set(units.map((u) => u.project))];
+  const gate = await gateFor(deps, base, loading, await ledgerBases(deps, loading));
   const collisions = await collisionsOf(deps, units, label);
   const ready =
     units.length > 0 &&

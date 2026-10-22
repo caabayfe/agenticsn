@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   collectPacks,
@@ -19,9 +21,12 @@ describe("packs in the binary (spec 005, 4.2)", () => {
     expect(Object.keys(packs)).toEqual(["minimal"]);
     const source = new EmbeddedPackSource(packs);
     expect(await source.ids()).toEqual(["minimal"]);
-    expect(await source.manifest("minimal")).toMatchObject({ id: "minimal", version: "1.0.0" });
-    expect([...(await source.files("minimal")).keys()]).toContain("accelerator.yaml");
-    expect(await source.manifest("nope")).toBeNull();
+    const files = await source.files("minimal");
+    expect(source.parse(files.get("accelerator.yaml") ?? "")).toMatchObject({
+      id: "minimal",
+      version: "1.0.0",
+    });
+    expect([...files.keys()]).toContain("modules/base/module.yaml");
     expect(await source.files("nope")).toEqual(new Map());
   });
 
@@ -46,13 +51,19 @@ describe("packs in the binary (spec 005, 4.2)", () => {
     });
     expect(loads).toBe(0);
     expect(await lazy.ids()).toEqual(["minimal"]);
-    expect(await lazy.manifest("minimal")).toEqual({ id: "minimal" });
+    expect(lazy.parse("id: minimal\n")).toEqual({ id: "minimal" });
     expect((await lazy.files("minimal")).size).toBe(1);
     expect(loads).toBe(1);
   });
 
   it("reads the configured pack folders from the repository when run from source", async () => {
-    // No pack ships yet: the minimal test pack lives in tests/fixtures.
-    expect(await (await loadPackSource()).ids()).toEqual([]);
+    // No pack ships yet: the minimal test pack lives in tests/fixtures. Outside a workspace there
+    // are no pack paths either.
+    const outside = await mkdtemp(join(tmpdir(), "no-workspace-"));
+    try {
+      expect(await (await loadPackSource(outside)).ids()).toEqual([]);
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 });

@@ -56,12 +56,18 @@ const NO_CREDENTIALS: CredentialStore = {
 };
 
 export const FAKE_CONTEXT: UseCaseContext = {
-  packs: { ids: async () => [], manifest: async () => null, files: async () => new Map() },
-  dataTemplates: { tracked: async () => false, read: async () => null },
+  packs: { ids: async () => [], files: async () => new Map(), parse: () => null },
+  dataTemplates: {
+    tracked: async () => false,
+    read: async () => null,
+    parse: () => ({ columns: [], rows: [] }),
+  },
   // No packs in the fake context, so nothing reaches the pack workspace.
   packWorkspace: () => ({
+    installReports: async () => [],
     mirrorCommit: async () => null,
     includes: async () => false,
+    present: async () => [],
     parse: () => null,
     previous: async () => ({ written: [], kept: [] }),
     commit: async () => "",
@@ -133,6 +139,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
     },
     clear: async () => {},
   }),
+  installJournal: () => {
+    throw new Error("no install in this test");
+  },
   pullRequests: () => {
     throw new Error("no git platform in this test");
   },

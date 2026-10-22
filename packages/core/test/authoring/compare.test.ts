@@ -65,6 +65,34 @@ describe("compareUnit (ADR-0033 item 2)", () => {
     ).toEqual([]);
   });
 
+  it("accepts the dictionary attribute the platform adds to a new table (spike S-D)", () => {
+    const table = (attributes: string) =>
+      unit(
+        "sys_dictionary_u_acc_imp_probe_null",
+        record("sys_dictionary", "c".repeat(32), {
+          name: "u_acc_imp_probe",
+          element: "",
+          internal_type: "collection",
+          attributes,
+        }),
+      );
+    const instance = (attributes: string) =>
+      copy({ name: "u_acc_imp_probe", element: "", internal_type: "collection", attributes });
+    const added = "enforce_dot_walk_cross_scope_access=true";
+    expect(compareUnit(table(""), instance(added))).toEqual([]);
+    expect(compareUnit(table("no_audit=true"), instance(`no_audit=true,${added}`))).toEqual([]);
+    expect(compareUnit(table("no_audit=true"), instance(added))).toEqual([
+      {
+        kind: "field",
+        table: "sys_dictionary",
+        row: "",
+        field: "attributes",
+        built: "no_audit=true",
+        instance: added,
+      },
+    ]);
+  });
+
   it("treats line endings and trailing newlines as equal", () => {
     const built = scriptInclude("one\ntwo\n");
     expect(
@@ -102,6 +130,68 @@ describe("compareUnit (ADR-0033 item 2)", () => {
       "view.name": "Mobile",
     });
     expect(compareUnit(built, instance)).toEqual([]);
+  });
+
+  it("compares a form's sections by caption: a load matches a taken-over form's sections so", () => {
+    const FORM = "34c40b8d87e413005087af1e36cb0b16";
+    const link = (sysId: string, section: string, caption: string, position: string) =>
+      record(
+        "sys_ui_form_section",
+        sysId,
+        { sys_id: sysId, sys_ui_form: FORM, sys_ui_section: section, position },
+        { sys_ui_section: caption },
+      );
+    const form = unit(
+      "sys_ui_form_sections_f1",
+      record("sys_ui_form", FORM, { sys_id: FORM, name: "incident_task", sys_domain: "global" }),
+      [link("l1", "b1", "", "0"), link("l2", "b2", "Notes", "1")],
+    );
+    const held = (section: string, caption: string, position: string) => ({
+      sys_id: `x${position}`,
+      sys_ui_form: FORM,
+      sys_ui_section: section,
+      "sys_ui_section.caption": caption,
+      position,
+    });
+    const instance = copy({ sys_id: FORM, name: "incident_task", sys_domain: "global" }, [
+      held("8aa1", "", "0"),
+      held("8955", "Notes", "1"),
+    ]);
+    expect(compareUnit(form, instance)).toEqual([]);
+    const reordered = copy(instance.head, [held("8955", "Notes", "0"), held("8aa1", "", "1")]);
+    expect(compareUnit(form, reordered)).toEqual([
+      { kind: "rows", table: "sys_ui_form_section", built: ["", "Notes"], instance: ["Notes", ""] },
+    ]);
+  });
+
+  it("compares a reference written by keys through the instance's values of those keys", () => {
+    const entry = unit(
+      "sys_ui_related_list_entry_e1",
+      record("sys_ui_related_list_entry", "e1", {
+        sys_id: "e1",
+        list_id: "keys:name=incident&view=Default+view",
+        position: "9",
+      }),
+    );
+    const held = (view: string) =>
+      copy({
+        sys_id: "e1",
+        list_id: "5b6a",
+        "list_id.name": "incident",
+        "list_id.view": view,
+        position: "9",
+      });
+    expect(compareUnit(entry, held("Default view"))).toEqual([]);
+    expect(compareUnit(entry, held("sow"))).toEqual([
+      {
+        kind: "field",
+        table: "sys_ui_related_list_entry",
+        row: "",
+        field: "list_id.view",
+        built: "Default view",
+        instance: "sow",
+      },
+    ]);
   });
 
   it("compares a list's columns as an ordered sequence, not by sys_id", () => {

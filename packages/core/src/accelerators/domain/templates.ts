@@ -42,6 +42,34 @@ function columnProblems(entity: DataEntity, template: Template, loaded: Readonly
   ];
 }
 
+const SYS_ID = /^[0-9a-f]{32}$/;
+
+// An anchor's fixed sys_id (ADR-0038, item 7): 32 lowercase hexadecimal characters, each used
+// once. Rows without one are matched by their business key. Only an entity marked `anchors`
+// may carry them: elsewhere the transform would not keep them.
+function anchorProblems(entity: DataEntity, template: Template): string[] {
+  const index = template.columns.indexOf("sys_id");
+  if (index < 0) return [];
+  if (!entity.anchors) {
+    return [
+      "sys_id: this entity has no anchors (anchors: true in module.yaml), so the column would be ignored",
+    ];
+  }
+  const problems: string[] = [];
+  const seen = new Map<string, number>();
+  template.rows.forEach((row, i) => {
+    const id = (row[index] ?? "").trim();
+    if (id === "") return;
+    const label = `row ${i + 1} (${keyOf(entity, template, row)})`;
+    if (!SYS_ID.test(id))
+      problems.push(`${label}: sys_id must be 32 lowercase hexadecimal characters`);
+    const first = seen.get(id);
+    if (first !== undefined) problems.push(`${label}: sys_id repeats row ${first}`);
+    else seen.set(id, i + 1);
+  });
+  return problems;
+}
+
 function rowProblems(
   entity: DataEntity,
   template: Template,
@@ -92,8 +120,26 @@ export function validateTemplates(
       return { entity: entity.entity, rows: 0, problems: [`${entity.file} is missing`] };
     }
     const columns = columnProblems(entity, template, loaded);
-    const problems = columns.length > 0 ? columns : rowProblems(entity, template, keys);
+    const problems =
+      columns.length > 0
+        ? columns
+        : [...rowProblems(entity, template, keys), ...anchorProblems(entity, template)];
     return { entity: entity.entity, rows: template.rows.length, problems };
   });
   return { entities: reports, passed: reports.every((r) => r.problems.length === 0) };
+}
+
+// The import set row a template row becomes (spike S-D). A staging table created in global is
+// named u_... and so are its columns, so a template column `name` is posted as `u_name`; other
+// tables take the template's column names as they are. A template's `sys_id` (an anchor's fixed
+// id) is always posted as u_sys_id: the Import Set API would make it the row's own sys_id.
+export function stagingRow(
+  table: string,
+  columns: readonly string[],
+  row: readonly string[],
+): Record<string, string> {
+  const custom = table.startsWith("u_");
+  const name = (column: string) =>
+    (custom || column === "sys_id") && !column.startsWith("u_") ? `u_${column}` : column;
+  return Object.fromEntries(columns.map((c, i) => [name(c), (row[i] ?? "").trim()]));
 }

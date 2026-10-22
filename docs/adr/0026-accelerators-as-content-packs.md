@@ -208,3 +208,21 @@ data/<entity>.csv                 data templates (unchanged)
   capability ships files into, while that capability is not ready, is blocked.
 - A pack still holding `metadata/` or `patches/` (format 1) is refused with the new layout as
   the remedy. Nothing was converted: the only pack was a test fixture.
+
+## Amendment (ADR-0038, accepted 2026-10-19)
+
+Product owner decisions of 2026-10-18, recorded in ADR-0038:
+
+- **No pack scope.** A customization lives in the scope that owns its target, global or an
+  application's scope. A module holds one Fluent project per scope it touches and is delivered as
+  one parent update set with one child per scope. The open vendor-prefix item above no longer
+  blocks packs.
+- **Capabilities are modules**, which declare platform components (plugins and store
+  applications), and packs name **profiles** (sets of modules).
+- **`accelerator install`** replaces the rejected "single install" alternative: it runs the
+  existing steps from one plan the platform admin approves by id, and resumes by re-running.
+- **Test and production** get the components only, at parity with development, installed
+  automatically with a separate installer credential. Update sets and data stay as decided above.
+- **Pack location:** packs are read from a path, from the private repository `ntt-accelerators`;
+  the `nttdata/` folder of the 2026-10-14 amendment is dropped. Pack-owned data rows are anchors
+  with fixed sys_ids.

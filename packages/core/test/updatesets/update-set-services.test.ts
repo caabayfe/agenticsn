@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
+  completeUpdateSets,
   exportId,
   exportUpdateSet,
   KeysetPager,
   listUpdateSets,
+  openUpdateSets,
   type Row,
   showUpdateSet,
   updateSetCollisions,
@@ -182,5 +184,47 @@ describe("update set services", () => {
     expect(exported.withheld).toEqual([
       { name: "sys_properties_1", target: "x.api_key", reason: expect.any(String) },
     ]);
+  });
+});
+
+// ADR-0038, section 6: an accelerator upgrade completes the pack's earlier update sets.
+describe("update set state for accelerator upgrades", () => {
+  const sets = () => ({
+    sys_update_set: [
+      set(ALICE, "snagentic: itsm 0.1.0 upgrade", "in progress", "2026-10-01 10:00:00", {
+        parent: "",
+        sys_created_on: "2026-10-01 09:00:00",
+      }),
+      set(BOB, "snagentic: itsm 0.1.0 upgrade [sn_sow_inc]", "in progress", "2026-10-01 10:00:00", {
+        parent: ALICE,
+        sys_created_on: "2026-10-01 09:30:00",
+      }),
+      set(OLD, "Shipped", "complete", "2026-09-01 10:00:00", { parent: "" }),
+    ],
+  });
+
+  it("reads the update sets in progress, with their parents and when they were created", async () => {
+    const fake = fakeInstance(sets());
+    const pager = new KeysetPager(fake.reader);
+    expect(await openUpdateSets({ pager, statistics: fake.reader, now: () => NOW }, LIVE)).toEqual([
+      {
+        sysId: ALICE,
+        name: "snagentic: itsm 0.1.0 upgrade",
+        parent: "",
+        createdOn: "2026-10-01 09:00:00",
+      },
+      {
+        sysId: BOB,
+        name: "snagentic: itsm 0.1.0 upgrade [sn_sow_inc]",
+        parent: ALICE,
+        createdOn: "2026-10-01 09:30:00",
+      },
+    ]);
+  });
+
+  it("completes a set by its sys_id, writing only its state", async () => {
+    const fake = fakeInstance(sets());
+    await completeUpdateSets(fake.reader.writer, [ALICE], LIVE);
+    expect(fake.writes).toEqual(["update sys_update_set state=complete"]);
   });
 });

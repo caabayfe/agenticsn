@@ -8,6 +8,7 @@ import type {
   RenderedRecord,
 } from "@snagentic/core";
 import { instancePaths } from "@snagentic/core";
+import { childEnvironment } from "../child-environment";
 import { serialQueue } from "../serial-queue";
 import { toYaml } from "../yaml/own-style";
 import { childRowOwners, countChildRows } from "./child-row-files";
@@ -284,7 +285,7 @@ export class GitMirror implements IncrementalMirror {
       cwd: this.repository,
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, ...IDENTITY },
+      env: childEnvironment(IDENTITY),
     });
     const [out, code] = await Promise.all([new Response(child.stdout).text(), child.exited]);
     if (code !== 0) {

@@ -1,3 +1,5 @@
+import { childEnvironment } from "../child-environment";
+
 export interface GitResult {
   readonly exitCode: number;
   readonly stdout: string;
@@ -10,7 +12,7 @@ export async function runGit(args: readonly string[], cwd: string): Promise<GitR
     cwd,
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+    env: childEnvironment({ GIT_TERMINAL_PROMPT: "0" }),
   });
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(child.stdout).text(),
@@ -39,7 +41,7 @@ export async function* gitLines(
     cwd,
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+    env: childEnvironment({ GIT_TERMINAL_PROMPT: "0" }),
   });
   const stderr = new Response(child.stderr).text();
   const decoder = new TextDecoder();

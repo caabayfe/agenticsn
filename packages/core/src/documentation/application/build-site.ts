@@ -4,7 +4,7 @@ import { type PlayerMedia, playerHtml } from "../domain/player";
 import type { Scene } from "../domain/scene";
 import { siteFiles } from "../domain/site";
 import type { SiteMedia } from "../domain/site-config";
-import type { MarkdownRenderer, MediaTools, SiteOutput } from "../ports";
+import type { MarkdownRenderer, MediaTools, MirrorRecords, SiteOutput } from "../ports";
 import { type AudioOptions, audioTrack } from "./audio-tracks";
 import {
   assessDocumentation,
@@ -13,12 +13,15 @@ import {
   todayOf,
 } from "./check-docs";
 import { configIndex } from "./config-index";
-import { loadDocumentation } from "./load-documentation";
+import { type Documentation, loadDocumentation } from "./load-documentation";
 
 export interface BuildSiteDependencies extends CheckDocsDependencies {
   readonly markdown: MarkdownRenderer;
   readonly output: SiteOutput;
   readonly media: MediaTools;
+  // The address of the instance named in site.yaml, from the workspace's profiles; null when the
+  // workspace has no profile for it, and the records are then named without links.
+  readonly instanceUrl?: (instance: string) => Promise<string | null>;
 }
 
 export interface BuildSiteOptions {
@@ -34,6 +37,8 @@ export interface BuildSiteResult {
   readonly check: DocsCheck;
   // Animations given an audio track, and cue sounds that were missing from them.
   readonly narrated: readonly string[];
+  // The voice the tracks were narrated with, "none" for music and effects only.
+  readonly voice: string;
   readonly missingSounds: readonly string[];
   // Animations rendered as video, and why the others couldn't be.
   readonly videos: readonly string[];
@@ -110,15 +115,49 @@ export function mediaOptions(request: MediaRequest): BuildSiteOptions {
 const fromSite = (media: SiteMedia | undefined): BuildSiteOptions =>
   media === undefined ? {} : mediaOptions(media);
 
+// Command-line flags: each replaces only its own setting in site.yaml, so `--video` alone keeps
+// the voice site.yaml asks for.
+export interface MediaFlags {
+  readonly flags: MediaRequest;
+}
+
+export const mediaWith = (flags: MediaRequest, site: SiteMedia | undefined): BuildSiteOptions =>
+  mediaOptions({
+    audio: flags.audio ?? site?.audio,
+    voice: flags.voice ?? site?.voice,
+    video: flags.video ?? site?.video,
+  });
+
+function optionsOf(
+  given: BuildSiteOptions | MediaFlags | undefined,
+  site: SiteMedia | undefined,
+): BuildSiteOptions {
+  if (given === undefined) return fromSite(site);
+  return "flags" in given ? mediaWith(given.flags, site) : given;
+}
+
+async function indexesOf(
+  docs: Documentation,
+  mirror: MirrorRecords,
+  check: DocsCheck,
+  signal: AbortSignal,
+): Promise<ReadonlyMap<string, ConfigIndex>> {
+  const indexes = new Map<string, ConfigIndex>();
+  for (const process of docs.processes) {
+    indexes.set(process.id, await configIndex(docs, process, mirror, check, signal));
+  }
+  return indexes;
+}
+
 // `docs build`: the static site, with each page's evidence status as of now. A stale page is
 // built and says so; `docs check` is the gate. Without options it makes the media site.yaml asks
-// for.
+// for; with flags, site.yaml with the flags over it.
 export async function buildSite(
   deps: BuildSiteDependencies,
-  given?: BuildSiteOptions,
+  given?: BuildSiteOptions | MediaFlags,
 ): Promise<BuildSiteResult> {
   const docs = await loadDocumentation(deps.sources, deps.root);
-  const options = given ?? fromSite(docs.config.media);
+  const options = optionsOf(given, docs.config.media);
   const mirror = deps.mirror(docs.config.instance);
   const check = await assessDocumentation(docs, mirror, todayOf(deps.clock), deps.signal);
   const media = new Map<string, { readonly player: PlayerMedia; readonly mp3: Uint8Array }>();
@@ -140,10 +179,8 @@ export async function buildSite(
     audio,
     options.video,
   );
-  const indexes = new Map<string, ConfigIndex>();
-  for (const process of docs.processes) {
-    indexes.set(process.id, await configIndex(docs, process, mirror, check, deps.signal));
-  }
+  const indexes = await indexesOf(docs, mirror, check, deps.signal);
+  const instanceUrl = (await deps.instanceUrl?.(docs.config.instance)) ?? null;
   const files = siteFiles({
     config: docs.config,
     processes: docs.processes,
@@ -158,6 +195,9 @@ export async function buildSite(
     videos,
     theme: (await deps.sources.theme?.()) ?? [],
     releases: docs.releases,
+    features: docs.features,
+    questions: docs.questions,
+    ...(instanceUrl === null ? {} : { instanceUrl }),
   });
   await deps.output.replace(files);
   return {
@@ -165,6 +205,7 @@ export async function buildSite(
     files: files.length,
     check,
     narrated: [...media.keys()],
+    voice: audio?.voice ?? "none",
     missingSounds: [...missing],
     videos: [...videos.keys()],
     videosNotMade: notMade,

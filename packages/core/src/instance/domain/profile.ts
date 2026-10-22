@@ -116,6 +116,12 @@ export function credentialVariable(profile: InstanceProfile): string {
   return `SNAGENTIC_${profile.name.toUpperCase().replaceAll("-", "_")}_PASSWORD`;
 }
 
+// Whether an environment variable can hold an instance secret, so child processes never get it
+// (spec 012, step 3). The url and kind that pin a secret are not secret.
+export function isCredentialVariable(name: string): boolean {
+  return /^SNAGENTIC_\w+_PASSWORD$/.test(name);
+}
+
 // All variables a CI job sets: the secret, and the url and kind that pin it (ADR-0020).
 export function credentialVariables(profile: InstanceProfile): string {
   const prefix = credentialVariable(profile).replace(/_PASSWORD$/, "");

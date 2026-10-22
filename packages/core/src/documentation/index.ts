@@ -6,21 +6,30 @@ export {
   type BuildSiteOptions,
   type BuildSiteResult,
   buildSite,
+  type MediaFlags,
   type MediaRequest,
   mediaOptions,
+  mediaWith,
 } from "./application/build-site";
+export { type CensusResult, docsCensus, takeCensus } from "./application/census";
 export {
   assessDocumentation,
   type CheckDocsDependencies,
   checkDocs,
   type DocsCheck,
   type EvidenceResult,
+  type QuestionAnchorResult,
 } from "./application/check-docs";
 export { configIndex } from "./application/config-index";
 export {
   type DocumentationLookup,
   documentationLookup,
 } from "./application/documented-records";
+export {
+  type ListedQuestion,
+  listQuestions,
+  type QuestionsQuery,
+} from "./application/list-questions";
 export { type Documentation, loadDocumentation } from "./application/load-documentation";
 export { type PinDocsQuery, type PinDocsResult, pinDocs } from "./application/pin-docs";
 export {
@@ -35,6 +44,15 @@ export {
   SURFACE_TABLES,
 } from "./domain/audience-checks";
 export { base64 } from "./domain/base64";
+export {
+  ancestorsOf,
+  CENSUS_SIGNALS,
+  type CensusGroup,
+  type CensusRecord,
+  type CensusSignal,
+  censusOf,
+  reaches,
+} from "./domain/census";
 export { type Claim, claimsOf, READERS, type Reader } from "./domain/claims";
 export {
   appliesTo,
@@ -47,7 +65,11 @@ export {
   recordName,
   worstStatus,
 } from "./domain/config-index";
-export { DocumentationSourceError, NoDocumentationError } from "./domain/errors";
+export {
+  DocumentationSourceError,
+  NoDocumentationError,
+  UnknownProcessError,
+} from "./domain/errors";
 export {
   anchorHash,
   anchorOf,
@@ -61,7 +83,19 @@ export {
   type SeenEvidence,
   seenStatus,
 } from "./domain/evidence";
+export {
+  claiming,
+  coverage,
+  FEATURE_STATUSES,
+  type Feature,
+  type FeatureStatus,
+  featureProblems,
+  type ProcessFeatures,
+  parseFeatures,
+  undecided,
+} from "./domain/features";
 export { escapeHtml, scriptJson } from "./domain/html";
+export { recordUrl } from "./domain/instance-links";
 export { MediaToolMissingError, UnknownVoiceError } from "./domain/media-errors";
 export {
   dbToGain,
@@ -101,6 +135,15 @@ export {
   SEE_LINK,
   transcriptHtml,
 } from "./domain/prose";
+export { type DuplicatePair, possibleDuplicates } from "./domain/question-duplicates";
+export {
+  type ProcessQuestions,
+  parseQuestions,
+  QUESTION_KINDS,
+  type Question,
+  type QuestionKind,
+  type QuestionStatus,
+} from "./domain/questions";
 export { type Resolved, referencesOf, resolveReference } from "./domain/references";
 export {
   NOTE_GUIDES,

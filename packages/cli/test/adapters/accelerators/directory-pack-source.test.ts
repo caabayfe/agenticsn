@@ -5,13 +5,17 @@ import { DirectoryPackSource } from "../../../src/adapters/accelerators/director
 const FIXTURES = resolve(import.meta.dir, "../../../../../tests/fixtures/accelerators");
 
 describe("directory pack source", () => {
-  it("finds packs as directories with an accelerator.yaml, and reads their manifest", async () => {
+  it("finds packs as directories with an accelerator.yaml, and reads every file by pack path", async () => {
     const packs = new DirectoryPackSource([resolve(FIXTURES, "missing"), FIXTURES]);
     expect(await packs.ids()).toEqual(["minimal"]);
-    expect(await packs.manifest("minimal")).toMatchObject({
+    const files = await packs.files("minimal");
+    expect([...files.keys()]).toContain("accelerator.yaml");
+    expect([...files.keys()]).toContain("modules/base/module.yaml");
+    expect([...files.keys()]).toContain("modules/base/data/demo/location.csv");
+    expect(packs.parse(files.get("accelerator.yaml") ?? "")).toMatchObject({
       id: "minimal",
-      scope: "x_snagentic_min",
+      profiles: { core: ["base"] },
     });
-    expect(await packs.manifest("itsm")).toBeNull();
+    expect(await packs.files("itsm")).toEqual(new Map());
   });
 });

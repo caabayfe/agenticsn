@@ -87,6 +87,43 @@ describe("documentation sources on disk", () => {
     expect(await new FsDocumentationSources(root).site()).toBeNull();
   });
 
+  it("reads each process's questions.yaml and pins what its questions are about", async () => {
+    const yaml = `# Asked of the owner.
+questions:
+  - id: Q01
+    ask: Should the rule run on change?
+    kind: decide
+    who: owner
+    about:
+      - record: sys_script/0c1345dd0783f01028ef0a701ad300fa
+      - record: sys_script/0c1345dd0783f01028ef0a701ad300fb
+`;
+    write("documentation/processes/incident/questions.yaml", yaml);
+    const sources = new FsDocumentationSources(root);
+    write("documentation/questions.yaml", "questions: []\n");
+    expect(await sources.questions()).toEqual([
+      { path: "questions.yaml", questions: { questions: [] } },
+      { path: "processes/incident/questions.yaml", questions: expect.anything() },
+    ]);
+    await sources.pinQuestions(
+      "processes/incident/questions.yaml",
+      new Map([
+        ["Q01#1", "abc123"],
+        ["Q09#0", "not listed"],
+      ]),
+    );
+    const after = readFileSync(
+      join(root, "documentation/processes/incident/questions.yaml"),
+      "utf8",
+    );
+    expect(after).toBe(
+      yaml.replace(
+        "      - record: sys_script/0c1345dd0783f01028ef0a701ad300fb\n",
+        "      - record: sys_script/0c1345dd0783f01028ef0a701ad300fb\n        hash: abc123\n",
+      ),
+    );
+  });
+
   it("pins hashes in the front matter and keeps comments, order and the body as written", async () => {
     write("documentation/processes/incident/configure/assign.md", PAGE);
     await new FsDocumentationSources(root).pinHashes(
@@ -140,6 +177,7 @@ describe("mirror records on disk", () => {
     expect(await mirror.list("sys_script", signal)).toEqual([
       {
         sysId: "0c1345dd0783f01028ef0a701ad300fa",
+        scope: "global",
         fields: { name: "Set group", collection: "incident" },
         updatedBy: "admin",
         updatedOn: "2026-05-01 10:00:00",

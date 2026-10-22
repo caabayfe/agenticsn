@@ -1,4 +1,5 @@
 import type { Subprocess } from "bun";
+import { childEnvironment } from "../child-environment";
 
 const encoder = new TextEncoder();
 const FLUSH_BYTES = 8 * 1024 * 1024;
@@ -30,7 +31,7 @@ export class FastImport {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+      env: childEnvironment({ GIT_TERMINAL_PROMPT: "0" }),
     });
     return new FastImport(child);
   }

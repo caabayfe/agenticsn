@@ -413,7 +413,7 @@ The product owner decided (2026-10-22): an upgrade is a standard action and neve
 pack's own earlier sets; those sets are **completed**, not taken over or cancelled, so they are
 promoted before the new ones. Taking a record over leaves it in two sets in progress, and the one
 committed last on UAT wins; cancelling loses the records the new version does not change again.
-ADR-0038 section 6, proposed amendment.
+ADR-0038 section 6, amendment accepted by the product owner (2026-10-22).
 
 | # | Item | State |
 |---|---|---|

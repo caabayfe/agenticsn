@@ -1,7 +1,8 @@
 # 0038. Accelerators install by plan; platform components install automatically on every instance
 
 - Status: Accepted (product owner, 2026-10-19; decisions of 2026-10-18). Spike S-E passed; the
-  store application installer (I3) still waits for spike S-F of spec 011
+  store application installer (I3) still waits for spike S-F of spec 011. Section 6 amended
+  (upgrades complete the pack's earlier update sets), accepted 2026-10-22
 - Date: 2026-10-18
 - Requirements: G1, ASR-01, ASR-02, ASR-08, ASR-10, ASR-15, ASR-16
 - Amends: 0012 (one narrow write on test and production), 0026 (the rejected single install,
@@ -130,8 +131,8 @@ component installer, under the conditions above.
 `push` leaves each module's update sets in progress. Completing them, and promoting them, is the
 platform's standard mechanism and the customer's process (ADR-0018).
 
-**Upgrades complete the earlier versions' update sets.** Proposed amendment, 2026-10-22, at the
-product owner's request ("an upgrade should be a standard action"). Pack 0.3.1 could not be
+**Upgrades complete the earlier versions' update sets.** Amendment accepted by the product owner
+(2026-10-22), made at their request ("an upgrade should be a standard action"). Pack 0.3.1 could not be
 installed on pdi2: `ACCRelatedChanges` sat in `snagentic: itsm 0.1.0 upgrade`, still in progress,
 and the install stopped rather than take the record over. Taking it over is not enough: with the
 record in two sets in progress, whichever is committed last on UAT wins, so promoting the 0.1.0

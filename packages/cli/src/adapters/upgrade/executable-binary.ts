@@ -1,6 +1,7 @@
 import { chmod, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { BinaryNotReplacedError, type InstalledBinary } from "@snagentic/core";
+import { childEnvironment } from "../child-environment";
 
 // The executable when it is a release binary; null when snagentic runs from source (bun).
 export function installedPath(executable: string): string | null {
@@ -14,6 +15,7 @@ async function runFile(path: string, args: readonly string[], cwd: string) {
     stdout: "pipe",
     stderr: "pipe",
     stdin: "ignore",
+    env: childEnvironment(),
   });
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(child.stdout).text(),

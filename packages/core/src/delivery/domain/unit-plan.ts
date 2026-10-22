@@ -8,7 +8,9 @@ import type { GateResult } from "./gate";
 
 // What a plan does with each unit of the workspace's Fluent source (ADR-0033 item 4).
 
-export type UnitOperation = "create" | "load" | "delete" | "record";
+// forget: a ledger entry whose definition left the source and whose record left the instance;
+// push drops the entry and loads nothing.
+export type UnitOperation = "create" | "load" | "delete" | "record" | "forget";
 
 export interface PlannedUnit {
   readonly project: string;
@@ -57,6 +59,14 @@ export function unitName(unit: BuiltUnit): string {
 // A record unit is named <table>_<sys_id>; units named by their keys (dictionary entries,
 // layouts) are not.
 const RECORD_UNIT = /^([a-z0-9_]+)_([0-9a-f]{32})$/;
+
+// The table and sys_id of a record unit, or null for a unit named by its keys.
+export function recordOf(updateName: string): { table: string; sysId: string } | null {
+  const match = RECORD_UNIT.exec(updateName);
+  return match?.[1] === undefined || match[2] === undefined
+    ? null
+    : { table: match[1], sysId: match[2] };
+}
 
 // The line that deletes a removed unit's record, by sys_id: deleting by keys gives the deletion
 // a sys_id of its own (S16 F3). Null for a unit named by its keys.

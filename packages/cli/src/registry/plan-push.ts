@@ -30,8 +30,17 @@ export const PlanOutput = z.object({
         sysId: z.string(),
         name: z.string(),
         operation: z
-          .enum(["create", "load", "delete", "record"])
-          .describe("record: the instance already holds it as built; only the ledger is written"),
+          .enum(["create", "load", "delete", "record", "forget"])
+          .describe(
+            "record: the instance already holds it as built; only the ledger is written. forget: gone from source and instance; only the ledger entry is dropped",
+          ),
+        ledger: z
+          .string()
+          .nullable()
+          .optional()
+          .describe(
+            "the instance version when it last agreed with source; on a create, the record was deleted on the instance since and is created again",
+          ),
         changes: z.array(z.string()).readonly().describe("table.field, or table rows"),
         losses: z
           .array(z.string())
@@ -87,6 +96,20 @@ export const PlanOutput = z.object({
   next: NextCalls,
 });
 
+// What a reviewer must see beside a unit that is not an ordinary change (ADR-0033 as amended).
+const NOTES = {
+  again: "  (deleted on the instance since it last agreed with source: created again)",
+  forget: "  (gone from source and from the instance: only its ledger entry is dropped)",
+  none: "",
+} as const;
+
+const noteOf = (u: { operation: string; ledger?: string | null | undefined }) =>
+  u.operation === "forget"
+    ? "forget"
+    : u.operation === "create" && u.ledger !== undefined && u.ledger !== null
+      ? "again"
+      : "none";
+
 export const planPush = defineUseCase({
   name: "plan-push",
   mcpName: "plan_push",
@@ -123,7 +146,7 @@ export const planPush = defineUseCase({
     const lines = [
       ...output.units.map(
         (u) =>
-          `${u.operation.padEnd(6)} ${u.updateName}  ${u.project}${u.changes.length > 0 ? `  (${u.changes.join(", ")})` : ""}${u.alsoSets.length > 0 ? `  also sets: ${u.alsoSets.join(", ")}` : ""}`,
+          `${u.operation.padEnd(6)} ${u.updateName}  ${u.project}${u.changes.length > 0 ? `  (${u.changes.join(", ")})` : ""}${u.alsoSets.length > 0 ? `  also sets: ${u.alsoSets.join(", ")}` : ""}${NOTES[noteOf(u)]}`,
       ),
       ...output.problems.map((p) => `problem: ${p.updateName || p.project}: ${p.reason}`),
       ...output.gate.blocking.map(

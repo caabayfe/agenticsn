@@ -18,7 +18,6 @@ import {
 import { batchUpdateSets, inBatch } from "../domain/batch";
 import type { GateResult } from "../domain/gate";
 import {
-  deletionFor,
   type PlannedUnit,
   plannedOrProblem,
   type UnitProblem,
@@ -27,6 +26,7 @@ import {
 import type { DeliveryWorkspace } from "../ports";
 import { withoutCutValues } from "./field-lengths";
 import { gateFor } from "./plan-gate";
+import { removedDefinitions } from "./removed-definitions";
 
 // What a push would load, and whether it may (ADR-0031, ADR-0033): every project under source/
 // built, each unit whose build moved away from its ledger entry compared with the instance's
@@ -100,31 +100,6 @@ const problem = (project: string, kind: UnitProblem["kind"], reason: string, nam
   reason,
 });
 
-// A definition the ledger holds that the build no longer makes, with no Now.del for it
-// (ADR-0031 item 7): a configuration project never deletes, so the record would silently stay.
-function removedWithoutDeletion(
-  project: SourceProject,
-  entries: ReadonlyMap<string, LedgerEntry>,
-  units: readonly BuiltUnit[],
-  deleting: ReadonlySet<string | null>,
-): UnitProblem[] {
-  const built = new Set(units.map((unit) => unit.updateName));
-  return [...entries.keys()]
-    .filter((name) => !built.has(name) && !deleting.has(name))
-    .map((name) => {
-      const line = deletionFor(name);
-      const add = line === null ? "add a Now.del" : `add ${line}`;
-      // A removed entry of a typed array (a UI action's role) is a unit of its own: the SDK
-      // emits no deletion for it (spec 009 B2).
-      return problem(
-        project.path,
-        "removed",
-        `its definition was removed: ${add} to delete it on the instance, or restore it`,
-        name,
-      );
-    });
-}
-
 // The platform refuses to publish a flow its publishing user's domain cannot see (spike S11),
 // leaving the loaded flow an inactive draft: such a flow is never loaded.
 const COMPILED = new Set(["sys_hub_flow", "sys_hub_action_type_definition"]);
@@ -177,8 +152,16 @@ async function planProject(
         copies.get(unit.updateName)?.head["sys_update_name"] ?? null,
       ]),
   );
-  const units: PlannedUnit[] = [];
-  const problems = removedWithoutDeletion(project, entries, build.units, new Set(deleted.values()));
+  const removed = await removedDefinitions(
+    deps.reader,
+    deps.signal,
+    project,
+    entries,
+    build.units,
+    new Set(deleted.values()),
+  );
+  const units: PlannedUnit[] = [...removed.forgotten];
+  const problems = removed.problems;
   for (const unit of candidates) {
     const copy = copies.get(unit.updateName) ?? null;
     const entry = entries.get(unit.updateName);
@@ -210,7 +193,7 @@ async function collisionsOf(
   units: readonly PlannedUnit[],
   label: string,
 ) {
-  const loaded = units.filter((unit) => unit.operation !== "record");
+  const loaded = units.filter((unit) => unit.operation !== "record" && unit.operation !== "forget");
   const held = await heldInOpenUpdateSets(
     deps.updateSets,
     loaded.map((u) => u.updateName),

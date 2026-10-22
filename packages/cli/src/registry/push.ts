@@ -83,7 +83,7 @@ export const push = defineUseCase({
           updateName: z.string(),
           table: z.string(),
           name: z.string(),
-          operation: z.enum(["create", "load", "delete", "record"]),
+          operation: z.enum(["create", "load", "delete", "record", "forget"]),
           captured: z.boolean().describe("recorded in the update set under its update name"),
           applied: z.boolean().describe("read back, the instance holds what the build loaded"),
         }),

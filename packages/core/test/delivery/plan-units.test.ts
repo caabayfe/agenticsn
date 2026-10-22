@@ -4,6 +4,7 @@ import { governanceOf, unitOf } from "../support/fake-governance";
 import {
   QUERY,
   SCOPE_ID,
+  SI_ID,
   SI_UNIT,
   saveOnInstance,
   scriptInclude,
@@ -64,6 +65,45 @@ describe("plan on built units (ADR-0031, ADR-0033)", () => {
       { updateName: created.updateName, operation: "create", version: null },
     ]);
     expect(plan.ready).toBe(true);
+  });
+
+  // Only a unit whose build moved is read (ADR-0033 item 4), as on pdi2 when a plugin activation
+  // removed related-list entries a module had just pointed at the plugin's container.
+  it("creates again an edited unit deleted on the instance since it agreed, naming the version it had", async () => {
+    const { deps, tables } = unitSetup({ source: "Edited in source." });
+    tables["sys_script_include"] = [];
+    const { plan } = await computeUnitPlan(deps, QUERY);
+    expect(plan.units).toMatchObject([
+      { updateName: SI_UNIT, operation: "create", ledger: VERSION, version: null },
+    ]);
+    expect(plan.problems).toEqual([]);
+    expect(plan.ready).toBe(true);
+  });
+
+  it("forgets a removed definition whose record is gone from the instance too", async () => {
+    const { deps, builds, project, tables } = unitSetup();
+    builds.set(project.path, []);
+    tables["sys_script_include"] = [];
+    const { plan } = await computeUnitPlan(deps, QUERY);
+    expect(plan.units).toMatchObject([
+      { updateName: SI_UNIT, operation: "forget", table: "sys_script_include", sysId: SI_ID },
+    ]);
+    expect(plan.problems).toEqual([]);
+    expect(plan.ready).toBe(true);
+  });
+
+  it("keeps refusing a removed definition when the instance cannot say whether it holds the record", async () => {
+    const { deps, builds, project } = unitSetup();
+    builds.set(project.path, []);
+    const reader = {
+      ...deps.reader,
+      query: async () => {
+        throw new Error("no read access");
+      },
+    };
+    const { plan } = await computeUnitPlan({ ...deps, reader }, QUERY);
+    expect(plan.units).toEqual([]);
+    expect(plan.problems).toMatchObject([{ updateName: SI_UNIT, kind: "removed" }]);
   });
 
   it("refuses a definition removed with no Now.del: the instance would keep it", async () => {

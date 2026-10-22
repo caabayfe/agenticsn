@@ -115,6 +115,17 @@ describe("push on built units: deletions, flows, global, recovery", () => {
     expect(context.authoring.ledgers.get(context.project.path)?.get("dev")).toBeUndefined();
   });
 
+  it("forgets the ledger entry of a record gone from both source and instance, loading nothing", async () => {
+    const context = unitSetup();
+    context.builds.set(context.project.path, []);
+    context.tables["sys_script_include"] = [];
+    const { plan } = await computeUnitPlan(context.deps, QUERY);
+    const result = await pushUnits(context.deps, { ...QUERY, planId: plan.planId, confirm: true });
+    expect(result.units).toMatchObject([{ operation: "forget", applied: true }]);
+    expect(context.calls.filter((c) => c.startsWith("load"))).toEqual([]);
+    expect(context.authoring.ledgers.get(context.project.path)?.get("dev")).toBeUndefined();
+  });
+
   const FLOW = "f".repeat(32);
   const flow = {
     updateName: `sys_hub_flow_${FLOW}`,

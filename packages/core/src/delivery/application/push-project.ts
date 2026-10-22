@@ -49,7 +49,8 @@ export interface ProjectPush {
   readonly ledger: ReadonlyMap<string, LedgerEntry | undefined>;
 }
 
-const loaded = (unit: PlannedUnit) => unit.operation !== "record";
+// Units push sends to the instance: not those only recorded or forgotten in the ledger.
+const loaded = (unit: PlannedUnit) => unit.operation !== "record" && unit.operation !== "forget";
 
 // Refuses when any unit moved on the instance since the plan read it.
 function ensureUnmoved(
@@ -112,6 +113,11 @@ async function readBack(run: ProjectRun, load: ProjectLoad, units: readonly Plan
   for (const unit of units) {
     const copy = copies.get(unit.updateName) ?? null;
     const builtUnit = load.built.get(unit.updateName)?.unit;
+    if (unit.operation === "forget") {
+      applied.set(unit.updateName, true);
+      ledger.set(unit.updateName, undefined);
+      continue;
+    }
     if (unit.operation === "delete") {
       applied.set(unit.updateName, copy === null);
       if (copy === null && unit.removes !== null) ledger.set(unit.removes, undefined);

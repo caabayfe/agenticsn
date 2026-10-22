@@ -69,8 +69,10 @@ describe("planUnit (ADR-0033 item 4)", () => {
     expect(planUnit(adopted, unitDigest(adopted), null, undefined)).toEqual({ kind: "create" });
   });
 
-  it("refuses to re-create a unit someone deleted on the instance", () => {
-    expect(planUnit(adopted, unitDigest(adopted), null, entry())).toMatchObject({ kind: "drift" });
+  // ADR-0033 as amended (2026-10-22): a plugin activation can remove a record without a trace;
+  // the plan says so, and approving it approves creating the record again.
+  it("creates again a unit deleted on the instance since it agreed with source", () => {
+    expect(planUnit(adopted, unitDigest(adopted), null, entry())).toEqual({ kind: "create" });
   });
 
   it("keeps known losses accepted at adoption out of the plan while source is unchanged", () => {

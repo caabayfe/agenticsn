@@ -29,17 +29,14 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: bun scripts/check-release.ts "${GITHUB_REF_NAME}"
       # As verify.yml: the documentation media tests (ADR-0036) need ffmpeg, and the coverage
-      # gate counts them.
-      # The Ubuntu mirror is sometimes slow enough to eat the whole job (2026-10-22): each try
-      # gets 4 minutes, and a second try follows a stalled one.
+      # gate counts them. The same pinned static build and cache.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/snagentic-ffmpeg
+          key: ffmpeg-7.0.2-e7e7fb30
       - name: ffmpeg
-        timeout-minutes: 9
-        run: |
-          for try in 1 2; do
-            timeout 240 sh -c 'sudo apt-get update -q && sudo apt-get install -y -q ffmpeg' && exit 0
-            echo "ffmpeg install try $try stalled or failed"
-          done
-          exit 1
+        timeout-minutes: 3
+        run: scripts/ci/ffmpeg.sh "$HOME/.cache/snagentic-ffmpeg"
       - run: bun run verify
 
   binary:

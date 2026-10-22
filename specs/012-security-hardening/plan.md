@@ -1,6 +1,6 @@
 # 012. Security hardening: plan
 
-- Status: Draft (2026-10-22). Step 1 in this PR (#121); step 2 in #122 (stacked); step 3 in #123
+- Status: Draft (2026-10-22). Step 1 in #121; step 2 in #122 (stacked on #121; live check on pdi2 open); step 3 in #123
 - Date: 2026-10-22
 - Source: code audit 2026-10-21 (`docs/reports/code-audit-2026-10-21.md`, PR #120), findings
   A-01 to A-04, A-09, A-10, A-12, A-13 and the security areas of its section 7
@@ -65,6 +65,12 @@ Effort: S under 1 day, M 1 to 3 days, L over 3 days.
   `LICENSE` terms (depends on ADR-0008, still Proposed); `CONTRIBUTING.md` follows the licence.
 
 ### Step 2. Triage and reduce advisories
+
+Outcome (2026-10-22): `overrides` took the audit from 32 advisories to 7 (0 critical, 4 high);
+the 7 left are accepted in `docs/security/advisories.md` until 2027-01-20, with the reachability
+evidence; `scripts/check-advisories.ts` and `.github/workflows/advisories.yml` enforce the
+register. The real SDK still builds the `doctor` test flow. **Open:** a build and push of a
+Fluent change on pdi2 with the release binary (needs the owner for the keychain prompt).
 
 1. Prove reachability from the build: build with a metafile and list whether `handlebars`,
    `fastify`, `@fastify/*`, `joi` and `undici` are in the compiled binary, and from which

@@ -27,5 +27,5 @@ Anything that breaks the safety invariants in `AGENTS.md` is in scope, for examp
 - a push that skips the plan id, the gate or the remote base-hash check;
 - tampering with a release binary or an upgrade going undetected.
 
-Known advisories in third-party dependencies, and why each is accepted or fixed, are tracked in
-`specs/012-security-hardening/plan.md` until the advisory register (step 2) exists.
+Known advisories in third-party dependencies, and why each is fixed or accepted, are recorded in
+`docs/security/advisories.md`.

@@ -3,6 +3,7 @@ import {
   type PullRequests,
   PullRequestUnavailableError,
 } from "@snagentic/core";
+import { childEnvironment } from "../child-environment";
 
 interface GhResult {
   readonly exitCode: number;
@@ -86,7 +87,11 @@ export class GhPullRequests implements PullRequests {
         stderr: "pipe",
         signal,
         timeout: this.timeoutMs,
-        env: { ...process.env, GH_PROMPT_DISABLED: "1", GH_NO_UPDATE_NOTIFIER: "1", NO_COLOR: "1" },
+        env: childEnvironment({
+          GH_PROMPT_DISABLED: "1",
+          GH_NO_UPDATE_NOTIFIER: "1",
+          NO_COLOR: "1",
+        }),
       });
     } catch {
       return null;

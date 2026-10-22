@@ -153,3 +153,15 @@ export class AdoptRefusedError extends SnagenticError {
     this.refusals = refusals;
   }
 }
+
+// Taking over needs the build: it is how the module's records are matched on the instance.
+export class TakeOverBuildFailedError extends SnagenticError {
+  constructor(project: string, message: string) {
+    super(
+      "take-over-build-failed",
+      "precondition",
+      `${project} does not build, so its records cannot be matched on the instance: ${message}`,
+      "run snagentic validate, fix what it reports, then take over again",
+    );
+  }
+}

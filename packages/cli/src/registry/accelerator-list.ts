@@ -1,21 +1,14 @@
 import { listPacks } from "@snagentic/core";
 import { z } from "zod";
+import { PackSummary } from "./accelerator-schemas";
 import { defineUseCase } from "./use-case";
-
-export const PackSummary = z.object({
-  id: z.string(),
-  version: z.string(),
-  scope: z.string(),
-  capabilities: z
-    .array(z.object({ id: z.string(), wave: z.number(), label: z.string() }))
-    .readonly(),
-});
 
 export const acceleratorList = defineUseCase({
   group: "accelerator",
   name: "list",
   description:
-    "List the accelerator packs snagentic ships, with their capabilities and waves (ADR-0026).",
+    "List the accelerator packs snagentic ships and those under the workspace's pack paths " +
+    "(snagentic.yaml accelerators.paths), with their modules and profiles (ADR-0026, ADR-0038).",
   input: z.object({}),
   output: z.object({ packs: z.array(PackSummary).readonly() }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
@@ -27,8 +20,9 @@ export const acceleratorList = defineUseCase({
     if (output.packs.length === 0) return "no accelerator packs";
     return output.packs
       .flatMap((p) => [
-        `${p.id} ${p.version}  (${p.scope})`,
-        ...p.capabilities.map((c) => `  wave ${c.wave}  ${c.id}  ${c.label}`),
+        `${p.id} ${p.version}`,
+        ...p.modules.map((m) => `  module   ${m.id}  ${m.label}`),
+        ...Object.entries(p.profiles).map(([id, ms]) => `  profile  ${id}: ${ms.join(", ")}`),
       ])
       .join("\n");
   },

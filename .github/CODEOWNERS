@@ -1,0 +1,7 @@
+# Every change needs the maintainer's review. Release, CI and credential code are listed on
+# their own so the rule survives if ownership of the rest is shared later.
+*                                         @caabayfe
+/.github/                                 @caabayfe
+/scripts/install/                         @caabayfe
+/packages/cli/src/adapters/credentials/   @caabayfe
+/packages/cli/src/adapters/upgrade/       @caabayfe

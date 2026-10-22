@@ -13,7 +13,9 @@ import {
   aclFindings,
   builtValueFindings,
   checkVersion,
+  flowFindings,
   MAX_SCRIPT_BYTES,
+  roleFindings,
   type Skipped,
   undescribed,
   withRule,
@@ -29,9 +31,13 @@ export interface ValidateQuery {
   // Source files to check, relative to the workspace: only the projects holding them are built.
   // Every project changed since `base` when absent.
   readonly paths?: readonly string[];
+  // Projects checked even when the change since `base` left them as they were: the projects a
+  // push would load, whatever was committed before the base.
+  readonly include?: readonly string[];
   // A base per project (workspace path -> commit), in place of `base` for that project: the
   // commit that last wrote its ledger, so adopted code counts as already there (decision D).
-  readonly bases?: Readonly<Record<string, string>>;
+  // null: the project never agreed with the instance, so all of it is new.
+  readonly bases?: Readonly<Record<string, string | null>>;
   readonly signal?: AbortSignal;
 }
 
@@ -120,7 +126,12 @@ async function checkUnits(
       source,
       ...edited(item),
     });
-    findings.push(...aclFindings(item, path, units), ...builtValueFindings(item, path));
+    findings.push(
+      ...aclFindings(item, path, units),
+      ...builtValueFindings(item, path),
+      ...flowFindings(item, path),
+      ...roleFindings(item, path),
+    );
     if (item.unit.head.action === "DELETE") continue;
     const current = checkVersion(deps.checker, item.now, privileges);
     const previous =
@@ -148,7 +159,7 @@ async function checkProject(
   deps: ValidateDependencies,
   privilegesOf: Privileges,
   project: FluentProject,
-  commit: string,
+  commit: string | null,
 ): Promise<ProjectCheck> {
   const build = await deps.fluent.build(project);
   const findings: Finding[] = fluentFindings(
@@ -157,7 +168,7 @@ async function checkProject(
     await deps.fluent.sdkVersion(),
   ).flatMap((hit) => withRule(hit.ruleId, { ...hit, root: "workspace", field: null }));
   if (!build.built) return { units: 0, findings, inherited: [], skipped: [], touched: [] };
-  const base = await deps.fluent.buildAt(project, commit);
+  const base = commit === null ? null : await deps.fluent.buildAt(project, commit);
   const scope = { path: project.path, scope: scopeOf(project) };
   const units = await checkUnits(deps, privilegesOf, scope, { now: build, base });
   return { ...units, findings: [...findings, ...units.findings] };
@@ -177,8 +188,37 @@ async function mirrorEdits(mirror: MirrorState): Promise<Finding[]> {
   );
 }
 
-// The Fluent projects the change touched since `base` (or holding `paths`), each built and
-// checked.
+// The projects to check: those the change touched, and those the query includes.
+async function projectsOf(deps: ValidateDependencies, query: ValidateQuery, resolved: string) {
+  const changed =
+    query.paths === undefined
+      ? await deps.fluent.changedSince(resolved)
+      : await deps.fluent.holding(query.paths);
+  const included =
+    query.include === undefined || query.include.length === 0
+      ? []
+      : await deps.fluent.holding(query.include.map((path) => `${path}/`));
+  const known = new Set(changed.map((p) => p.path));
+  return [...changed, ...included.filter((p) => !known.has(p.path))];
+}
+
+// A project's own base when the query gives one (null: none), the query's otherwise.
+async function baseOf(
+  deps: ValidateDependencies,
+  query: ValidateQuery,
+  project: FluentProject,
+  resolved: string,
+): Promise<string | null> {
+  const own = query.bases?.[project.path];
+  if (own === undefined) return resolved;
+  if (own === null) return null;
+  const base = await deps.mirror.resolve(own);
+  if (base === null) throw new UnknownBaseError(own);
+  return base;
+}
+
+// The Fluent projects the change touched since `base` (or holding `paths`), and those the query
+// includes, each built and checked.
 export async function checkSince(
   deps: ValidateDependencies,
   query: ValidateQuery,
@@ -191,17 +231,13 @@ export async function checkSince(
   if (resolved === null) {
     throw new UnknownBaseError(query.base);
   }
-  const projects =
-    query.paths === undefined
-      ? await deps.fluent.changedSince(resolved)
-      : await deps.fluent.holding(query.paths);
+  const projects = await projectsOf(deps, query, resolved);
   const privilegesOf = privilegesOnce(deps.mirror);
   const checked: ProjectCheck[] = [];
   for (const project of projects) {
-    const own = query.bases?.[project.path];
-    const base = own === undefined ? resolved : await deps.mirror.resolve(own);
-    if (base === null) throw new UnknownBaseError(own ?? query.base);
-    checked.push(await checkProject(deps, privilegesOf, project, base));
+    checked.push(
+      await checkProject(deps, privilegesOf, project, await baseOf(deps, query, project, resolved)),
+    );
   }
   return { resolved, projects, checked };
 }

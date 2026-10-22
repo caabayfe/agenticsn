@@ -3,7 +3,9 @@ import {
   canWrite,
   createProfile,
   credentialAccount,
+  credentialVariable,
   InstanceName,
+  isCredentialVariable,
   normalizeInstanceUrl,
   secretName,
 } from "@snagentic/core";
@@ -127,5 +129,32 @@ describe("write policy and credential naming", () => {
     });
     expect(credentialAccount(client)).toBe("oauth:admin@dev312411.service-now.com");
     expect(secretName(client)).toBe("client secret");
+  });
+});
+
+describe("credential variables (spec 012, step 3)", () => {
+  it("recognizes every variable that can hold an instance secret", () => {
+    expect(isCredentialVariable("SNAGENTIC_ACME_PROD_PASSWORD")).toBe(true);
+    expect(isCredentialVariable("SNAGENTIC_DEV_PASSWORD")).toBe(true);
+  });
+
+  it("recognizes the variable named for any profile", () => {
+    for (const name of ["pdi", "acme-prod", "uat2"]) {
+      const profile = createProfile({
+        name: InstanceName.parse(name),
+        url: "dev312411",
+        username: "admin",
+        kind: "development",
+        acknowledgeReadOnly: false,
+      });
+      expect(isCredentialVariable(credentialVariable(profile))).toBe(true);
+    }
+  });
+
+  it("leaves the url and kind that pin a secret, and other snagentic settings", () => {
+    expect(isCredentialVariable("SNAGENTIC_ACME_PROD_URL")).toBe(false);
+    expect(isCredentialVariable("SNAGENTIC_ACME_PROD_KIND")).toBe(false);
+    expect(isCredentialVariable("SNAGENTIC_WORKSPACE")).toBe(false);
+    expect(isCredentialVariable("GH_TOKEN")).toBe(false);
   });
 });

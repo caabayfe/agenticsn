@@ -37,4 +37,15 @@ export const ACL_RULES: readonly Rule[] = [
     scripts: [],
     classes: ACL,
   },
+  {
+    id: "SN-SEC-009",
+    category: "security",
+    severity: "block",
+    title: "A role must not contain admin, security_admin or maint",
+    why: "Whoever is granted a role holds every role it contains: an application role that contains admin makes each of its users an administrator, beyond what any ACL of the application decides.",
+    remediation:
+      "Remove the containment and grant the specific roles the work needs; an administrator who needs the role is granted admin directly.",
+    scripts: [],
+    classes: ["sys_user_role", "sys_user_role_contains"],
+  },
 ];

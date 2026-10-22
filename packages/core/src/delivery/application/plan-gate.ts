@@ -12,15 +12,16 @@ export interface GateDependencies {
 }
 
 // validate over the change, plus the accelerator packs' check, with committed waivers applied.
-// `bases` holds each adopted project's ledger commit: what it already held there is inherited,
-// shown and never blocking (decision D).
+// `paths` are the projects the push would load, each checked whatever the change since `commit`
+// touched. `bases` holds each project's ledger commit: what it already held there is inherited,
+// shown and never blocking (decision D); null for a project that never agreed with the instance.
 export async function gateFor(
   deps: GateDependencies,
   commit: string,
   paths: readonly string[],
-  bases: Readonly<Record<string, string>> = {},
+  bases: Readonly<Record<string, string | null>> = {},
 ): Promise<GateResult> {
-  const validation = await validate(deps.governance, { base: commit, bases });
+  const validation = await validate(deps.governance, { base: commit, include: paths, bases });
   const packs = deps.packGate === undefined ? [] : await deps.packGate(paths);
   const waiverFile = await deps.workspace.waivers();
   const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());

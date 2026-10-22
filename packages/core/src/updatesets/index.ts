@@ -5,6 +5,12 @@ export {
   type WithheldUpdate,
 } from "./application/export-update-set";
 export { heldInOpenUpdateSets, type RecordHolder } from "./application/held-records";
+export {
+  completeUpdateSets,
+  type OpenUpdateSetRow,
+  openUpdateSets,
+  type UpdateSetStateWriter,
+} from "./application/set-state";
 export type { UpdateSetDependencies } from "./application/update-set-reads";
 export {
   listUpdateSets,

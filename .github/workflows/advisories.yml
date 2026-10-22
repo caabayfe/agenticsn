@@ -1,0 +1,32 @@
+name: advisories
+
+# Fails when `bun audit` reports an advisory without a dated decision in
+# docs/security/advisories.md (spec 012, step 2). Weekly, because advisories appear without any
+# change here, and on pull requests that change dependencies or the register.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  pull_request:
+    paths:
+      - bun.lock
+      - "**/package.json"
+      - docs/security/advisories.md
+      - scripts/advisories.ts
+      - scripts/check-advisories.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  advisories:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: every advisory has a dated decision
+        run: bun scripts/check-advisories.ts

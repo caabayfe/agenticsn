@@ -8,6 +8,7 @@ import {
   type PackWorkspace,
   type PreviousAdd,
 } from "@snagentic/core";
+import { childEnvironment } from "../child-environment";
 import { runGit, runGitOrThrow } from "../git/run-git";
 import { fromYamlStrings } from "../yaml/own-style";
 
@@ -29,7 +30,7 @@ async function git(cwd: string, args: string[], env: Record<string, string>, inp
     stdin: input === undefined ? "ignore" : new TextEncoder().encode(input),
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, GIT_TERMINAL_PROMPT: "0", ...env },
+    env: childEnvironment({ GIT_TERMINAL_PROMPT: "0", ...env }),
   });
   const [out, err, code] = await Promise.all([
     new Response(child.stdout).text(),
@@ -69,6 +70,30 @@ export class GitPackWorkspace implements PackWorkspace {
     return (
       (await runGit(["merge-base", "--is-ancestor", commit, "HEAD"], this.root)).exitCode === 0
     );
+  }
+
+  async present(paths: readonly string[]): Promise<readonly string[]> {
+    if (paths.length === 0) return [];
+    const listed = await runGitOrThrow(["ls-files", "--", ...paths], this.root);
+    return listed.split("\n").filter(Boolean);
+  }
+
+  // The install reports committed on the working branch (accelerators/installs/<instance>/
+  // <pack>-<plan id>/report.md), read from HEAD.
+  async installReports(pack: string): Promise<readonly string[]> {
+    const installs = `accelerators/installs/${this.instance}/`;
+    const folder = `${installs}${pack}-`;
+    const listed = await runGitOrThrow(
+      ["ls-tree", "-r", "--name-only", "HEAD", "--", installs],
+      this.root,
+    );
+    const paths = listed.split("\n").filter((path) => {
+      const [planId, file, ...rest] = path.startsWith(folder)
+        ? path.slice(folder.length).split("/")
+        : [];
+      return /^[0-9a-f]+$/.test(planId ?? "") && file === "report.md" && rest.length === 0;
+    });
+    return Promise.all(paths.map((path) => runGitOrThrow(["show", `HEAD:${path}`], this.root)));
   }
 
   parse(text: string): unknown {

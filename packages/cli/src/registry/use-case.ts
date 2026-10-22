@@ -13,6 +13,7 @@ import type {
   ImportSetWriter,
   IncrementalMirror,
   InstalledBinary,
+  InstallJournal,
   InstanceName,
   InstanceProfile,
   InstanceReader,
@@ -137,6 +138,7 @@ export interface UseCaseContext {
   readonly pullRequests: (root: string) => PullRequests;
   // Where push journals its progress (.snagentic/<name>/push-journal.json).
   readonly pushJournal: (root: string, instance: InstanceName) => PushJournalStore;
+  readonly installJournal: (root: string, instance: InstanceName) => InstallJournal;
   // Text files inside the workspace (the agent pack).
   readonly workspaceFiles: WorkspaceFiles;
   // New files a use case writes for the person, such as an export; never overwrites.

@@ -61,6 +61,16 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
     expect(built.children[0]?.fields["element"]).toBe(".begin_split");
   });
 
+  it("gives a form the domain its wrapper names, so it is matched like the platform matches it", () => {
+    const built = unit("sys_ui_form_sections_f67d29c0e4f7611262bd5c7ae69ce0d8.xml");
+    expect(built.head.fields["sys_domain"]).toBe("global");
+    expect(built.children.every((row) => row.fields["sys_domain"] === undefined)).toBe(true);
+    // Each link names its section by caption, as the platform matches sections on load.
+    expect(
+      built.children.map((row) => row.referenceNames["sys_ui_section"] !== undefined),
+    ).not.toContain(false);
+  });
+
   it("names a form's unit after the form, with its sections as rows", () => {
     const built = unit("sys_ui_form_sections_f67d29c0e4f7611262bd5c7ae69ce0d8.xml");
     expect(built.head.table).toBe("sys_ui_form");
@@ -98,5 +108,18 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
     expect(() => builtUnitOf("x.xml", '<?xml version="1.0"?><unload/>')).toThrow(
       UnreadableBuildError,
     );
+  });
+
+  it("reads a reference written by keys (Now.ref) as its keys: its id is new on every build", () => {
+    const xml = (
+      id: string,
+    ) => `<?xml version="1.0"?><record_update table="sys_ui_related_list_entry">
+<sys_ui_related_list_entry action="INSERT_OR_UPDATE"><sys_id>e1</sys_id>
+<list_id name="incident" view="Default view">${id}</list_id><position>9</position>
+</sys_ui_related_list_entry></record_update>`;
+    const first = builtUnitOf("sys_ui_related_list_entry_e1.xml", xml("aaaa"));
+    const second = builtUnitOf("sys_ui_related_list_entry_e1.xml", xml("bbbb"));
+    expect(first.head.fields["list_id"]).toBe("keys:name=incident&view=Default+view");
+    expect(second.head.fields).toEqual(first.head.fields);
   });
 });

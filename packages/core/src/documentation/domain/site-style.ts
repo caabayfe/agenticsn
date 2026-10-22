@@ -38,6 +38,12 @@ pre code{background:none;padding:0}
 .label-open-question,.status-changed,.status-missing{background:var(--redL);color:var(--red)}
 .cite{font-size:12px;font-weight:650;text-decoration:none;padding:0 3px;border:1px solid var(--line);border-radius:3px}
 .cite.unknown{color:var(--red)}
+.cite.question{border-style:dashed}
+.label-decide{background:var(--redL);color:var(--red)}
+.label-check{background:var(--amberL);color:var(--amber)}
+.label-hidden{background:var(--greyL);color:var(--mute)}
+.question{border-left:3px solid var(--line);padding:2px 0 2px 12px;margin:10px 0}
+.question p{margin:4px 0}
 .animation{margin:16px 0}
 .animation iframe{width:100%;height:640px;border:1px solid var(--line);display:block;border-radius:10px;background:#fff}
 .transcript{margin-top:8px;font-size:14px}

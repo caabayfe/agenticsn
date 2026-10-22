@@ -13,6 +13,7 @@ import {
   understandPages,
   VIEW_SECTION,
 } from "./site-context";
+import { featuresHtml } from "./site-features";
 import { recordsFile } from "./site-index";
 import { layout, pageFile, prefixOf, sectionHome } from "./site-layout";
 import { navFor } from "./site-nav";
@@ -58,6 +59,7 @@ export function processHtml(b: Built, process: Process): string {
 ${whereBanner(b, "operator")}
 ${readerSections(b, process, "operator", file)}
 ${configured ? `<p>${link(prefixOf(file), sectionHome(process.id, "configure"), "How it is configured")}</p>` : ""}
+${featuresHtml(b, process, file)}
 ${lifecycle}`;
     return layout(
       b.input.config,

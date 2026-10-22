@@ -6,11 +6,96 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Added
 
+- `accelerator install` checks the platform fields each module reads before anything changes
+  (ADR-0038 item 8, proposed amendment). A module lists them in `module.yaml` (`fields`, with
+  the plugin that ships each and `when_missing: stop | warn`); the fields its data columns fill
+  are added. The check reads the mirror, a table's parents included. A missing field blocks its
+  module, or is a warning saying what the module loses, and names the plugin to repair or
+  activate. The plan lists the missing fields and counts the rest.
+- Rule SN-SEC-009 blocks a role that contains `admin`, `security_admin` or `maint`: everyone
+  granted that role would hold the privileged one. Found by the spec 009 scenarios (L8 A6,
+  pdi2), where a scoped role containing `admin` passed every check.
+- Rule SN-MNT-018 blocks a record-triggered flow whose condition is empty. The platform registers
+  such a trigger but never runs the flow, without an error; Flow Designer writes "no condition" as
+  `^EQ`, which the finding names. Found by the spec 009 scenarios (L8 A1, pdi2).
 - Rule SN-MNT-019 blocks a built value of `[object Object]`, whole or as a list item. Passing an
   object where a record holds text, such as a `Role` in `Record({ table: 'sys_app_module', data:
   { roles: [agent] } })`, makes the SDK write that string; build and instance then agree, so no
   plan showed it, and the modules required a role nobody holds. Found by the spec 009 scenarios
   (L8 A7, pdi2).
+
+### Fixed
+
+- A plan's gate checks every project the push would load. It checked only the projects changed
+  since the last pull, or since `HEAD` in a workspace never pulled, so source committed before
+  then went unchecked: on pdi2 a script include with `eval` planned as ready. A project the push
+  loads is now judged from its ledger commit, and one that never agreed with the instance (no
+  ledger) is judged in full. Found by the spec 009 scenarios (L8).
+
+## [2.5.0] - 2026-10-20
+
+### Added
+
+- `docs census <process>` (ADR-0040) lists every application that reaches a process's tables,
+  from the mirror: form and workspace actions (also on the tables they extend, such as task),
+  business rules, client scripts, UI policies, notifications, SLA definitions, and tables that
+  refer to the process. `processes/<process>/features.yaml` gives each a decision (documented,
+  todo, out-of-scope or question) and records what only the screen shows (`seen`). `docs check`
+  warns about what no feature claims and fails a documented feature without real capabilities.
+  The IT guide shows a Features table on each process page and the coverage on its card.
+- Each record a page cites, and each record in a process's configuration index, links to its
+  form on the instance, from the workspace's instance profile. Screen evidence and the employee
+  guide stay unlinked.
+- Narration starts at the reader's first click on the page, unless they chose silence before.
+- An accelerator's `adopt.yaml` entry may say `when_absent: create` (ADR-0038, item 8): an
+  out-of-box record that ships only with demo data is created from the module's source where
+  the instance lacks it, instead of stopping the install. The plan says so for each record.
+
+### Fixed
+
+- `docs build --video` (or `--audio`, `--voice`) replaces only its own setting in site.yaml's
+  media, so the voice site.yaml asks for is kept.
+- The sound button says what a click does ("Turn sound off", "Listen with sound").
+- A plan refuses a value longer than its field (spec 011, I11): the platform cut such values
+  without an error (a business rule's and a data source's name), so the push reported them as
+  not applied as built. The plan reads the lengths of the text fields of the tables it would
+  load, inherited fields included, and names the field and both lengths.
+- A resumed `accelerator install` delivers the module it stopped at in that module's own
+  update set: the stopped run had added the module's files, so the resume counted it as
+  installed before and moved it into the upgrade update set.
+- A project that does not build is reported with its first five errors, not only the first:
+  the first is often a consequence of a later one.
+
+## [2.4.0] - 2026-10-19
+
+### Added
+
+- `accelerator install <pack> <instance>` (ADR-0038, spec 011): installs a pack's modules by a
+  plan the platform admin reads first. Without `--confirm` it writes the plan (components to
+  activate, each module's update set and source, out-of-box records it takes over, data, risks)
+  and changes nothing; with `--confirm <plan id>` it runs exactly that plan: components, each
+  module in dependency order through validate, plan and push into its own update set, then the
+  data, and commits the plan and a report. A run that stops resumes with the same command and
+  skips the modules it finished. Re-installing modules the branch already holds is an upgrade,
+  delivered together under one upgrade update set; a re-run may change records its own open
+  update sets hold.
+- Pack format 2: modules (`module.yaml`, with dependencies and the out-of-box records it takes
+  over in `adopt.yaml`), platform components and profiles, read from paths. `--profile`,
+  `--modules`, `--data` and `--demo` choose what is installed.
+- `take-over <table:sys_id...>` (ADR-0038 item 8): out-of-box records a project's source
+  declares whole, such as a form layout, become the branch's only while the platform's version
+  is untouched; a record the client customized is refused for review and nothing is written. An
+  install takes over a module's layouts before it plans the module.
+
+### Fixed
+
+- A built form carries the domain its composite wrapper names, and its sections compare by
+  caption, as the platform matches them on load: forms no longer show as not applied.
+- A reference written by keys (`Now.ref`) is held as its keys, so a build's random id no longer
+  shows as a difference.
+- Reading a project at a past commit goes through an archive file, not a pipe, which failed
+  intermittently.
+- The dictionary attribute the platform adds to a new table is accepted.
 
 ## [2.3.0] - 2026-10-18
 

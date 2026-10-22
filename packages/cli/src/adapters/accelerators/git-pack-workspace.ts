@@ -77,6 +77,24 @@ export class GitPackWorkspace implements PackWorkspace {
     return listed.split("\n").filter(Boolean);
   }
 
+  // The install reports committed on the working branch (accelerators/installs/<instance>/
+  // <pack>-<plan id>/report.md), read from HEAD.
+  async installReports(pack: string): Promise<readonly string[]> {
+    const installs = `accelerators/installs/${this.instance}/`;
+    const folder = `${installs}${pack}-`;
+    const listed = await runGitOrThrow(
+      ["ls-tree", "-r", "--name-only", "HEAD", "--", installs],
+      this.root,
+    );
+    const paths = listed.split("\n").filter((path) => {
+      const [planId, file, ...rest] = path.startsWith(folder)
+        ? path.slice(folder.length).split("/")
+        : [];
+      return /^[0-9a-f]+$/.test(planId ?? "") && file === "report.md" && rest.length === 0;
+    });
+    return Promise.all(paths.map((path) => runGitOrThrow(["show", `HEAD:${path}`], this.root)));
+  }
+
   parse(text: string): unknown {
     return fromYamlStrings(text);
   }

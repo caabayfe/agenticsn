@@ -1,3 +1,4 @@
+import { deliveredDetail } from "../domain/earlier-sets";
 import { InstallBlockedError, InstallLockedError, InstallPlanChangedError } from "../domain/errors";
 import { installPlanDocument, installReportDocument } from "../domain/install-document";
 import type { InstallPlan, InstallRecord, InstallStepRecord } from "../domain/install-plan";
@@ -125,10 +126,25 @@ async function deliverAs(
       `${pushed.notCaptured} not captured, ${pushed.notApplied} not applied as built: check them on the instance`,
     );
   }
-  return {
-    outcome: "done",
-    detail: `${pushed.units} unit(s) into ${pushed.updateSets.join(", ")}`,
-  };
+  return { outcome: "done", detail: deliveredDetail(pushed.units, pushed.updateSets) };
+}
+
+// The pack's earlier update sets are completed before anything is pushed, so they are promoted
+// before this install's and the newest version of a record wins (ADR-0038, section 6).
+async function completeEarlier(
+  deps: InstallRunDependencies,
+  plan: InstallPlan,
+  record: { current: InstallRecord },
+  signal: AbortSignal,
+) {
+  const name = "complete earlier update sets";
+  if (plan.earlierSets.length === 0) return;
+  if (record.current.steps.some((s) => s.step === name && s.outcome !== "stopped")) return;
+  await step(deps, record, name, async () => {
+    await deps.steps.completeUpdateSets(plan.earlierSets, signal);
+    const names = plan.earlierSets.map((s) => s.name).join(", ");
+    return { outcome: "done", detail: `${names}: promote them before this install's update sets` };
+  });
 }
 
 // The modules the working branch already holds: re-installing them is an upgrade. Any of its
@@ -245,6 +261,7 @@ async function run(
   let stopped: InstallStepRecord | null = null;
   try {
     await components(deps, plan, record, query.signal);
+    await completeEarlier(deps, plan, record, query.signal);
     await deliver(deps, plan, record, query.signal);
     await load(deps, plan, query, record, query.signal);
     await step(deps, record, "pull and integrate", async () => {

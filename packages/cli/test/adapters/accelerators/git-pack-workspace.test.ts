@@ -123,6 +123,22 @@ describe("git pack workspace (ADR-0026, ADR-0031)", () => {
     expect(read(root, APP)).toContain("'1'");
   });
 
+  it("reads the committed reports of the pack's installs on this instance only", async () => {
+    const { root, packs } = await workspace();
+    const report = (path: string, text: string) => {
+      mkdirSync(join(root, path, ".."), { recursive: true });
+      writeFileSync(join(root, path), text);
+    };
+    report("accelerators/installs/pdi/itsm-1b594e036513a172/report.md", "itsm on pdi");
+    report("accelerators/installs/pdi/itsm-1b594e036513a172/plan.md", "a plan");
+    report("accelerators/installs/pdi/itsm-extra-0bf2d5af60c6bb0e/report.md", "another pack");
+    report("accelerators/installs/pdi2/itsm-76f7e1dc53dc27d5/report.md", "another instance");
+    await git(root, "add", ".");
+    await git(root, "commit", "-q", "-m", "installs");
+    report("accelerators/installs/pdi/itsm-c005571e3a6fed3c/report.md", "not committed");
+    expect(await packs.installReports("itsm")).toEqual(["itsm on pdi"]);
+  });
+
   it("parses an adopt file as YAML", async () => {
     const { packs } = await workspace();
     expect(packs.parse("- table: incident\n  sys_id: x\n")).toEqual([

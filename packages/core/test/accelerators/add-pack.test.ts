@@ -55,6 +55,7 @@ function fakeWorkspace(
     message?: string;
   } = {};
   const workspace: PackWorkspace = {
+    installReports: async () => [],
     mirrorCommit: async () => (state.mirror === undefined ? "m1" : state.mirror),
     includes: async () => state.integrated ?? true,
     present: async () => [],

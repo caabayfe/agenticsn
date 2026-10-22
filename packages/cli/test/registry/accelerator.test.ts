@@ -154,6 +154,7 @@ describe("accelerator use cases", () => {
           : null,
     };
     const workspace = {
+      installReports: async () => [],
       mirrorCommit: async () => "m1",
       includes: async () => true,
       present: async () => [],

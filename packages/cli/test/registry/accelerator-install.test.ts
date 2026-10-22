@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { InstallPlanChangedError } from "@snagentic/core";
 import { CsvDataTemplates } from "../../src/adapters/accelerators/csv-data-templates";
 import { DirectoryPackSource } from "../../src/adapters/accelerators/directory-pack-source";
+import { fsWorkspaceFiles } from "../../src/adapters/fs/fs-workspace-files";
 import { acceleratorInstall } from "../../src/registry/accelerator-install";
 import { executeUseCase } from "../../src/registry/execute";
 import { instanceWorkspace } from "../support/instance-workspace";
@@ -11,11 +12,12 @@ const PACKS = new DirectoryPackSource([
   resolve(import.meta.dir, "../../../../tests/fixtures/accelerators"),
 ]);
 
-async function installing() {
-  const { context } = await instanceWorkspace({});
+async function installing(data: Parameters<typeof instanceWorkspace>[0] = {}) {
+  const { context, instance } = await instanceWorkspace(data);
   const written: string[] = [];
   return {
     written,
+    instance,
     context: {
       ...context,
       packs: PACKS,
@@ -27,6 +29,7 @@ async function installing() {
             : [],
       },
       packWorkspace: () => ({
+        installReports: async () => [],
         mirrorCommit: async () => "m1",
         includes: async () => true,
         present: async () => [],
@@ -101,6 +104,46 @@ describe("accelerator install (ADR-0038)", () => {
     expect((output as { problems: string[] }).problems).toContain(
       "pull pdi first: the mirror holds no tables, so the fields the modules read cannot be checked",
     );
+  });
+
+  it("completes the pack's earlier update sets on the instance before anything else", async () => {
+    const earlier = "e".repeat(32);
+    const installed = await installing({
+      sys_update_set: [
+        {
+          sys_id: earlier,
+          name: "snagentic: snagentic test pack: base 0.9.0",
+          state: "in progress",
+          parent: "",
+        },
+        {
+          sys_id: "f".repeat(32),
+          name: "snagentic: someone's fix",
+          state: "in progress",
+          parent: "",
+        },
+      ],
+    });
+    // The run commits its plan and report: they must be on disk.
+    const context = { ...installed.context, workspaceFiles: fsWorkspaceFiles };
+    const { instance } = installed;
+    const input = { pack: "minimal", instance: "pdi", profile: "core", demo: true };
+    const { output: plan } = await executeUseCase(acceleratorInstall, input, context);
+    const planId = (plan as { planId: string }).planId;
+    const { output } = await executeUseCase(
+      acceleratorInstall,
+      { ...input, confirm: planId },
+      context,
+    );
+    expect((output as { steps: { step: string }[] }).steps[0]?.step).toBe(
+      "complete earlier update sets",
+    );
+    expect(instance.writes[0]).toBe("update sys_update_set state=complete");
+    const states = (instance.tables["sys_update_set"] ?? []).map((r) => [r["name"], r["state"]]);
+    expect(states).toEqual([
+      ["snagentic: snagentic test pack: base 0.9.0", "complete"],
+      ["snagentic: someone's fix", "in progress"],
+    ]);
   });
 
   it("refuses a confirmation that is not the current plan's id", async () => {

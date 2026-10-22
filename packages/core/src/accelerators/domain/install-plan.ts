@@ -1,6 +1,7 @@
 import { canonicalJson } from "../../kernel/canonical-json";
 import { sha256Hex } from "../../kernel/sha256";
 import type { Selection } from "./capability-graph";
+import type { OpenSet } from "./earlier-sets";
 import type { Adoption } from "./materialize";
 import type { ComponentCheck, PreflightReport } from "./preflight";
 import type { FieldCheck } from "./required-fields";
@@ -55,6 +56,9 @@ export interface InstallPlan {
   readonly components: readonly PlannedComponent[];
   // The platform fields the modules read, each with its state on the instance.
   readonly fields: readonly PlannedField[];
+  // The pack's update sets from older versions still in progress, oldest first: the install
+  // completes them before its first push (ADR-0038, section 6).
+  readonly earlierSets: readonly OpenSet[];
   readonly data: {
     readonly source: "demo" | "directory";
     readonly entities: readonly PlannedEntity[];
@@ -127,6 +131,8 @@ export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
       action: c.action,
     })),
     fields: plan.fields.map((f) => `${f.module} ${f.table}.${f.field} ${f.state}`),
+    // Absent when empty, so plans without earlier sets keep the ids they had.
+    ...(plan.earlierSets.length === 0 ? {} : { earlierSets: plan.earlierSets.map((s) => s.name) }),
     data: {
       source: plan.data.source,
       entities: plan.data.entities.map((e) => ({ entity: e.entity, rows: e.rows })),

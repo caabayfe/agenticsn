@@ -1,6 +1,7 @@
 import { sha256Hex } from "../../kernel/sha256";
 import type { InventoryReader } from "../../plugins/index";
 import { dataOrder, type Selection, selectCapabilities } from "../domain/capability-graph";
+import { earlierSets, recordedSets } from "../domain/earlier-sets";
 import {
   blockingProblems,
   type InstallPlan,
@@ -12,7 +13,13 @@ import type { Manifest } from "../domain/manifest-types";
 import { materialize } from "../domain/materialize";
 import { moduleOf } from "../domain/pack-layout";
 import { fieldIssues, requiredFields } from "../domain/required-fields";
-import type { DataTemplates, PackSource, PackWorkspace, SchemaReader } from "../ports";
+import type {
+  DataTemplates,
+  OpenUpdateSets,
+  PackSource,
+  PackWorkspace,
+  SchemaReader,
+} from "../ports";
 import { checkFields } from "./check-fields";
 import { checkPack, manifestOf, selectionOf } from "./check-pack";
 import { type DataSource, validateData } from "./validate-data";
@@ -22,6 +29,7 @@ export interface InstallQuery extends Selection {
   readonly instance: { readonly root: string; readonly name: string; readonly kind: string };
   readonly source: DataSource;
   readonly snagentic: string;
+  readonly signal: AbortSignal;
 }
 
 export interface InstallPlanDependencies {
@@ -31,6 +39,8 @@ export interface InstallPlanDependencies {
   readonly templates: DataTemplates;
   // The mirror's tables, for the platform fields the modules read (plan gap G13).
   readonly schema: SchemaReader;
+  // The instance's update sets in progress, read live: the pack's earlier ones are completed.
+  readonly updateSets: OpenUpdateSets;
 }
 
 // The selected modules' platform fields against the mirror; none checked before its first pull.
@@ -52,6 +62,27 @@ async function plannedFields(
   return { fields, ...fieldIssues(fields) };
 }
 
+// The label a module's update sets carry, before the pack's version.
+const labelOf = (manifest: Manifest, id: string) =>
+  manifest.capabilities.find((c) => c.id === id)?.label ?? `${manifest.id}/${id}`;
+
+// The pack's update sets from older versions still in progress, by any module of the pack
+// (ADR-0038, section 6): known by their names or by the reports of earlier installs.
+async function plannedEarlierSets(
+  deps: InstallPlanDependencies,
+  manifest: Manifest,
+  signal: AbortSignal,
+) {
+  const reports = await deps.workspace.installReports(manifest.id);
+  const naming = {
+    pack: manifest.id,
+    version: manifest.version,
+    labels: manifest.capabilities.map((c) => labelOf(manifest, c.id)),
+    recorded: reports.flatMap(recordedSets),
+  };
+  return earlierSets(naming, await deps.updateSets.open(signal));
+}
+
 // What each selected module writes on its own, and its update set's label.
 function plannedModules(
   manifest: Manifest,
@@ -63,10 +94,9 @@ function plannedModules(
   const modules = selected.map((id) => {
     const result = materialize({ selected: [id], files, parse });
     problems.push(...result.problems);
-    const label = manifest.capabilities.find((c) => c.id === id)?.label ?? `${manifest.id}/${id}`;
     return {
       id,
-      label: `${label} ${manifest.version}`,
+      label: `${labelOf(manifest, id)} ${manifest.version}`,
       files: result.files.map((f) => f.path),
       adoptions: result.adoptions,
     };
@@ -132,6 +162,7 @@ export async function planInstall(
     modules: built.modules,
     components,
     fields: required.fields,
+    earlierSets: await plannedEarlierSets(deps, manifest, query.signal),
     data: { source: query.source.kind, entities },
     problems,
     warnings: [...report.warnings, ...required.warnings],

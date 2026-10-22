@@ -75,12 +75,13 @@ function deliverySteps(
 }
 
 // An install's steps as the use cases that already do them (ADR-0038, item 2): no logic here,
-// only each use case's input and the part of its output the install needs.
+// only each use case's input and the part of its output the install needs. Completing update
+// sets has no use case of its own: the install wires it on its connection.
 export function installSteps(
   context: UseCaseContext,
   where: { readonly root: string; readonly instance: InstanceName; readonly pack: string },
   call: CallUseCase,
-): InstallSteps {
+): Omit<InstallSteps, "completeUpdateSets"> {
   const instance = String(where.instance);
   const delivery = () => context.delivery(where.root, where.instance);
   return {

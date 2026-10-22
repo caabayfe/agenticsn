@@ -1,3 +1,4 @@
+import type { OpenSet } from "./domain/earlier-sets";
 import type { InstallRecord } from "./domain/install-plan";
 import type { MaterializedFile } from "./domain/materialize";
 import type { Template } from "./domain/templates";
@@ -25,6 +26,8 @@ export interface PackWorkspace {
   includes(commit: string): Promise<boolean>;
   // A YAML document's text, parsed.
   parse(text: string): unknown;
+  // The reports of the pack's earlier installs on this instance, as committed.
+  installReports(pack: string): Promise<readonly string[]>;
   // Which of these workspace paths the working branch holds (tracked in git).
   present(paths: readonly string[]): Promise<readonly string[]>;
   // What the pack's last add wrote and kept; both empty before its first add.
@@ -125,6 +128,9 @@ export interface InstallSteps {
     }[];
     readonly stopped: boolean;
   }>;
+  // Sets these update sets (top-level) to complete on the development instance; their scope
+  // children follow (spec 011, spike S-U).
+  completeUpdateSets(sets: readonly OpenSet[], signal: AbortSignal): Promise<void>;
   // Writes a workspace file (the plan and the report), relative to the workspace root.
   writeFile(path: string, text: string): Promise<void>;
   commit(paths: readonly string[], message: string): Promise<string>;
@@ -138,6 +144,11 @@ export interface InstallJournal {
   // False when another install holds the lock.
   lock(): Promise<boolean>;
   unlock(): Promise<void>;
+}
+
+// The instance's update sets in progress, read live (ADR-0018).
+export interface OpenUpdateSets {
+  open(signal: AbortSignal): Promise<readonly OpenSet[]>;
 }
 
 // The instance's tables as the mirror holds them, read without calling the instance (ADR-0026):

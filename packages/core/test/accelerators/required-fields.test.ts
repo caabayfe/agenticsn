@@ -130,6 +130,7 @@ const templates: DataTemplates = {
   },
 };
 const workspace: PackWorkspace = {
+  installReports: async () => [],
   mirrorCommit: async () => "m1",
   includes: async () => true,
   present: async () => [],
@@ -147,7 +148,9 @@ const QUERY = {
   instance: { root: "/w", name: "pdi2", kind: "development" },
   source: { kind: "demo" } as const,
   snagentic: "2.6.0",
+  signal: new AbortController().signal,
 };
+const updateSets = { open: async () => [] };
 const plan = (reader: SchemaReader) =>
   planInstall(
     {
@@ -155,6 +158,7 @@ const plan = (reader: SchemaReader) =>
       inventory,
       workspace,
       templates,
+      updateSets,
       schema: reader,
     },
     QUERY,
@@ -197,6 +201,7 @@ describe("checking the fields in the install plan (G13)", () => {
         inventory,
         workspace,
         templates,
+        updateSets,
         schema: {
           ready: async () => {
             asked = true;

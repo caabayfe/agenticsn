@@ -64,6 +64,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
   },
   // No packs in the fake context, so nothing reaches the pack workspace.
   packWorkspace: () => ({
+    installReports: async () => [],
     mirrorCommit: async () => null,
     includes: async () => false,
     present: async () => [],

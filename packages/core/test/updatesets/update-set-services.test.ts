@@ -193,20 +193,32 @@ describe("update set state for accelerator upgrades", () => {
     sys_update_set: [
       set(ALICE, "snagentic: itsm 0.1.0 upgrade", "in progress", "2026-10-01 10:00:00", {
         parent: "",
+        sys_created_on: "2026-10-01 09:00:00",
       }),
       set(BOB, "snagentic: itsm 0.1.0 upgrade [sn_sow_inc]", "in progress", "2026-10-01 10:00:00", {
         parent: ALICE,
+        sys_created_on: "2026-10-01 09:30:00",
       }),
       set(OLD, "Shipped", "complete", "2026-09-01 10:00:00", { parent: "" }),
     ],
   });
 
-  it("reads the update sets in progress, with their parents", async () => {
+  it("reads the update sets in progress, with their parents and when they were created", async () => {
     const fake = fakeInstance(sets());
     const pager = new KeysetPager(fake.reader);
     expect(await openUpdateSets({ pager, statistics: fake.reader, now: () => NOW }, LIVE)).toEqual([
-      { sysId: ALICE, name: "snagentic: itsm 0.1.0 upgrade", parent: "" },
-      { sysId: BOB, name: "snagentic: itsm 0.1.0 upgrade [sn_sow_inc]", parent: ALICE },
+      {
+        sysId: ALICE,
+        name: "snagentic: itsm 0.1.0 upgrade",
+        parent: "",
+        createdOn: "2026-10-01 09:00:00",
+      },
+      {
+        sysId: BOB,
+        name: "snagentic: itsm 0.1.0 upgrade [sn_sow_inc]",
+        parent: ALICE,
+        createdOn: "2026-10-01 09:30:00",
+      },
     ]);
   });
 

@@ -9,6 +9,8 @@ export interface OpenSet {
   readonly name: string;
   // The parent set's sys_id; empty for a top-level set.
   readonly parent: string;
+  // When it was created (the instance's "yyyy-mm-dd hh:mm:ss"): orders sets of one version.
+  readonly createdOn: string;
 }
 
 export interface PackNaming {
@@ -38,8 +40,8 @@ function packVersion(naming: PackNaming, name: string): string | null {
   return recorded || named ? version : null;
 }
 
-// Top-level sets only, oldest version first: completing a parent completes its children
-// (spec 011, spike S-U).
+// Top-level sets only, oldest version first, then as they were created: completing a parent
+// completes its children (spec 011, spike S-U).
 export function earlierSets(naming: PackNaming, open: readonly OpenSet[]): OpenSet[] {
   const found = open.flatMap((set) => {
     const version = set.parent === "" ? packVersion(naming, set.name) : null;
@@ -48,7 +50,8 @@ export function earlierSets(naming: PackNaming, open: readonly OpenSet[]): OpenS
   return found
     .sort((a, b) => {
       if (a.version !== b.version) return olderThan(a.version, b.version) ? -1 : 1;
-      return a.set.name < b.set.name ? -1 : a.set.name > b.set.name ? 1 : 0;
+      const [x, y] = [a.set.createdOn + a.set.name, b.set.createdOn + b.set.name];
+      return x < y ? -1 : x > y ? 1 : 0;
     })
     .map((f) => f.set);
 }

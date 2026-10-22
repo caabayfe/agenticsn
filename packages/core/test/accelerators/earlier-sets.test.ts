@@ -11,7 +11,12 @@ const naming = {
   recorded: [],
 };
 
-const open = (name: string, parent = "") => ({ sysId: `id ${name}`, name, parent });
+const open = (name: string, parent = "", createdOn = "2026-10-18 10:00:00") => ({
+  sysId: `id ${name}`,
+  name,
+  parent,
+  createdOn,
+});
 
 describe("the pack's earlier update sets (ADR-0038, section 6)", () => {
   it("finds an older version's upgrade set and module sets", () => {
@@ -40,6 +45,19 @@ describe("the pack's earlier update sets (ADR-0038, section 6)", () => {
     expect(earlierSets(naming, sets).map((s) => s.name)).toEqual([
       "snagentic: itsm 0.1.0 upgrade",
       "snagentic: itsm 0.1.1 upgrade",
+      "snagentic: itsm 0.3.0 upgrade",
+    ]);
+  });
+
+  it("orders sets of one version as they were created: a later one may change the same record", () => {
+    const sets = [
+      open("snagentic: ITSM accelerator: major incident 0.3.0", "", "2026-10-20 13:44:10"),
+      open("snagentic: itsm 0.3.0 upgrade", "", "2026-10-20 14:05:16"),
+      open("snagentic: ITSM accelerator: incident core 0.3.0", "", "2026-10-20 13:00:00"),
+    ];
+    expect(earlierSets(naming, sets).map((s) => s.name)).toEqual([
+      "snagentic: ITSM accelerator: incident core 0.3.0",
+      "snagentic: ITSM accelerator: major incident 0.3.0",
       "snagentic: itsm 0.3.0 upgrade",
     ]);
   });

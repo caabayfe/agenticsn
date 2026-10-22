@@ -140,7 +140,12 @@ function promotionOrder(plan: InstallPlan): string[] {
   if (plan.earlierSets.length === 0) return [];
   const rows = [
     ...plan.earlierSets.map((s) => [s.name, "completed by the install, before the first push"]),
-    ...plan.modules.map((m) => [`snagentic: ${m.label}`, "this install"]),
+    // Modules already installed go into the upgrade set, new ones into their own: the run
+    // decides which, from the working branch.
+    [
+      `snagentic: ${plan.pack} ${plan.version} upgrade (modules already installed), then each new module's update set`,
+      "this install",
+    ],
   ];
   return [
     "",

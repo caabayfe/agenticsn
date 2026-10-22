@@ -667,7 +667,12 @@ describe("running an install (ADR-0038, item 2)", () => {
 
 // ADR-0038, section 6 (proposed amendment, 2026-10-22).
 describe("an upgrade over the pack's earlier update sets still in progress", () => {
-  const set = (name: string, parent = "") => ({ sysId: `id ${name}`, name, parent });
+  const set = (name: string, parent = "") => ({
+    sysId: `id ${name}`,
+    name,
+    parent,
+    createdOn: "2026-10-18 10:00:00",
+  });
   const UPGRADE: PackFixture = { ...PACK, pack: { ...PACK.pack, version: "0.3.1" } };
   const OPEN = [
     set("snagentic: itsm 0.3.0 upgrade"),
@@ -703,7 +708,10 @@ describe("an upgrade over the pack's earlier update sets still in progress", () 
     expect(text).toContain(
       "| 1 | snagentic: itsm 0.1.0 upgrade | completed by the install, before the first push |",
     );
-    expect(text).toContain("| 3 | snagentic: ITSM: foundation 0.3.1 | this install |");
+    expect(text).toContain(
+      "| 3 | snagentic: itsm 0.3.1 upgrade (modules already installed), then each new module's update set | this install |",
+    );
+    expect(text).not.toContain("| 4 |");
     expect(text).toContain("or complete an update set the plan does not list");
   });
 

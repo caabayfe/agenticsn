@@ -18,19 +18,21 @@ export interface OpenUpdateSetRow {
   readonly name: string;
   // The parent set's sys_id; empty for a top-level set.
   readonly parent: string;
+  readonly createdOn: string;
 }
 
-// The update sets in progress, read live (ADR-0018), with their parents.
+// The update sets in progress, read live (ADR-0018), with their parents and creation times.
 export async function openUpdateSets(
   deps: UpdateSetDependencies,
   signal: AbortSignal,
 ): Promise<OpenUpdateSetRow[]> {
-  const fields = ["sys_id", "name", "parent"];
+  const fields = ["sys_id", "name", "parent", "sys_created_on"];
   const rows = await listRows(deps, SYS_UPDATE_SET, `state=${OPEN}`, fields, signal);
   return rows.map((row: Row) => ({
     sysId: row["sys_id"] ?? "",
     name: row["name"] ?? "",
     parent: row["parent"] ?? "",
+    createdOn: row["sys_created_on"] ?? "",
   }));
 }
 

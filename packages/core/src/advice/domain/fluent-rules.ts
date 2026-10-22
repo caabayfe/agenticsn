@@ -39,6 +39,28 @@ export const FLUENT_RULES: readonly Rule[] = [
     classes: FLOWS,
   },
   {
+    id: "SN-MNT-018",
+    category: "manageability",
+    severity: "block",
+    title: "A record-triggered flow needs a condition",
+    why: 'The platform registers a record trigger whose condition is empty, but never runs its flow: no error, no context. Flow Designer writes "no condition" as ^EQ.',
+    remediation:
+      "Give the trigger a condition; to run the flow for every record, write condition: '^EQ'.",
+    scripts: [],
+    classes: ["sys_hub_flow"],
+  },
+  {
+    id: "SN-MNT-019",
+    category: "manageability",
+    severity: "block",
+    title: "Built values must not be '[object Object]'",
+    why: "When source passes an object where a record holds text (a Role inside Record() data, for instance), the SDK writes '[object Object]'. The build and the instance then agree, so no plan shows it, and the record means something else: a module that requires a role nobody holds.",
+    remediation:
+      "Write the value the field holds: a role's name such as 'x_app.agent', a record's sys_id, or the typed API that takes the object.",
+    scripts: [],
+    classes: [],
+  },
+  {
     id: "SN-UPG-003",
     category: "upgradability",
     severity: "warn",

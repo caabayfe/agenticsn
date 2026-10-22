@@ -1,6 +1,6 @@
 # 0042. Modules add to shipped layouts through ensure rules, found by table and view
 
-- Status: Proposed (2026-10-22)
+- Status: Accepted (product owner, 2026-10-22). Not built yet: spec 011 I10
 - Date: 2026-10-22
 - Requirements: G1, ASR-01, ASR-15
 - Amends: 0038 (item 8, taking over an out-of-box layout)

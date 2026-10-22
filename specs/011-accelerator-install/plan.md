@@ -348,9 +348,9 @@ signed-in browser session and is not yet exercised.
 replaced the incident Default view's related-list container (`5b6aff5b…`) with the plugin's
 (`454c3bdf…`), with no audit row or update set entry; the lists incident-relations had added were
 gone, and the next install stopped on the missing adopted record. Pack 0.5.0 pins the plugin's
-container as an interim. I10 is proposed as ADR-0042.
+container as an interim. I10 is ADR-0042, accepted 2026-10-22.
 
-**I10 ensure rules (proposed as ADR-0042, which adds: facts resolved after the components step,
+**I10 ensure rules (ADR-0042, accepted 2026-10-22, which adds: facts resolved after the components step,
 delivered as generated Fluent through the SDK, and checked again after the install):**
 - **What a module declares:** `modules/<m>/ensure.yaml`, a list of declarative facts about
   configuration it does not own. For example:

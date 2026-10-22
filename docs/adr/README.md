@@ -43,11 +43,11 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0035](0035-pulls-scan-what-they-write-for-secrets.md) | Pulls scan what they write for secrets | Proposed |
 | [0036](0036-verified-documentation-site.md) | Verified documentation: pages anchored to the mirror, published as a static site | Accepted |
 | [0037](0037-an-employee-guide-and-an-it-guide-from-one-source.md) | An employee guide and an IT guide, published from one source | Accepted |
-| [0038](0038-accelerator-install-and-platform-components.md) | Accelerators install by plan; platform components install automatically on every instance | Accepted |
+| [0038](0038-accelerator-install-and-platform-components.md) | Accelerators install by plan; platform components install automatically on every instance | Accepted (amended by 0042) |
 | [0039](0039-a-change-shows-what-it-does-to-the-documentation.md) | A change shows what it does to the documentation, sentence by sentence | Accepted |
 | [0040](0040-every-feature-of-a-process-has-a-decision.md) | Every feature of a process is found and has a decision | Accepted |
 | [0041](0041-open-questions-are-records-with-an-answer.md) | Open questions are records, each with someone to ask and an answer | Accepted |
-| [0042](0042-modules-add-to-shipped-layouts-by-business-key.md) | Modules add to shipped layouts through ensure rules, found by table and view | Proposed |
+| [0042](0042-modules-add-to-shipped-layouts-by-business-key.md) | Modules add to shipped layouts through ensure rules, found by table and view | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

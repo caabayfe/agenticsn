@@ -371,6 +371,27 @@ delivered as generated Fluent through the SDK, and checked again after the insta
   - form section fields;
   - active flags.
 
+**I10, first kind built (2026-10-22 overnight, branch `feat/ensure-rules`): related lists.**
+- `ensure.yaml` entries `{ kind: related_list, table, view, list, note }` (view by name, the default
+  view "Default view"); the plan lists them by table and view under "Layouts the modules add to".
+- When a module is delivered, after any activation, each fact is read **live** rather than from the
+  mirror (the container may have just been replaced by a plugin, as KCS for Incident does; the
+  install pulls only after activations): the view's container in the global domain and its entries,
+  through the keyset pager.
+- The lists to add become `source/global/src/fluent/ensure-<module>.now.ts`, generated and
+  committed: one entry per list, with a sys_id derived from the pack and the fact, positioned after
+  the last list. Each container they go in is restated by its keys in its own generated file,
+  `ensure-list-<sys_id>.now.ts`, the same text for every module: several modules add to one layout
+  (pdi2, 2026-10-23: relations, knowledge and outage on the incident form), and a record declared
+  in two files does not build; the module's own entry keeps its place, a
+  list already there (someone else's entry) is left, a view with no layout is skipped.
+- Each container added to is taken over like an adopted record, so one the client customized
+  stops for review (the "conflicting" case, for now).
+- An entry may keep the sys_id the module gave it before (`id`): a list a module added from its
+  source moves to `ensure.yaml` without being deleted and created again.
+- Not yet: the after-install check, form fields and active flags; dropping a fact from
+  `ensure.yaml` leaves the generated entry, which then needs a `Now.del` as any removed definition.
+
 ## 12. Third slice: SDK practice and validation in both interfaces (2026-10-18/19)
 
 The incident task was validated in Service Operations Workspace and in the classic UI, with

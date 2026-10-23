@@ -6,11 +6,13 @@
 //   modules/<module>/README.md                the module sheet (not installed)
 //   modules/<module>/source/<scope>/...       Fluent projects, copied to source/<scope>/...
 //   modules/<module>/adopt.yaml               out-of-box records the module customizes
+//   modules/<module>/ensure.yaml              facts about layouts it adds to (ADR-0042)
 //   modules/<module>/data/demo/<entity>.csv   fictional demo data
 
 export const PACK_MANIFEST = "accelerator.yaml";
 const MODULE_FILE = /^modules\/([^/]+)\/module\.yaml$/;
 const ADOPT_FILE = /^modules\/([^/]+)\/adopt\.yaml$/;
+const ENSURE_FILE = /^modules\/([^/]+)\/ensure\.yaml$/;
 const DEMO_DIRECTORY = "data/demo";
 
 // Format 1 kept capabilities in accelerator.yaml and content under source/, adopt/ and data/.
@@ -25,6 +27,8 @@ export function moduleOf(path: string): string | null {
 }
 
 export const isAdoptFile = (path: string): boolean => ADOPT_FILE.test(path);
+
+export const isEnsureFile = (path: string): boolean => ENSURE_FILE.test(path);
 
 // The workspace path a module's source file is copied to, or null outside a project folder.
 export function workspacePathOf(path: string): string | null {

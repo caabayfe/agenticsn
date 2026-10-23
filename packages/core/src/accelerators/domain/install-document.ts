@@ -131,6 +131,23 @@ function modules(plan: InstallPlan): string[] {
         a.whenAbsent === "create" ? `${a.note} (created where the instance lacks it)` : a.note,
       ]),
     ),
+    ...layouts(plan),
+  ];
+}
+
+// Facts about layouts the modules add to (ADR-0042): found by table and view when each module is
+// delivered, after any plugin activation; a list already there is left as it is.
+function layouts(plan: InstallPlan): string[] {
+  const facts = plan.modules.flatMap((m) => m.ensures.map((f) => ({ ...f, module: m.id })));
+  if (facts.length === 0) return [];
+  return [
+    "",
+    "**Layouts the modules add to**, found by table and view when each module is delivered; a list already there is left as it is, and a layout the client customized stops for review:",
+    "",
+    ...table(
+      ["Module", "Table and view", "Adds", "Why"],
+      facts.map((f) => [f.module, `${f.table}, ${f.view}`, `related list ${f.list}`, f.note]),
+    ),
   ];
 }
 

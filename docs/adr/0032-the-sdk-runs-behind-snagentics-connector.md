@@ -1,6 +1,6 @@
 # 0032. The SDK runs in-process, behind snagentic's connector
 
-- Status: Accepted (product owner, 2026-10-16), after spike S17 G1 passed on pdi2
+- Status: Accepted (product owner, 2026-10-16; amended by 0044), after spike S17 G1 passed on pdi2
   (`tools/spikes/s17-sdk-connector/README.md`)
 - Date: 2026-10-16
 - Requirements: ASR-02, ASR-08, ASR-15, ASR-16

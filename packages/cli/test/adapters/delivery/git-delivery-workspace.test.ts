@@ -46,6 +46,17 @@ describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
     ]);
   });
 
+  it("commits the files, and changes nothing when they are as committed (an install resumed)", async () => {
+    const { root, write, workspace } = await repository();
+    await write("source/global/src/fluent/ensure-m.now.ts", "x\n");
+    const first = await workspace.commitFiles(["source/global/src/fluent/ensure-m.now.ts"], "add");
+    expect((await git(root, "rev-parse", "HEAD")).trim()).toBe(first);
+    await write("source/global/src/fluent/ensure-m.now.ts", "x\n");
+    expect(await workspace.commitFiles(["source/global/src/fluent/ensure-m.now.ts"], "again")).toBe(
+      first,
+    );
+  });
+
   it("publishes the branch to origin and sets it as upstream", async () => {
     const { root, workspace } = await repository();
     const remote = await mkdtemp(join(tmpdir(), "snagentic-remote-"));

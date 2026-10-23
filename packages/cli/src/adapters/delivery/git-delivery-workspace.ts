@@ -66,6 +66,10 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
 
   async commitFiles(paths: readonly string[], message: string): Promise<string> {
     await runGitOrThrow(["add", "--", ...paths], this.root);
+    // Files already as committed (a resumed install writes the same ones again): nothing to commit.
+    const staged = await runGit(["diff", "--cached", "--quiet", "--", ...paths], this.root);
+    if (staged.exitCode === 0)
+      return (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
     // A machine (or CI runner) with no git identity still records the ledger, as integrate does.
     const configured = (await runGit(["config", "user.email"], this.root)).stdout.trim() !== "";
     const identity = configured

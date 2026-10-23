@@ -1,6 +1,7 @@
 import { canonicalJson } from "../../kernel/canonical-json";
 import { sha256Hex } from "../../kernel/sha256";
 import type { Selection } from "./capability-graph";
+import type { DataDomain } from "./data-domain";
 import type { OpenSet } from "./earlier-sets";
 import type { EnsureFact } from "./ensure";
 import type { Adoption } from "./materialize";
@@ -65,6 +66,10 @@ export interface InstallPlan {
   readonly data: {
     readonly source: "demo" | "directory";
     readonly entities: readonly PlannedEntity[];
+    // The domain every row goes into, where the instance separates data by domain (spec 011, 15).
+    readonly domain: DataDomain;
+    // The columns only domain separation uses (entity.column): mandatory or left out.
+    readonly domainColumns: readonly string[];
   };
   // Files an earlier version wrote that this one no longer ships, still in the workspace: named,
   // never deleted; a problem until the user removes them (ADR-0026, M8).
@@ -142,6 +147,8 @@ export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
     data: {
       source: plan.data.source,
       entities: plan.data.entities.map((e) => ({ entity: e.entity, rows: e.rows })),
+      // Absent without domain separation, so those plans keep the ids they had.
+      ...(plan.data.domain.separated ? { domain: plan.data.domain.sysId } : {}),
     },
     basis: { mirrorCommit: plan.basis.mirrorCommit, content: plan.basis.content },
   });

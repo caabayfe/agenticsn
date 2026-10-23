@@ -1,4 +1,5 @@
 import { dataOrder } from "../domain/capability-graph";
+import { type DataDomain, domainRow } from "../domain/data-domain";
 import { LoadConfirmationRequiredError, TemplatesInvalidError } from "../domain/errors";
 import type { DataEntity } from "../domain/manifest-types";
 import { stagingRow, type Template } from "../domain/templates";
@@ -31,6 +32,7 @@ async function loadEntity(
   importer: ImportSetWriter,
   entity: DataEntity,
   template: Template,
+  domain: DataDomain,
   signal: AbortSignal,
 ): Promise<EntityLoad> {
   const counts = { ...EMPTY };
@@ -38,7 +40,8 @@ async function loadEntity(
   const index = (column: string) => template.columns.indexOf(column);
   for (const row of template.rows) {
     signal.throwIfAborted();
-    const values = stagingRow(entity.table, template.columns, row);
+    const sent = domainRow(entity, domain, template.columns, row);
+    const values = stagingRow(entity.table, sent.columns, sent.row);
     const { status } = await importer.post(entity.table, values, signal);
     counts[status] += 1;
     if (status === "error" || status === "skipped") {
@@ -57,7 +60,11 @@ export async function loadData(
     readonly templates: DataTemplates;
     readonly importer: ImportSetWriter;
   },
-  query: DataQuery & { readonly confirm: boolean; readonly signal: AbortSignal },
+  query: DataQuery & {
+    readonly domain: DataDomain;
+    readonly confirm: boolean;
+    readonly signal: AbortSignal;
+  },
 ): Promise<LoadResult> {
   if (!query.confirm) throw new LoadConfirmationRequiredError();
   const report = await validateData(deps, query);
@@ -70,7 +77,7 @@ export async function loadData(
   for (const entity of entities) {
     const template = templates.get(entity.entity);
     if (template === undefined) continue;
-    const load = await loadEntity(deps.importer, entity, template, query.signal);
+    const load = await loadEntity(deps.importer, entity, template, query.domain, query.signal);
     loads.push(load);
     if (load.failed.length > 0) return { entities: loads, stopped: true };
   }

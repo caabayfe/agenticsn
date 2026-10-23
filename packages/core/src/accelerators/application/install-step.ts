@@ -1,3 +1,4 @@
+import { InstallStepStoppedError } from "../domain/errors";
 import type { InstallRecord } from "../domain/install-plan";
 import type { InstallJournal, InstallSteps } from "../ports";
 import type { InstallPlanDependencies } from "./plan-install";
@@ -7,9 +8,6 @@ export interface InstallRunDependencies extends InstallPlanDependencies {
   readonly journal: InstallJournal;
   readonly now: () => Date;
 }
-
-// Thrown by a step to stop the run where it is, with the reason the report gives.
-export class Stop extends Error {}
 
 // Runs one step, timed, recorded in the journal as it finishes.
 export async function step(
@@ -35,7 +33,8 @@ export async function step(
         { step: name, outcome: "stopped", detail, seconds: seconds() },
       ],
     };
-    throw new Stop(detail);
+    // Stops the run where it is, with the reason the report gives.
+    throw new InstallStepStoppedError(name, detail);
   } finally {
     await deps.journal.write(record.current);
   }

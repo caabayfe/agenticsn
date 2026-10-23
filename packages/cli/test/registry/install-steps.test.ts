@@ -131,8 +131,8 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
 
   it("loads the demo data or a customer directory, and writes and commits workspace files", async () => {
     const { steps, calls, commits, written } = fakes();
-    await steps.load(["foundation"], { kind: "demo" }, signal);
-    await steps.load(["foundation"], { kind: "directory", directory: "/data" }, signal);
+    await steps.load(["foundation"], { kind: "demo" }, null, signal);
+    await steps.load(["foundation"], { kind: "directory", directory: "/data" }, "ACME", signal);
     await steps.writeFile("accelerators/installs/pdi/x/plan.md", "# plan");
     await steps.commit(["accelerators/installs/pdi/x/plan.md"], "install");
     expect(calls).toEqual([
@@ -142,7 +142,14 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
       ],
       [
         "load",
-        { pack: "itsm", instance: "pdi", modules: ["foundation"], confirm: true, data: "/data" },
+        {
+          pack: "itsm",
+          instance: "pdi",
+          modules: ["foundation"],
+          confirm: true,
+          data: "/data",
+          domain: "ACME",
+        },
       ],
     ]);
     expect(written).toEqual([["/w/accelerators/installs/pdi/x/plan.md", "# plan"]]);

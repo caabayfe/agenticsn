@@ -111,3 +111,29 @@ export class InstallLockedError extends SnagenticError {
     );
   }
 }
+
+// A step of a running install stopped: the run records it and writes the report (ADR-0038).
+// Caught by the run, never shown on its own.
+export class InstallStepStoppedError extends SnagenticError {
+  constructor(step: string, detail: string) {
+    super(
+      "install-step-stopped",
+      "precondition",
+      `${step}: ${detail}`,
+      "fix what the step reports, then run the same command to resume",
+    );
+  }
+}
+
+// The data cannot go into a domain: the instance separates data by domain and --domain names
+// none of its domains, or it does not and --domain was given (spec 011, section 15).
+export class DataDomainError extends SnagenticError {
+  constructor(problem: string) {
+    super(
+      "data-domain",
+      "precondition",
+      problem,
+      "name one of the instance's domains with --domain, or leave it out where the instance has none; pull first if the mirror lists no domains file",
+    );
+  }
+}

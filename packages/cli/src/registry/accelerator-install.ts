@@ -92,6 +92,7 @@ export const acceleratorInstall = defineUseCase({
         source: dataSourceOf(input, context.host.cwd),
         snagentic: VERSION,
         signal: run.signal,
+        ...(input.domain === undefined ? {} : { domain: input.domain }),
         ...(input.confirm === undefined ? {} : { confirm: input.confirm }),
       },
     );

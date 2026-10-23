@@ -1,12 +1,17 @@
 import { deliveredDetail } from "../domain/earlier-sets";
 import type { EnsureFact } from "../domain/ensure";
-import { InstallBlockedError, InstallLockedError, InstallPlanChangedError } from "../domain/errors";
+import {
+  InstallBlockedError,
+  InstallLockedError,
+  InstallPlanChangedError,
+  InstallStepStoppedError,
+} from "../domain/errors";
 import { installPlanDocument, installReportDocument } from "../domain/install-document";
 import type { InstallPlan, InstallRecord, InstallStepRecord } from "../domain/install-plan";
 import type { Adoption } from "../domain/materialize";
 import { ensureLayouts } from "./ensure-layouts";
 import { components } from "./install-components";
-import { type InstallRunDependencies, Stop, step } from "./install-step";
+import { type InstallRunDependencies, step } from "./install-step";
 import { type InstallQuery, planInstall } from "./plan-install";
 
 const folderOf = (pack: string, instance: string, planId: string) =>
@@ -159,9 +164,11 @@ async function load(
 ) {
   if (plan.data.entities.length === 0) return;
   await step(deps, record, "data", async () => {
+    const domain = plan.data.domain.separated ? plan.data.domain.name : null;
     const result = await deps.steps.load(
       plan.modules.map((m) => m.id),
       query.source,
+      domain,
       signal,
     );
     const count = (k: "inserted" | "updated" | "ignored") =>
@@ -225,7 +232,7 @@ async function run(
       return { outcome: "done", detail: "the mirror shows the installed modules" };
     });
   } catch (error) {
-    if (!(error instanceof Stop)) throw error;
+    if (!(error instanceof InstallStepStoppedError)) throw error;
     stopped = record.current.steps.at(-1) ?? null;
   }
   const { folder, planPath } = where;

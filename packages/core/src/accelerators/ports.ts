@@ -120,6 +120,8 @@ export interface InstallSteps {
   load(
     modules: readonly string[],
     source: { readonly kind: "demo" } | { readonly kind: "directory"; readonly directory: string },
+    // The domain the rows go into, by name; null where the instance has no domains.
+    domain: string | null,
     signal: AbortSignal,
   ): Promise<{
     readonly entities: readonly {

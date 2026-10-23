@@ -73,6 +73,7 @@ function importer(
 const QUERY = {
   pack: "minimal",
   source: { kind: "directory" as const, directory: "/d" },
+  domain: { separated: false } as const,
   confirm: true,
   signal: new AbortController().signal,
 };

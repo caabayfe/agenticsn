@@ -4,6 +4,31 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- An accelerator install takes a fresh instance to a working build on its own (spec 011,
+  section 15). A field that ships with a plugin the plan activates no longer refuses the plan:
+  the plan lists it as checked after activation, and the run checks it again once it has
+  activated the plugins and pulled, before anything is pushed. A data entity can name the source
+  of its target table (`from`), for every column.
+- `--domain <name>` on `accelerator install`, `load` and `validate-data`. On an instance that
+  separates data by domain the install and the load need it, and every row goes into that domain;
+  on any other they refuse it. A column marked `domain: true` (only domain separation uses it,
+  such as a group's company) is mandatory on a domain-separated instance and left out elsewhere,
+  with its field checked only where it is loaded.
+- `accelerator check` says that the install activates an inactive plugin, instead of giving the
+  commands to do it by hand, names the modules a blocked module waits on, and exits 0 when the
+  install can install every module itself.
+
+### Fixed
+
+- A first pull no longer stops at "Invalid table domain" on an instance without domain
+  separation: its domains are read only where the `domain` table exists, and written as none
+  otherwise.
+- `integrate` no longer runs for about an hour without output after a first pull. It reads the
+  changed records for the drift report only when units are adopted, all of them through one git
+  process (435,638 records in 9 s on a fresh PDI), and reports its progress.
+
 ## [2.9.0] - 2026-10-23
 
 ### Security

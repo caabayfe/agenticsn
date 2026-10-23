@@ -156,6 +156,8 @@ describe("planning an install (ADR-0038, items 2 and 3)", () => {
       entities: [
         { entity: "group", module: "foundation", target: "sys_user_group", rows: 1, anchors: true },
       ],
+      domain: { separated: false },
+      domainColumns: [],
     });
     expect(plan.problems).toEqual([]);
   });

@@ -27,6 +27,12 @@ export {
 export { type DataQuery, type DataSource, validateData } from "./application/validate-data";
 export { dataOrder, type Selection, selectCapabilities } from "./domain/capability-graph";
 export {
+  type DataDomain,
+  domainEntity,
+  domainRow,
+  resolveDataDomain,
+} from "./domain/data-domain";
+export {
   deliveredDetail,
   earlierSets,
   type OpenSet,
@@ -45,6 +51,7 @@ export {
   type ListState,
 } from "./domain/ensure";
 export {
+  DataDomainError,
   DataSourceRequiredError,
   InstallBlockedError,
   InstallLockedError,

@@ -19,6 +19,9 @@ export interface DataColumn {
   readonly references: string | null;
   // The target table's field the column fills, or null when the manifest does not name it.
   readonly field: string | null;
+  // Only domain separation uses it (a group's company): mandatory in every row on an instance
+  // that separates data by domain, dropped elsewhere (spec 011, section 15).
+  readonly domain: boolean;
 }
 
 // A platform field a module reads, which the instance must have (plan gap G13): checked against

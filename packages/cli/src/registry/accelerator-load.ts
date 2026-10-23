@@ -1,4 +1,4 @@
-import { InstanceError, loadData } from "@snagentic/core";
+import { DataDomainError, InstanceError, loadData, resolveDataDomain } from "@snagentic/core";
 import { z } from "zod";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
 import { connect } from "./connect";
@@ -41,15 +41,21 @@ export const acceleratorLoad = defineUseCase({
   mcp: false,
   arguments: ["pack", "instance"],
   async handle(input, context, run) {
-    const { name, reader } = await connect(context, input.instance, run.signal);
+    const { root, name, reader } = await connect(context, input.instance, run.signal);
     if (reader.imports === undefined) {
       throw new InstanceError("this connection cannot load data through import sets");
     }
+    // Every row goes into one domain where the instance separates data by domain (spec 011, 15).
+    const domains = await context.inventory.read(root, String(name), "domains");
+    const { domain, problems } = resolveDataDomain(domains, input.domain, String(name));
+    const [problem] = problems;
+    if (problem !== undefined) throw new DataDomainError(problem);
     const result = await loadData(
       { packs: context.packs, templates: context.dataTemplates, importer: reader.imports },
       {
         pack: input.pack,
         source: dataSourceOf(input, context.host.cwd),
+        domain,
         confirm: input.confirm,
         signal: run.signal,
         ...selectionOf(input),

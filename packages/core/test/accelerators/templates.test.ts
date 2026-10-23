@@ -21,15 +21,15 @@ const entity = (
 const GROUP = entity(
   "group",
   ["name"],
-  [{ name: "name", required: true, references: null, field: null }],
+  [{ name: "name", required: true, references: null, field: null, domain: false }],
 );
 const OFFERING = entity(
   "offering",
   ["name"],
   [
-    { name: "name", required: true, references: null, field: null },
-    { name: "support_group", required: true, references: "group", field: null },
-    { name: "notes", required: false, references: null, field: null },
+    { name: "name", required: true, references: null, field: null, domain: false },
+    { name: "support_group", required: true, references: "group", field: null, domain: false },
+    { name: "notes", required: false, references: null, field: null, domain: false },
   ],
   ["group"],
 );

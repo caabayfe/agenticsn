@@ -51,6 +51,7 @@ function columnsOf(value: unknown): DataColumn[] {
       required: r?.["required"] === true,
       references: references === "" ? null : references,
       field: field === "" ? null : field,
+      domain: r?.["domain"] === true,
     };
   });
 }

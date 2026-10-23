@@ -50,5 +50,9 @@ describe("the mirror's schema for the field check", () => {
     expect(await schema.ready()).toBe(false);
     await schema.fieldsOf("incident");
     expect(opened).toBe(1);
+    // After a pull: the next question opens the index again, so it sees the new fields.
+    schema.refresh();
+    await schema.fieldsOf("incident");
+    expect(opened).toBe(2);
   });
 });

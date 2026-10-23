@@ -1,6 +1,6 @@
 import { sha256Hex } from "../../kernel/sha256";
-import type { InventoryReader } from "../../plugins/index";
-import { dataOrder, type Selection, selectCapabilities } from "../domain/capability-graph";
+import { selectCapabilities } from "../domain/capability-graph";
+import type { DataDomain } from "../domain/data-domain";
 import { earlierSets, recordedSets } from "../domain/earlier-sets";
 import {
   blockingProblems,
@@ -12,37 +12,15 @@ import {
 import type { Manifest } from "../domain/manifest-types";
 import { materialize } from "../domain/materialize";
 import { moduleOf } from "../domain/pack-layout";
+import type { PreflightReport } from "../domain/preflight";
 import { afterActivation, fieldIssues, requiredFields } from "../domain/required-fields";
 import { leftoverProblem, noLongerShipped } from "../domain/upgrade";
-import type {
-  DataTemplates,
-  OpenUpdateSets,
-  PackSource,
-  PackWorkspace,
-  SchemaReader,
-} from "../ports";
 import { checkFields } from "./check-fields";
 import { checkPack, manifestOf, selectionOf } from "./check-pack";
-import { type DataSource, validateData } from "./validate-data";
+import type { InstallPlanDependencies, InstallQuery } from "./install-query";
+import { domainModules, plannedData } from "./plan-data";
 
-export interface InstallQuery extends Selection {
-  readonly pack: string;
-  readonly instance: { readonly root: string; readonly name: string; readonly kind: string };
-  readonly source: DataSource;
-  readonly snagentic: string;
-  readonly signal: AbortSignal;
-}
-
-export interface InstallPlanDependencies {
-  readonly packs: PackSource;
-  readonly inventory: InventoryReader;
-  readonly workspace: PackWorkspace;
-  readonly templates: DataTemplates;
-  // The mirror's tables, for the platform fields the modules read (plan gap G13).
-  readonly schema: SchemaReader;
-  // The instance's update sets in progress, read live: the pack's earlier ones are completed.
-  readonly updateSets: OpenUpdateSets;
-}
+export type { InstallPlanDependencies, InstallQuery } from "./install-query";
 
 // The selected modules' platform fields against the mirror; none checked before its first pull.
 async function plannedFields(
@@ -50,9 +28,13 @@ async function plannedFields(
   manifest: Manifest,
   selected: readonly string[],
   instance: string,
-  activated: ReadonlySet<string>,
+  facts: { readonly activated: ReadonlySet<string>; readonly domain: DataDomain },
 ) {
-  const modules = manifest.capabilities.filter((c) => selected.includes(c.id));
+  const { activated, domain } = facts;
+  const modules = domainModules(
+    manifest.capabilities.filter((c) => selected.includes(c.id)),
+    domain,
+  );
   if (!modules.some((m) => requiredFields(m).length > 0)) {
     return { fields: [], problems: [], warnings: [] };
   }
@@ -134,6 +116,24 @@ const contentOf = (files: ReadonlyMap<string, string>, selected: readonly string
       .join("\n"),
   );
 
+// The components the plan installs, and the platform fields its modules read, checked knowing
+// which components it activates and the domain its data goes into.
+async function plannedPlatform(
+  deps: InstallPlanDependencies,
+  query: InstallQuery,
+  manifest: Manifest,
+  selected: readonly string[],
+  facts: { readonly report: PreflightReport; readonly domain: DataDomain },
+) {
+  const components = plannedComponents(facts.report);
+  const activated = new Set(components.filter((c) => c.action === "activate").map((c) => c.id));
+  const required = await plannedFields(deps, manifest, selected, query.instance.name, {
+    activated,
+    domain: facts.domain,
+  });
+  return { components, required };
+}
+
 // The install plan (ADR-0038, item 2.1): reads the pack and the mirror, writes nothing.
 export async function planInstall(
   deps: InstallPlanDependencies,
@@ -151,18 +151,11 @@ export async function planInstall(
   const { capabilities: selected } = selectCapabilities(manifest, selection);
   const built = plannedModules(manifest, selected, files, (t) => deps.packs.parse(t));
   const report = check.report ?? { problems: [], warnings: [], capabilities: [] };
-  const components = plannedComponents(report);
-  const data = await validateData(deps, { ...selection, pack: query.pack, source: query.source });
-  const entities = dataOrder(manifest, selected).map((e) => ({
-    entity: e.entity,
-    module: e.module,
-    target: e.target,
-    rows: data.entities.find((d) => d.entity === e.entity)?.rows ?? 0,
-    anchors: e.anchors,
-  }));
-  const activated = new Set(components.filter((c) => c.action === "activate").map((c) => c.id));
-  const required = await plannedFields(deps, manifest, selected, query.instance.name, activated);
-  const mirrorCommit = (await deps.workspace.mirrorCommit()) ?? "";
+  const planned = await plannedData(deps, query, manifest, selected);
+  const { components, required } = await plannedPlatform(deps, query, manifest, selected, {
+    report,
+    domain: planned.data.domain,
+  });
   const leftovers = await plannedLeftovers(deps, manifest, files);
   const leftover = leftoverProblem(leftovers);
   const problems = [
@@ -173,7 +166,7 @@ export async function planInstall(
     ...blockingProblems(components, report),
     ...required.problems,
     ...built.problems,
-    ...data.entities.flatMap((e) => e.problems.map((p) => `data ${e.entity}: ${p}`)),
+    ...planned.problems,
     ...(leftover === null ? [] : [leftover]),
   ];
   const plan = {
@@ -185,11 +178,14 @@ export async function planInstall(
     components,
     fields: required.fields,
     earlierSets: await plannedEarlierSets(deps, manifest, query.signal),
-    data: { source: query.source.kind, entities },
+    data: planned.data,
     leftovers,
     problems,
     warnings: [...report.warnings, ...required.warnings],
-    basis: { mirrorCommit, content: contentOf(files, selected) },
+    basis: {
+      mirrorCommit: (await deps.workspace.mirrorCommit()) ?? "",
+      content: contentOf(files, selected),
+    },
   };
   return { ...plan, planId: installPlanId(plan) };
 }

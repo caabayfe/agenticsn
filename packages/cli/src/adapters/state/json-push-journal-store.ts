@@ -1,6 +1,37 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { PushJournal, PushJournalStore } from "@snagentic/core";
+import { z } from "zod";
+import { parseStateFile } from "./state-file";
+
+const Preference = z.object({
+  sysId: z.string(),
+  user: z.string(),
+  name: z.string(),
+  previousValue: z.string(),
+});
+
+// Journals written before 1.5 hold one preference, without its user.
+const PushJournalFile: z.ZodType<PushJournal> = z
+  .object({
+    planId: z.string(),
+    mirrorCommit: z.string(),
+    startedAt: z.string(),
+    preferences: z.array(Preference).exactOptional(),
+    preference: Preference.omit({ user: true }).nullable().exactOptional(),
+    steps: z.array(
+      z.object({
+        operation: z.string(),
+        table: z.string(),
+        sysId: z.string(),
+        state: z.enum(["sending", "written"]),
+      }),
+    ),
+  })
+  .transform(({ preference, preferences, ...journal }) => ({
+    ...journal,
+    preferences: preferences ?? (preference ? [{ user: "", ...preference }] : []),
+  }));
 
 // .snagentic/<name>/push-journal.json, replaced atomically (a temporary file and a rename),
 // so an interrupted write never leaves half a journal.
@@ -11,17 +42,17 @@ export class JsonPushJournalStore implements PushJournalStore {
     this.path = join(directory, "push-journal.json");
   }
 
-  // Journals written before 1.5 hold one preference, without its user.
   async read(): Promise<PushJournal | null> {
     const text = await readFile(this.path, "utf8").catch(() => null);
-    if (text === null) {
-      return null;
-    }
-    const { preference, preferences, ...journal } = JSON.parse(text);
-    return {
-      ...journal,
-      preferences: preferences ?? (preference ? [{ user: "", ...preference }] : []),
-    };
+    // The journal is what recovers an interrupted push, so removing it is a person's decision.
+    return text === null
+      ? null
+      : parseStateFile(
+          this.path,
+          text,
+          PushJournalFile,
+          `an interrupted push left it: check the update set and your current application on the instance, then delete ${this.path}`,
+        );
   }
 
   async write(journal: PushJournal): Promise<void> {

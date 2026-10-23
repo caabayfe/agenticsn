@@ -1,6 +1,21 @@
 import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { InstallJournal, InstallRecord } from "@snagentic/core";
+import { z } from "zod";
+import { parseStateFile } from "./state-file";
+
+const InstallFile: z.ZodType<InstallRecord> = z.object({
+  planId: z.string(),
+  startedAt: z.string(),
+  steps: z.array(
+    z.object({
+      step: z.string(),
+      outcome: z.enum(["done", "skipped", "stopped"]),
+      detail: z.string(),
+      seconds: z.number(),
+    }),
+  ),
+});
 
 // .snagentic/<name>/install.json, replaced atomically like the push journal, and
 // .snagentic/<name>/install.lock, created exclusively so two installs never run on one
@@ -16,7 +31,14 @@ export class JsonInstallJournal implements InstallJournal {
 
   async read(): Promise<InstallRecord | null> {
     const text = await readFile(this.path, "utf8").catch(() => null);
-    return text === null ? null : JSON.parse(text);
+    return text === null
+      ? null
+      : parseStateFile(
+          this.path,
+          text,
+          InstallFile,
+          `delete ${this.path}, then install again: the install starts over from a new plan`,
+        );
   }
 
   async write(record: InstallRecord): Promise<void> {

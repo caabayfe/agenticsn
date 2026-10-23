@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { OverlayFileSystem } from "../../../src/adapters/fluent/overlay-file-system";
@@ -12,6 +12,18 @@ const files = new Map([
 function overlay(): { fs: OverlayFileSystem; root: string } {
   const root = mkdtempSync(join(tmpdir(), "overlay-"));
   return { fs: new OverlayFileSystem(root, files), root };
+}
+
+// A project folder with a sibling outside it, as a build copy sits in its scratch folder.
+function confined(): { fs: OverlayFileSystem; root: string; outside: string } {
+  const scratch = mkdtempSync(join(tmpdir(), "overlay-scratch-"));
+  const root = join(scratch, "project");
+  const outside = join(scratch, "victim");
+  mkdirSync(root);
+  mkdirSync(outside);
+  writeFileSync(join(outside, "keep.txt"), "keep");
+  writeFileSync(join(scratch, ".prettierrc.mjs"), "export default {};");
+  return { fs: new OverlayFileSystem(root, files), root, outside };
 }
 
 describe("overlay file system", () => {
@@ -77,5 +89,43 @@ describe("overlay file system", () => {
     fs.rmSync(join(root, "src"), { recursive: true });
     writeFileSync(join(root, "d.txt"), "x");
     expect(fs.readdirSync(root).sort()).toEqual(["c.now.ts", "d.txt"]);
+  });
+
+  // A project's config can name output folders, and the SDK searches parent folders for
+  // configs it imports: neither may reach past the project (spec 012, B-01 and B-03).
+  it("shows nothing outside the project", () => {
+    const { fs, root, outside } = confined();
+    const config = join(root, "..", ".prettierrc.mjs");
+    for (const call of [
+      () => fs.statSync(config),
+      () => fs.lstatSync(config),
+      () => fs.accessSync(config),
+      () => fs.realpathSync(config),
+      () => fs.readFileSync(config),
+      () => fs.readdirSync(outside),
+      () => fs.readdirSync(join(root, ".."), { withFileTypes: true }),
+    ]) {
+      expect(call).toThrow(expect.objectContaining({ code: "ENOENT" }));
+    }
+  });
+
+  it("refuses to remove, write, rename or copy outside the project", () => {
+    const { fs, root, outside } = confined();
+    writeFileSync(join(root, "a.txt"), "a");
+    for (const call of [
+      () => fs.rmSync(outside, { recursive: true, force: true }),
+      () => fs.rmSync(join(root, "..", "victim"), { recursive: true, force: true }),
+      () => fs.writeFileSync(join(outside, "planted.txt"), "x"),
+      () => fs.mkdirSync(join(outside, "made"), { recursive: true }),
+      () => fs.renameSync(join(root, "a.txt"), join(outside, "a.txt")),
+      () => fs.renameSync(join(outside, "keep.txt"), join(root, "keep.txt")),
+      () => fs.copyFileSync(join(root, "a.txt"), join(outside, "a.txt")),
+      () => fs.copyFileSync(join(outside, "keep.txt"), join(root, "keep.txt")),
+    ]) {
+      expect(call).toThrow(expect.objectContaining({ code: "EPERM" }));
+    }
+    expect(readFileSync(join(outside, "keep.txt"), "utf8")).toBe("keep");
+    expect(existsSync(join(outside, "planted.txt"))).toBe(false);
+    expect(existsSync(join(root, "a.txt"))).toBe(true);
   });
 });

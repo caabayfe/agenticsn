@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SdkRouteRefusedError } from "@snagentic/core";
@@ -62,12 +62,17 @@ describe("transform through snagentic's connector (ADR-0032)", () => {
       };
       const dir = project();
       const runtime = await loadFluentRuntime();
-      const outcome = await runtime.transform(
-        dir,
-        recording.records,
-        "https://instance.example.com/",
-        replay,
-      );
+      // The records the SDK unpacks stay out of the shared temporary folder (spec 012).
+      const shared = mkdtempSync(join(tmpdir(), "snagentic-shared-tmp-"));
+      const before = process.env["TMPDIR"];
+      process.env["TMPDIR"] = shared;
+      const outcome = await runtime
+        .transform(dir, recording.records, "https://instance.example.com/", replay)
+        .finally(() => {
+          if (before === undefined) delete process.env["TMPDIR"];
+          else process.env["TMPDIR"] = before;
+        });
+      expect(readdirSync(shared)).toEqual([]);
       expect(asked).toEqual(recording.exchanges.map((e) => e.request));
       expect(outcome.success).toBe(true);
       const files = outcome.success ? outcome.files : [];

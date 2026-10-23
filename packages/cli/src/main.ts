@@ -27,8 +27,10 @@ import { GitDocumentationHistory } from "./adapters/documentation/git-documentat
 import { mediaTools } from "./adapters/documentation/media-tools";
 import { serveSite } from "./adapters/documentation/static-site-server";
 import { fluentProbe } from "./adapters/fluent/fluent-probe";
-import { loadFluentRuntime } from "./adapters/fluent/fluent-runtime-loader";
+import { loadFluentRuntime, loadInProcessRuntime } from "./adapters/fluent/fluent-runtime-loader";
 import { SdkToolchain } from "./adapters/fluent/fluent-toolchain";
+import { runFluentWorker } from "./adapters/fluent/fluent-worker-process";
+import { FLUENT_WORKER_COMMAND } from "./adapters/fluent/worker-protocol";
 import { WorkspaceAuthoring } from "./adapters/fluent/workspace-authoring";
 import { WorkspaceFluentProjects } from "./adapters/fluent/workspace-fluent-projects";
 import { createTextFile } from "./adapters/fs/create-text-file";
@@ -64,6 +66,10 @@ import { developmentInstances } from "./registry/development-instances";
 import { USE_CASES } from "./registry/registry";
 import type { UseCaseContext } from "./registry/use-case";
 import { versionLine } from "./version-line";
+
+// The Fluent SDK worker (ADR-0044): this binary started again by itself to run one build, before
+// anything else is set up. It never reads a credential.
+if (process.argv[2] === FLUENT_WORKER_COMMAND) await runFluentWorker(loadInProcessRuntime);
 
 // The mirror documentation pages are verified against, read only (ADR-0036).
 const docsMirror = (root: string) => (instance: string) => {

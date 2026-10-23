@@ -43,6 +43,13 @@ function instance(extra: Record<string, Row[]> = {}, denied: string[] = []) {
     sys_scope: [{ sys_id: "global", scope: "global" }],
     sys_dictionary: [
       { sys_id: "d1", name: "sys_script", element: "script", internal_type: "script_server" },
+      // Every instance has password fields; a pull refuses a dictionary without (spec 012, B-06).
+      {
+        sys_id: "d2",
+        name: "sys_auth_profile_basic",
+        element: "password",
+        internal_type: "password2",
+      },
     ],
     sys_script: [
       {

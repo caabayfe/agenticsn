@@ -4,6 +4,26 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Security
+
+- A class that extends a credential or certificate class is treated like its parent: the pull
+  skips it, adopt refuses it and `update-sets export` withholds it. On a PDI, 38 classes extend
+  such a class, among them SSH, JDBC and OAuth JWT credentials and user certificates.
+- `update-sets export` also withholds an update that fills a field the dictionary types as a
+  password, whatever the field is called, and an update whose class it can't read.
+- A pull stops before writing anything when the dictionary shows the user no password fields:
+  without them, snagentic can't tell which values to redact.
+- `adopt` shows `[redacted]` in place of a secret field's values when it names a difference.
+- Scratch folders holding records read from the instance are removed after a day if a crash
+  left them behind.
+
+- The ServiceNow SDK now runs every Fluent build and transform in a separate worker process
+  (ADR-0044), started by snagentic for that one job. The worker holds no instance credential and
+  gets only the environment variables it needs, so no token reaches it either. snagentic answers
+  its instance requests itself and checks each against the reads it allows. On macOS the worker
+  also runs in a sandbox with no network and no writes outside the build copy. `snagentic doctor`
+  says which applies on your machine.
+
 ## [2.8.1] - 2026-10-23
 
 ### Fixed

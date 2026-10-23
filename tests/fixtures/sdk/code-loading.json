@@ -1,0 +1,10 @@
+{
+  "@servicenow/sdk-api/dist/external-plugins/loader.js": 2,
+  "@servicenow/sdk-api/dist/project-factory/scaffolders/template-hooks.js": 2,
+  "@servicenow/sdk-api/dist/util/default-ui-build.js": 1,
+  "@servicenow/sdk-api/dist/util/default-ui-dev.js": 1,
+  "@servicenow/sdk-api/dist/util/script-runner.js": 3,
+  "@servicenow/sdk-build-core/dist/prettier/config-loader.js": 1,
+  "@servicenow/sdk-build-core/dist/util/resolve-aiux-sdk.js": 1,
+  "@servicenow/sdk-build-plugins/dist/table-plugin.js": 1
+}

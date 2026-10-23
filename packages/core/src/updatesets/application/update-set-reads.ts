@@ -43,7 +43,8 @@ export async function listRows(
   return rows;
 }
 
-// Rows whose `field` is one of `keys`, in IN queries of at most IN_BATCH keys.
+// Rows whose `field` is one of `keys`, in IN queries of at most IN_BATCH keys, each narrowed by
+// the `and` conditions when given.
 export async function rowsWhereIn(
   deps: UpdateSetDependencies,
   table: TableName,
@@ -51,10 +52,12 @@ export async function rowsWhereIn(
   keys: readonly string[],
   fields: readonly string[] | "all",
   signal: AbortSignal,
+  and = "",
 ): Promise<Row[]> {
   const rows: Row[] = [];
   for (const batch of chunks([...new Set(keys)], IN_BATCH)) {
-    rows.push(...(await listRows(deps, table, `${field}IN${batch.join(",")}`, fields, signal)));
+    const query = `${field}IN${batch.join(",")}${and === "" ? "" : `^${and}`}`;
+    rows.push(...(await listRows(deps, table, query, fields, signal)));
   }
   return rows;
 }

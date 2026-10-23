@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   Catalog,
   DEFAULT_REDACTION,
+  deniedAncestor,
   fieldsToRedact,
   fileFields,
   isDeniedClass,
@@ -88,9 +89,31 @@ describe("field rules", () => {
   it.each(["sys_cred", "oauth_entity", "sys_certificate", "discovery_credentials"])(
     "never syncs the credential class %p",
     (table) => {
-      expect(isDeniedClass(table)).toBe(true);
+      expect(isDeniedClass(catalog, table)).toBe(true);
     },
   );
+
+  // Spec 012, B-05: on pdi2, 38 classes extend a denied one, among them
+  // ssh_private_key_credentials (discovery_credentials) and oauth_jwt (oauth_entity).
+  it("never syncs a class that extends a credential class", () => {
+    const credentials = new Catalog({
+      parents: {
+        sys_metadata: null,
+        discovery_credentials: null,
+        ssh_credentials: "discovery_credentials",
+        ssh_private_key_credentials: "ssh_credentials",
+        oauth_entity: "sys_metadata",
+        oauth_jwt: "oauth_entity",
+        sys_script: "sys_metadata",
+      },
+      scopes: {},
+      typedFields: {},
+    });
+    expect(isDeniedClass(credentials, "ssh_private_key_credentials")).toBe(true);
+    expect(isDeniedClass(credentials, "oauth_jwt")).toBe(true);
+    expect(deniedAncestor(credentials, "oauth_jwt")).toBe("oauth_entity");
+    expect(isDeniedClass(credentials, "sys_script")).toBe(false);
+  });
 });
 
 describe("fieldsToRedact", () => {

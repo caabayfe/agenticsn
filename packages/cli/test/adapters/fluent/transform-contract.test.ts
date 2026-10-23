@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SdkRouteRefusedError } from "@snagentic/core";
-import { loadFluentRuntime } from "../../../src/adapters/fluent/fluent-runtime-loader";
+import { loadInProcessRuntime } from "../../../src/adapters/fluent/fluent-runtime-loader";
 import {
   type InstanceExchange,
   SchedulerConnector,
@@ -61,7 +61,7 @@ describe("transform through snagentic's connector (ADR-0032)", () => {
         return match.answer;
       };
       const dir = project();
-      const runtime = await loadFluentRuntime();
+      const runtime = await loadInProcessRuntime();
       // The records the SDK unpacks stay out of the shared temporary folder (spec 012).
       const shared = mkdtempSync(join(tmpdir(), "snagentic-shared-tmp-"));
       const before = process.env["TMPDIR"];

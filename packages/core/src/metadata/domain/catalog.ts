@@ -24,8 +24,9 @@ export class Catalog {
     return chain;
   }
 
-  hasTable(table: string): boolean {
-    return table in this.data.parents;
+  // Whether the instance listed this class.
+  knowsClass(table: string): boolean {
+    return Object.hasOwn(this.data.parents, table);
   }
 
   isMetadata(table: string): boolean {

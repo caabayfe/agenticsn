@@ -84,8 +84,14 @@ const DENIED_CLASSES = new Set([
   "sys_cred",
 ]);
 
-export function isDeniedClass(table: string): boolean {
-  return DENIED_CLASSES.has(table);
+// The denied class `table` is or extends, if any: a subclass holds what its parent holds
+// (spec 012, B-05; on pdi2, 38 classes extend a denied one).
+export function deniedAncestor(catalog: Catalog, table: string): string | undefined {
+  return catalog.ancestors(table).find((ancestor) => DENIED_CLASSES.has(ancestor));
+}
+
+export function isDeniedClass(catalog: Catalog, table: string): boolean {
+  return deniedAncestor(catalog, table) !== undefined;
 }
 
 // Field -> extension for the fields of `table` written to their own file.

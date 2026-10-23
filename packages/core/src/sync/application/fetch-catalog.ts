@@ -2,6 +2,7 @@ import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
 import type { CatalogData } from "../../metadata/domain/catalog";
 import { SECRET_TYPES, TEXT_TYPE_EXTENSIONS } from "../../metadata/domain/field-rules";
+import { DictionaryUnreadableError } from "../domain/errors";
 import type { KeysetPager } from "./keyset-pager";
 
 export interface CatalogProgress {
@@ -63,6 +64,9 @@ export async function fetchCatalog(
     `internal_typeIN${types}`,
     signal,
   );
+  if (!fields.some((row) => SECRET_TYPES.has(row["internal_type"] ?? ""))) {
+    throw new DictionaryUnreadableError();
+  }
   return {
     parents: hierarchy(classes),
     scopes: Object.fromEntries(scopes.map((row) => [row["sys_id"] ?? "", row["scope"] ?? ""])),

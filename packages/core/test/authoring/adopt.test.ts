@@ -119,6 +119,30 @@ describe("adopt (ADR-0031 item 3)", () => {
     expect(ledgers.size).toBe(0);
   });
 
+  // Spec 012, B-19: a secret left empty in source showed the instance's value in the error.
+  it("never shows a secret field's values in the differences it names", async () => {
+    const built = scriptInclude("Helpers for the E2E probe.");
+    const withSecret = {
+      ...built,
+      head: { ...built.head, fields: { ...built.head.fields, password: "" } },
+    };
+    const tools = toolchain([withSecret]);
+    const error = await adopt(
+      {
+        reader: instance({ password: "s3cret-value" }).reader,
+        workspace: memoryWorkspace().workspace,
+        toolchain: tools.chain,
+        access,
+        signal,
+      },
+      { instance: "pdi2", records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }] },
+    ).catch((e: unknown) => e);
+    const differences = error instanceof AdoptUnexplainedDifferenceError ? error.differences : [];
+    expect(differences).toEqual([
+      `sys_script_include_${SCRIPT_INCLUDE_ID}: sys_script_include.password would be [redacted], is [redacted]`,
+    ]);
+  });
+
   it("ledgers only the units the transform added or changed", async () => {
     const other = unit("sys_properties_x", record("sys_properties", "c".repeat(32), { name: "x" }));
     const { workspace, ledgers } = memoryWorkspace();

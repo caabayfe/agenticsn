@@ -15,6 +15,7 @@ import { fromCommit, fromWorkingTree } from "./build-in-copy";
 import { builtUnitOf, isEmptyUpdate } from "./built-units";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
 import type { FluentBuildError } from "./sdk-runtime";
+import { sweepStaleScratch } from "./stale-scratch";
 
 const NOT_SOURCE = new Set(["node_modules", "dist", ".now"]);
 const SHOWN_ERRORS = 5;
@@ -103,6 +104,7 @@ export class SdkToolchain implements FluentToolchain {
   ): Promise<DraftOutcome> {
     const runtime = await this.load();
     const source = join(this.workspace, project.path);
+    sweepStaleScratch();
     const scratch = await mkdtemp(join(tmpdir(), "snagentic-adopt-"));
     const copy = join(scratch, "project");
     try {

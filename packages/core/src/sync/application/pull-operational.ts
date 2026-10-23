@@ -20,7 +20,7 @@ async function listSource(
   signal: AbortSignal,
 ): Promise<number | null> {
   const rows: Row[] = [];
-  if (source.optional === true && !catalog.hasTable(source.table)) {
+  if (source.optional === true && !catalog.knowsClass(source.table)) {
     await deps.records.writeDocument(deps.operationalRoot, `${source.file}.yaml`, rows);
     return 0;
   }

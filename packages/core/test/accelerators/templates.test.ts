@@ -15,6 +15,7 @@ const entity = (
   after,
   columns,
   anchors: false,
+  from: null,
 });
 
 const GROUP = entity(

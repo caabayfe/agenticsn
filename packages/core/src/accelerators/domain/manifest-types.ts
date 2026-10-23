@@ -48,6 +48,9 @@ export interface DataEntity {
   readonly after: readonly string[];
   // Rows the pack owns carry a fixed sys_id in a sys_id column (ADR-0038, item 7): anchors.
   readonly anchors: boolean;
+  // The plugin or application that ships the target table, for every column's field; null when
+  // unnamed (spec 011, §15).
+  readonly from: string | null;
 }
 
 export interface Capability {

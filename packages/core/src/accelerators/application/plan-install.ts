@@ -12,7 +12,7 @@ import {
 import type { Manifest } from "../domain/manifest-types";
 import { materialize } from "../domain/materialize";
 import { moduleOf } from "../domain/pack-layout";
-import { fieldIssues, requiredFields } from "../domain/required-fields";
+import { afterActivation, fieldIssues, requiredFields } from "../domain/required-fields";
 import { leftoverProblem, noLongerShipped } from "../domain/upgrade";
 import type {
   DataTemplates,
@@ -50,6 +50,7 @@ async function plannedFields(
   manifest: Manifest,
   selected: readonly string[],
   instance: string,
+  activated: ReadonlySet<string>,
 ) {
   const modules = manifest.capabilities.filter((c) => selected.includes(c.id));
   if (!modules.some((m) => requiredFields(m).length > 0)) {
@@ -59,7 +60,7 @@ async function plannedFields(
     const problem = `pull ${instance} first: the mirror holds no tables, so the fields the modules read cannot be checked`;
     return { fields: [], problems: [problem], warnings: [] };
   }
-  const fields = await checkFields(modules, deps.schema);
+  const fields = afterActivation(await checkFields(modules, deps.schema), activated);
   return { fields, ...fieldIssues(fields) };
 }
 
@@ -159,7 +160,8 @@ export async function planInstall(
     rows: data.entities.find((d) => d.entity === e.entity)?.rows ?? 0,
     anchors: e.anchors,
   }));
-  const required = await plannedFields(deps, manifest, selected, query.instance.name);
+  const activated = new Set(components.filter((c) => c.action === "activate").map((c) => c.id));
+  const required = await plannedFields(deps, manifest, selected, query.instance.name, activated);
   const mirrorCommit = (await deps.workspace.mirrorCommit()) ?? "";
   const leftovers = await plannedLeftovers(deps, manifest, files);
   const leftover = leftoverProblem(leftovers);

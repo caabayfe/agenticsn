@@ -71,9 +71,17 @@ function components(plan: InstallPlan): string[] {
 }
 
 function fieldAction(f: PlannedField): string {
+  if (f.state === "after-activation") return `checked again once ${f.from ?? ""} is active`;
   if (f.whenMissing === "warn") return `install anyway: ${f.note ?? "the module works without it"}`;
   return "**blocked**: repair or activate the plugin that ships it, then pull";
 }
+
+const STATE: Readonly<Record<PlannedField["state"], string>> = {
+  present: "present",
+  missing: "missing",
+  "no-table": "no table",
+  "after-activation": "after activation",
+};
 
 // The platform fields the modules read (plan gap G13): a missing one blocks its module, unless
 // the module declared it can do without. Present fields are only counted.
@@ -92,7 +100,7 @@ function fields(planned: readonly PlannedField[]): string[] {
             missing.map((f) => [
               `\`${f.table}.${f.field}\``,
               f.module,
-              `**${f.state === "missing" ? "missing" : "no table"}**`,
+              `**${STATE[f.state]}**`,
               f.from ?? "–",
               fieldAction(f),
             ]),

@@ -3,7 +3,9 @@ import type { Capability, RequiredField } from "./manifest-types";
 // The platform fields a module reads, and what the install plan says when the instance lacks one
 // (plan gap G13, spec 011 I14). Pure: the mirror's schema is read by the application.
 
-export type FieldState = "present" | "missing" | "no-table";
+// after-activation: missing now, but its source is a component the plan activates, so it is checked
+// again once that component is active (spec 011, §15).
+export type FieldState = "present" | "missing" | "no-table" | "after-activation";
 
 export interface FieldCheck extends RequiredField {
   readonly module: string;
@@ -25,7 +27,7 @@ export function requiredFields(module: Capability): RequiredField[] {
             (c): RequiredField => ({
               table: entity.target ?? "",
               field: c.field ?? "",
-              from: null,
+              from: entity.from,
               whenMissing: "stop",
               note: null,
             }),
@@ -50,12 +52,25 @@ function sentence(check: FieldCheck): string {
   return `field ${check.table}.${check.field} (${check.module}) is not on the instance${lost}.${fix}`;
 }
 
+// A missing field whose source the plan activates waits for the activation: the install checks it
+// again after it pulls. A field that names no source never waits.
+export function afterActivation(
+  checks: readonly FieldCheck[],
+  activated: ReadonlySet<string>,
+): FieldCheck[] {
+  return checks.map((c) =>
+    c.state !== "present" && c.from !== null && activated.has(c.from)
+      ? { ...c, state: "after-activation" }
+      : c,
+  );
+}
+
 // Missing fields a module needs stop the install; those it can do without are warnings.
 export function fieldIssues(checks: readonly FieldCheck[]): {
   problems: string[];
   warnings: string[];
 } {
-  const missing = checks.filter((c) => c.state !== "present");
+  const missing = checks.filter((c) => c.state === "missing" || c.state === "no-table");
   return {
     problems: missing.filter((c) => c.whenMissing === "stop").map(sentence),
     warnings: missing.filter((c) => c.whenMissing === "warn").map(sentence),

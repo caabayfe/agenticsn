@@ -71,6 +71,7 @@ function entity(value: unknown): DataEntity | null {
     after: texts(fields?.["after"]),
     columns: columnsOf(fields?.["columns"]),
     anchors: fields?.["anchors"] === true,
+    from: text(fields?.["from"]) || null,
   };
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   type EnsureFact,
+  ensureContainerSource,
   ensureEntryId,
   ensureFactsOf,
   ensureSource,
@@ -93,7 +94,7 @@ describe("what a fact needs on the instance", () => {
 });
 
 describe("the Fluent a module's facts become", () => {
-  it("restates the container by its keys and adds each missing list after the lists already there", () => {
+  it("adds each missing list after the lists already there, naming the container it adds to", () => {
     const other = {
       ...FACT,
       list: "REL:6e7493c9f6816bf9a6e71b9603029dac",
@@ -107,9 +108,9 @@ describe("the Fluent a module's facts become", () => {
       { fact: FACT, state: lists },
       { fact: other, state: lists },
     ]);
-    expect(source.containers).toEqual([CONTAINER]);
-    expect(source.text).toContain(`$id: '${CONTAINER}'`);
-    expect(source.text).toContain("data: { name: 'incident', view: 'Default view' }");
+    expect(source.containers).toEqual([
+      { sysId: CONTAINER, table: "incident", view: "Default view" },
+    ]);
     expect(source.text).toContain(
       `data: { list_id: '${CONTAINER}', related_list: 'incident_task.incident', position: 7 }`,
     );
@@ -117,6 +118,25 @@ describe("the Fluent a module's facts become", () => {
       `data: { list_id: '${CONTAINER}', related_list: 'REL:6e7493c9f6816bf9a6e71b9603029dac', position: 8 }`,
     );
     expect(source.text).toContain(`$id: '${OURS}'`);
+  });
+
+  it("restates a container in its own source, so modules adding to one layout never declare it twice", () => {
+    const lists = state([{ sysId: "e1", relatedList: "task_sla.task", position: 0 }]);
+    const relations = ensureSource("itsm", "incident-relations", [{ fact: FACT, state: lists }]);
+    const outage = ensureSource("itsm", "incident-outage", [
+      { fact: { ...FACT, capability: "incident-outage", list: "task_outage.task" }, state: lists },
+    ]);
+    for (const source of [relations, outage]) {
+      expect(source.text).not.toContain(`$id: '${CONTAINER}'`);
+    }
+    const container = ensureContainerSource({
+      sysId: CONTAINER,
+      table: "incident",
+      view: "Default view",
+    });
+    expect(container).toContain(`$id: '${CONTAINER}'`);
+    expect(container).toContain("table: 'sys_ui_related_list'");
+    expect(container).toContain("data: { name: 'incident', view: 'Default view' }");
   });
 
   it("keeps the module's own entry where it is, and leaves out facts already true or without a target", () => {

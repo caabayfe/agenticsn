@@ -819,10 +819,14 @@ describe("layouts a module adds to (ADR-0042)", () => {
     expect(generated).toContain(
       `data: { list_id: '${CONTAINER}', related_list: 'incident_task.incident', position: 8 }`,
     );
+    expect(files.get(`source/global/src/fluent/ensure-list-${CONTAINER}.now.ts`)).toContain(
+      `$id: '${CONTAINER}'`,
+    );
+    expect(generated).not.toContain(`$id: '${CONTAINER}'`);
     const at = calls.indexOf("layouts 1");
     expect(calls.slice(at, at + 4)).toEqual([
       "layouts 1",
-      "commit 1",
+      "commit 2",
       "take-over 1",
       "plan ITSM: incident 0.1.0",
     ]);

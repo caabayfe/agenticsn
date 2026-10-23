@@ -34,7 +34,9 @@ export {
   recordedSets,
 } from "./domain/earlier-sets";
 export {
+  type EnsureContainer,
   type EnsureFact,
+  ensureContainerSource,
   ensureEntryId,
   ensureFactsOf,
   ensureSource,

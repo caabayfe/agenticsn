@@ -1,7 +1,13 @@
 import type { InstanceReader } from "../../connection/ports";
 import { TableName } from "../../kernel/table-name";
 import { KeysetPager } from "../../sync/application/keyset-pager";
-import { type EnsureFact, ensureSource, type ListState } from "../domain/ensure";
+import {
+  type EnsureContainer,
+  type EnsureFact,
+  ensureContainerSource,
+  ensureSource,
+  type ListState,
+} from "../domain/ensure";
 import type { Adoption } from "../domain/materialize";
 import type { InstallSteps } from "../ports";
 
@@ -86,7 +92,7 @@ export async function ensureLayouts(
     return state === undefined ? [] : [{ fact, state }];
   });
   const written: string[] = [];
-  const containers = new Set<string>();
+  const containers = new Map<string, EnsureContainer>();
   for (const module of [...new Set(facts.map((f) => f.capability))]) {
     const source = ensureSource(
       pack,
@@ -97,12 +103,17 @@ export async function ensureLayouts(
     const path = `source/global/src/fluent/ensure-${module}.now.ts`;
     await deps.steps.writeFile(path, source.text);
     written.push(path);
-    for (const container of source.containers) containers.add(container);
+    for (const container of source.containers) containers.set(container.sysId, container);
+  }
+  for (const container of containers.values()) {
+    const path = `source/global/src/fluent/ensure-list-${container.sysId}.now.ts`;
+    await deps.steps.writeFile(path, ensureContainerSource(container));
+    written.push(path);
   }
   if (written.length > 0) {
     await deps.steps.commit(written, "chore(snagentic): the layouts the accelerator adds to");
   }
-  return [...containers].map((sysId) => ({
+  return [...containers.keys()].map((sysId) => ({
     capability: "ensure",
     table: "sys_ui_related_list",
     sysId,

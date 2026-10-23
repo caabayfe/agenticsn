@@ -379,8 +379,11 @@ delivered as generated Fluent through the SDK, and checked again after the insta
   install pulls only after activations): the view's container in the global domain and its entries,
   through the keyset pager.
 - The lists to add become `source/global/src/fluent/ensure-<module>.now.ts`, generated and
-  committed: the container restated by its keys and one entry per list, with a sys_id derived from
-  the pack and the fact, positioned after the last list; the module's own entry keeps its place, a
+  committed: one entry per list, with a sys_id derived from the pack and the fact, positioned after
+  the last list. Each container they go in is restated by its keys in its own generated file,
+  `ensure-list-<sys_id>.now.ts`, the same text for every module: several modules add to one layout
+  (pdi2, 2026-10-23: relations, knowledge and outage on the incident form), and a record declared
+  in two files does not build; the module's own entry keeps its place, a
   list already there (someone else's entry) is left, a view with no layout is skipped.
 - Each container added to is taken over like an adopted record, so one the client customized
   stops for review (the "conflicting" case, for now).

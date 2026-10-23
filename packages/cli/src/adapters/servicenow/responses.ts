@@ -4,8 +4,14 @@ import { z } from "zod";
 // The shapes snagentic reads from the instance's answers, checked before use: only the fields
 // read, and nothing else (an instance may add fields; it may not change these).
 
-// Raw values and no reference links: every field is text (ADR-0016).
-export const Rows: z.ZodType<Row[]> = z.array(z.record(z.string(), z.string()));
+// Raw values and no reference links: every field is text (ADR-0016). Some instances answer a
+// field with no readable value as null (a compressed field on a newer PDI): that is empty text.
+const FieldValue = z
+  .string()
+  .nullable()
+  .transform((value) => value ?? "");
+
+export const Rows: z.ZodType<Row[], unknown> = z.array(z.record(z.string(), FieldValue));
 
 const Stats = z.object({
   count: z.string().optional(),

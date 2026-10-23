@@ -168,6 +168,17 @@ describe("ServiceNowClient", () => {
     await expect(client.query(QUERY, LIVE)).rejects.toMatchObject({ code: "instance-error" });
   });
 
+  it("reads a field the instance answers as null as empty", async () => {
+    // A newer PDI answered sn_ace_app_config.bundle (compressed) as null for one record.
+    const { client } = clientWith(async () =>
+      response(200, '{"result":[{"sys_id":"a","bundle":null},{"sys_id":"b","bundle":"x"}]}'),
+    );
+    expect(await client.query(QUERY, LIVE)).toEqual([
+      { sys_id: "a", bundle: "" },
+      { sys_id: "b", bundle: "x" },
+    ]);
+  });
+
   it.each([
     ['{"result":[{"sys_id":"a","active":true}]}', "0.active"],
     ['{"result":["a"]}', "0"],

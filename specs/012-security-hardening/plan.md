@@ -112,11 +112,11 @@ a secret.
 
 Outcome (2026-10-23, #139): ADR-0043 (accepted 2026-10-23) amends ADR-0023. `upgrade` checks
 the attestation after the checksum and before running the new binary; the installers do the
-same. The check
-requires this repository, the release workflow and the version's tag (`--source-ref`), and a
-failure installs nothing. Without `gh`, or signed out, they install on the checksum and say so.
-No signing key of our own for now. Every release from 1.0.0 to 2.6.0 has an attestation, so
-`upgrade --to` an older one still works. `install.ps1` is not run by any test.
+same. The check requires this repository, the release workflow and the version's tag
+(`--source-ref`), and a failure installs nothing. Without `gh`, or signed out, they install on
+the checksum and say so. No signing key of our own for now. Every release from 1.0.0 to 2.6.0
+has an attestation, so `upgrade --to` an older one still works. `install.ps1` is not run by any
+test.
 
 ### Step 5. Validate at the edges
 

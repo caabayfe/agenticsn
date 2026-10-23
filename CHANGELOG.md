@@ -4,8 +4,19 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-10-23
+
 ### Security
 
+The ServiceNow SDK no longer runs with snagentic's credentials, and secrets are recognized by
+their type and class, not only by name (spec 012, steps 7 and 8).
+
+- The ServiceNow SDK now runs every Fluent build and transform in a separate worker process
+  (ADR-0044), started by snagentic for that one job. The worker holds no instance credential and
+  gets only the environment variables it needs, so no token reaches it either. snagentic answers
+  its instance requests itself and checks each against the reads it allows. On macOS the worker
+  also runs in a sandbox with no network and no writes outside the build copy. `snagentic doctor`
+  says which applies on your machine.
 - A class that extends a credential or certificate class is treated like its parent: the pull
   skips it, adopt refuses it and `update-sets export` withholds it. On a PDI, 38 classes extend
   such a class, among them SSH, JDBC and OAuth JWT credentials and user certificates.
@@ -16,13 +27,6 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - `adopt` shows `[redacted]` in place of a secret field's values when it names a difference.
 - Scratch folders holding records read from the instance are removed after a day if a crash
   left them behind.
-
-- The ServiceNow SDK now runs every Fluent build and transform in a separate worker process
-  (ADR-0044), started by snagentic for that one job. The worker holds no instance credential and
-  gets only the environment variables it needs, so no token reaches it either. snagentic answers
-  its instance requests itself and checks each against the reads it allows. On macOS the worker
-  also runs in a sandbox with no network and no writes outside the build copy. `snagentic doctor`
-  says which applies on your machine.
 
 ## [2.8.1] - 2026-10-23
 

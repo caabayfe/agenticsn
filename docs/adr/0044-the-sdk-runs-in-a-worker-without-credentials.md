@@ -1,6 +1,6 @@
 # 0044. The workspace is untrusted; the SDK runs in a worker that holds no credential
 
-- Status: Proposed
+- Status: Accepted (product owner, 2026-10-23)
 - Date: 2026-10-23
 - Requirements: ASR-02, ASR-03, ASR-08, ASR-15
 - Amends: 0032 (item 1, where the SDK runs)
@@ -82,7 +82,7 @@ Linux and Windows were not tested.
   - the sandbox tests run only where the sandbox exists (the macOS CI runner, and Linux if
     verified);
   - the in-process path is removed, not kept beside it.
-- ADR-0032's status becomes "Accepted (amended by 0044)". Its other items stay: one connector,
+- ADR-0032 is amended. Its other items stay: one connector,
   one scheduler, read routes only.
 
 ## Alternatives considered

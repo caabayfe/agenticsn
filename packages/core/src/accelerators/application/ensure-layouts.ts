@@ -84,8 +84,8 @@ export async function ensureLayouts(
   pack: string,
   facts: readonly EnsureFact[],
   signal: AbortSignal,
-): Promise<Adoption[]> {
-  if (facts.length === 0) return [];
+): Promise<{ readonly adoptions: Adoption[]; readonly written: readonly string[] }> {
+  if (facts.length === 0) return { adoptions: [], written: [] };
   const states = await deps.steps.layouts(facts, signal);
   const resolved = facts.flatMap((fact, i) => {
     const state = states[i];
@@ -113,11 +113,12 @@ export async function ensureLayouts(
   if (written.length > 0) {
     await deps.steps.commit(written, "chore(snagentic): the layouts the accelerator adds to");
   }
-  return [...containers.keys()].map((sysId) => ({
+  const adoptions = [...containers.keys()].map((sysId) => ({
     capability: "ensure",
     table: "sys_ui_related_list",
     sysId,
     note: "related lists the modules add to",
     whenAbsent: "stop" as const,
   }));
+  return { adoptions, written };
 }

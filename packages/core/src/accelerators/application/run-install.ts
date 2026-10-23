@@ -119,9 +119,10 @@ async function deliverAs(
   const { label, own } = labels;
   const added = await deps.steps.add(ids, signal);
   if (added.conflicts.length > 0) throw new Error(`merge conflicts: ${added.conflicts.join(", ")}`);
-  await deps.steps.keys(added.copied, signal);
-  const containers = await ensureLayouts(deps, changes.pack, changes.ensures, signal);
-  await takeOver(deps, [...changes.adoptions, ...containers], signal);
+  // The generated layout files first, so their records get keys with the module's (SN-MNT-010).
+  const layouts = await ensureLayouts(deps, changes.pack, changes.ensures, signal);
+  await deps.steps.keys([...added.copied, ...layouts.written], signal);
+  await takeOver(deps, [...changes.adoptions, ...layouts.adoptions], signal);
   const planned = await deps.steps.planPush(label, signal, own);
   if (planned.units === 0 && planned.problems.length === 0) {
     return { outcome: "skipped", detail: "the instance already holds it as built" };

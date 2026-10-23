@@ -823,10 +823,12 @@ describe("layouts a module adds to (ADR-0042)", () => {
       `$id: '${CONTAINER}'`,
     );
     expect(generated).not.toContain(`$id: '${CONTAINER}'`);
+    // The generated files' records get their keys too (SN-MNT-010), so keys come after them.
     const at = calls.indexOf("layouts 1");
-    expect(calls.slice(at, at + 4)).toEqual([
+    expect(calls.slice(at, at + 5)).toEqual([
       "layouts 1",
       "commit 2",
+      "keys 3",
       "take-over 1",
       "plan ITSM: incident 0.1.0",
     ]);

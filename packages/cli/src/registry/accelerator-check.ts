@@ -19,8 +19,15 @@ const Module = z.object({
       }),
     )
     .readonly(),
-  next: z.array(z.string()).readonly().describe("commands that make it installable, in order"),
+  next: z.array(z.string()).readonly().describe("commands that make it installable by hand"),
+  waitsOn: z.array(z.string()).readonly().describe("modules it depends on that are not ready"),
+  installable: z
+    .boolean()
+    .describe("accelerator install can install it: it lacks only plugins the install activates"),
 });
+
+const activatedNote = (c: { kind: string; state: string }) =>
+  c.kind === "plugin" && c.state === "inactive" ? " (accelerator install activates it)" : "";
 
 export const acceleratorCheck = defineUseCase({
   group: "accelerator",
@@ -88,8 +95,9 @@ export const acceleratorCheck = defineUseCase({
         `${m.state.padEnd(16)} ${m.id}`,
         ...m.components
           .filter((c) => c.state !== "active")
-          .map((c) => `  ${c.kind} ${c.id}: ${c.state}`),
-        ...m.next.map((n) => `  next: ${n}`),
+          .map((c) => `  ${c.kind} ${c.id}: ${c.state}${activatedNote(c)}`),
+        ...(m.waitsOn.length === 0 ? [] : [`  waits on: ${m.waitsOn.join(", ")}`]),
+        ...(m.installable ? [] : m.next.map((n) => `  next: ${n}`)),
       ]),
       output.data.length === 0 ? "" : `data to load, in order: ${output.data.join(", ")}`,
     ]
@@ -97,8 +105,7 @@ export const acceleratorCheck = defineUseCase({
       .join("\n");
   },
   exitCode: (output) =>
-    output.problems.length + output.unknown.length > 0 ||
-    output.modules.some((m) => m.state !== "ready")
+    output.problems.length + output.unknown.length > 0 || output.modules.some((m) => !m.installable)
       ? 1
       : 0,
 });

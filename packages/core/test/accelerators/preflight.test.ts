@@ -82,6 +82,8 @@ describe("accelerator preflight (ADR-0026, ADR-0038)", () => {
         },
       ],
       next: [],
+      waitsOn: [],
+      installable: true,
     });
   });
 
@@ -160,6 +162,28 @@ describe("accelerator preflight (ADR-0026, ADR-0038)", () => {
       ["incident", "blocked"],
       // Its own missing licence comes first: nothing else would make it installable.
       ["ai", "not-entitled"],
+    ]);
+  });
+
+  it("names what a blocked module waits on, and whether the install can make it installable", () => {
+    const report = run({
+      components: [
+        installed("com.snc.cmdb.csdm", false),
+        installed("com.snc.on_call_rotation", true),
+      ],
+    });
+    expect(report.capabilities.map((c) => [c.id, c.waitsOn, c.installable])).toEqual([
+      // An inactive plugin: the install activates it.
+      ["foundation", [], true],
+      ["incident", ["foundation"], true],
+      ["ai", ["incident"], false],
+    ]);
+    const lacking = run({ components: [installed("com.snc.on_call_rotation", true)] });
+    expect(lacking.capabilities.map((c) => [c.id, c.installable])).toEqual([
+      ["foundation", false],
+      // It waits on a module the install cannot install.
+      ["incident", false],
+      ["ai", false],
     ]);
   });
 

@@ -249,6 +249,8 @@ describe("deciding what the install does with each component", () => {
             ...component,
           },
         ],
+        waitsOn: [],
+        installable: true,
       },
     ],
   });

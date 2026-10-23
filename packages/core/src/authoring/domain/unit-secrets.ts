@@ -1,5 +1,5 @@
 import type { Catalog } from "../../metadata/domain/catalog";
-import { isDeniedClass } from "../../metadata/domain/field-rules";
+import { deniedAncestor } from "../../metadata/domain/field-rules";
 import { fieldsToRedact, type RedactionPolicy } from "../../metadata/domain/redaction";
 import type { BuiltUnit, UnitRecord } from "./unit";
 
@@ -33,7 +33,8 @@ function rowSecrets(
   catalog: Catalog,
   policy: RedactionPolicy,
 ): string[] {
-  if (isDeniedClass(row.table) && !NOT_SECRET.has(row.table)) {
+  const denied = deniedAncestor(catalog, row.table);
+  if (denied !== undefined && !NOT_SECRET.has(denied)) {
     return [`${updateName}: ${row.table} is never kept`];
   }
   const redacted = fieldsToRedact(catalog, row.table, row.fields, policy);

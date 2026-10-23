@@ -161,6 +161,20 @@ export function memoryWriter(
 // answer queries on sys_metadata, as the real instance does.
 // `slow` tables time out on aggregate requests, as a busy instance does (HTTP 500, maximum
 // execution time exceeded).
+// Every instance's dictionary has password fields; a pull refuses one that shows none
+// (spec 012, B-06). Fixtures that don't set one get the basic auth profile's.
+const PLATFORM_PASSWORD_FIELD: Row = {
+  sys_id: "ffffffffffffffffffffffffffffff01",
+  name: "sys_auth_profile_basic",
+  element: "password",
+  internal_type: "password2",
+};
+
+function withPasswordField(rows: readonly Row[]): Row[] {
+  const has = rows.some((row) => ["password", "password2"].includes(row["internal_type"] ?? ""));
+  return has ? [...rows] : [...rows, PLATFORM_PASSWORD_FIELD];
+}
+
 export function fakeInstance(
   tables: Record<string, Row[]>,
   denied: readonly string[] = [],
@@ -175,7 +189,9 @@ export function fakeInstance(
   const rowsOf = (table: string): Row[] =>
     table === "sys_metadata"
       ? Object.values(tables).flatMap((rows) => rows.filter((row) => row["sys_class_name"]))
-      : (tables[table] ?? []);
+      : table === "sys_dictionary"
+        ? withPasswordField(tables[table] ?? [])
+        : (tables[table] ?? []);
   // Writes made, as "insert <table> <fields>" or "update <table> <field=value,...>".
   const writes: string[] = [];
   const writer = memoryWriter(tables, writes);

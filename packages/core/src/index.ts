@@ -74,6 +74,7 @@ export * from "./knowledge/index";
 export { type Artifact, type ArtifactIdentity, artifactFromRow } from "./metadata/domain/artifact";
 export { Catalog, type CatalogData } from "./metadata/domain/catalog";
 export {
+  deniedAncestor,
   fileFields,
   isDeniedClass,
   secretFields,

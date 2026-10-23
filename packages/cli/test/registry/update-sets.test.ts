@@ -34,7 +34,7 @@ const update = (sys_id: string, updateSet: string, by: string): Row => ({
   action: "INSERT_OR_UPDATE",
   table: "",
   application: "global",
-  payload: "<record_update/>",
+  payload: '<record_update table="sys_script"/>',
   sys_recorded_at: sys_id,
   sys_updated_by: by,
   sys_updated_on: "2026-10-05 10:00:00",
@@ -54,6 +54,12 @@ async function workspace() {
       },
     ],
     sys_scope: [{ sys_id: "global", name: "Global", scope: "global", version: "" }],
+    // The export reads the classes of what it exports, to withhold credentials.
+    sys_db_object: [
+      { sys_id: "1".repeat(32), name: "sys_metadata", super_class: "" },
+      { sys_id: "2".repeat(32), name: "sys_script", super_class: "1".repeat(32) },
+      { sys_id: "3".repeat(32), name: "sys_properties", super_class: "1".repeat(32) },
+    ],
     sys_dictionary: [
       { sys_id: "d1", name: "sys_remote_update_set", element: "name", internal_type: "string" },
       { sys_id: "d2", name: "sys_update_xml", element: "name", internal_type: "string" },

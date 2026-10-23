@@ -55,6 +55,18 @@ const DATA = {
 };
 
 describe("fetchCatalog", () => {
+  // Spec 012, B-06: ACLs shorten listings silently, and without the dictionary's password fields
+  // a pull would redact only the fields named like secrets.
+  it("refuses a dictionary that shows no password field", async () => {
+    const short = {
+      ...DATA,
+      sys_dictionary: DATA.sys_dictionary.filter((row) => row.internal_type !== "password2"),
+    };
+    await expect(fetchCatalog(new KeysetPager(tables(short)), LIVE)).rejects.toMatchObject({
+      code: "dictionary-unreadable",
+    });
+  });
+
   it("builds the class hierarchy, scopes and relevant field types", async () => {
     const reader = tables(DATA);
     const catalog = await fetchCatalog(new KeysetPager(reader), LIVE);

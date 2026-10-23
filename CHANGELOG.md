@@ -4,6 +4,21 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-10-23
+
+### Added
+
+- The accelerator install plan names the files a module's previous version shipped and the new
+  version no longer does. While they are still tracked the plan is not ready, and it gives the
+  `git rm` that removes them: an install never deletes them itself, and a leftover file can no
+  longer break the build with records the new version moved or dropped.
+
+### Fixed
+
+- The field-length check no longer refuses values for string fields declared longer than 4000
+  characters. The instance keeps far more than their declared length in such fields (a
+  Platform Analytics canvas layout holds over 70,000), so only shorter fields are checked.
+
 ## [2.7.0] - 2026-10-23
 
 ### Added

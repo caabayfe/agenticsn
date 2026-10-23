@@ -13,6 +13,11 @@ describe("the operational inventory", () => {
       base: "sys_class_name=sys_store_app",
     });
   });
+
+  it("reads domains only where domain separation is installed; plugins and apps always", () => {
+    const optional = INVENTORY.filter((source) => source.optional === true);
+    expect(optional.map((source) => source.table)).toEqual(["domain"]);
+  });
 });
 
 describe("inventorySignature", () => {

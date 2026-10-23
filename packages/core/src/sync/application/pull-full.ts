@@ -96,7 +96,7 @@ export async function pullFull(
   const children = await pullChildren(deps, catalog, signal);
   const childrenSeconds = clock.lap();
   progress({ message: "operational inventory" });
-  const operational = await pullOperational(deps, signal);
+  const operational = await pullOperational(deps, catalog, signal);
   const operationalSeconds = clock.lap();
   const unreadable = [
     ...records.unreadable,

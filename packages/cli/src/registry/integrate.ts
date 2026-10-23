@@ -24,15 +24,21 @@ export const integrate = defineUseCase({
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: false,
   arguments: ["instance"],
-  async handle(input, context) {
+  async handle(input, context, run) {
     const root = await workspaceRoot(context);
     const name = InstanceName.parse(input.instance);
     await getInstance(root, name, context.profiles);
-    const result = await context.integrator.integrate(root, name);
     const { workspace } = context.authoring(root);
     const ledgers = await Promise.all(
       (await workspace.projects()).map((p) => workspace.readLedger(p)),
     );
+    // Only the records adopted units track are read for drift: none in a workspace that
+    // adopted nothing, where a first integrate changes every record.
+    const adopted = new Set(ledgers.flatMap((ledger) => [...(ledger.get(name)?.keys() ?? [])]));
+    const result = await context.integrator.integrate(root, name, {
+      adopted,
+      progress: run.progress,
+    });
     const drift = driftedUnits(result.pulled, ledgers, name);
     return {
       instance: name,

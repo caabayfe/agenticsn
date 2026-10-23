@@ -155,7 +155,7 @@ async function pullBesideRecords(
     signal,
   );
   const applications = await applicationsIfMoved(deps, catalog, stale, signal);
-  const operational = await pullOperational(deps, signal, stale);
+  const operational = await pullOperational(deps, catalog, signal, stale);
   return { children, unreadable: [...applications.unreadable, ...operational.unreadable] };
 }
 

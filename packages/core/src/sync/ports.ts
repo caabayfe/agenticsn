@@ -106,9 +106,20 @@ export interface IntegrationResult {
   readonly pulled: readonly PulledRecord[];
 }
 
+export interface IntegrationOptions {
+  // The update names of the records adopted units track on this instance: only these are
+  // reported in `pulled`. None (or absent): no record is read, the drift report is empty.
+  readonly adopted?: ReadonlySet<string>;
+  readonly progress?: (event: { message: string; completed?: number; total?: number }) => void;
+}
+
 // Brings an instance's remote branch into the workspace's current branch with a git merge.
 export interface MirrorIntegrator {
-  integrate(root: string, instance: string): Promise<IntegrationResult>;
+  integrate(
+    root: string,
+    instance: string,
+    options?: IntegrationOptions,
+  ): Promise<IntegrationResult>;
 }
 
 export interface MirrorView {

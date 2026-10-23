@@ -10,6 +10,10 @@
 //   player in view starts narrated. Browsers allow no sound before that click.
 // - Keys: Space, arrows, M, C. Reduced motion shows the last step, without motion.
 // - Height: posts {snagenticAnimH} to the embedding page.
+// - Messages: the player takes them only from the page that embeds it (e.source). It posts with
+//   "*" because a sandboxed player has no origin of its own and can't learn the page's (a site
+//   opened from disk has none either); the messages carry a height and a sound choice, nothing
+//   secret.
 // - Recording (#record, video export): no controls, no autoplay or loop; the recorder calls
 //   snagenticPlayer.start(), which returns the wall-clock start; #subs shows subtitles.
 export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
@@ -124,6 +128,7 @@ export const PLAYER_SCRIPT = String.raw`window.Player = function (o) {
   bPlay.onclick = playButton;
   root.addEventListener("click", playButton);
   if (!record) addEventListener("message", (e) => {
+    if (e.source !== parent) return;
     const d = e.data || {};
     if (typeof d.snagenticSoundPref === "boolean") pref = d.snagenticSoundPref;
     if (d.snagenticActivate && !activated) { activated = true; if (pref && hasAudio && inView && mode !== "audio" && !userPaused) startAudio(); }

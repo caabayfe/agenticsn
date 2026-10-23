@@ -472,4 +472,12 @@ describe("docs build: sound by the reader's choice", () => {
     expect(player).toContain("parent.postMessage({ snagenticSound: on }");
     expect(player).toContain("d.snagenticActivate && !activated");
   });
+
+  it("has the player take messages only from the page that embeds it", async () => {
+    const { file } = await build();
+    const player = file("animations/asg.html");
+    expect(player).toContain(
+      'addEventListener("message", (e) => {\n    if (e.source !== parent) return;',
+    );
+  });
 });

@@ -43,6 +43,8 @@ export function prefixOf(file: string): string {
 // remembers the reader's sound choice across pages (localStorage; a sandboxed player can't), and
 // tells the players about the reader's first click, after which browsers allow sound. Sound is on
 // until the reader turns it off: browsers play an animation muted until that first click.
+// Messages count only from a player's own frame (e.source). They are sent with "*" because a
+// sandboxed player's origin is opaque, so no origin can name it.
 const PLAYERS_SCRIPT =
   "<script>(function(){var K='snagentic-sound',on=true,act=false;try{on=localStorage.getItem(K)!=='off';}catch(x){}" +
   "var all=function(){return document.querySelectorAll('iframe.player');};" +

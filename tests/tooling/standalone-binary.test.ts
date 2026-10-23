@@ -13,7 +13,7 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 describe("the compiled binary (spec 012, B-02)", () => {
   it("reads no bunfig.toml or .env from the directory it runs in", async () => {
     const entry = join(dir, "entry.ts");
-    writeFileSync(entry, 'console.log(`main ${process.env["FROM_DOTENV"] ?? "clean"}`);\n');
+    writeFileSync(entry, 'console.log("main", process.env["FROM_DOTENV"] ?? "clean");\n');
     const outfile = join(dir, "probe");
     const built = await Bun.build({ entrypoints: [entry], compile: { outfile, ...STANDALONE } });
     expect(built.success).toBe(true);

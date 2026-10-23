@@ -156,6 +156,11 @@ describe("pre-shell hook", () => {
       "security dump-keychain",
       "secret-tool lookup service snagentic",
       "cmdkey /list",
+      // These make the snagentic binary run other code, or stop checking certificates.
+      "BUN_BE_BUN=1 snagentic -e 'console.log(1)'",
+      "export BUN_OPTIONS='--preload ./x.ts'",
+      "env NODE_OPTIONS=--require=./x.js snagentic pull",
+      "NODE_TLS_REJECT_UNAUTHORIZED=0 snagentic pull --instance pdi",
     ]) {
       const outcome = await runClaudeHook("pre-shell", shell(command), never);
       expect([command, outcome.exitCode]).toEqual([command, 2]);

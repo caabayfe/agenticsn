@@ -1,6 +1,6 @@
 import type { InstanceReader } from "../../connection/ports";
-import type { CatalogData } from "../../metadata/domain/catalog";
-import { DEFAULT_REDACTION } from "../../metadata/domain/redaction";
+import type { Catalog, CatalogData } from "../../metadata/domain/catalog";
+import { DEFAULT_REDACTION, fieldsToRedact } from "../../metadata/domain/redaction";
 import {
   AdoptRefusedError,
   AdoptSecretError,
@@ -72,10 +72,20 @@ function adoptedUnits(draft: SourceDraft): BuiltUnit[] {
 const shown = (value: string) =>
   JSON.stringify(value.length > 40 ? `${value.slice(0, 40)}…` : value);
 
-function explain(difference: Difference): string {
-  return difference.kind === "field"
-    ? `${difference.table}.${difference.field} would be ${shown(difference.built)}, is ${shown(difference.instance)}`
-    : `${difference.table} rows would be [${difference.built.join(", ")}], are [${difference.instance.join(", ")}]`;
+// Whether a field's values must not be shown: those a pull redacts (spec 012, B-19). A JSON
+// field's key is named after a dot.
+function secret(catalog: Catalog, table: string, field: string): boolean {
+  const name = (field.split(".")[0] ?? field).toLowerCase();
+  return fieldsToRedact(catalog, table, {}, DEFAULT_REDACTION).has(name);
+}
+
+function explain(difference: Difference, catalog: Catalog): string {
+  if (difference.kind !== "field") {
+    return `${difference.table} rows would be [${difference.built.join(", ")}], are [${difference.instance.join(", ")}]`;
+  }
+  const hidden = secret(catalog, difference.table, difference.field);
+  const value = (text: string) => (hidden ? "[redacted]" : shown(text));
+  return `${difference.table}.${difference.field} would be ${value(difference.built)}, is ${value(difference.instance)}`;
 }
 
 function describe(unit: BuiltUnit, detail: string) {
@@ -91,6 +101,7 @@ interface Checked {
 // Checks each unit against the instance: its ledger entry, or why it cannot be adopted.
 function entryFor(
   unit: BuiltUnit,
+  catalog: Catalog,
   copy: InstanceCopy | null,
   problems: string[],
   refusals: string[],
@@ -113,7 +124,7 @@ function entryFor(
     const refusal = loss === null ? knownRefusal(difference) : null;
     if (loss !== null) losses.add(loss);
     else if (refusal !== null) refusals.push(describe(unit, refusal));
-    else problems.push(describe(unit, explain(difference)));
+    else problems.push(describe(unit, explain(difference, catalog)));
   }
   return {
     entry: { build: unitDigest(unit), instance: copy.version, losses: [...losses].sort() },
@@ -129,13 +140,18 @@ interface Adoption {
 }
 
 // The ledger entries of the units a draft adds or changes, refusing any it cannot explain.
-async function checkedEntries(dependencies: AdoptDependencies, units: readonly BuiltUnit[]) {
+async function checkedEntries(
+  dependencies: AdoptDependencies,
+  units: readonly BuiltUnit[],
+  catalog: Catalog,
+) {
   const copies = await readUnits(dependencies.reader, units, dependencies.signal);
   const problems: string[] = [];
   const refusals: string[] = [];
   const entries = new Map<string, Checked>();
   for (const unit of units) {
-    const entry = entryFor(unit, copies.get(unit.updateName) ?? null, problems, refusals);
+    const copy = copies.get(unit.updateName) ?? null;
+    const entry = entryFor(unit, catalog, copy, problems, refusals);
     if (entry !== null && !refusals.some((r) => r.startsWith(`${unit.updateName}:`))) {
       entries.set(unit.updateName, entry);
     }
@@ -169,7 +185,7 @@ async function adoptInto(
   const catalog = await unitCatalog(dependencies, units);
   const secrets = unitSecrets(units, catalog, DEFAULT_REDACTION);
   if (secrets.length > 0) throw new AdoptSecretError(secrets);
-  const entries = await checkedEntries(dependencies, units);
+  const entries = await checkedEntries(dependencies, units, catalog);
   let conflicts: readonly string[] = [];
   if (base === null) await workspace.writeFiles(project, outcome.draft.files);
   else conflicts = await workspace.mergeFiles(project, base, outcome.draft.files);

@@ -10,6 +10,7 @@ import {
   type InventoryReader,
   installPack,
   installPlanDocument,
+  type ListState,
   type OpenSet,
   type PackWorkspace,
   planInstall,
@@ -94,6 +95,7 @@ function fakeSteps(
     nothingFor?: string[];
     customized?: string[];
     absent?: string[];
+    layout?: ListState;
   } = {},
 ) {
   const calls: string[] = [];
@@ -155,6 +157,12 @@ function fakeSteps(
     },
     completeUpdateSets: async (sets) => {
       calls.push(`complete ${sets.map((set) => set.name).join(", ")}`);
+    },
+    layouts: async (facts) => {
+      calls.push(`layouts ${facts.length}`);
+      return facts.map(
+        () => options.layout ?? { container: null, view: "Default view", entries: [] },
+      );
     },
     writeFile: async (path, text) => {
       files.set(path, text);
@@ -762,5 +770,89 @@ describe("an upgrade over the pack's earlier update sets still in progress", () 
     expect(installPlanDocument(plan)).not.toContain("Update sets, in promotion order");
     await installPack(ready, { ...QUERY, confirm: plan.planId });
     expect(calls.some((c) => c.startsWith("complete"))).toBe(false);
+  });
+});
+
+describe("layouts a module adds to (ADR-0042)", () => {
+  const CONTAINER = "454c3bdf53853010ae50ddeeff7b1263";
+  const WITH_ENSURE: PackFixture = {
+    ...PACK,
+    files: {
+      ...PACK.files,
+      "modules/incident/ensure.yaml": JSON.stringify([
+        {
+          kind: "related_list",
+          table: "incident",
+          view: "Default view",
+          list: "incident_task.incident",
+          note: "Incident Tasks on the incident form",
+        },
+      ]),
+    },
+  };
+  const ensureDeps = (steps: InstallSteps) => ({
+    ...deps(ACTIVE, { steps }),
+    packs: memoryPacks({ itsm: packFiles(WITH_ENSURE) }),
+  });
+
+  it("lists each fact in the plan, by table and view, without a sys_id", async () => {
+    const plan = await planInstall(ensureDeps(fakeSteps().steps), QUERY);
+    expect(plan.problems).toEqual([]);
+    expect(plan.modules.find((m) => m.id === "incident")?.ensures).toMatchObject([
+      { table: "incident", view: "Default view", list: "incident_task.incident" },
+    ]);
+    expect(installPlanDocument(plan)).toContain(
+      "| incident | incident, Default view | related list incident_task.incident | Incident Tasks on the incident form |",
+    );
+  });
+
+  it("reads the layout when the module is delivered, writes and commits its entries, and takes the container over", async () => {
+    const layout: ListState = {
+      container: CONTAINER,
+      view: "Default view",
+      entries: [{ sysId: "e1", relatedList: "task_sla.task", position: 7 }],
+    };
+    const { steps, calls, files } = fakeSteps({ layout });
+    const plan = await planInstall(ensureDeps(steps), QUERY);
+    await installPack(ensureDeps(steps), { ...QUERY, confirm: plan.planId });
+    const generated = files.get("source/global/src/fluent/ensure-incident.now.ts") ?? "";
+    expect(generated).toContain(
+      `data: { list_id: '${CONTAINER}', related_list: 'incident_task.incident', position: 8 }`,
+    );
+    expect(files.get(`source/global/src/fluent/ensure-list-${CONTAINER}.now.ts`)).toContain(
+      `$id: '${CONTAINER}'`,
+    );
+    expect(generated).not.toContain(`$id: '${CONTAINER}'`);
+    // The generated files' records get their keys too (SN-MNT-010), so keys come after them.
+    const at = calls.indexOf("layouts 1");
+    expect(calls.slice(at, at + 5)).toEqual([
+      "layouts 1",
+      "commit 2",
+      "keys 3",
+      "take-over 1",
+      "plan ITSM: incident 0.1.0",
+    ]);
+  });
+
+  it("adds nothing when the list is already there, and stops on a container the client customized", async () => {
+    const already: ListState = {
+      container: CONTAINER,
+      view: "Default view",
+      entries: [{ sysId: "e1", relatedList: "incident_task.incident", position: 2 }],
+    };
+    const quiet = fakeSteps({ layout: already });
+    const plan = await planInstall(ensureDeps(quiet.steps), QUERY);
+    await installPack(ensureDeps(quiet.steps), { ...QUERY, confirm: plan.planId });
+    expect([...quiet.files.keys()].some((p) => p.includes("ensure-"))).toBe(false);
+
+    const missing: ListState = { container: CONTAINER, view: "Default view", entries: [] };
+    const customized = fakeSteps({ layout: missing, customized: [CONTAINER] });
+    const result = await installPack(ensureDeps(customized.steps), {
+      ...QUERY,
+      confirm: plan.planId,
+    });
+    expect(result.stopped?.detail).toContain(
+      `customized on the instance: sys_ui_related_list ${CONTAINER}`,
+    );
   });
 });

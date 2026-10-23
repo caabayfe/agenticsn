@@ -6,6 +6,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Security
 
+- `snagentic upgrade`, `install.sh` and `install.ps1` check a release binary's build provenance
+  when the GitHub CLI is installed and signed in: GitHub's attestation must say the release
+  workflow built it from the release's tag, or nothing is installed. Without `gh`, they install
+  on the checksum as before and say provenance was not checked (ADR-0043, spec 012 step 4).
 - Local state files (sync state, pull checkpoint, catalog, install and push journals) and the
   search index are checked against their format when read. A damaged or hand-edited file stops
   with `invalid-state-file`, naming the file, the field at fault and what to do, instead of

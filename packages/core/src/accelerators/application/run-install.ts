@@ -1,9 +1,11 @@
 import { deliveredDetail } from "../domain/earlier-sets";
+import type { EnsureFact } from "../domain/ensure";
 import { InstallBlockedError, InstallLockedError, InstallPlanChangedError } from "../domain/errors";
 import { installPlanDocument, installReportDocument } from "../domain/install-document";
 import type { InstallPlan, InstallRecord, InstallStepRecord } from "../domain/install-plan";
 import type { Adoption } from "../domain/materialize";
 import type { InstallJournal, InstallSteps } from "../ports";
+import { ensureLayouts } from "./ensure-layouts";
 import { type InstallPlanDependencies, type InstallQuery, planInstall } from "./plan-install";
 
 export interface InstallResult {
@@ -106,15 +108,21 @@ async function takeOver(
 async function deliverAs(
   deps: InstallRunDependencies,
   ids: readonly string[],
-  adoptions: readonly Adoption[],
+  changes: {
+    readonly pack: string;
+    readonly adoptions: readonly Adoption[];
+    readonly ensures: readonly EnsureFact[];
+  },
   labels: { readonly label: string; readonly own: readonly string[] },
   signal: AbortSignal,
 ): Promise<{ outcome: "done" | "skipped"; detail: string }> {
   const { label, own } = labels;
   const added = await deps.steps.add(ids, signal);
   if (added.conflicts.length > 0) throw new Error(`merge conflicts: ${added.conflicts.join(", ")}`);
-  await deps.steps.keys(added.copied, signal);
-  await takeOver(deps, adoptions, signal);
+  // The generated layout files first, so their records get keys with the module's (SN-MNT-010).
+  const layouts = await ensureLayouts(deps, changes.pack, changes.ensures, signal);
+  await deps.steps.keys([...added.copied, ...layouts.written], signal);
+  await takeOver(deps, [...changes.adoptions, ...layouts.adoptions], signal);
   const planned = await deps.steps.planPush(label, signal, own);
   if (planned.units === 0 && planned.problems.length === 0) {
     return { outcome: "skipped", detail: "the instance already holds it as built" };
@@ -180,9 +188,13 @@ async function deliver(
   const own = [...plan.modules.map((m) => m.label), upgradeLabel];
   const upgrade = `modules already installed: ${done.join(", ")}`;
   if (before.length > 0 && !finished.has(upgrade)) {
-    const adoptions = before.flatMap((m) => m.adoptions);
+    const changes = {
+      pack: plan.pack,
+      adoptions: before.flatMap((m) => m.adoptions),
+      ensures: before.flatMap((m) => m.ensures),
+    };
     await step(deps, record, upgrade, () =>
-      deliverAs(deps, done, adoptions, { label: upgradeLabel, own }, signal),
+      deliverAs(deps, done, changes, { label: upgradeLabel, own }, signal),
     );
   }
   for (const module of plan.modules.filter((m) => !done.includes(m.id))) {
@@ -190,8 +202,9 @@ async function deliver(
     if (finished.has(`module ${module.id}`)) continue;
     // Every module up to this one: a later add never drops an earlier module's files.
     const ids = [...done];
+    const changes = { pack: plan.pack, adoptions: module.adoptions, ensures: module.ensures };
     await step(deps, record, `module ${module.id}`, () =>
-      deliverAs(deps, ids, module.adoptions, { label: module.label, own }, signal),
+      deliverAs(deps, ids, changes, { label: module.label, own }, signal),
     );
   }
 }

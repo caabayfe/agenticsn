@@ -1,4 +1,5 @@
-import { isAdoptFile, isPackOnly, moduleOf, workspacePathOf } from "./pack-layout";
+import { type EnsureFact, ensureFactsOf } from "./ensure";
+import { isAdoptFile, isEnsureFile, isPackOnly, moduleOf, workspacePathOf } from "./pack-layout";
 
 // What adding a pack's modules writes into the workspace (ADR-0026 as amended by ADR-0031):
 // the pack's Fluent source copied into the workspace's projects, and the out-of-box records it
@@ -35,6 +36,8 @@ export interface MaterializeInput {
 export interface Materialized {
   readonly files: readonly MaterializedFile[];
   readonly adoptions: readonly Adoption[];
+  // Layouts the modules add to, found by table and view (ADR-0042).
+  readonly ensures: readonly EnsureFact[];
   readonly problems: readonly string[];
 }
 
@@ -106,6 +109,7 @@ export function materialize(input: MaterializeInput): Materialized {
   const problems = layoutProblems(input.files);
   const files: MaterializedFile[] = [];
   const adoptions: Adoption[] = [];
+  const ensures: EnsureFact[] = [];
   const writer = new Map<string, MaterializedFile>();
   for (const capability of input.selected) {
     const own = [...input.files].filter(
@@ -115,6 +119,8 @@ export function materialize(input: MaterializeInput): Materialized {
       const target = workspacePathOf(path);
       if (isAdoptFile(path)) {
         adoptions.push(...adoptionsOf(capability, path, input.parse(content), problems));
+      } else if (isEnsureFile(path)) {
+        ensures.push(...ensureFactsOf(capability, path, input.parse(content), problems));
       } else if (target === null) {
         problems.push(`${path}: not in a project folder (modules/<module>/source/<scope>/...)`);
       } else {
@@ -122,5 +128,5 @@ export function materialize(input: MaterializeInput): Materialized {
       }
     }
   }
-  return { files, adoptions, problems: problems.sort() };
+  return { files, adoptions, ensures, problems: problems.sort() };
 }

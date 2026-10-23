@@ -160,6 +160,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
       replace: async () => {},
       run: async () => ({ exitCode: 0, stdout: "", stderr: "" }),
     },
+    provenance: { verify: async () => ({ status: "verified" }) },
     platform: "darwin",
     arch: "arm64",
   },

@@ -2,6 +2,7 @@ import { canonicalJson } from "../../kernel/canonical-json";
 import { sha256Hex } from "../../kernel/sha256";
 import type { Selection } from "./capability-graph";
 import type { OpenSet } from "./earlier-sets";
+import type { EnsureFact } from "./ensure";
 import type { Adoption } from "./materialize";
 import type { ComponentCheck, PreflightReport } from "./preflight";
 import type { FieldCheck } from "./required-fields";
@@ -32,6 +33,8 @@ export interface PlannedModule {
   readonly files: readonly string[];
   // Out-of-box records the module customizes: listed for the admin, flagged for upgrades.
   readonly adoptions: readonly Adoption[];
+  // Layouts the module adds to, found by table and view when it is delivered (ADR-0042).
+  readonly ensures: readonly EnsureFact[];
 }
 
 export interface PlannedEntity {

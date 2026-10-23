@@ -30,7 +30,8 @@ export function fromYamlStrings(text: string): unknown {
 }
 
 function roundTrips(value: string): boolean {
-  return (fromYamlStrings(stringify({ v: value }, STYLE)) as { v?: unknown }).v === value;
+  const parsed = fromYamlStrings(stringify({ v: value }, STYLE));
+  return typeof parsed === "object" && parsed !== null && Reflect.get(parsed, "v") === value;
 }
 
 // The YAML library mis-writes some multi-line values (whitespace-only first or last lines;

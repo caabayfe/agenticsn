@@ -44,8 +44,7 @@ export class FsWorkspaceStore implements WorkspaceStore {
     if (data === null || typeof data !== "object") {
       return {};
     }
-    const fields = data as Record<string, unknown>;
-    return { layout: fields["layout"], createdWith: fields["created_with"] };
+    return { layout: Reflect.get(data, "layout"), createdWith: Reflect.get(data, "created_with") };
   }
 
   async isInsideGitRepository(directory: string): Promise<boolean> {

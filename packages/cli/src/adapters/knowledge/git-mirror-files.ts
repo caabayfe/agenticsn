@@ -96,7 +96,7 @@ export class GitMirrorFiles implements MirrorFiles {
     }
     const listed = readdir(join(this.workspace, this.root, directory))
       .then((names) => names.sort())
-      .catch(() => [] as string[]);
+      .catch((): string[] => []);
     this.listings.set(directory, listed);
     return listed;
   }

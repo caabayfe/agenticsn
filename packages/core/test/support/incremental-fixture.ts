@@ -46,6 +46,7 @@ export function instanceTables(): Record<string, Row[]> {
       table("c3", "sys_ui_section"),
       table("c4", "wf_workflow"),
       table("c5", "sys_cred"),
+      table("c6", "domain", ""),
     ],
     sys_scope: [{ sys_id: "global", scope: "global" }],
     sys_dictionary: [

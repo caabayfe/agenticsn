@@ -2,6 +2,7 @@ import type { TableStatistics } from "../../connection/ports";
 import { AccessDeniedError, InstanceError } from "../../index-errors";
 import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
+import type { Catalog } from "../../metadata/domain/catalog";
 import { INVENTORY, type InventorySource, inventorySignature } from "../domain/inventory";
 import type { PullDependencies } from "./pull-dependencies";
 
@@ -11,12 +12,18 @@ export interface OperationalOutcome {
 }
 
 // Lists one inventory source into its YAML file; null when the user may not read it.
+// A source whose table the instance doesn't have is written empty, without asking.
 async function listSource(
   deps: PullDependencies,
+  catalog: Catalog,
   source: InventorySource,
   signal: AbortSignal,
 ): Promise<number | null> {
   const rows: Row[] = [];
+  if (source.optional === true && !catalog.hasTable(source.table)) {
+    await deps.records.writeDocument(deps.operationalRoot, `${source.file}.yaml`, rows);
+    return 0;
+  }
   const fields = source.key === "sys_id" ? source.fields : [...source.fields, "sys_id"];
   const listing = {
     table: TableName.parse(source.table),
@@ -42,13 +49,14 @@ async function listSource(
 // Plugins, store applications and domains (all of them, or the sources given).
 export async function pullOperational(
   deps: PullDependencies,
+  catalog: Catalog,
   signal: AbortSignal,
   sources: readonly InventorySource[] = INVENTORY,
 ): Promise<OperationalOutcome> {
   let operationalRows = 0;
   const unreadable: string[] = [];
   for (const source of sources) {
-    const rows = await listSource(deps, source, signal);
+    const rows = await listSource(deps, catalog, source, signal);
     if (rows === null) {
       unreadable.push(source.table);
     } else {

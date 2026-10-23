@@ -16,6 +16,8 @@ export interface InventorySource {
   readonly fields: readonly string[];
   // Absent: refreshed only by full pulls and verification.
   readonly signal?: InventorySignal;
+  // The table exists only when a plugin is installed; without it the source is empty.
+  readonly optional?: true;
 }
 
 export const INVENTORY: readonly InventorySource[] = [
@@ -42,6 +44,8 @@ export const INVENTORY: readonly InventorySource[] = [
     base: "",
     key: "sys_id",
     fields: ["sys_id", "name", "parent", "active"],
+    // Domain separation (com.glide.domain): a fresh PDI answers "Invalid table domain".
+    optional: true,
   },
 ];
 

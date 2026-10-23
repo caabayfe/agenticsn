@@ -24,6 +24,10 @@ export class Catalog {
     return chain;
   }
 
+  hasTable(table: string): boolean {
+    return table in this.data.parents;
+  }
+
   isMetadata(table: string): boolean {
     return this.ancestors(table).includes("sys_metadata");
   }

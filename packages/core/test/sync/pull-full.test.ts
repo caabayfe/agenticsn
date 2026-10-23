@@ -37,6 +37,8 @@ function instance(extra: Record<string, Row[]> = {}, denied: string[] = []) {
       { sys_id: "c1", name: "sys_script", super_class: "c0" },
       { sys_id: "c2", name: "wf_workflow", super_class: "c0" },
       { sys_id: "c3", name: "sys_cred", super_class: "c0" },
+      // Domain separation is installed (pdi2).
+      { sys_id: "c4", name: "domain", super_class: "" },
     ],
     sys_scope: [{ sys_id: "global", scope: "global" }],
     sys_dictionary: [
@@ -252,6 +254,18 @@ describe("pullFull", () => {
     const summary = await run(instance({}, ["wf_activity", "domain"]).reader).result;
     expect(summary.unreadable).toEqual(["wf_activity", "domain"]);
     expect(summary.operationalRows).toBe(2);
+  });
+
+  it("writes no domains, without asking, when the instance has no domain table", async () => {
+    // A fresh PDI without domain separation answers "Invalid table domain" (pdi3).
+    const { reader, queries } = instance({
+      sys_db_object: [{ sys_id: "c0", name: "sys_metadata", super_class: "" }],
+    });
+    const { result, records } = run(reader);
+    const summary = await result;
+    expect(queries.some((query) => String(query.table) === "domain")).toBe(false);
+    expect(records.documents.get("ops|domains.yaml")).toEqual([]);
+    expect(summary.unreadable).toEqual([]);
   });
 
   it("makes the mirror durable before recording each class as done", async () => {

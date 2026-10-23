@@ -11,6 +11,11 @@ export type FieldLengths = ReadonlyMap<string, ReadonlyMap<string, number>>;
 // in the thousands, and the platform does not cut them on load.
 export const CUT_TYPES = ["string", "translated_field", "translated_text"] as const;
 
+// The longest declared length the platform cuts to. Every cut seen was a short name (40, 100
+// characters); a longer string field is a text column that keeps more than it declares (pdi2:
+// par_dashboard_canvas.layout declares 8,000 and shipped dashboards hold 71,666).
+export const LONGEST_CUT = 4000;
+
 export interface CutValue {
   readonly table: string;
   readonly field: string;
@@ -45,7 +50,7 @@ export function cutValues(unit: BuiltUnit, lengths: FieldLengths): CutValue[] {
     if (limits === undefined) return [];
     return Object.entries(record.fields).flatMap(([field, value]) => {
       const max = limits.get(field) ?? 0;
-      return max > 0 && value.length > max
+      return max > 0 && max <= LONGEST_CUT && value.length > max
         ? [{ table: record.table, field, length: value.length, max }]
         : [];
     });

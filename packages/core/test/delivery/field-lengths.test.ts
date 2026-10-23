@@ -72,6 +72,16 @@ describe("plan refuses a value the instance would cut (spec 011, I11)", () => {
     ]);
   });
 
+  it("leaves long string fields unchecked: the instance keeps more than they declare", async () => {
+    // pdi2: par_dashboard_canvas.layout declares 8,000 and shipped dashboards hold 71,666.
+    const { deps, builds, project, tables } = unitSetup();
+    dictionary(tables, "8000");
+    const unit = created({ name: "x".repeat(10_757) });
+    builds.set(project.path, [...(builds.get(project.path) ?? []), unit]);
+    const { plan } = await computeUnitPlan(deps, QUERY);
+    expect(plan.problems).toEqual([]);
+  });
+
   it("plans values within their fields, and leaves script fields unchecked", async () => {
     const { deps, builds, project, tables } = unitSetup();
     dictionary(tables, "10");

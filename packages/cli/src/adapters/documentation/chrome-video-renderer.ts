@@ -29,9 +29,14 @@ export function chromeProgram(
 
 const WIDTH = 1040;
 
-async function devToolsUrl(profile: string, signal: AbortSignal): Promise<string> {
+// The browser's DevTools endpoint, once it writes it to its profile, or null after `waits` tries.
+async function devToolsUrl(
+  profile: string,
+  signal: AbortSignal,
+  waits: number,
+): Promise<string | null> {
   const file = join(profile, "DevToolsActivePort");
-  for (let attempt = 0; attempt < 150 && !signal.aborted; attempt++) {
+  for (let attempt = 0; attempt < waits && !signal.aborted; attempt++) {
     if (existsSync(file)) {
       const [port, path] = readFileSync(file, "utf8").split("\n");
       if (port && path) {
@@ -39,6 +44,41 @@ async function devToolsUrl(profile: string, signal: AbortSignal): Promise<string
       }
     }
     await Bun.sleep(100);
+  }
+  return null;
+}
+
+const launch = (program: string, profile: string, signal: AbortSignal) =>
+  Bun.spawn(
+    [
+      program,
+      "--headless=new",
+      "--remote-debugging-port=0",
+      `--user-data-dir=${profile}`,
+      "--hide-scrollbars",
+      "--mute-audio",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "about:blank",
+    ],
+    { stdout: "ignore", stderr: "ignore", env: childEnvironment(), signal },
+  );
+
+// Starts the browser and waits for its DevTools endpoint. A start that gives none (seen on CI,
+// 2026-10-22) is killed and followed by one more, with a fresh profile.
+export async function startBrowser(
+  program: string,
+  dir: string,
+  signal: AbortSignal,
+  waits = 150,
+): Promise<{ browser: ReturnType<typeof Bun.spawn>; url: string }> {
+  for (let start = 1; start <= 2; start++) {
+    const profile = join(dir, `profile-${start}`);
+    const browser = launch(program, profile, signal);
+    const url = await devToolsUrl(profile, signal, waits);
+    if (url !== null) return { browser, url };
+    browser.kill();
+    await browser.exited;
   }
   throw new Error("the browser did not start its DevTools endpoint");
 }
@@ -159,20 +199,7 @@ export class ChromeVideoRenderer implements VideoRenderer {
 
   async render(page: string, audio: Uint8Array | null, options: VideoOptions, signal: AbortSignal) {
     const dir = await mkdtemp(join(tmpdir(), "snagentic-video-"));
-    const browser = Bun.spawn(
-      [
-        this.chrome ?? "chrome",
-        "--headless=new",
-        "--remote-debugging-port=0",
-        `--user-data-dir=${join(dir, "profile")}`,
-        "--hide-scrollbars",
-        "--mute-audio",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "about:blank",
-      ],
-      { stdout: "ignore", stderr: "ignore", env: childEnvironment(), signal },
-    );
+    let browser: ReturnType<typeof Bun.spawn> | undefined;
     let client: DevToolsClient | undefined;
     try {
       await writeFile(join(dir, "player.html"), page);
@@ -180,7 +207,9 @@ export class ChromeVideoRenderer implements VideoRenderer {
       if (audioFile !== null && audio !== null) {
         await writeFile(audioFile, audio);
       }
-      client = await DevToolsClient.connect(await devToolsUrl(join(dir, "profile"), signal));
+      const started = await startBrowser(this.chrome ?? "chrome", dir, signal);
+      browser = started.browser;
+      client = await DevToolsClient.connect(started.url);
       await client.attachPage();
       const url = `file://${join(dir, "player.html")}#record${options.subtitles ? "&subs" : ""}`;
       const schedule = await capture(client, dir, url, options);
@@ -191,8 +220,8 @@ export class ChromeVideoRenderer implements VideoRenderer {
       return await encode(dir, join(dir, "frames.txt"), audioFile, options, signal);
     } finally {
       client?.close();
-      browser.kill();
-      await browser.exited;
+      browser?.kill();
+      await browser?.exited;
       await rm(dir, { recursive: true, force: true });
     }
   }

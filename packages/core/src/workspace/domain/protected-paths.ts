@@ -16,6 +16,10 @@ export function protectedReason(path: string): string | null {
   if (/^\.claude\/settings(?:\.local)?\.json$/.test(clean) || clean.startsWith(".github/hooks/")) {
     return GUARDS;
   }
+  // They start the snagentic server, and could give it an environment that runs other code.
+  if (clean === ".mcp.json" || clean === ".vscode/mcp.json") {
+    return GUARDS;
+  }
   if (/^instances\/[^/]+\/metadata\//.test(clean)) {
     return "the mirror is the instance as last pulled, written only by pull (ADR-0031): adopt the record with snagentic adopt, then edit its source under source/<scope>/";
   }

@@ -36,6 +36,9 @@ describe("protected paths", () => {
       ".claude/settings.json",
       ".claude/settings.local.json",
       ".github/hooks/snagentic.json",
+      // The MCP configs say how the snagentic server starts, and with which environment.
+      ".mcp.json",
+      ".vscode/mcp.json",
       "waivers.yaml",
     ]) {
       expect(protectedReason(path)).not.toBeNull();

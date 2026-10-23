@@ -1,21 +1,18 @@
-import { existsSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { Orchestrator, Project } from "@servicenow/sdk-api";
 import { type Diagnostic, NoOpTelemetry, NowConfig } from "@servicenow/sdk-build-core";
+import type { FluentBuildError } from "./fluent-build-error";
 import { OverlayFileSystem } from "./overlay-file-system";
+import { projectRefusals } from "./project-refusals";
 import { type InstanceExchange, SchedulerConnector } from "./scheduler-connector";
 import type { TypeFiles } from "./type-files";
 
 // Loaded only for a build: the release binary holds this module as a second entry point, so
 // commands that do not build flows never parse the SDK (ADR-0028 as amended, item 6).
 
-export interface FluentBuildError {
-  readonly file: string;
-  readonly line: number;
-  readonly column: number;
-  readonly code: string;
-  readonly message: string;
-}
+export type { FluentBuildError } from "./fluent-build-error";
 
 export type FluentBuildOutcome =
   | { readonly success: true; readonly records: readonly string[] }
@@ -75,53 +72,31 @@ function versionOf(typeFiles: TypeFiles): string {
     : "unknown";
 }
 
-function projectAt(rootDir: string, typeFiles: TypeFiles): Project {
-  const fileSystem = new OverlayFileSystem(rootDir, typeFiles);
+type Opened =
+  | { readonly project: Project; readonly refused?: undefined }
+  | { readonly refused: readonly FluentBuildError[] };
+
+function openProject(rootDir: string, typeFiles: TypeFiles, scratch?: string): Opened {
+  const fileSystem = new OverlayFileSystem(rootDir, typeFiles, scratch);
   const config = NowConfig.parseFromDirectory(rootDir, fileSystem, quietLogger);
-  return new Project({
+  const refused = projectRefusals(config, rootDir);
+  if (refused.length > 0) return { refused };
+  const project = new Project({
     config,
     fileSystem,
     rootDir,
     logger: quietLogger,
     telemetryClient: new NoOpTelemetry(),
   });
-}
-
-// The scripts the SDK's build imports and runs: those named in now.config.json, else
-// now.<name>.mjs beside it.
-const BUILD_SCRIPTS = ["prebuild", "postbuild"] as const;
-
-// A build script would run inside snagentic, with the instance's credentials in reach (S1).
-// snagentic builds metadata only; a project with build scripts is refused before the SDK runs.
-function buildScripts(project: Project, rootDir: string): FluentBuildError[] {
-  const declared: Readonly<Record<string, string>> = project.getConfig().scripts ?? {};
-  return BUILD_SCRIPTS.flatMap((name) => {
-    const file =
-      declared[name] !== undefined
-        ? "now.config.json"
-        : existsSync(join(rootDir, `now.${name}.mjs`))
-          ? `now.${name}.mjs`
-          : null;
-    return file === null
-      ? []
-      : [
-          {
-            file,
-            line: 1,
-            column: 1,
-            code: "snagentic-project-script",
-            message: `the project has a ${name} script; snagentic doesn't run project scripts, which would run with its access to the instance: remove it`,
-          },
-        ];
-  });
+  return { project };
 }
 
 async function build(rootDir: string, typeFiles: TypeFiles): Promise<FluentBuildOutcome> {
-  const project = projectAt(rootDir, typeFiles);
-  const scripts = buildScripts(project, rootDir);
-  if (scripts.length > 0) {
-    return { success: false, errors: scripts };
+  const opened = openProject(rootDir, typeFiles);
+  if (opened.refused !== undefined) {
+    return { success: false, errors: opened.refused };
   }
+  const project = opened.project;
   // The SDK throws after reporting diagnostics; the diagnostics are the answer.
   const result = await new Orchestrator(project).build({}).catch(() => undefined);
   if (result?.success) {
@@ -131,15 +106,53 @@ async function build(rootDir: string, typeFiles: TypeFiles): Promise<FluentBuild
   return { success: false, errors: errors.map((d) => toError(rootDir, d)) };
 }
 
+const TEMP_VARIABLES = ["TMPDIR", "TMP", "TEMP"] as const;
+
+// Runs `body` with the process's temporary folder set to `folder`. The SDK's transform unpacks
+// the records it reads into os.tmpdir()/.now/metadata; in the shared /tmp of a Linux host, other
+// users could read them there.
+async function inTemporaryFolder<T>(folder: string, body: () => Promise<T>): Promise<T> {
+  const before = TEMP_VARIABLES.map((name) => process.env[name]);
+  for (const name of TEMP_VARIABLES) process.env[name] = folder;
+  try {
+    return await body();
+  } finally {
+    TEMP_VARIABLES.forEach((name, i) => {
+      const value = before[i];
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    });
+  }
+}
+
 async function transform(
   rootDir: string,
   typeFiles: TypeFiles,
   records: readonly TransformRecord[],
   connector: SchedulerConnector,
 ): Promise<FluentTransformOutcome> {
-  const project = projectAt(rootDir, typeFiles);
+  const scratch = mkdtempSync(join(tmpdir(), "snagentic-sdk-"));
   try {
-    const result = await new Orchestrator(project, connector).transform({
+    return await inTemporaryFolder(scratch, () =>
+      transformIn(openProject(rootDir, typeFiles, scratch), rootDir, records, connector),
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+async function transformIn(
+  opened: Opened,
+  rootDir: string,
+  records: readonly TransformRecord[],
+  connector: SchedulerConnector,
+): Promise<FluentTransformOutcome> {
+  const [refused] = opened.refused ?? [];
+  if (opened.refused !== undefined) {
+    return { success: false, message: `${refused?.file}: ${refused?.message}` };
+  }
+  try {
+    const result = await new Orchestrator(opened.project, connector).transform({
       method: "metadata",
       records: records.map(({ table, sysId }) => ({ table, sysId })),
     });

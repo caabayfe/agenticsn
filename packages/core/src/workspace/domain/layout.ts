@@ -48,9 +48,12 @@ export function metadataPath(name: InstanceName, workspace: string, path: string
 // Fluent projects live in the workspace under source/<scope>/ (ADR-0028).
 export const FLUENT_SOURCE_DIR = "source";
 
-// A path under source/, relative to the workspace, or null for any other path.
+// A path under source/<scope>/, relative to the workspace, or null for any other path. A `.`,
+// `..` or empty segment is refused, so `source/..` can't name the workspace or anything above it.
 export function fluentSourcePath(workspace: string, path: string): string | null {
   let relative = path.startsWith(`${workspace}/`) ? path.slice(workspace.length + 1) : path;
   relative = relative.startsWith("./") ? relative.slice(2) : relative;
-  return relative.startsWith(`${FLUENT_SOURCE_DIR}/`) ? relative : null;
+  const [top, ...rest] = (relative.endsWith("/") ? relative.slice(0, -1) : relative).split("/");
+  const plain = rest.length > 0 && rest.every((s) => s !== "" && s !== "." && s !== "..");
+  return top === FLUENT_SOURCE_DIR && plain ? relative : null;
 }

@@ -70,6 +70,19 @@ const git = (root: string, ...args: string[]) =>
 const integrator = gitIntegrator;
 
 const NEW_ID = "4944d956393ce479c7b489974061fefd";
+
+const id = (n: number) => n.toString(16).padStart(32, "0");
+const updateName = (n: number) => `sys_script_${id(n)}`;
+const UPDATE_NAME = updateName(1);
+// A rule as the instance stamps it, so the drift report can read its version.
+const stamped = (n: number, script: string) => ({
+  ...ruleRow(script),
+  sys_id: id(n),
+  name: `Rule ${n}`,
+  sys_update_name: updateName(n),
+  sys_mod_count: "4",
+  sys_updated_on: "2026-10-16 12:00:00",
+});
 const NEW_BASE = `instances/pdi/metadata/global/sys_script_include/util--${NEW_ID}`;
 
 describe("GitIntegrator", () => {
@@ -247,14 +260,38 @@ describe("GitIntegrator", () => {
         sys_updated_on: "2026-10-16 12:00:00",
       },
     ]);
-    const result = await integrator.integrate(root, "pdi");
+    const result = await integrator.integrate(root, "pdi", { adopted: new Set([UPDATE_NAME]) });
     expect(result.pulled).toEqual([
-      {
-        updateName: "sys_script_00000000000000000000000000000001",
-        modCount: "4",
-        updatedOn: "2026-10-16 12:00:00",
-      },
+      { updateName: UPDATE_NAME, modCount: "4", updatedOn: "2026-10-16 12:00:00" },
     ]);
+  });
+
+  it("reads no record when nothing is adopted, however many the pull changed", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await pullRows(root, [stamped(1, "two();"), stamped(2, "three();")]);
+    const result = await integrator.integrate(root, "pdi", { adopted: new Set() });
+    expect(result.pulled).toEqual([]);
+    expect(result.changedFiles).toBeGreaterThan(0);
+  });
+
+  it("reads every changed record in one pass, multi-byte text included, keeping the adopted", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await pullRows(root, [stamped(1, "// café ☕ two();"), stamped(2, "x();"), stamped(3, "ñ();")]);
+    const events: string[] = [];
+    const result = await integrator.integrate(root, "pdi", {
+      adopted: new Set([updateName(1), updateName(3)]),
+      progress: (event) => events.push(event.message),
+    });
+    expect(result.pulled).toEqual([
+      { updateName: updateName(1), modCount: "4", updatedOn: "2026-10-16 12:00:00" },
+      { updateName: updateName(3), modCount: "4", updatedOn: "2026-10-16 12:00:00" },
+    ]);
+    expect(events).toContain("integrate: merging the pull");
+    expect(events).toContain("integrate: reading changed records for drift");
   });
 
   it("says the pre-commit check blocked the merge, leaving the merge to finish", async () => {

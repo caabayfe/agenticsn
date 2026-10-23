@@ -200,6 +200,7 @@ export type {
   Fingerprints,
   FinishedPull,
   IncrementalMirror,
+  IntegrationOptions,
   IntegrationResult,
   MirrorInspector,
   MirrorIntegrator,

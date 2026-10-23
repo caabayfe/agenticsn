@@ -1,13 +1,13 @@
 import {
   InstanceName,
+  type IntegrationOptions,
   type IntegrationResult,
   instancePaths,
   type MirrorIntegrator,
   NothingPulledError,
-  type PulledRecord,
   SnagenticError,
 } from "@snagentic/core";
-import { fromYamlStrings } from "../yaml/own-style";
+import { pulledRecords } from "./pulled-records";
 import { runGit, runGitOrThrow } from "./run-git";
 
 class IntegrationBlockedError extends SnagenticError {
@@ -108,36 +108,12 @@ async function takeInstance(root: string, branch: string, owned: readonly string
   return files;
 }
 
-// The records a range of commits changed in the mirror, with their stamps (ADR-0033 drift).
-async function pulledRecords(root: string, from: string, to: string, metadata: string) {
-  const changed = lines(
-    await runGitOrThrow(
-      ["diff", "--name-only", "--diff-filter=AM", from, to, "--", metadata],
-      root,
-    ),
-  ).filter((path) => path.endsWith(".yaml") && !path.includes(".children."));
-  const records: PulledRecord[] = [];
-  for (const path of changed) {
-    const shown = await runGit(["show", `${to}:${path}`], root);
-    const document: unknown = shown.exitCode === 0 ? fromYamlStrings(shown.stdout) : null;
-    const meta =
-      typeof document === "object" && document !== null ? Reflect.get(document, "_meta") : null;
-    const field = (name: string) => {
-      const value: unknown =
-        typeof meta === "object" && meta !== null ? Reflect.get(meta, name) : undefined;
-      return typeof value === "string" ? value : "";
-    };
-    if (field("sys_update_name") === "") continue;
-    records.push({
-      updateName: field("sys_update_name"),
-      modCount: field("sys_mod_count"),
-      updatedOn: field("sys_updated_on"),
-    });
-  }
-  return records;
-}
-
-async function merge(root: string, instance: string, before: string): Promise<IntegrationResult> {
+async function merge(
+  root: string,
+  instance: string,
+  before: string,
+  options: IntegrationOptions,
+): Promise<IntegrationResult> {
   const { branch, owned } = await ensureIntegrable(root, instance);
   const related = (await runGit(["merge-base", "HEAD", branch], root)).exitCode === 0;
   const configured = (await runGit(["config", "user.email"], root)).stdout.trim() !== "";
@@ -161,20 +137,28 @@ async function merge(root: string, instance: string, before: string): Promise<In
     commit,
     changedFiles: changed.length,
     discarded,
-    pulled: await pulledRecords(root, before, commit, metadata),
+    pulled: await pulledRecords(root, { from: before, to: commit, metadata }, options),
   };
 }
 
 // `integrate` (ADR-0007, ADR-0031): the instance's copy is merged into the current branch. The
 // mirror is read-only, so the instance's copy always wins there.
-async function integrate(root: string, instance: string): Promise<IntegrationResult> {
+async function integrate(
+  root: string,
+  instance: string,
+  options: IntegrationOptions = {},
+): Promise<IntegrationResult> {
   const { branch } = await ensureIntegrable(root, instance);
   const head = await runGit(["rev-parse", "--verify", "--quiet", "HEAD"], root);
-  if (head.exitCode !== 0) return startFrom(root, branch);
+  if (head.exitCode !== 0) {
+    options.progress?.({ message: "integrate: checking out the pull" });
+    return startFrom(root, branch);
+  }
   if ((await runGit(["merge-base", "--is-ancestor", branch, "HEAD"], root)).exitCode === 0) {
     return { commit: null, changedFiles: 0, discarded: [], pulled: [] };
   }
-  return merge(root, instance, head.stdout.trim());
+  options.progress?.({ message: "integrate: merging the pull" });
+  return merge(root, instance, head.stdout.trim(), options);
 }
 
 export const gitIntegrator: MirrorIntegrator = { integrate };

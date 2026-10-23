@@ -4,6 +4,8 @@ import {
   InstanceError,
   type PluginActivator,
 } from "@snagentic/core";
+import { z } from "zod";
+
 // The connection the activator talks through (ServiceNowClient).
 export interface ApiCaller {
   callApi(
@@ -23,20 +25,22 @@ const STATUS: Readonly<Record<string, ActivationStatus>> = {
   "4": "canceled",
 };
 
-interface CicdResult {
-  links?: { progress?: { id?: string } };
-  status?: string;
-  status_message?: string;
-  status_detail?: string;
-  error?: string;
-  percent_complete?: number | string;
-}
+// The fields of a progress record snagentic reads.
+const CicdResult = z.object({
+  links: z.object({ progress: z.object({ id: z.string().optional() }).optional() }).optional(),
+  status: z.union([z.string(), z.number()]).optional(),
+  status_message: z.string().optional(),
+  status_detail: z.string().optional(),
+  error: z.string().optional(),
+  percent_complete: z.union([z.number(), z.string()]).optional(),
+});
 
 function progressOf(result: unknown, what: string, knownId?: string): ActivationProgress {
-  const answer = (result ?? {}) as CicdResult;
+  const parsed = CicdResult.safeParse(result ?? {});
+  const answer = parsed.success ? parsed.data : {};
   const progressId = answer.links?.progress?.id ?? knownId ?? "";
   const status = STATUS[String(answer.status ?? "")];
-  if (status === undefined || progressId === "") {
+  if (!parsed.success || status === undefined || progressId === "") {
     throw new InstanceError(`${what}: the response was not a CI/CD progress record`);
   }
   return {

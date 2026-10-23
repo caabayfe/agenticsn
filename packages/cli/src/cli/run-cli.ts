@@ -71,8 +71,9 @@ function inputFrom(
   positional: readonly string[],
   values: readonly unknown[],
 ): Record<string, unknown> {
-  const options = (values[positional.length] ?? {}) as Record<string, unknown>;
-  const input: Record<string, unknown> = { ...options };
+  const options = values[positional.length];
+  const input: Record<string, unknown> =
+    typeof options === "object" && options !== null ? { ...options } : {};
   positional.forEach((key, index) => {
     // A list argument given no values arrives empty: treat it as absent, like any other.
     const value = values[index];

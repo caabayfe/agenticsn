@@ -60,7 +60,7 @@ export class FlatRecordStore implements RecordStore {
   async remove(root: string, base: string): Promise<void> {
     const directory = dirname(join(root, base));
     const prefix = `${basename(base)}.`;
-    const names = await readdir(directory).catch(() => [] as string[]);
+    const names = await readdir(directory).catch((): string[] => []);
     await Promise.all(
       names
         .filter((name) => name.startsWith(prefix))

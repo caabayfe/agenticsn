@@ -24,31 +24,32 @@ import { CicdPluginActivator } from "./cicd-plugin-activator";
 import { type ApiBody, ApiFluentInstaller } from "./fluent-installer";
 import type { HttpResponse } from "./http-types";
 import { ImportSetApiWriter } from "./import-set-writer";
+import { ErrorBody, firstIssue, GroupedStats, Rows, StatsResult } from "./responses";
 import { costOf, costParams } from "./server-cost";
 import { TableApiWriter } from "./table-api-writer";
 
 const MAX_PAGE_SIZE = 10_000;
 
+const text = (value: unknown) => (typeof value === "string" ? value : undefined);
+
 function errorMessage(body: string): string {
+  let raw: unknown;
   try {
-    // The Table API's { error: { message, detail } }; the Fluent endpoints' { result: { error } }.
-    const parsed: { error?: { message?: string; detail?: string }; result?: { error?: unknown } } =
-      JSON.parse(body);
-    const fluent = typeof parsed.result?.error === "string" ? parsed.result.error : undefined;
-    const table = [parsed.error?.message, parsed.error?.detail].filter(Boolean).join(": ");
-    return table || fluent || "no details";
+    raw = JSON.parse(body);
   } catch {
     return "no details";
   }
+  const parsed = ErrorBody.safeParse(raw);
+  if (!parsed.success) {
+    return "no details";
+  }
+  const { error, result } = parsed.data;
+  const table = [text(error?.message), text(error?.detail)].filter(Boolean).join(": ");
+  return table || text(result?.error) || "no details";
 }
 
-interface StatsResult {
-  stats?: { count?: string; max?: { sys_updated_on?: string } };
-  groupby_fields?: { field?: string; value?: string }[];
-}
-
-function countOf(result: StatsResult | null | undefined): number | null {
-  const count = Number(result?.stats?.count);
+function countOf(result: StatsResult): number | null {
+  const count = Number(result.stats?.count);
   return Number.isInteger(count) && count >= 0 ? count : null;
 }
 
@@ -109,11 +110,11 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       { method: "GET", url: url.href, headers: this.headers },
       signal,
     );
-    const result = await this.result(response, `table ${query.table}`);
-    if (!Array.isArray(result)) {
-      throw this.unexpected(response, `table ${query.table}`);
+    const rows = Rows.safeParse(await this.result(response, `table ${query.table}`));
+    if (!rows.success) {
+      throw this.unexpected(response, `table ${query.table}`, firstIssue(rows.error));
     }
-    return result as Row[];
+    return rows.data;
   }
 
   // Count and latest raw sys_updated_on in one aggregate request.
@@ -121,19 +122,20 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     const what = `statistics of ${table}`;
     const params = { sysparm_count: "true", sysparm_max_fields: "sys_updated_on" };
     const { response, result } = await this.aggregate(table, params, signal, what);
-    const stats = result as StatsResult | null;
-    const count = countOf(stats);
-    if (count === null) {
+    const stats = StatsResult.safeParse(result);
+    const count = stats.success ? countOf(stats.data) : null;
+    if (!stats.success || count === null) {
       throw this.unexpected(response, what);
     }
-    return { count, maxUpdatedOn: stats?.stats?.max?.sys_updated_on || null };
+    return { count, maxUpdatedOn: stats.data.stats?.max?.["sys_updated_on"] || null };
   }
 
   async count(table: TableName, query: string, signal: AbortSignal): Promise<number> {
     const what = `count of ${table}`;
     const params = { sysparm_count: "true", sysparm_query: query };
     const { response, result } = await this.aggregate(table, params, signal, what);
-    const count = countOf(result as StatsResult | null);
+    const stats = StatsResult.safeParse(result);
+    const count = stats.success ? countOf(stats.data) : null;
     if (count === null) {
       throw this.unexpected(response, what);
     }
@@ -153,11 +155,12 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       ...(query === undefined ? {} : { sysparm_query: query }),
     };
     const { response, result } = await this.aggregate(table, params, signal, what);
-    if (!Array.isArray(result)) {
-      throw this.unexpected(response, what);
+    const groups = GroupedStats.safeParse(result);
+    if (!groups.success) {
+      throw this.unexpected(response, what, firstIssue(groups.error));
     }
     const counts = new Map<string, number>();
-    for (const group of result as StatsResult[]) {
+    for (const group of groups.data) {
       const count = countOf(group);
       const value = group.groupby_fields?.find((entry) => entry.field === field)?.value;
       if (count === null || value === undefined) {
@@ -276,18 +279,21 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       );
     }
     try {
-      const parsed: { result?: unknown } = JSON.parse(body);
-      return parsed.result;
+      const parsed: unknown = JSON.parse(body);
+      return parsed !== null && typeof parsed === "object"
+        ? Reflect.get(parsed, "result")
+        : undefined;
     } catch {
       // Hibernating instances answer with an HTML page.
       throw this.unexpected(response, what);
     }
   }
 
-  private unexpected(response: HttpResponse, what: string): InstanceError {
+  private unexpected(response: HttpResponse, what: string, issue?: string): InstanceError {
     const transaction = response.headers.get("x-transaction-id") ?? "unknown";
+    const at = issue === undefined ? "" : `, at ${issue}`;
     return new InstanceError(
-      `${what}: the response was not the expected JSON (transaction ${transaction})`,
+      `${what}: the response was not the expected JSON${at} (transaction ${transaction})`,
     );
   }
 }

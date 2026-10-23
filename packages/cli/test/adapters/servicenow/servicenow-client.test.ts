@@ -167,6 +167,18 @@ describe("ServiceNowClient", () => {
     const { client } = clientWith(async () => response(200, "<html>hibernating</html>"));
     await expect(client.query(QUERY, LIVE)).rejects.toMatchObject({ code: "instance-error" });
   });
+
+  it.each([
+    ['{"result":[{"sys_id":"a","active":true}]}', "0.active"],
+    ['{"result":["a"]}', "0"],
+    ['{"result":[null]}', "0"],
+  ])("refuses rows that are not raw text values (%p)", async (body, at) => {
+    const { client } = clientWith(async () => response(200, body));
+    const error = await client.query(QUERY, LIVE).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: "instance-error" });
+    expect(String(error)).toContain(`table sys_script: the response was not the expected JSON`);
+    expect(String(error)).toContain(at);
+  });
 });
 
 describe("ServiceNowClient.fingerprint", () => {
@@ -188,6 +200,17 @@ describe("ServiceNowClient.fingerprint", () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({
       sysparm_count: "true",
       sysparm_max_fields: "sys_updated_on",
+    });
+  });
+
+  it.each([
+    '{"result":{"stats":"655259"}}',
+    '{"result":{"stats":{"count":"3","max":"2026-10-05"}}}',
+    '{"result":{"stats":{"count":"3","max":{"sys_updated_on":7}}}}',
+  ])("reports an unexpected statistics answer (%p)", async (body) => {
+    const { client } = clientWith(async () => response(200, body));
+    await expect(client.fingerprint(TABLE, LIVE)).rejects.toMatchObject({
+      code: "instance-error",
     });
   });
 
@@ -265,6 +288,8 @@ describe("ServiceNowClient.countBy", () => {
     '{"result":{"stats":{"count":"1"}}}',
     '{"result":[{"stats":{"count":"x"},"groupby_fields":[{"field":"sys_ui_section","value":"s1"}]}]}',
     '{"result":[{"stats":{"count":"1"},"groupby_fields":[]}]}',
+    '{"result":[{"stats":{"count":"1"},"groupby_fields":"sys_ui_section"}]}',
+    '{"result":[{"stats":"1","groupby_fields":[{"field":"sys_ui_section","value":"s1"}]}]}',
   ])("reports an unexpected answer (%p)", async (body) => {
     const { client } = clientWith(async () => response(200, body));
     await expect(client.countBy(TABLE, "sys_ui_section", LIVE)).rejects.toMatchObject({
@@ -347,8 +372,12 @@ describe("ServiceNowClient.serverCost", () => {
     });
   });
 
-  it("reports an unexpected answer", async () => {
-    const { client } = clientWith(async () => response(200, '{"result":[]}'));
+  it.each([
+    '{"result":[]}',
+    '{"result":{"stats":{"count":"3","sum":"575"}}}',
+    '{"result":{"stats":{"count":"3","sum":{"cpu_time":41}}}}',
+  ])("reports an unexpected answer (%p)", async (body) => {
+    const { client } = clientWith(async () => response(200, body));
     await expect(client.serverCost("2026-10-06 10:00:00", LIVE)).rejects.toMatchObject({
       code: "instance-error",
     });

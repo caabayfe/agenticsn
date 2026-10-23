@@ -9,6 +9,8 @@ import type {
   Phase,
   SearchQuery,
 } from "@snagentic/core";
+import { z } from "zod";
+import { checkStateValue, parseStateFile } from "../state/state-file";
 
 // Bump when the schema or the indexing rules change (the knowledge domain: phases, names,
 // tables): an index with another version is dropped and rebuilt from the files.
@@ -52,19 +54,44 @@ interface Row {
   fields: string;
 }
 
-const toRecord = (row: Row): IndexedRecord => ({
-  base: row.base,
-  sysId: row.sys_id,
-  className: row.class,
-  scope: row.scope,
-  name: row.name,
-  table: row.tbl,
-  phase: row.phase as Phase | null,
-  order: row.ord,
-  active: row.active === 1,
-  updatedOn: row.updated_on,
-  fields: JSON.parse(row.fields) as Record<string, string>,
-});
+const PhaseColumn: z.ZodType<Phase | null> = z
+  .enum([
+    "client",
+    "action",
+    "before",
+    "after",
+    "async",
+    "display",
+    "query",
+    "access",
+    "notify",
+    "policy",
+    "field",
+  ])
+  .nullable();
+const FieldsColumn = z.record(z.string(), z.string());
+const DirtyColumn = z.array(z.string());
+
+// The index is rebuilt from the mirrored files whenever its schema version changes, so a
+// damaged one loses nothing.
+const rebuildHint = (path: string) =>
+  `delete ${path}: the index is rebuilt from the mirror on the next search`;
+
+const toRecord =
+  (path: string) =>
+  (row: Row): IndexedRecord => ({
+    base: row.base,
+    sysId: row.sys_id,
+    className: row.class,
+    scope: row.scope,
+    name: row.name,
+    table: row.tbl,
+    phase: checkStateValue(path, row.phase, PhaseColumn, rebuildHint(path)),
+    order: row.ord,
+    active: row.active === 1,
+    updatedOn: row.updated_on,
+    fields: parseStateFile(path, row.fields, FieldsColumn, rebuildHint(path)),
+  });
 
 // The words of a text as the index tokenizes them (letters, digits and underscores).
 function words(text: string): string[] {
@@ -81,10 +108,12 @@ function matchExpression(text: string): string {
 
 export class SqliteKnowledgeStore implements KnowledgeStore {
   private readonly db: Database;
+  private readonly toRecord: (row: Row) => IndexedRecord;
 
-  constructor(path: string) {
+  constructor(private readonly path: string) {
     mkdirSync(dirname(path), { recursive: true });
     this.db = new Database(path, { create: true });
+    this.toRecord = toRecord(path);
     this.db.run("pragma journal_mode = wal");
     const version =
       this.db.query<{ user_version: number }, []>("pragma user_version").get()?.user_version ?? 0;
@@ -105,7 +134,10 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
       .get();
     return row === null
       ? null
-      : { commit: row.commit_id, dirty: JSON.parse(row.dirty) as string[] };
+      : {
+          commit: row.commit_id,
+          dirty: parseStateFile(this.path, row.dirty, DirtyColumn, rebuildHint(this.path)),
+        };
   }
 
   async apply(
@@ -206,7 +238,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     const rows = this.db
       .query<Row, (string | number)[]>(`select r.* from ${from} ${filter} ${order} limit ?`)
       .all(...params, query.limit);
-    return { records: rows.map(toRecord), total };
+    return { records: rows.map(this.toRecord), total };
   }
 
   async onTables(tables: readonly string[]): Promise<IndexedRecord[]> {
@@ -214,7 +246,7 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
     return this.db
       .query<Row, string[]>(`select * from records where tbl in (${marks})`)
       .all(...tables)
-      .map(toRecord);
+      .map(this.toRecord);
   }
 
   async byBases(bases: readonly string[]): Promise<IndexedRecord[]> {
@@ -224,14 +256,14 @@ export class SqliteKnowledgeStore implements KnowledgeStore {
       : this.db
           .query<Row, string[]>(`select * from records where base in (${marks})`)
           .all(...bases)
-          .map(toRecord);
+          .map(this.toRecord);
   }
 
   async bySysId(sysId: string): Promise<IndexedRecord | null> {
     const row = this.db
       .query<Row, [string]>("select * from records where sys_id = ? limit 1")
       .get(sysId);
-    return row === null ? null : toRecord(row);
+    return row === null ? null : this.toRecord(row);
   }
 
   async count(): Promise<number> {

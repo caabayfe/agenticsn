@@ -110,14 +110,24 @@ a secret.
 - Decide in the ADR whether to sign `SHA256SUMS` (minisign or cosign) with a public key shipped
   in the binary, so `upgrade` can verify without `gh`.
 
-Outcome (2026-10-23): ADR-0043 (accepted 2026-10-23) amends ADR-0023. `upgrade` checks the attestation
-after the checksum and before running the new binary; the installers do the same. The check
-requires this repository, the release workflow and the version's tag (`--source-ref`), and a
-failure installs nothing. Without `gh`, or signed out, they install on the checksum and say so.
-No signing key of our own for now. Every release from 1.0.0 to 2.6.0 has an attestation, so
-`upgrade --to` an older one still works. `install.ps1` is not run by any test.
+Outcome (2026-10-23, #139): ADR-0043 (accepted 2026-10-23) amends ADR-0023. `upgrade` checks
+the attestation after the checksum and before running the new binary; the installers do the
+same. The check requires this repository, the release workflow and the version's tag
+(`--source-ref`), and a failure installs nothing. Without `gh`, or signed out, they install on
+the checksum and say so. No signing key of our own for now. Every release from 1.0.0 to 2.6.0
+has an attestation, so `upgrade --to` an older one still works. `install.ps1` is not run by any
+test.
 
 ### Step 5. Validate at the edges
+
+Outcome (2026-10-23): zod schemas check the six local state files (sync state, checkpoint,
+catalog, install and push journals, knowledge index rows), with older optional fields still
+loading; a file that doesn't match stops with `invalid-state-file`, the field at fault and the
+next action. Table, Aggregate, transaction-log and CI/CD answers are checked for the fields
+read, with no request changes. Not a Biome rule (there is none): an architecture test parses
+product code and allows 16 assertions, each with its reason, down from 36. `postMessage` keeps
+`"*"`: the sandboxed player's origin is opaque, so no origin can name it, and a site opened from
+disk has none. Both sides now check `e.source` instead, which is the stronger check here.
 
 - zod schemas instead of `JSON.parse(...) as T` in `json-sync-state-store.ts`,
   `json-install-journal.ts` and `sqlite-knowledge-store.ts`; then the responses in

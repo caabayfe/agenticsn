@@ -20,7 +20,7 @@ export function recordOf(context: Rule.RuleContext): RecordSettings {
   const settings = context.settings["servicenow"];
   const value = (key: string) =>
     typeof settings === "object" && settings !== null && key in settings
-      ? String((settings as Record<string, unknown>)[key])
+      ? String(Reflect.get(settings, key))
       : "";
   const declared =
     typeof settings === "object" && settings !== null && "privileges" in settings

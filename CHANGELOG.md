@@ -10,6 +10,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   when the GitHub CLI is installed and signed in: GitHub's attestation must say the release
   workflow built it from the release's tag, or nothing is installed. Without `gh`, they install
   on the checksum as before and say provenance was not checked (ADR-0043, spec 012 step 4).
+- Local state files (sync state, pull checkpoint, catalog, install and push journals) and the
+  search index are checked against their format when read. A damaged or hand-edited file stops
+  with `invalid-state-file`, naming the file, the field at fault and what to do, instead of
+  passing wrong values on (spec 012, step 5). Fields a newer version added are kept, so a file
+  survives `upgrade --to` an older release.
+- Answers from the instance (table rows, statistics, the transaction log, CI/CD progress) are
+  checked for the fields snagentic reads. An answer of another shape is an `instance-error`
+  saying where it differs, instead of a crash or a wrong value.
+- The documentation site's animation player takes messages only from the page that embeds it.
+- An architecture test lists every type assertion in product code with its reason, and fails on
+  a new one.
 
 ## [2.6.0] - 2026-10-22
 

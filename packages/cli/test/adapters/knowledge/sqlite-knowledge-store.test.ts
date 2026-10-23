@@ -115,6 +115,37 @@ describe("SqliteKnowledgeStore", () => {
     reopened.close();
   });
 
+  it("refuses an index row it can't read, naming the index and how to rebuild it", async () => {
+    const { path, store: s } = await store();
+    await s.apply([entry("a--b1")], [], { commit: "c1", dirty: [] });
+    s.close();
+    const raw = new Database(path);
+    raw.run("update records set fields = '{\"when\": 3}'");
+    raw.run("update marker set dirty = 'not json'");
+    raw.close();
+    const reopened = new SqliteKnowledgeStore(path);
+    const error = await reopened.bySysId("b1").catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: "invalid-state-file", category: "precondition" });
+    expect(String(error)).toContain("knowledge.sqlite");
+    expect(Reflect.get(Object(error), "hint")).toContain("rebuilt");
+    await expect(reopened.marker()).rejects.toMatchObject({ code: "invalid-state-file" });
+    reopened.close();
+  });
+
+  it("refuses an index row with a phase it doesn't know", async () => {
+    const { path, store: s } = await store();
+    await s.apply([entry("a--b1")], [], null);
+    s.close();
+    const raw = new Database(path);
+    raw.run("update records set phase = 'sometimes'");
+    raw.close();
+    const reopened = new SqliteKnowledgeStore(path);
+    await expect(reopened.onTables(["incident"])).rejects.toMatchObject({
+      code: "invalid-state-file",
+    });
+    reopened.close();
+  });
+
   it("finds the records whose files contain words or a sequence of words", async () => {
     const { store: s } = await store();
     await s.apply(

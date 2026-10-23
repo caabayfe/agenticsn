@@ -2,13 +2,19 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CatalogData, PullCheckpoint, SyncState, SyncStateStore } from "@snagentic/core";
+import type { z } from "zod";
 import { serialQueue } from "../serial-queue";
+import { parseStateFile } from "./state-file";
+import { CatalogFile, CheckpointFile, SyncStateFile } from "./sync-state-schemas";
 
 const FILES = {
   catalog: "catalog.json",
   checkpoint: "pull-checkpoint.json",
   state: "sync-state.json",
 } as const;
+
+// Removing the file loses nothing that a pull can't rebuild.
+const REBUILD = "run snagentic pull --full to rebuild it";
 
 // JSON files in the instance's local state folder (.snagentic/<name>/). Written through a
 // temporary file and a rename, so an interrupted write never leaves half a checkpoint.
@@ -20,7 +26,7 @@ export class JsonSyncStateStore implements SyncStateStore {
   constructor(private readonly directory: string) {}
 
   readCatalog(): Promise<CatalogData | null> {
-    return this.read<CatalogData>(FILES.catalog);
+    return this.read(FILES.catalog, CatalogFile, REBUILD);
   }
 
   writeCatalog(data: CatalogData): Promise<void> {
@@ -28,7 +34,11 @@ export class JsonSyncStateStore implements SyncStateStore {
   }
 
   readCheckpoint(): Promise<PullCheckpoint | null> {
-    return this.read<PullCheckpoint>(FILES.checkpoint);
+    return this.read(
+      FILES.checkpoint,
+      CheckpointFile,
+      `delete ${join(this.directory, FILES.checkpoint)}: the next pull starts again instead of resuming`,
+    );
   }
 
   writeCheckpoint(checkpoint: PullCheckpoint): Promise<void> {
@@ -40,16 +50,18 @@ export class JsonSyncStateStore implements SyncStateStore {
   }
 
   readState(): Promise<SyncState | null> {
-    return this.read<SyncState>(FILES.state);
+    return this.read(FILES.state, SyncStateFile, REBUILD);
   }
 
   writeState(state: SyncState): Promise<void> {
     return this.write(FILES.state, state);
   }
 
-  private async read<T>(name: string): Promise<T | null> {
+  private async read<T>(name: string, schema: z.ZodType<T>, hint: string): Promise<T | null> {
     const path = join(this.directory, name);
-    return existsSync(path) ? (JSON.parse(await readFile(path, "utf8")) as T) : null;
+    return existsSync(path)
+      ? parseStateFile(path, await readFile(path, "utf8"), schema, hint)
+      : null;
   }
 
   private write(name: string, value: unknown): Promise<void> {

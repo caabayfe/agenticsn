@@ -74,16 +74,15 @@ export const SECURITY_RULES: Readonly<Record<string, Rule.RuleModule>> = {
           if (
             method === "setBasicAuth" &&
             node.arguments.length === 2 &&
-            (stringValue(node.arguments[1] as ESTree.Node) ?? "") !== ""
+            (stringValue(node.arguments[1]) ?? "") !== ""
           ) {
             report(context, node, "setBasicAuth() is called with a literal password");
           }
           if (
             method === "setRequestHeader" &&
             node.arguments.length === 2 &&
-            (stringValue(node.arguments[0] as ESTree.Node) ?? "").toLowerCase() ===
-              "authorization" &&
-            /^(basic|bearer)\s+\S{8,}/i.test(stringValue(node.arguments[1] as ESTree.Node) ?? "")
+            (stringValue(node.arguments[0]) ?? "").toLowerCase() === "authorization" &&
+            /^(basic|bearer)\s+\S{8,}/i.test(stringValue(node.arguments[1]) ?? "")
           ) {
             report(context, node, "an Authorization header value is hardcoded");
           }

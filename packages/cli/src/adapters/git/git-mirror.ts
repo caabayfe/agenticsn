@@ -265,7 +265,7 @@ export class GitMirror implements IncrementalMirror {
   // this session are removed, never those of another git process.
   private async removeTemporaryPacks(): Promise<void> {
     const directory = join(this.repository, ".git", "objects", "pack");
-    for (const name of await readdir(directory).catch(() => [] as string[])) {
+    for (const name of await readdir(directory).catch((): string[] => [])) {
       const path = join(directory, name);
       if (name.startsWith("tmp_") && (await stat(path)).mtimeMs >= this.openedAt) {
         await rm(path, { force: true });

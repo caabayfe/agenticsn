@@ -75,10 +75,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - Processes snagentic starts (git, gh, tar, the media tools, Chrome, and a downloaded binary
   during `upgrade`) no longer receive instance credentials: every `SNAGENTIC_<NAME>_PASSWORD`
   variable is dropped from their environment, and the rest is kept (spec 012, step 3).
-- The ServiceNow SDK's vulnerable dependencies are overridden with patched versions (handlebars,
-  fastify, @fastify/static, joi, undici): `bun audit` goes from 32 advisories, 2 critical, to 7,
-  none critical. The 7 left are recorded with their reason in `docs/security/advisories.md`, and
-  a weekly check fails on any new one (spec 012, step 2).
+- Vulnerable dependencies are overridden with patched versions (handlebars, fastify,
+  @fastify/static, joi, undici, ip-address): `bun audit` goes from 32 advisories, 2 critical, to
+  6, none critical. The 6 left are recorded with their reason in `docs/security/advisories.md`,
+  and a weekly check fails on any new one (spec 012, step 2).
 
 ## [2.5.0] - 2026-10-20
 

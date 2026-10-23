@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  ProvenanceMismatchError,
   type ReleaseInfo,
   sha256Hex,
   type UpdateCheck,
@@ -43,6 +44,12 @@ function setup(overrides: Partial<UpgradeDependencies> = {}) {
         return { exitCode: 0, stdout: JSON.stringify({ files }), stderr: "" };
       },
     },
+    provenance: {
+      verify: async (_binary, version) => {
+        calls.push(`verify ${version}`);
+        return { status: "verified" };
+      },
+    },
     workspaceFiles: {
       read: async (path) => files.get(path) ?? null,
       write: async () => {},
@@ -70,8 +77,9 @@ describe("upgrade", () => {
         },
       ],
       pack: [],
+      provenance: { status: "verified" },
     });
-    expect(calls).toEqual([`download 1.3.0 ${ASSET}`, "replace 1.3.0"]);
+    expect(calls).toEqual([`download 1.3.0 ${ASSET}`, "verify 1.3.0", "replace 1.3.0"]);
   });
 
   it("does nothing when already on the latest release", async () => {
@@ -107,6 +115,43 @@ describe("upgrade", () => {
       code: "checksum-mismatch",
     });
     expect(calls.filter((c) => c.startsWith("replace"))).toEqual([]);
+  });
+
+  it("refuses a binary whose provenance does not verify, before running or replacing it", async () => {
+    const { deps, calls } = setup();
+    const forged = {
+      verify: async () => {
+        throw new ProvenanceMismatchError("1.3.0", "no attestation for this digest");
+      },
+    };
+    await expect(upgrade({ ...deps, provenance: forged }, {})).rejects.toMatchObject({
+      code: "provenance-mismatch",
+    });
+    expect(calls.filter((c) => c.startsWith("replace"))).toEqual([]);
+  });
+
+  it("goes on when provenance can't be checked, and says why", async () => {
+    const { deps, calls } = setup();
+    const unchecked = {
+      verify: async () => ({ status: "unchecked", reason: "gh is not installed" }) as const,
+    };
+    expect(await upgrade({ ...deps, provenance: unchecked }, {})).toMatchObject({
+      status: "upgraded",
+      provenance: { status: "unchecked", reason: "gh is not installed" },
+    });
+    expect(calls).toContain("replace 1.3.0");
+  });
+
+  it("checks the sum before provenance, so a corrupt download is never verified", async () => {
+    const { deps, calls } = setup();
+    const tampered = {
+      ...deps.releases,
+      download: async () => ({ binary: NEW_BINARY, sums: `${"0".repeat(64)}  ${ASSET}\n` }),
+    };
+    await expect(upgrade({ ...deps, releases: tampered }, {})).rejects.toMatchObject({
+      code: "checksum-mismatch",
+    });
+    expect(calls.some((c) => c.startsWith("verify"))).toBe(false);
   });
 
   it("refuses when running from source, or on a platform without a build", async () => {

@@ -54,6 +54,7 @@ import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
 import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
 import { ExecutableBinary, installedPath } from "./adapters/upgrade/executable-binary";
+import { GhAttestations } from "./adapters/upgrade/gh-attestations";
 import { GitHubReleases } from "./adapters/upgrade/github-releases";
 import { JsonUpdateCheckStore, updateCheckFile } from "./adapters/upgrade/json-update-check-store";
 import { FsWorkspaceStore } from "./adapters/workspace/fs-workspace-store";
@@ -161,6 +162,7 @@ const context: UseCaseContext = {
   upgrade: {
     releases,
     binary: new ExecutableBinary(installedPath(process.execPath)),
+    provenance: new GhAttestations(),
     platform: process.platform,
     arch: process.arch,
   },

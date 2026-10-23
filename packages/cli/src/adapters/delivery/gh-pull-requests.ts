@@ -3,19 +3,7 @@ import {
   type PullRequests,
   PullRequestUnavailableError,
 } from "@snagentic/core";
-import { childEnvironment } from "../child-environment";
-
-interface GhResult {
-  readonly exitCode: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-const NOT_INSTALLED = "the GitHub CLI (gh) is not installed";
-
-// The CLI's own explanation: its first line of error output.
-const reasonOf = (result: GhResult) =>
-  result.stderr.trim().split("\n")[0] || `gh exited with code ${result.exitCode}`;
+import { GH_NOT_INSTALLED, type GhResult, ghReason, runGh } from "../run-gh";
 
 // GitHub through its CLI (ADR-0022): gh's own sign-in (or GH_TOKEN) is used as is, so
 // snagentic never sees a token. Never prompts; every call is bounded by a timeout.
@@ -30,10 +18,10 @@ export class GhPullRequests implements PullRequests {
     const args = ["pr", "list", "--head", branch, "--state", "open", "--json", "url"];
     const result = await this.run([...args, "--limit", "1"], signal);
     if (result === null) {
-      return { kind: "unavailable", reason: NOT_INSTALLED };
+      return { kind: "unavailable", reason: GH_NOT_INSTALLED };
     }
     if (result.exitCode !== 0) {
-      return { kind: "unavailable", reason: reasonOf(result) };
+      return { kind: "unavailable", reason: ghReason(result) };
     }
     try {
       const listed: unknown = JSON.parse(result.stdout);
@@ -66,43 +54,21 @@ export class GhPullRequests implements PullRequests {
     const args = ["pr", "create", "--draft", "--head", branch, "--title", title, "--body", body];
     const result = await this.run(args, signal);
     if (result === null) {
-      throw new PullRequestUnavailableError(NOT_INSTALLED);
+      throw new PullRequestUnavailableError(GH_NOT_INSTALLED);
     }
     const url = result.stdout.trim().split("\n").at(-1) ?? "";
     if (result.exitCode !== 0 || !/^https?:\/\//.test(url)) {
-      throw new PullRequestUnavailableError(reasonOf(result));
+      throw new PullRequestUnavailableError(ghReason(result));
     }
     return url;
   }
 
-  // gh's output, or null when it is not installed. A timeout or cancellation kills it, which
-  // reads as a failed call.
-  private async run(args: readonly string[], signal: AbortSignal): Promise<GhResult | null> {
-    let child: ReturnType<typeof Bun.spawn<"ignore", "pipe", "pipe">>;
-    try {
-      child = Bun.spawn([this.executable, ...args], {
-        cwd: this.root,
-        stdin: "ignore",
-        stdout: "pipe",
-        stderr: "pipe",
-        signal,
-        timeout: this.timeoutMs,
-        env: childEnvironment({
-          GH_PROMPT_DISABLED: "1",
-          GH_NO_UPDATE_NOTIFIER: "1",
-          NO_COLOR: "1",
-        }),
-      });
-    } catch {
-      return null;
-    }
-    const stdout = new Response(child.stdout).text();
-    const stderr = new Response(child.stderr).text();
-    const exitCode = await child.exited;
-    if (child.signalCode !== null) {
-      // Killed: a process gh started may still hold its output open, so don't wait for it.
-      return { exitCode: 1, stdout: "", stderr: "gh did not answer in time, or was cancelled" };
-    }
-    return { exitCode, stdout: await stdout, stderr: await stderr };
+  private run(args: readonly string[], signal: AbortSignal): Promise<GhResult | null> {
+    return runGh(args, {
+      executable: this.executable,
+      cwd: this.root,
+      timeoutMs: this.timeoutMs,
+      signal,
+    });
   }
 }

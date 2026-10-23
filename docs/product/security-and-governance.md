@@ -163,7 +163,9 @@ pull with no changes costs 22 requests and 3.2 s of server time.
 ## Supply chain
 
 - Release binaries are built by GitHub Actions from a tag, with `SHA256SUMS` and GitHub build
-  provenance attestations. The install scripts check the checksum before installing.
+  provenance attestations. `snagentic upgrade` and the install scripts check the checksum, and,
+  when the GitHub CLI is installed and signed in, that the release workflow built the binary
+  from the release's tag; without `gh` they say provenance was not checked (ADR-0043).
 - Not yet: Apple notarization and Windows code signing.
 - Few runtime dependencies; each new dependency must be justified in its commit.
 

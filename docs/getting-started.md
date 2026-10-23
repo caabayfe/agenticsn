@@ -41,9 +41,9 @@ cd <your workspace>       # optional: also refreshes its agent pack
 snagentic upgrade         # or: snagentic upgrade --to 1.2.0, to go back
 ```
 
-`upgrade` checks the new binary against the release's `SHA256SUMS` and that it runs before
-replacing the old one, refreshes the workspace's agent pack (commit the files it lists), and
-shows the steps of any release you skipped, such as logging in again. snagentic never updates
+`upgrade` checks the new binary against the release's `SHA256SUMS`, its build provenance (with
+`gh` signed in; otherwise it says it couldn't), and that it runs before replacing the old one.
+It refreshes the workspace's agent pack (commit the files it lists), and shows the steps of any release you skipped, such as logging in again. snagentic never updates
 itself, and agents cannot run `upgrade`. The notice stays quiet in CI, in agent and JSON output,
 and with `SNAGENTIC_NO_UPDATE_CHECK=1`.
 

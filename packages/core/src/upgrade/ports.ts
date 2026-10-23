@@ -16,6 +16,17 @@ export interface ReleaseSource {
   ): Promise<{ readonly binary: Uint8Array; readonly sums: string }>;
 }
 
+// Whether a release binary was built by the project's release workflow (ADR-0043).
+export type Provenance =
+  | { readonly status: "verified" }
+  | { readonly status: "unchecked"; readonly reason: string };
+
+export interface ProvenanceVerifier {
+  // "unchecked" when nothing can check it here (no gh, or gh not signed in); throws
+  // ProvenanceMismatchError when a check ran and failed.
+  verify(binary: Uint8Array, version: string, signal: AbortSignal): Promise<Provenance>;
+}
+
 // The executable that is running.
 export interface InstalledBinary {
   // Its path when installed from a release, or null when running from source.

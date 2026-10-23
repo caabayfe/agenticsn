@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { sha256Hex, VERSION } from "@snagentic/core";
+import { type Provenance, sha256Hex, VERSION } from "@snagentic/core";
 import { executeUseCase } from "../../src/registry/execute";
 import { upgrade } from "../../src/registry/upgrade";
 import type { UseCaseContext } from "../../src/registry/use-case";
@@ -16,7 +16,11 @@ const NEXT = "99.0.0";
 const BINARY = new TextEncoder().encode("new snagentic");
 
 // GitHub with one newer release, and a binary that records what happens to it.
-function withReleases(context: UseCaseContext, calls: string[]): UseCaseContext {
+function withReleases(
+  context: UseCaseContext,
+  calls: string[],
+  provenance: Provenance = { status: "verified" },
+): UseCaseContext {
   return {
     ...context,
     upgrade: {
@@ -41,6 +45,7 @@ function withReleases(context: UseCaseContext, calls: string[]): UseCaseContext 
           return { exitCode: 0, stdout: JSON.stringify({ files }), stderr: "" };
         },
       },
+      provenance: { verify: async () => provenance },
       platform: "darwin",
       arch: "arm64",
     },
@@ -70,6 +75,23 @@ describe("upgrade", () => {
     expect(text).toContain(`before you go on, from the ${NEXT} release notes:`);
     expect(text).toContain("Run snagentic auth login.");
     expect(text).toContain(`agent pack updated in ${ws.root}; commit: AGENTS.md`);
+    expect(text).toContain(`provenance verified: built by the release workflow from v${NEXT}`);
+  });
+
+  it("says when provenance could not be checked, and how to check it by hand", async () => {
+    const ws = await instanceWorkspace({});
+    cleanups.push(ws.cleanup);
+    const outside = { ...ws.context, host: { ...ws.context.host, cwd: "/" } };
+    const unchecked: Provenance = {
+      status: "unchecked",
+      reason: "gh is not signed in (gh auth login)",
+    };
+    const { output } = await executeUseCase(upgrade, {}, withReleases(outside, [], unchecked));
+    expect(output).toMatchObject({ status: "upgraded", provenance: unchecked });
+    expect(upgrade.render(output as never, "text")).toContain(
+      "provenance not checked: gh is not signed in (gh auth login); checked against SHA256SUMS " +
+        "only. To check it: gh attestation verify <path to snagentic> --repo caabayfe/agenticsn",
+    );
   });
 
   it("works outside a workspace, and says when it is already current", async () => {
@@ -83,5 +105,6 @@ describe("upgrade", () => {
     expect(upgrade.render(current.output as never, "text")).toBe(
       `snagentic ${VERSION} is the latest release`,
     );
+    expect(current.output).toMatchObject({ provenance: null });
   });
 });

@@ -31,6 +31,7 @@ import type {
   PackWorkspace,
   PluginActivator,
   ProfileStore,
+  ProvenanceVerifier,
   PullRequests,
   PushJournalStore,
   ReleaseSource,
@@ -157,10 +158,12 @@ export interface UseCaseContext {
     // Serves the built site on 127.0.0.1 until the signal is cancelled.
     serve(port: number, signal: AbortSignal, ready: (url: string) => void): Promise<void>;
   };
-  // The running binary and the project's releases, for `upgrade` (ADR-0023).
+  // The running binary, the project's releases and their provenance, for `upgrade` (ADR-0023,
+  // ADR-0043).
   readonly upgrade: {
     readonly releases: ReleaseSource;
     readonly binary: InstalledBinary;
+    readonly provenance: ProvenanceVerifier;
     readonly platform: string;
     readonly arch: string;
   };

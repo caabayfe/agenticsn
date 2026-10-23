@@ -67,6 +67,8 @@ export class GitHubReleases implements ReleaseSource {
       response = await fetch(url, {
         headers: { "User-Agent": this.options.userAgent, Accept: "application/vnd.github+json" },
         signal: AbortSignal.any([signal, AbortSignal.timeout(this.timeoutMs)]),
+        // Stated here, so NODE_TLS_REJECT_UNAUTHORIZED=0 can't let another server send a binary.
+        tls: { rejectUnauthorized: true },
       });
     } catch (error) {
       throw new ReleaseUnavailableError(

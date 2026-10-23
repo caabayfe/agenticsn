@@ -15,6 +15,9 @@ export function fetchTransport(settings: FetchTransportSettings = {}): Transport
       ...(request.body === undefined ? {} : { body: request.body }),
       // Credentials must never follow a redirect to another address; a 3xx is an error.
       redirect: "manual",
+      // Stated here, so NODE_TLS_REJECT_UNAUTHORIZED=0 in the environment can't turn it off and
+      // hand the credential to whoever answers.
+      tls: { rejectUnauthorized: true },
       signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
     });
     return { status: response.status, headers: response.headers, text: () => response.text() };

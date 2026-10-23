@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { fetchTransport } from "../../../src/adapters/servicenow/fetch-transport";
+import { untrustedServer, withTlsChecksOff } from "../../support/untrusted-tls";
 
 const server = Bun.serve({
   port: 0,
@@ -16,7 +17,11 @@ const server = Bun.serve({
     });
   },
 });
-afterAll(() => server.stop(true));
+const untrusted = untrustedServer();
+afterAll(() => {
+  server.stop(true);
+  untrusted.stop(true);
+});
 
 const LIVE = new AbortController().signal;
 
@@ -47,5 +52,13 @@ describe("fetchTransport", () => {
     await expect(
       transport({ method: "GET", url: `${server.url}slow`, headers: {} }, LIVE),
     ).rejects.toThrow();
+  });
+
+  it("checks the certificate even when the environment turns checking off", async () => {
+    await withTlsChecksOff(() =>
+      expect(
+        fetchTransport()({ method: "GET", url: `${untrusted.url}`, headers: {} }, LIVE),
+      ).rejects.toThrow(),
+    );
   });
 });

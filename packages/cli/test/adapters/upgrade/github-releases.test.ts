@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { GitHubReleases } from "../../../src/adapters/upgrade/github-releases";
+import { untrustedServer, withTlsChecksOff } from "../../support/untrusted-tls";
 
 const agents: string[] = [];
 const server = Bun.serve({
@@ -30,7 +31,11 @@ const server = Bun.serve({
     }
   },
 });
-afterAll(() => server.stop(true));
+const untrusted = untrustedServer();
+afterAll(() => {
+  server.stop(true);
+  untrusted.stop(true);
+});
 
 const signal = new AbortController().signal;
 const releases = (api = "api", timeoutMs = 2000) =>
@@ -74,5 +79,12 @@ describe("GitHubReleases (ADR-0023)", () => {
     await expect(releases("slow", 100).latest(signal)).rejects.toMatchObject({
       code: "release-unavailable",
     });
+  });
+
+  it("checks GitHub's certificate even when the environment turns checking off", async () => {
+    const forged = new GitHubReleases({ api: `${untrusted.url}api`, userAgent: "snagentic/1.2.1" });
+    await withTlsChecksOff(() =>
+      expect(forged.latest(signal)).rejects.toMatchObject({ code: "release-unavailable" }),
+    );
   });
 });

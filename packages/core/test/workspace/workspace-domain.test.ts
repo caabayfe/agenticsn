@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   checkLayout,
+  fluentSourcePath,
   GITIGNORE,
   InstanceName,
   instancePaths,
@@ -46,6 +47,25 @@ describe("workspace manifest", () => {
 });
 
 describe("workspace layout", () => {
+  it("takes a Fluent path only inside source/<scope>/, with no . or .. in it", () => {
+    expect(fluentSourcePath("/w", "source/x_app/src/fluent/a.now.ts")).toBe(
+      "source/x_app/src/fluent/a.now.ts",
+    );
+    expect(fluentSourcePath("/w", "/w/source/x_app")).toBe("source/x_app");
+    expect(fluentSourcePath("/w", "./source/x_app/")).toBe("source/x_app/");
+    for (const path of [
+      "source/..",
+      "source/../x",
+      "source/x_app/../../etc",
+      "source/./x_app",
+      "source//x_app",
+      "source/",
+      "instances/dev/metadata/a.yaml",
+    ]) {
+      expect(fluentSourcePath("/w", path)).toBeNull();
+    }
+  });
+
   it("places every artifact of an instance under instances/<name>", () => {
     expect(instancePaths(InstanceName.parse("dev"))).toEqual({
       root: "instances/dev",

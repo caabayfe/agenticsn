@@ -71,6 +71,25 @@ const dictionary = (table: string, references: string[], plain: string[]): Row[]
   })),
 ];
 
+// The classes the export reads to withhold secrets (spec 012, B-04): a credential class with a
+// subclass, and a class whose parent this user can't read.
+const classId = (n: string) => n.repeat(32);
+const klass = (sys_id: string, name: string, super_class = ""): Row => ({
+  sys_id,
+  name,
+  super_class,
+});
+const CLASSES: Row[] = [
+  klass(classId("1"), "sys_metadata"),
+  klass(classId("2"), "sys_script", classId("1")),
+  klass(classId("3"), "sys_properties", classId("1")),
+  klass(classId("4"), "sys_data_source", classId("1")),
+  klass(classId("5"), "discovery_credentials"),
+  klass(classId("6"), "ssh_credentials", classId("5")),
+  klass(classId("7"), "ssh_private_key_credentials", classId("6")),
+  klass(classId("8"), "x_hidden_child", classId("9")),
+];
+
 function instance() {
   const data: Record<string, Row[]> = {
     sys_update_set: [
@@ -92,6 +111,7 @@ function instance() {
       },
     ],
     sys_scope: [{ sys_id: "global", name: "Global", scope: "global", version: "" }],
+    sys_db_object: CLASSES,
     sys_dictionary: [
       ...dictionary(
         "sys_remote_update_set",
@@ -174,6 +194,48 @@ describe("update set services", () => {
     );
     expect(xml).not.toContain("type>");
     expect(xml).toEndWith("</sys_update_xml>\n</unload>\n");
+  });
+
+  it("withholds credential subclasses, password-typed fields and classes it can't trace", async () => {
+    const { fake, deps } = instance();
+    const updates = fake.tables["sys_update_xml"] ?? [];
+    const withSecret = (sys_id: string, name: string, payload: string): Row => ({
+      ...update(sys_id, OLD, name, "7"),
+      target_name: name,
+      payload,
+    });
+    updates.push(
+      withSecret(
+        "u7",
+        "ssh_key",
+        '<record_update table="ssh_private_key_credentials"><ssh_private_key_credentials><ssh_private_key>k3y</ssh_private_key></ssh_private_key_credentials></record_update>',
+      ),
+      withSecret(
+        "u8",
+        "hr_source",
+        '<record_update table="sys_data_source"><sys_data_source><jdbc_password>pw</jdbc_password></sys_data_source></record_update>',
+      ),
+      withSecret(
+        "u9",
+        "hidden",
+        '<record_update table="x_hidden_child"><x_hidden_child><name>n</name></x_hidden_child></record_update>',
+      ),
+    );
+    fake.tables["sys_dictionary"]?.push({
+      sys_id: "d-jdbc",
+      name: "sys_data_source",
+      element: "jdbc_password",
+      internal_type: "password2",
+    });
+    const exported = await exportUpdateSet(deps, "pdi", OLD, "admin", LIVE);
+    expect(exported.updates).toBe(1);
+    expect(exported.xml).not.toContain("k3y");
+    expect(exported.withheld.map((w) => [w.name, w.reason])).toEqual([
+      ["sys_properties_1", "it sets a secret-like property"],
+      ["ssh_key", "ssh_private_key_credentials records hold credentials or certificates"],
+      ["hr_source", "it sets the secret field jdbc_password"],
+      ["hidden", "snagentic could not read the class of x_hidden_child"],
+    ]);
   });
 
   it("leaves updates holding secrets out of an export, and says which", async () => {

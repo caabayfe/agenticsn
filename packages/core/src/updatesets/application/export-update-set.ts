@@ -1,3 +1,4 @@
+import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
 import { rawTimestamp } from "../../sync/application/pull-dependencies";
 import { UpdateSetNotFoundError } from "../domain/errors";
@@ -10,6 +11,7 @@ import {
 } from "../domain/export-mapping";
 import { renderUnload } from "../domain/unload-xml";
 import { withheldReason } from "../domain/withheld";
+import { exportCatalog } from "./export-catalog";
 import {
   applications,
   listRows,
@@ -75,13 +77,19 @@ export async function exportUpdateSet(
   const all = inRecordedOrder(
     await listRows(deps, SYS_UPDATE_XML, `update_set=${id}`, "all", signal),
   );
+  const catalog = await exportCatalog(
+    deps,
+    all.map((update) => update["payload"] ?? ""),
+    signal,
+  );
+  const reasonFor = (update: Row) => withheldReason(update["payload"] ?? "", catalog);
   const withheld = all.flatMap((update) => {
-    const reason = withheldReason(update["payload"] ?? "");
+    const reason = reasonFor(update);
     return reason === null
       ? []
       : [{ name: update["name"] ?? "", target: update["target_name"] ?? "", reason }];
   });
-  const updates = all.filter((update) => withheldReason(update["payload"] ?? "") === null);
+  const updates = all.filter((update) => reasonFor(update) === null);
   const appIds = [
     set["application"] ?? "",
     ...updates.map((update) => update["application"] ?? ""),

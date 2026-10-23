@@ -19,7 +19,7 @@ const DERIVED_CLASSES = new Set([
 export function classesToPull(catalog: Catalog): string[] {
   return catalog
     .metadataClasses()
-    .filter((table) => !isDeniedClass(table) && !DERIVED_CLASSES.has(table));
+    .filter((table) => !isDeniedClass(catalog, table) && !DERIVED_CLASSES.has(table));
 }
 
 function rootOf(child: ChildTable): string {

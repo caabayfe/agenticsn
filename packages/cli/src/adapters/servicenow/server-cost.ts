@@ -1,4 +1,5 @@
 import type { ServerCost } from "@snagentic/core";
+import { StatsResult } from "./responses";
 
 // What the transaction log records for this client's requests (ASR-16): the Aggregate API
 // request that sums it, and its answer read as a ServerCost.
@@ -13,14 +14,6 @@ const COST_FIELDS = [
   "semaphore_wait_time",
 ];
 
-interface CostResult {
-  stats?: {
-    count?: string;
-    sum?: Record<string, string | undefined>;
-    max?: { response_time?: string };
-  };
-}
-
 export const costParams = (since: string, userAgent: string) => ({
   sysparm_query: `sys_created_on>=${since}^user_agent=${userAgent}`,
   sysparm_count: "true",
@@ -30,7 +23,11 @@ export const costParams = (since: string, userAgent: string) => ({
 
 // The cost, or null when the answer has no transaction count.
 export function costOf(result: unknown): ServerCost | null {
-  const stats = (result as CostResult | null)?.stats;
+  const parsed = StatsResult.safeParse(result);
+  if (!parsed.success) {
+    return null;
+  }
+  const stats = parsed.data.stats;
   const transactions = Number(stats?.count);
   if (!Number.isInteger(transactions)) {
     return null;
@@ -39,7 +36,7 @@ export function costOf(result: unknown): ServerCost | null {
   return {
     transactions,
     responseMs: sum("response_time"),
-    maxResponseMs: Number(stats?.max?.response_time ?? 0) || 0,
+    maxResponseMs: Number(stats?.max?.["response_time"] ?? 0) || 0,
     sqlMs: sum("sql_time"),
     sqlQueries: sum("sql_count"),
     cpuMs: sum("cpu_time"),

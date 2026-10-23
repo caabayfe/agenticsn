@@ -82,4 +82,16 @@ describe("CicdPluginActivator", () => {
       code: "instance-error",
     });
   });
+
+  it.each([
+    '{"result":{"links":{"progress":{"id":"a4"}},"status":"1","error":{"message":"boom"}}}',
+    '{"result":{"links":{"progress":{"id":7}},"status":"1"}}',
+    '{"result":{"links":{"progress":{"id":"a4"}},"status":"1","percent_complete":[50]}}',
+    '{"result":"running"}',
+  ])("rejects a progress record with fields of the wrong type (%p)", async (body) => {
+    const { activator } = activatorWith(async () => response(200, body));
+    await expect(activator.activate("com.snc.cool", LIVE)).rejects.toMatchObject({
+      code: "instance-error",
+    });
+  });
 });

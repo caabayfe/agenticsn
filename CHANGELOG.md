@@ -4,6 +4,24 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-10-23
+
+### Added
+
+- Ensure rules for related lists (ADR-0042, spec 011 I10). A module lists in `ensure.yaml` the
+  related lists it adds to a layout it doesn't own. At delivery, after any plugin activation,
+  each one is read live by table and view. The lists to add become a generated, committed Fluent
+  file in the module's build, and the plan lists them. A layout several modules add to is
+  restated once, in its own generated file, and a fact may keep the entry id its module gave
+  before, so lists move to `ensure.yaml` without being deleted and created again.
+
+### Fixed
+
+- A resumed `accelerator install` no longer stops with "nothing to commit" when its generated
+  files are already committed.
+- The documentation video renderer starts the headless browser once more, with a fresh profile,
+  when the first start gives no DevTools endpoint.
+
 ### Security
 
 - `snagentic upgrade`, `install.sh` and `install.ps1` check a release binary's build provenance

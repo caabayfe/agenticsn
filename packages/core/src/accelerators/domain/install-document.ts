@@ -132,6 +132,7 @@ function modules(plan: InstallPlan): string[] {
       ]),
     ),
     ...layouts(plan),
+    ...leftovers(plan),
   ];
 }
 
@@ -147,6 +148,21 @@ function layouts(plan: InstallPlan): string[] {
     ...table(
       ["Module", "Table and view", "Adds", "Why"],
       facts.map((f) => [f.module, `${f.table}, ${f.view}`, `related list ${f.list}`, f.note]),
+    ),
+  ];
+}
+
+// Files an earlier version wrote that this one dropped (ADR-0026, M8): kept, so the user removes
+// them before the install runs.
+function leftovers(plan: InstallPlan): string[] {
+  if (plan.leftovers.length === 0) return [];
+  return [
+    "",
+    "**Files this version no longer ships**, still in the workspace from an earlier add. snagentic never deletes them; remove each (`git rm`), commit, then plan again:",
+    "",
+    ...table(
+      ["File"],
+      plan.leftovers.map((path) => [`\`${path}\``]),
     ),
   ];
 }

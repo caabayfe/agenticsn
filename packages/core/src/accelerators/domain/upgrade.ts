@@ -24,3 +24,17 @@ export function carried(previous: PreviousAdd, written: readonly string[]): Carr
     removed: previous.written.filter(gone).sort(),
   };
 }
+
+// Files an earlier add wrote that no module of this pack version ships, as candidates: the install
+// plan names those the workspace still holds and stops until they are removed, since a dropped
+// file may restate records the new version declares elsewhere and break the build (pdi2,
+// 2026-10-23). Still never deleted by snagentic (M8): the user removes them.
+export const noLongerShipped = (previous: PreviousAdd, shipped: readonly string[]) =>
+  carried(previous, shipped).keep;
+
+export function leftoverProblem(paths: readonly string[]): string | null {
+  if (paths.length === 0) return null;
+  const files = paths.length === 1 ? "1 file" : `${paths.length} files`;
+  const them = paths.length === 1 ? "it" : "them";
+  return `the workspace still holds ${files} this version no longer ships: remove ${them} (git rm ${paths.join(" ")}), commit, then plan again`;
+}

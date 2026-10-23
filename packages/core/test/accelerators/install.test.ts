@@ -856,3 +856,38 @@ describe("layouts a module adds to (ADR-0042)", () => {
     );
   });
 });
+
+describe("files an earlier version wrote that this one no longer ships (ADR-0026, M8)", () => {
+  const OLD = "source/global/src/fluent/incident-lists.now.ts";
+  const leftoverDeps = (held: readonly string[]) => {
+    const base = deps(ACTIVE);
+    return {
+      ...base,
+      workspace: {
+        ...workspace("m1", held),
+        previous: async () => ({
+          written: ["source/global/src/fluent/incident.now.ts", OLD],
+          kept: [],
+        }),
+      },
+    };
+  };
+
+  it("names each one the workspace still holds and blocks the plan until it is removed, deleting nothing", async () => {
+    const plan = await planInstall(leftoverDeps([OLD]), QUERY);
+    expect(plan.leftovers).toEqual([OLD]);
+    expect(plan.problems).toContain(
+      `the workspace still holds 1 file this version no longer ships: remove it (git rm ${OLD}), commit, then plan again`,
+    );
+    const document = installPlanDocument(plan);
+    expect(document).toContain("**Files this version no longer ships**");
+    expect(document).toContain(`| \`${OLD}\` |`);
+  });
+
+  it("is clear once the file is removed, and never counts a file the pack still ships", async () => {
+    const plan = await planInstall(leftoverDeps([]), QUERY);
+    expect(plan.leftovers).toEqual([]);
+    expect(plan.problems).toEqual([]);
+    expect(installPlanDocument(plan)).not.toContain("no longer ships");
+  });
+});

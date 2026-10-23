@@ -13,6 +13,7 @@ import type { Manifest } from "../domain/manifest-types";
 import { materialize } from "../domain/materialize";
 import { moduleOf } from "../domain/pack-layout";
 import { fieldIssues, requiredFields } from "../domain/required-fields";
+import { leftoverProblem, noLongerShipped } from "../domain/upgrade";
 import type {
   DataTemplates,
   OpenUpdateSets,
@@ -105,6 +106,21 @@ function plannedModules(
   return { modules, problems };
 }
 
+// Files the pack's last add wrote that no module of this version ships, still in the workspace.
+async function plannedLeftovers(
+  deps: InstallPlanDependencies,
+  manifest: Manifest,
+  files: ReadonlyMap<string, string>,
+) {
+  const all = manifest.capabilities.map((c) => c.id);
+  const shipped = materialize({ selected: all, files, parse: (t) => deps.packs.parse(t) });
+  const gone = noLongerShipped(
+    await deps.workspace.previous(manifest.id),
+    shipped.files.map((f) => f.path),
+  );
+  return gone.length === 0 ? [] : [...(await deps.workspace.present(gone))].sort();
+}
+
 // A digest of the selected modules' files, so a change to the pack changes the plan id.
 const contentOf = (files: ReadonlyMap<string, string>, selected: readonly string[]) =>
   sha256Hex(
@@ -145,6 +161,8 @@ export async function planInstall(
   }));
   const required = await plannedFields(deps, manifest, selected, query.instance.name);
   const mirrorCommit = (await deps.workspace.mirrorCommit()) ?? "";
+  const leftovers = await plannedLeftovers(deps, manifest, files);
+  const leftover = leftoverProblem(leftovers);
   const problems = [
     ...check.unknown.map((u) => `the pack has no ${u.startsWith("profile ") ? u : `module ${u}`}`),
     ...(check.report === null
@@ -154,6 +172,7 @@ export async function planInstall(
     ...required.problems,
     ...built.problems,
     ...data.entities.flatMap((e) => e.problems.map((p) => `data ${e.entity}: ${p}`)),
+    ...(leftover === null ? [] : [leftover]),
   ];
   const plan = {
     pack: manifest.id,
@@ -165,6 +184,7 @@ export async function planInstall(
     fields: required.fields,
     earlierSets: await plannedEarlierSets(deps, manifest, query.signal),
     data: { source: query.source.kind, entities },
+    leftovers,
     problems,
     warnings: [...report.warnings, ...required.warnings],
     basis: { mirrorCommit, content: contentOf(files, selected) },

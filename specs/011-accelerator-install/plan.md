@@ -392,6 +392,15 @@ delivered as generated Fluent through the SDK, and checked again after the insta
 - Not yet: the after-install check, form fields and active flags; dropping a fact from
   `ensure.yaml` leaves the generated entry, which then needs a `Now.del` as any removed definition.
 
+**Files a pack version drops (owner decision, 2026-10-23).** An add never deletes a file the last
+add wrote that the new version no longer ships (ADR-0026, M8): it is kept. On pdi2 the kept
+`incident-relations-lists.now.ts` (moved to `ensure.yaml` in 0.7.0) restated records the generated
+ensure files also declared, and the Fluent build failed with an empty error. The install plan now
+names every such file the workspace still holds ("Files this version no longer ships", against all
+the pack's modules, so a module outside the selection is not mistaken for a dropped one) and is not
+ready until they are removed: the problem gives the `git rm` command. snagentic still deletes
+nothing.
+
 ## 12. Third slice: SDK practice and validation in both interfaces (2026-10-18/19)
 
 The incident task was validated in Service Operations Workspace and in the classic UI, with

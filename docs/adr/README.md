@@ -49,6 +49,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0041](0041-open-questions-are-records-with-an-answer.md) | Open questions are records, each with someone to ask and an answer | Accepted |
 | [0042](0042-modules-add-to-shipped-layouts-by-business-key.md) | Modules add to shipped layouts through ensure rules, found by table and view | Accepted |
 | [0043](0043-upgrade-and-installers-verify-build-provenance.md) | `upgrade` and the installers verify where a release was built | Accepted |
+| [0044](0044-the-sdk-runs-in-a-worker-without-credentials.md) | The workspace is untrusted; the SDK runs in a worker that holds no credential | Proposed |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

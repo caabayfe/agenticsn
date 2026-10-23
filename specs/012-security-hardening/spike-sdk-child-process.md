@@ -1,7 +1,7 @@
 # Spike: the Fluent SDK in a child process
 
 - Date: 2026-10-23
-- Plan: `plan.md`, step 7 (the ADR after the quick fixes, merged in #145)
+- Follows: #145 (the quick fixes); input to ADR-0044
 - Question: what does it cost to run the SDK's build and transform in a separate process that
   holds no credential, and can that process also be kept off the network and the disk outside
   the project?

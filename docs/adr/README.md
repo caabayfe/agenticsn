@@ -28,7 +28,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0020](0020-instance-trust-outside-the-repository.md) | Instance kind and address are trusted from outside the repository | Accepted (amended by 0021) |
 | [0021](0021-oauth-client-credentials.md) | OAuth client credentials, with checks bound to the authenticated session | Accepted |
 | [0022](0022-pull-requests-through-the-platform-cli.md) | Pull requests are linked and opened through the git platform's CLI | Accepted |
-| [0023](0023-upgrade-and-update-notice.md) | `snagentic upgrade` and an update notice, with no silent self-update | Accepted |
+| [0023](0023-upgrade-and-update-notice.md) | `snagentic upgrade` and an update notice, with no silent self-update | Accepted (amended by 0043) |
 | [0024](0024-elevated-session-for-acl-writes.md) | ACLs are written through an elevated browser session | Superseded by 0031 |
 | [0025](0025-choices-and-layouts-as-editable-child-rows.md) | Choice lists, form and list layouts, and applications are delivered from files | Superseded by 0031 (authoring) |
 | [0026](0026-accelerators-as-content-packs.md) | Accelerators are versioned content packs, installed through the existing flow | Accepted (amended 2026-10-14; by 0031; by 0038) |
@@ -48,6 +48,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0040](0040-every-feature-of-a-process-has-a-decision.md) | Every feature of a process is found and has a decision | Accepted |
 | [0041](0041-open-questions-are-records-with-an-answer.md) | Open questions are records, each with someone to ask and an answer | Accepted |
 | [0042](0042-modules-add-to-shipped-layouts-by-business-key.md) | Modules add to shipped layouts through ensure rules, found by table and view | Accepted |
+| [0043](0043-upgrade-and-installers-verify-build-provenance.md) | `upgrade` and the installers verify where a release was built | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

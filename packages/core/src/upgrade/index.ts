@@ -12,6 +12,7 @@ export {
   ChecksumMismatchError,
   NoBuildForPlatformError,
   NotAnInstalledBinaryError,
+  ProvenanceMismatchError,
   ReleaseUnavailableError,
 } from "./domain/errors";
 export { checkDue, type NoticeSurface, noticeAllowed, noticeText } from "./domain/notice";
@@ -25,6 +26,8 @@ export {
 export { compareVersions, parseVersion } from "./domain/version";
 export type {
   InstalledBinary,
+  Provenance,
+  ProvenanceVerifier,
   ReleaseInfo,
   ReleaseSource,
   UpdateCheck,

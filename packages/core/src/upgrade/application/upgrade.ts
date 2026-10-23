@@ -8,11 +8,12 @@ import {
 } from "../domain/errors";
 import { assetName, expectedSum, sha256Hex, upgradeSteps } from "../domain/release";
 import { compareVersions, parseVersion } from "../domain/version";
-import type { InstalledBinary, ReleaseSource } from "../ports";
+import type { InstalledBinary, Provenance, ProvenanceVerifier, ReleaseSource } from "../ports";
 
 export interface UpgradeDependencies {
   readonly releases: ReleaseSource;
   readonly binary: InstalledBinary;
+  readonly provenance: ProvenanceVerifier;
   readonly workspaceFiles: WorkspaceFiles;
   readonly current: string;
   readonly platform: string;
@@ -36,6 +37,7 @@ export type UpgradeResult =
       readonly steps: readonly { readonly version: string; readonly sections: readonly string[] }[];
       // Files the new agent pack changed in the workspace, to commit.
       readonly pack: readonly string[];
+      readonly provenance: Provenance;
     };
 
 async function target(deps: UpgradeDependencies, requested: string | undefined) {
@@ -69,7 +71,7 @@ async function refreshPack(deps: UpgradeDependencies, root: string | undefined) 
 }
 
 // `snagentic upgrade` (ADR-0023): replaces the running binary with a release, checked against
-// its SHA256SUMS, then refreshes the workspace's agent pack and lists the upgrade steps.
+// its SHA256SUMS and, where gh can, its build provenance (ADR-0043), then refreshes the workspace's agent pack and lists the upgrade steps.
 export async function upgrade(
   deps: UpgradeDependencies,
   query: UpgradeQuery,
@@ -89,6 +91,8 @@ export async function upgrade(
   if (expectedSum(sums, asset) !== sha256Hex(binary)) {
     throw new ChecksumMismatchError(asset, to);
   }
+  // Before replace, which runs the new binary.
+  const provenance = await deps.provenance.verify(binary, to, deps.signal);
   await deps.binary.replace(binary, to);
   const steps = upgradeSteps(await deps.releases.list(deps.signal), deps.current, to);
   return {
@@ -97,5 +101,6 @@ export async function upgrade(
     to,
     steps,
     pack: await refreshPack(deps, query.workspace),
+    provenance,
   };
 }

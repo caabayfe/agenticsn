@@ -44,6 +44,17 @@ export class ChecksumMismatchError extends SnagenticError {
   }
 }
 
+export class ProvenanceMismatchError extends SnagenticError {
+  constructor(version: string, reason: string) {
+    super(
+      "provenance-mismatch",
+      "remote",
+      `GitHub could not confirm the release workflow built the downloaded ${version} (${reason}); nothing was replaced`,
+      "report it at https://github.com/caabayfe/agenticsn/security, since the release files may have been tampered with",
+    );
+  }
+}
+
 export class BinaryNotReplacedError extends SnagenticError {
   constructor(path: string, reason: string) {
     super(

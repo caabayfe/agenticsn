@@ -668,7 +668,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic upgrade [options]
 ```
 
-Replace this snagentic with the latest release (or --to <version>), after checking it against the release's SHA256SUMS and that it runs. Inside a workspace, also refreshes its agent pack. Lists the upgrade steps of the releases skipped over. Run by a person, never by an agent.
+Replace this snagentic with the latest release (or --to <version>), after checking it against the release's SHA256SUMS, its build provenance when gh is signed in, and that it runs. Inside a workspace, also refreshes its agent pack. Lists the upgrade steps of the releases skipped over. Run by a person, never by an agent.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

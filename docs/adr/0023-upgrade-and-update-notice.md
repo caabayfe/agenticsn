@@ -1,6 +1,6 @@
 # 0023. `snagentic upgrade` and an update notice, with no silent self-update
 
-- Status: Accepted
+- Status: Accepted; item 1 amended by 0043 (build provenance)
 - Date: 2026-10-08
 - Requirements: ASR-05
 - Relates to: 0004 (deployment topology), 0011 (enforcement layers), 0012 (production read-only)

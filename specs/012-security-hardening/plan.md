@@ -112,6 +112,15 @@ a secret.
 
 ### Step 5. Validate at the edges
 
+Outcome (2026-10-23): zod schemas check the six local state files (sync state, checkpoint,
+catalog, install and push journals, knowledge index rows), with older optional fields still
+loading; a file that doesn't match stops with `invalid-state-file`, the field at fault and the
+next action. Table, Aggregate, transaction-log and CI/CD answers are checked for the fields
+read, with no request changes. Not a Biome rule (there is none): an architecture test parses
+product code and allows 16 assertions, each with its reason, down from 36. `postMessage` keeps
+`"*"`: the sandboxed player's origin is opaque, so no origin can name it, and a site opened from
+disk has none. Both sides now check `e.source` instead, which is the stronger check here.
+
 - zod schemas instead of `JSON.parse(...) as T` in `json-sync-state-store.ts`,
   `json-install-journal.ts` and `sqlite-knowledge-store.ts`; then the responses in
   `servicenow-client.ts`, `cicd-plugin-activator.ts` and `server-cost.ts`. A corrupt or older

@@ -57,6 +57,7 @@ const manifestOf = (fixture: PackFixture) => {
 const schema = (tables: Record<string, readonly string[]>, ready = true): SchemaReader => ({
   ready: async () => ready,
   fieldsOf: async (table) => tables[table] ?? null,
+  refresh: () => {},
 });
 
 describe("the platform fields a module reads (G13)", () => {
@@ -208,6 +209,7 @@ describe("checking the fields in the install plan (G13)", () => {
             return false;
           },
           fieldsOf: async () => null,
+          refresh: () => {},
         },
       },
       QUERY,

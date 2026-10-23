@@ -4,9 +4,13 @@ import { InstallBlockedError, InstallLockedError, InstallPlanChangedError } from
 import { installPlanDocument, installReportDocument } from "../domain/install-document";
 import type { InstallPlan, InstallRecord, InstallStepRecord } from "../domain/install-plan";
 import type { Adoption } from "../domain/materialize";
-import type { InstallJournal, InstallSteps } from "../ports";
 import { ensureLayouts } from "./ensure-layouts";
-import { type InstallPlanDependencies, type InstallQuery, planInstall } from "./plan-install";
+import { components } from "./install-components";
+import { type InstallRunDependencies, Stop, step } from "./install-step";
+import { type InstallQuery, planInstall } from "./plan-install";
+
+const folderOf = (pack: string, instance: string, planId: string) =>
+  `accelerators/installs/${instance}/${pack}-${planId}`;
 
 export interface InstallResult {
   readonly plan: InstallPlan;
@@ -17,69 +21,6 @@ export interface InstallResult {
   // The step that stopped the run, or null when it ran to the end (or only planned).
   readonly stopped: InstallStepRecord | null;
   readonly commit: string | null;
-}
-
-export interface InstallRunDependencies extends InstallPlanDependencies {
-  readonly steps: InstallSteps;
-  readonly journal: InstallJournal;
-  readonly now: () => Date;
-}
-
-// Thrown by a step to stop the run where it is, with the reason the report gives.
-class Stop extends Error {}
-
-const folderOf = (pack: string, instance: string, planId: string) =>
-  `accelerators/installs/${instance}/${pack}-${planId}`;
-
-// Runs one step, timed, recorded in the journal as it finishes.
-async function step(
-  deps: InstallRunDependencies,
-  record: { current: InstallRecord },
-  name: string,
-  run: () => Promise<{ outcome: "done" | "skipped"; detail: string }>,
-): Promise<void> {
-  const started = deps.now().getTime();
-  const seconds = () => Math.round((deps.now().getTime() - started) / 100) / 10;
-  try {
-    const { outcome, detail } = await run();
-    record.current = {
-      ...record.current,
-      steps: [...record.current.steps, { step: name, outcome, detail, seconds: seconds() }],
-    };
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    record.current = {
-      ...record.current,
-      steps: [
-        ...record.current.steps,
-        { step: name, outcome: "stopped", detail, seconds: seconds() },
-      ],
-    };
-    throw new Stop(detail);
-  } finally {
-    await deps.journal.write(record.current);
-  }
-}
-
-async function components(
-  deps: InstallRunDependencies,
-  plan: InstallPlan,
-  record: { current: InstallRecord },
-  signal: AbortSignal,
-) {
-  const activations = plan.components.filter((c) => c.action === "activate");
-  for (const c of activations) {
-    await step(deps, record, `activate ${c.id}`, async () => {
-      const { seconds } = await deps.steps.activatePlugin(c.id, signal);
-      return { outcome: "done", detail: `active after ${seconds} s` };
-    });
-  }
-  if (activations.length > 0) {
-    await step(deps, record, "pull and integrate", async () => {
-      await deps.steps.refresh(signal);
-      return { outcome: "done", detail: "the mirror holds the new components" };
-    });
-  }
 }
 
 // A module's out-of-box records become this branch's only where the client never changed them:
@@ -233,6 +174,8 @@ async function load(
     };
   });
 }
+
+export type { InstallRunDependencies } from "./install-step";
 
 // Plans, and with the plan's id confirmed, runs it (ADR-0038, item 2). A run that stopped is
 // resumed by the same command: its journal holds the plan id the admin approved.

@@ -161,4 +161,6 @@ export interface SchemaReader {
   ready(): Promise<boolean>;
   // A table's fields, its parents' included; null when the mirror has no such table.
   fieldsOf(table: string): Promise<readonly string[] | null>;
+  // Forgets what it read, so the next question reads the mirror again (after a pull).
+  refresh(): void;
 }

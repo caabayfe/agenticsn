@@ -18,5 +18,8 @@ export function mirrorSchema(open: () => Promise<KnowledgeDependencies>): Schema
       const description = await describeTable(await knowledge(), table);
       return description.known ? description.fields.map((f) => f.name) : null;
     },
+    refresh: () => {
+      session = null;
+    },
   };
 }

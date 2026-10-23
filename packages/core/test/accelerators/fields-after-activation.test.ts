@@ -2,11 +2,13 @@ import { describe, expect, it } from "bun:test";
 import {
   type DataTemplates,
   type InventoryReader,
+  installPack,
   installPlanDocument,
   type PackWorkspace,
   planInstall,
   type SchemaReader,
 } from "@snagentic/core";
+import { fakeSteps, memoryJournal } from "../support/install-fakes";
 import { memoryPacks, type PackFixture, packFiles } from "../support/memory-packs";
 
 // A fresh instance (pdi3) lacks the fields a plugin brings until the install activates it: such a
@@ -47,6 +49,7 @@ const PACK: PackFixture = {
 const schema = (tables: Record<string, readonly string[]>): SchemaReader => ({
   ready: async () => true,
   fieldsOf: async (table) => tables[table] ?? null,
+  refresh: () => {},
 });
 const inventory = (mim: "active" | "inactive"): InventoryReader => ({
   read: async (_r, _i, file) =>
@@ -121,5 +124,123 @@ describe("fields a plugin the plan activates brings", () => {
     expect(document).toContain(
       "| `incident.major_incident_state` | major-incident | **after activation** | com.snc.incident.mim | checked again once com.snc.incident.mim is active |",
     );
+  });
+});
+
+// The mirror before and after the activation's pull: the reader sees the new fields only once it
+// is refreshed, as the knowledge index does.
+function changingMirror(after: Record<string, readonly string[]>) {
+  const state = {
+    pulled: false,
+    refreshed: false,
+    tables: FRESH as Record<string, readonly string[]>,
+  };
+  const reader: SchemaReader = {
+    ready: async () => true,
+    fieldsOf: async (table) => state.tables[table] ?? null,
+    refresh: () => {
+      state.refreshed = true;
+      if (state.pulled) state.tables = after;
+    },
+  };
+  return { reader, state };
+}
+
+const AFTER_MIM = {
+  incident: ["parent_incident", "major_incident_state", "u_mystery"],
+  comm_contact_definition: ["comm_plan_definition"],
+};
+
+async function run(after: Record<string, readonly string[]>, mystery = true) {
+  const pack: PackFixture = mystery
+    ? PACK
+    : {
+        ...PACK,
+        modules: {
+          "major-incident": {
+            ...(PACK.modules["major-incident"] as object),
+            fields: [
+              { field: "incident.major_incident_state", from: MIM },
+              { field: "incident.parent_incident", from: "com.snc.incident" },
+            ],
+          },
+        },
+      };
+  const mirror = changingMirror(after);
+  const fakes = fakeSteps();
+  const refresh = fakes.steps.refresh;
+  const steps = {
+    ...fakes.steps,
+    refresh: async (signal: AbortSignal) => {
+      mirror.state.pulled = true;
+      await refresh(signal);
+    },
+  };
+  const { journal, state } = memoryJournal();
+  const plugins = { mim: "inactive" as "active" | "inactive" };
+  const deps = {
+    packs: memoryPacks({ itsm: packFiles(pack) }),
+    inventory: {
+      read: (root: string, instance: string, file: string) =>
+        inventory(plugins.mim).read(root, instance, file),
+    },
+    workspace,
+    templates,
+    updateSets: { open: async () => [] },
+    schema: mirror.reader,
+    steps,
+    journal,
+    now: () => new Date(0),
+  };
+  const planned = await planInstall(deps, QUERY);
+  const result = await installPack(deps, { ...QUERY, confirm: planned.planId });
+  return {
+    planned,
+    result,
+    calls: fakes.calls,
+    mirror: mirror.state,
+    journal: state,
+    deps,
+    plugins,
+  };
+}
+
+describe("checking those fields once the plugin is active", () => {
+  it("checks them after the activation's pull, against a fresh mirror, before the first push", async () => {
+    const { planned, result, calls, mirror } = await run(AFTER_MIM, false);
+    expect(planned.problems).toEqual([]);
+    expect(result.steps.map((s) => [s.step, s.outcome])).toEqual([
+      [`activate ${MIM}`, "done"],
+      ["pull and integrate", "done"],
+      ["check fields", "done"],
+      ["module major-incident", "done"],
+      ["data", "done"],
+      ["pull and integrate", "done"],
+    ]);
+    expect(mirror.refreshed).toBe(true);
+    expect(calls.indexOf("refresh")).toBeLessThan(calls.findIndex((c) => c.startsWith("push")));
+  });
+
+  it("stops before any push when one is still missing, naming it", async () => {
+    const { result, calls } = await run({ incident: ["parent_incident"] }, false);
+    expect(result.stopped?.step).toBe("check fields");
+    expect(result.stopped?.detail).toContain(
+      "field incident.major_incident_state (major-incident) is not on the instance",
+    );
+    expect(calls.some((c) => c.startsWith("push"))).toBe(false);
+  });
+
+  it("checks again when a stopped run resumes, and goes on once the field is there", async () => {
+    const first = await run({ incident: ["parent_incident"] }, false);
+    expect(first.result.stopped?.step).toBe("check fields");
+    // The admin repairs the plugin and the instance is pulled: MIM is active, its field there.
+    first.plugins.mim = "active";
+    first.mirror.tables = AFTER_MIM;
+    const resumed = await installPack(first.deps, { ...QUERY, confirm: first.planned.planId });
+    expect(resumed.stopped).toBeNull();
+    expect(resumed.steps.filter((s) => s.step === "check fields").map((s) => s.outcome)).toEqual([
+      "stopped",
+      "done",
+    ]);
   });
 });

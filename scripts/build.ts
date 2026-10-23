@@ -13,6 +13,7 @@ import { EMBEDDED_PACKS_ENTRY } from "../packages/cli/src/adapters/accelerators/
 import { EMBEDDED_FLUENT_ENTRY } from "../packages/cli/src/adapters/fluent/fluent-runtime-loader";
 import { collectTypeFiles, encodeTypeFiles } from "../packages/cli/src/adapters/fluent/type-files";
 import { sdkBundlePatches } from "./build-patches";
+import { STANDALONE } from "./standalone";
 
 const root = resolve(import.meta.dir, "..");
 const cli = join(root, "packages", "cli");
@@ -59,7 +60,7 @@ async function writePacksEntry(): Promise<string> {
 const patches = sdkBundlePatches(cli);
 const result = await Bun.build({
   entrypoints: [join(cli, "src", "main.ts"), writeFluentEntry(), await writePacksEntry()],
-  compile: { outfile },
+  compile: { outfile, ...STANDALONE },
   // Flat names: the main program imports the second entry point as ./fluent-sdk-runtime.js.
   naming: "[name].[ext]",
   format: "esm",

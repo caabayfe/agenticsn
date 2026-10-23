@@ -1,6 +1,6 @@
 # 0043. `upgrade` and the installers verify where a release was built
 
-- Status: Proposed (2026-10-23)
+- Status: Accepted (product owner, 2026-10-23)
 - Date: 2026-10-23
 - Requirements: ASR-05
 - Amends: 0023 (item 1, what `upgrade` checks)

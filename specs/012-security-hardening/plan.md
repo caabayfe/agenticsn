@@ -110,7 +110,7 @@ a secret.
 - Decide in the ADR whether to sign `SHA256SUMS` (minisign or cosign) with a public key shipped
   in the binary, so `upgrade` can verify without `gh`.
 
-Outcome (2026-10-23): ADR-0043 (proposed) amends ADR-0023. `upgrade` checks the attestation
+Outcome (2026-10-23): ADR-0043 (accepted 2026-10-23) amends ADR-0023. `upgrade` checks the attestation
 after the checksum and before running the new binary; the installers do the same. The check
 requires this repository, the release workflow and the version's tag (`--source-ref`), and a
 failure installs nothing. Without `gh`, or signed out, they install on the checksum and say so.

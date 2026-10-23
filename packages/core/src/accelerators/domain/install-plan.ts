@@ -66,6 +66,9 @@ export interface InstallPlan {
     readonly source: "demo" | "directory";
     readonly entities: readonly PlannedEntity[];
   };
+  // Files an earlier version wrote that this one no longer ships, still in the workspace: named,
+  // never deleted; a problem until the user removes them (ADR-0026, M8).
+  readonly leftovers: readonly string[];
   // Any problem stops the install before it changes anything.
   readonly problems: readonly string[];
   readonly warnings: readonly string[];

@@ -11,9 +11,10 @@ const Preference = z.object({
   previousValue: z.string(),
 });
 
-// Journals written before 1.5 hold one preference, without its user.
+// Journals written before 1.5 hold one preference, without its user. Fields it doesn't know are
+// kept, for a journal a newer version wrote.
 const PushJournalFile: z.ZodType<PushJournal> = z
-  .object({
+  .looseObject({
     planId: z.string(),
     mirrorCommit: z.string(),
     startedAt: z.string(),

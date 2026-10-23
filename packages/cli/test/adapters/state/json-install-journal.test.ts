@@ -23,6 +23,14 @@ describe("the install journal and lock (ADR-0038, item 2.5)", () => {
     expect(await journal.read()).toBeNull();
   });
 
+  it("keeps fields a newer version wrote", async () => {
+    const directory = join(mkdtempSync(join(tmpdir(), "install-")), "pdi");
+    mkdirSync(directory, { recursive: true });
+    const record = { planId: "p", startedAt: "s", steps: [], addedLater: 1 };
+    writeFileSync(join(directory, "install.json"), JSON.stringify(record));
+    expect(await new JsonInstallJournal(directory).read()).toMatchObject({ addedLater: 1 });
+  });
+
   it("lets one install hold an instance at a time", async () => {
     const journal = fresh();
     expect(await journal.lock()).toBe(true);

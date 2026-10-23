@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JsonSyncStateStore } from "../../../src/adapters/state/json-sync-state-store";
@@ -70,6 +70,32 @@ describe("JsonSyncStateStore", () => {
     const old = { watermark: "2026-10-01 00:00:00", lastFullPull: "2026-10-01 00:00:00" };
     await writeFile(join(directory, "sync-state.json"), `${JSON.stringify(old)}\n`);
     expect(await state.readState()).toEqual(old);
+  });
+
+  it("keeps fields a newer version wrote when it reads and writes the files back", async () => {
+    const { store: state, directory } = await store();
+    await mkdir(directory, { recursive: true });
+    const newer = { addedLater: { kept: true } };
+    const files = {
+      "sync-state.json": { watermark: "w", lastFullPull: "l", ...newer },
+      "pull-checkpoint.json": { startedAt: "s", completedClasses: [], records: 0, ...newer },
+      "catalog.json": { parents: {}, scopes: {}, typedFields: {}, ...newer },
+    };
+    for (const [name, content] of Object.entries(files)) {
+      await writeFile(join(directory, name), `${JSON.stringify(content)}\n`);
+    }
+    const [read, checkpoint, catalog] = [
+      await state.readState(),
+      await state.readCheckpoint(),
+      await state.readCatalog(),
+    ];
+    if (read === null || checkpoint === null || catalog === null) throw new Error("not read");
+    await state.writeState({ ...read, watermark: "w2" });
+    await state.writeCheckpoint(checkpoint);
+    await state.writeCatalog(catalog);
+    for (const name of Object.keys(files)) {
+      expect(JSON.parse(await readFile(join(directory, name), "utf8"))).toMatchObject(newer);
+    }
   });
 
   it("refuses a state file that is not JSON, naming the file and what to do", async () => {

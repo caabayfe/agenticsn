@@ -28,6 +28,15 @@ describe("the push journal", () => {
     expect(await store.read()).toBeNull();
   });
 
+  it("keeps fields a newer version wrote", async () => {
+    const directory = folder();
+    writeFileSync(
+      join(directory, "push-journal.json"),
+      JSON.stringify({ ...journal, addedLater: 1 }),
+    );
+    expect(await new JsonPushJournalStore(directory).read()).toMatchObject({ addedLater: 1 });
+  });
+
   it("reads a journal from before 1.5, which held one preference without its user", async () => {
     const directory = folder();
     const { preferences, ...rest } = journal;

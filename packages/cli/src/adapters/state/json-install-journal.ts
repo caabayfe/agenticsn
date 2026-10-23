@@ -4,7 +4,8 @@ import type { InstallJournal, InstallRecord } from "@snagentic/core";
 import { z } from "zod";
 import { parseStateFile } from "./state-file";
 
-const InstallFile: z.ZodType<InstallRecord> = z.object({
+// Fields it doesn't know are kept, for a journal a newer version wrote.
+const InstallFile: z.ZodType<InstallRecord> = z.looseObject({
   planId: z.string(),
   startedAt: z.string(),
   steps: z.array(

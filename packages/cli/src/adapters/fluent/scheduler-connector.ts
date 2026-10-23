@@ -1,12 +1,8 @@
 import { Connector, LazyCredential } from "@servicenow/sdk-api";
 import { SdkRouteRefusedError, sdkRouteAllowed } from "@snagentic/core";
+import type { InstanceExchange } from "./instance-exchange";
 
-// What the SDK's requests are sent through: snagentic's client, signed and scheduled (ADR-0032).
-export type InstanceExchange = (request: {
-  readonly method: "GET" | "POST";
-  readonly url: string;
-  readonly body?: string;
-}) => Promise<{ readonly status: number; readonly contentType: string; readonly text: string }>;
+export type { InstanceExchange } from "./instance-exchange";
 
 // The SDK's connector with its one way out replaced: every request is checked against the read
 // allow-list and sent through `exchange`. The SDK is never given a credential: its higher-level

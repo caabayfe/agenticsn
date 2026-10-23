@@ -29,6 +29,8 @@ export type FluentTransformOutcome =
 
 export interface FluentRuntime {
   readonly sdkVersion: string;
+  // How the last build or transform was contained (ADR-0044), when it ran in a worker.
+  readonly isolation?: () => string | undefined;
   build(projectDir: string): Promise<FluentBuildOutcome>;
   // Converts records read from the instance into the project's source (the SDK's transform),
   // with every request sent through `exchange` (ADR-0032).

@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Security
+
+- The ServiceNow SDK now runs every Fluent build and transform in a separate worker process
+  (ADR-0044), started by snagentic for that one job. The worker holds no instance credential and
+  gets only the environment variables it needs, so no token reaches it either. snagentic answers
+  its instance requests itself and checks each against the reads it allows. On macOS the worker
+  also runs in a sandbox with no network and no writes outside the build copy. `snagentic doctor`
+  says which applies on your machine.
+
 ## [2.8.1] - 2026-10-23
 
 ### Fixed

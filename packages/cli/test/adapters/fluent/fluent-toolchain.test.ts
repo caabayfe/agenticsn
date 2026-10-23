@@ -2,7 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadFluentRuntime } from "../../../src/adapters/fluent/fluent-runtime-loader";
+import {
+  loadFluentRuntime,
+  loadInProcessRuntime,
+} from "../../../src/adapters/fluent/fluent-runtime-loader";
+
+// The first build and the drafted transform go through the worker snagentic uses (ADR-0044); the
+// rest load the SDK in-process, which is faster from source.
 import { SdkToolchain } from "../../../src/adapters/fluent/fluent-toolchain";
 import { SDK_BUILD_TIMEOUT } from "../../support/sdk-contract";
 
@@ -66,7 +72,7 @@ describe("SdkToolchain", () => {
     "says why a project does not build",
     async () => {
       const { root } = workspace("Record({ table: \n");
-      const outcome = await new SdkToolchain(root, loadFluentRuntime).build(project);
+      const outcome = await new SdkToolchain(root, loadInProcessRuntime).build(project);
       expect(outcome).toMatchObject({
         ok: false,
         message: expect.stringContaining("src/fluent/p.now.ts"),
@@ -79,7 +85,7 @@ describe("SdkToolchain", () => {
     "names every error of a project that does not build, not only the first",
     async () => {
       const { root } = workspace("const a = (x: string) => x\nconst b = (y: number) => y\n");
-      const outcome = await new SdkToolchain(root, loadFluentRuntime).build(project);
+      const outcome = await new SdkToolchain(root, loadInProcessRuntime).build(project);
       if (outcome.ok) throw new Error("built");
       expect(outcome.message).toContain("src/fluent/p.now.ts:1 ");
       expect(outcome.message).toContain("src/fluent/p.now.ts:2 ");
@@ -137,7 +143,7 @@ describe("SdkToolchain", () => {
         host: "https://instance.example.com/",
         exchange: async () => recording.exchanges[0].answer,
       };
-      const outcome = await new SdkToolchain(root, loadFluentRuntime).draftTransform(
+      const outcome = await new SdkToolchain(root, loadInProcessRuntime).draftTransform(
         GLOBAL,
         recording.records,
         access,
@@ -159,7 +165,7 @@ describe("SdkToolchain", () => {
         host: "https://instance.example.com/",
         exchange: async () => recording.exchanges[0].answer,
       };
-      const outcome = await new SdkToolchain(root, loadFluentRuntime).draftTransform(
+      const outcome = await new SdkToolchain(root, loadInProcessRuntime).draftTransform(
         GLOBAL,
         recording.records,
         access,

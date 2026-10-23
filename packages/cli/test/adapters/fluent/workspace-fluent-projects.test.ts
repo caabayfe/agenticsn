@@ -2,7 +2,13 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { FluentKeysUnstagedError } from "@snagentic/core";
-import { loadFluentRuntime } from "../../../src/adapters/fluent/fluent-runtime-loader";
+import {
+  loadFluentRuntime,
+  loadInProcessRuntime,
+} from "../../../src/adapters/fluent/fluent-runtime-loader";
+
+// Builds load the SDK in-process, which is faster from source; the worker snagentic uses
+// (ADR-0044) is tested with the toolchain, validate and worker-runtime.
 import { WorkspaceFluentProjects } from "../../../src/adapters/fluent/workspace-fluent-projects";
 import { runGitOrThrow } from "../../../src/adapters/git/run-git";
 import { fluentWorkspace, KEYS_FILE } from "../../support/fluent-fixtures";
@@ -15,7 +21,7 @@ const PROJECT = "source/x_2222332_s11";
 
 async function workspace(): Promise<{ root: string; projects: WorkspaceFluentProjects }> {
   const root = await fluentWorkspace(PROJECT);
-  return { root, projects: new WorkspaceFluentProjects(root, loadFluentRuntime) };
+  return { root, projects: new WorkspaceFluentProjects(root, loadInProcessRuntime) };
 }
 
 describe("workspace Fluent projects", () => {
@@ -144,7 +150,7 @@ describe("workspace Fluent projects", () => {
     "staged, builds the commit as the index holds it, and stages only that commit's keys",
     async () => {
       const { root } = await workspace();
-      const staged = new WorkspaceFluentProjects(root, loadFluentRuntime, { staged: true });
+      const staged = new WorkspaceFluentProjects(root, loadInProcessRuntime, { staged: true });
       // Two new properties; only one goes into this commit.
       writeFileSync(join(root, PROJECT, "src/fluent/in.now.ts"), property("in_commit"));
       writeFileSync(join(root, PROJECT, "src/fluent/out.now.ts"), property("left_out"));
@@ -168,7 +174,7 @@ describe("workspace Fluent projects", () => {
   it("staged, sees no project without staged changes", async () => {
     const { root } = await workspace();
     writeFileSync(join(root, PROJECT, "src/fluent/extra.now.ts"), property("extra"));
-    const staged = new WorkspaceFluentProjects(root, loadFluentRuntime, { staged: true });
+    const staged = new WorkspaceFluentProjects(root, loadInProcessRuntime, { staged: true });
     expect(await staged.changedSince("HEAD")).toEqual([]);
   });
 
@@ -176,14 +182,15 @@ describe("workspace Fluent projects", () => {
     const { root } = await workspace();
     const keys = join(root, PROJECT, KEYS_FILE);
     writeFileSync(keys, `${readFileSync(keys, "utf8")}// mine\n`);
-    const staged = new WorkspaceFluentProjects(root, loadFluentRuntime, { staged: true });
+    const staged = new WorkspaceFluentProjects(root, loadInProcessRuntime, { staged: true });
     const project = { path: PROJECT, declaredSdk: "4.13.6" };
     await expect(staged.writeKeys(project, "new")).rejects.toThrow(FluentKeysUnstagedError);
     expect(readFileSync(keys, "utf8")).toEndWith("// mine\n");
   });
 
-  it("names the SDK version it builds with", async () => {
-    const { projects } = await workspace();
+  it("names the SDK version it builds with, the worker's as the in-process one", async () => {
+    const { root, projects } = await workspace();
     expect(await projects.sdkVersion()).toBe("4.13.6");
+    expect(await new WorkspaceFluentProjects(root, loadFluentRuntime).sdkVersion()).toBe("4.13.6");
   });
 });

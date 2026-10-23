@@ -32,6 +32,15 @@ function problem(outcome: FluentBuildOutcome, root: string): string | null {
   return null;
 }
 
+// How the build was contained (ADR-0044): every build runs in a worker with no credential; the
+// sandbox, where there is one, also keeps it off the network and out of other folders.
+function contained(isolation: string | undefined): string {
+  if (isolation === undefined) return "";
+  return isolation === "none"
+    ? ", in a worker with no credential (no sandbox on this system)"
+    : `, in a worker with no credential, sandboxed by ${isolation}`;
+}
+
 // Builds a one-flow Fluent project with the embedded SDK in a temporary folder (ADR-0028).
 export function fluentProbe(
   load: LoadFluentRuntime = loadFluentRuntime,
@@ -48,7 +57,10 @@ export function fluentProbe(
         const found = problem(await runtime.build(root), root);
         const ms = Math.round(performance.now() - started);
         return found === null
-          ? okCheck(NAME, `ServiceNow SDK ${runtime.sdkVersion}: built a test flow in ${ms} ms`)
+          ? okCheck(
+              NAME,
+              `ServiceNow SDK ${runtime.sdkVersion}: built a test flow in ${ms} ms${contained(runtime.isolation?.())}`,
+            )
           : failedCheck(NAME, `ServiceNow SDK ${runtime.sdkVersion}: ${found}`, HINT);
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);

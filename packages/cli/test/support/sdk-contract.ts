@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadFluentRuntime } from "../../src/adapters/fluent/fluent-runtime-loader";
+import { loadInProcessRuntime } from "../../src/adapters/fluent/fluent-runtime-loader";
 
 // Contract tests for the updates snagentic writes in the SDK's form (ADR-0029, ADR-0030): a Fluent
 // configuration project built with the embedded SDK, its records' sys_ids pinned through the SDK's
@@ -41,7 +41,7 @@ export async function buildWithSdk(
     join(dir, "src", "fluent", "generated", "keys.ts"),
     `import '@servicenow/sdk/global'\ndeclare global { namespace Now { namespace Internal { interface Keys extends KeysRegistry { explicit: { ${explicit.join(", ")} }, composite: [${keys.join(", ")}] } } } }\n`,
   );
-  const outcome = await (await loadFluentRuntime()).build(dir);
+  const outcome = await (await loadInProcessRuntime()).build(dir);
   return {
     outcome,
     built: (name: string) =>

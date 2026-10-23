@@ -4,6 +4,32 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-10-23
+
+### Fixed
+
+- A pull no longer stops with "the response was not the expected JSON" when the instance
+  answers a field as null. Such a value reads as empty: a fresh PDI answered a compressed field
+  (`sn_ace_app_config.bundle`) this way, and its first pull could not finish.
+
+### Security
+
+A workspace (a cloned repository, a pull request, an agent's edit) is not trusted input
+(spec 012, step 7).
+
+- Fluent builds: the SDK sees only the project's folder, and nothing outside it can be removed,
+  written, renamed or copied. Before the SDK opens a project, snagentic refuses Prettier
+  configurations written as code, `now.config.json` folders outside the project and symbolic
+  links. Transform unpacks the records it reads into a private temporary folder.
+- The binary no longer reads `bunfig.toml`, `.env`, `tsconfig.json` or `package.json` from its
+  working directory.
+- Instance and release requests always check certificates: `NODE_TLS_REJECT_UNAUTHORIZED=0` no
+  longer turns that off.
+- `.`, `..` and empty path segments are not Fluent paths.
+- The agent pack protects `.mcp.json` and `.vscode/mcp.json`, and the pre-shell hook refuses
+  setting `BUN_BE_BUN`, `BUN_OPTIONS`, `NODE_OPTIONS` or `NODE_TLS_REJECT_UNAUTHORIZED`. This is
+  guidance, not a boundary (ADR-0011).
+
 ## [2.8.0] - 2026-10-23
 
 ### Added

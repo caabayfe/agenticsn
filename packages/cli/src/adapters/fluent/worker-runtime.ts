@@ -68,11 +68,13 @@ function attempt(command: readonly string[], scratch: string, job: Job): Promise
   return new Promise((resolve) => {
     let ready = false;
     let settled = false;
+    // Resolved once the worker has exited: Windows can't delete the scratch folder while a
+    // process runs in it.
     const settle = (result: Attempt) => {
       if (settled) return;
       settled = true;
       child.kill();
-      resolve(result);
+      child.exited.then(() => resolve(result));
     };
     const child = Bun.spawn([...command], {
       cwd: scratch,

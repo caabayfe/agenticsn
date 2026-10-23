@@ -23,8 +23,9 @@ the developer's own project.
   4.3.2 is used elsewhere, so 3.x can't be overridden on its own.
 - **`braces` 3.0.3** (the latest release) ships through `fast-glob` in `@servicenow/sdk-build-core`.
   Its patterns come from the SDK and the developer's own `now.config.json`, not from an instance.
-- **`sprintf-js` 1.0.3** comes through `argparse` 1 under the same `js-yaml` 3, has no fixed
-  release (`<=1.1.3`), and is not in the binary's bundle.
+- **`ip-address` 10.7.4** (2026-10-23) overrides 10.7.3, which reaches the MCP server through
+  `express-rate-limit` and the SDK through `socks`; both accept `^10`.
+- `sprintf-js` is no longer reported (2026-10-23), so its row is gone.
 
 ## Register
 
@@ -36,4 +37,3 @@ the developer's own project.
 | GHSA-52cp-r559-cp3m | js-yaml | high | accepted | CPU denial of service when parsing YAML; same reason | 2027-01-20 |
 | GHSA-5p4m-2wfm-xmqj | js-yaml | high | accepted | CPU denial of service when parsing YAML; same reason | 2027-01-20 |
 | GHSA-2883-xcg3-v3hh | js-yaml | high | accepted | CPU denial of service when parsing YAML; same reason | 2027-01-20 |
-| GHSA-hp3w-g68c-fv3c | sprintf-js | moderate | accepted | Denial of service through unbounded precision; no fixed release; not in the binary | 2027-01-20 |

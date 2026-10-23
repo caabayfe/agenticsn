@@ -9,7 +9,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadFluentRuntime } from "../../../src/adapters/fluent/fluent-runtime-loader";
+import {
+  type LoadFluentRuntime,
+  loadFluentRuntime,
+  loadInProcessRuntime,
+} from "../../../src/adapters/fluent/fluent-runtime-loader";
 import { copyFixture, FLUENT_FIXTURES } from "../../support/fluent-fixtures";
 
 // Builds run the real SDK in-process: about a second each.
@@ -28,7 +32,14 @@ function withConfig(dir: string, change: Record<string, unknown>): void {
   writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, "utf8")), ...change }));
 }
 
-describe("projects the embedded build refuses", () => {
+// Run both ways: through the worker snagentic uses (ADR-0044), and in-process, where coverage
+// sees the refusals.
+const RUNTIMES: readonly (readonly [string, LoadFluentRuntime])[] = [
+  ["in the worker", loadFluentRuntime],
+  ["in-process", loadInProcessRuntime],
+];
+
+describe.each(RUNTIMES)("projects the embedded build refuses (%s)", (_, load) => {
   for (const file of ["prettier.config.mjs", "src/fluent/.prettierrc.cjs", ".prettierrc.js"]) {
     it(
       `refuses a Prettier config that is code (${file}), without running it`,
@@ -36,7 +47,7 @@ describe("projects the embedded build refuses", () => {
         const dir = project();
         mkdirSync(join(dir, file, ".."), { recursive: true });
         writeFileSync(join(dir, file), planted);
-        const outcome = await (await loadFluentRuntime()).build(dir);
+        const outcome = await (await load()).build(dir);
         expect(outcome).toEqual({
           success: false,
           errors: [expect.objectContaining({ file, code: "snagentic-project-formatter" })],
@@ -53,7 +64,7 @@ describe("projects the embedded build refuses", () => {
       const dir = project();
       // The project sits in a scratch folder, as a build copy sits in the shared temp folder.
       writeFileSync(join(dir, "..", "prettier.config.mjs"), planted);
-      expect((await (await loadFluentRuntime()).build(dir)).success).toBe(true);
+      expect((await (await load()).build(dir)).success).toBe(true);
       expect(existsSync(join(dir, "..", MARKER))).toBe(false);
     },
     BUILD_TIMEOUT,
@@ -64,7 +75,7 @@ describe("projects the embedded build refuses", () => {
     async () => {
       const dir = project();
       writeFileSync(join(dir, ".prettierrc.json"), '{ "singleQuote": true }');
-      expect((await (await loadFluentRuntime()).build(dir)).success).toBe(true);
+      expect((await (await load()).build(dir)).success).toBe(true);
     },
     BUILD_TIMEOUT,
   );
@@ -80,7 +91,7 @@ describe("projects the embedded build refuses", () => {
         appOutputDir: victim,
         staticContent: { buildDir: "dist/../../elsewhere" },
       });
-      const outcome = await (await loadFluentRuntime()).build(dir);
+      const outcome = await (await load()).build(dir);
       expect(outcome.success).toBe(false);
       const errors = outcome.success ? [] : outcome.errors;
       expect(errors.map((e) => [e.file, e.code, e.message.split(" ")[0]])).toEqual([
@@ -98,7 +109,7 @@ describe("projects the embedded build refuses", () => {
     async () => {
       const dir = project();
       symlinkSync(tmpdir(), join(dir, "src", "fluent", "elsewhere"));
-      const outcome = await (await loadFluentRuntime()).build(dir);
+      const outcome = await (await load()).build(dir);
       expect(outcome).toEqual({
         success: false,
         errors: [
@@ -117,7 +128,7 @@ describe("projects the embedded build refuses", () => {
     async () => {
       const dir = project();
       writeFileSync(join(dir, "prettier.config.mjs"), planted);
-      const outcome = await (await loadFluentRuntime()).transform(
+      const outcome = await (await load()).transform(
         dir,
         [{ table: "sys_script_include", sysId: "0".repeat(32) }],
         "https://instance.example.com/",

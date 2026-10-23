@@ -25,6 +25,19 @@ describe("fluent probe", () => {
     expect(check.detail).toMatch(/^ServiceNow SDK 9\.9\.9: built a test flow in \d+ ms$/);
   });
 
+  it("says how the build was contained (ADR-0044)", async () => {
+    for (const [isolation, said] of [
+      ["sandbox-exec", ", in a worker with no credential, sandboxed by sandbox-exec"],
+      ["none", ", in a worker with no credential (no sandbox on this system)"],
+    ]) {
+      const load = async () => ({
+        ...(await fakeRuntime(() => built)()),
+        isolation: () => isolation,
+      });
+      expect((await fluentProbe(load).run()).detail).toEndWith(` ms${said}`);
+    }
+  });
+
   it("fails when the build changes the project's keys", async () => {
     const check = await fluentProbe(
       fakeRuntime((dir) => {

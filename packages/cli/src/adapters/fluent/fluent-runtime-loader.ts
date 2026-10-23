@@ -1,5 +1,9 @@
 import { dirname } from "node:path";
+import cliPackage from "../../../package.json" with { type: "json" };
 import type { FluentRuntime } from "./sdk-runtime";
+import { FLUENT_WORKER_COMMAND } from "./worker-protocol";
+import { workerRuntime } from "./worker-runtime";
+import { osSandbox } from "./worker-sandbox";
 
 // Defined by the release build (scripts/build.ts): the binary holds the SDK as a second entry
 // point with its type files embedded. Run from source, the SDK and its types come from
@@ -56,9 +60,30 @@ async function loadFromSource(): Promise<FluentRuntime> {
 
 let loaded: Promise<FluentRuntime> | undefined;
 
-// Loads the SDK once per process, on first use.
-export const loadFluentRuntime: LoadFluentRuntime = () => {
+// Loads the SDK into this process, once, on first use: only the worker does (ADR-0044).
+export const loadInProcessRuntime: LoadFluentRuntime = () => {
   loaded ??=
     typeof SNAGENTIC_EMBEDDED_FLUENT === "undefined" ? loadFromSource() : loadEmbeddedRuntime();
   return loaded;
+};
+
+// The release binary starts itself in its worker mode; from source, the worker script runs.
+function workerCommand(): readonly string[] {
+  return typeof SNAGENTIC_EMBEDDED_FLUENT === "undefined"
+    ? [process.execPath, Bun.fileURLToPath(new URL("fluent-worker-main.ts", import.meta.url))]
+    : [process.execPath, FLUENT_WORKER_COMMAND];
+}
+
+let worker: FluentRuntime | undefined;
+
+// The SDK as snagentic uses it: every build and transform in a worker that holds no credential
+// (ADR-0044). The SDK is pinned, so its version is the dependency's.
+export const loadFluentRuntime: LoadFluentRuntime = async () => {
+  worker ??= workerRuntime({
+    sdkVersion: cliPackage.dependencies["@servicenow/sdk"],
+    command: workerCommand(),
+    sandbox: osSandbox(),
+    warn: (line) => process.stderr.write(`${line}\n`),
+  });
+  return worker;
 };

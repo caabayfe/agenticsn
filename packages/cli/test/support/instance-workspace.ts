@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { createProfile, InstanceName, instancePaths, type Row } from "@snagentic/core";
 import { fakeInstance } from "../../../core/test/support/fake-instance";
 import { GitDeliveryWorkspace } from "../../src/adapters/delivery/git-delivery-workspace";
-import { loadFluentRuntime } from "../../src/adapters/fluent/fluent-runtime-loader";
+import { loadInProcessRuntime } from "../../src/adapters/fluent/fluent-runtime-loader";
 import { WorkspaceFluentProjects } from "../../src/adapters/fluent/workspace-fluent-projects";
 import { fsWorkspaceFiles } from "../../src/adapters/fs/fs-workspace-files";
 import { gitInspector } from "../../src/adapters/git/git-inspector";
@@ -78,7 +78,9 @@ export async function instanceWorkspace(
         options,
       ),
       checker: new EslintScriptChecker(),
-      fluent: new WorkspaceFluentProjects(r, loadFluentRuntime, options),
+      // Use-case tests build in-process; builds through the worker (ADR-0044) are tested with the
+      // adapters and validate.
+      fluent: new WorkspaceFluentProjects(r, loadInProcessRuntime, options),
     }),
     files: {
       create: async (path, content) => {

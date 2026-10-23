@@ -509,10 +509,12 @@ domain fields are always populated**, with the domain chosen by `--domain`.
    separation uses. On a domain-separated instance it is mandatory in every row and its field is
    checked like any other; elsewhere it is dropped from the rows and its field is not checked.
 9. The pack's transform maps are the same on every instance: each staging table has
-   `u_sys_domain`, and the map script sets `sys_domain` and the `domain: true` columns only where
-   the target table has the field (`isValidField`). A domain column is set by the script, not by a
-   field map, so no map names a field the instance may lack. A reference that does not resolve
-   marks the row as an error, and the load stops (ASR-08: by key, never the value).
+   `u_sys_domain`, always posted under that name (as `sys_domain` it would be the import row's own
+   domain), and the map script sets `sys_domain` from it only where the target table has the
+   field (`isValidField`). A `domain: true` column keeps its field map: snagentic sends its value
+   only to a domain-separated instance, so elsewhere the map has nothing to copy, and records an
+   earlier version delivered stay unchanged (removing the map would need a deletion). A reference
+   that does not resolve is rejected like any other.
 
 **The pack (itsm 0.8.1, needs snagentic 2.9.0).**
 
@@ -524,9 +526,9 @@ domain fields are always populated**, with the domain chosen by `--domain`.
 
 | # | Item | State |
 |---|---|---|
-| V1 | Field state `after-activation`, entity `from` (items 1, 2) | Planned |
-| V2 | `check fields` after the activation pull (item 3) | Planned |
-| V3 | `check` wording (item 4) | Planned |
-| V4 | Domain separation: detection, `--domain`, rows and columns (items 5 to 8) | Planned |
-| V5 | Pack: generated map scripts and staging column, module changes, 0.8.1 (items 9, 10) | Planned |
+| V1 | Field state `after-activation`, entity `from` (items 1, 2) | Built |
+| V2 | `check fields` after the activation pull (item 3) | Built |
+| V3 | `check` wording (item 4) | Built |
+| V4 | Domain separation: detection, `--domain`, rows and columns (items 5 to 8) | Built; also on `validate-data` (checks as a load into a domain would) |
+| V5 | Pack: generated map scripts and staging column, module changes, 0.8.1 (items 9, 10) | Built (sn-accelerators branch `feat/platform-variance`); the `problem_id`, `caused_by`, `rfc` notes wait for a live check on pdi3 |
 | V6 | Live: full `incident-advanced` with demo data on pdi3 (no domains) and on pdi2 (`--domain`) | Planned |

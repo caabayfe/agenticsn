@@ -62,6 +62,44 @@ describe("the gate's accelerator check (SN-MNT-012, ADR-0026, ADR-0031)", () => 
     ]);
   });
 
+  it("blocks only the planned records a not-ready module ships, so other modules' records still push (owner, 2026-10-24)", async () => {
+    const shared = memoryPacks({
+      minimal: packFiles({
+        pack: { id: "minimal", version: "1.0.0", requires: { snagentic: ">=1.6.0" } },
+        modules: {
+          base: { label: "base" },
+          extra: {
+            label: "extra",
+            dependsOn: ["base"],
+            components: [{ kind: "plugin", id: "com.snc.on_call_rotation", entitlement: "free" }],
+          },
+        },
+        files: {
+          "modules/base/source/global/src/fluent/base.now.ts": `Record({ $id: '${"b".repeat(32)}' })`,
+          "modules/extra/source/global/src/fluent/rule.now.ts": `BusinessRule({ $id: '${"e".repeat(32)}' })`,
+        },
+      }),
+    });
+    const deps = { packs: shared, inventory: inventory("inactive") };
+    const baseOnly = await packFindings(deps, {
+      ...QUERY,
+      paths: ["source/global"],
+      units: [{ project: "source/global", sysId: "b".repeat(32) }],
+    });
+    expect(baseOnly).toEqual([]);
+    const withExtra = await packFindings(deps, {
+      ...QUERY,
+      paths: ["source/global"],
+      units: [
+        { project: "source/global", sysId: "b".repeat(32) },
+        { project: "source/global", sysId: "e".repeat(32) },
+      ],
+    });
+    expect(withExtra.map((f) => f.message)).toEqual([
+      "module extra of minimal is needs-components: com.snc.on_call_rotation",
+    ]);
+  });
+
   it("passes once the inventory shows the plugin active, for projects no pack ships into, and with nothing planned", async () => {
     const paths = ["source/global", "source/x_snagentic_min"];
     expect(

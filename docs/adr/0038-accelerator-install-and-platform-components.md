@@ -3,7 +3,10 @@
 - Status: Accepted (product owner, 2026-10-19; decisions of 2026-10-18). Spike S-E passed; the
   store application installer (I3) still waits for spike S-F of spec 011. Section 6 amended
   (upgrades complete the pack's earlier update sets), accepted 2026-10-22. Item 8 amended by 0042
-  (layouts a module does not own are ensure rules, found by table and view)
+  (layouts a module does not own are ensure rules, found by table and view). Components
+  amended 2026-10-24 by the product owner: a module whose component cannot be installed is
+  skipped with its dependents, and the rest installs (section "Components the install cannot
+  install")
 - Date: 2026-10-18
 - Requirements: G1, ASR-01, ASR-02, ASR-08, ASR-10, ASR-15, ASR-16
 - Amends: 0012 (one narrow write on test and production), 0026 (the rejected single install,
@@ -227,6 +230,19 @@ so we can have the right support from ServiceNow".
 
   Older snagentic versions ignore the key, so a pack can declare fields before it requires the
   version that checks them.
+- **Components the install cannot install.** Amendment by the product owner, 2026-10-24 ("it
+  needs to continue and skip what needs this module"). A store application the instance does
+  not offer (the ITSM Advanced app on a PDI) made every module wait on it. Now:
+  - a selected module whose component the install cannot install (missing, too old, or an
+    inactive store application) is **skipped**, and so is every selected module depending on
+    it; the plan lists each with its reason, and nothing of theirs is pushed or loaded;
+  - the rest installs; a selection left empty blocks the plan;
+  - a skipped module's own inactive plugin is not activated;
+  - the gate's accelerator check (SN-MNT-012) blocks only the planned records of a module that
+    is not ready (records are told apart by the fixed `$id`s of the module's source), so a
+    module that waits on a component never stops another module's push.
+
+  Installing the component and running the install again installs the skipped modules.
 - **Business keys for anything else.** Records the client owns, such as a group or a schedule,
   are found by business key. Settings hold the key, not a sys_id.
 

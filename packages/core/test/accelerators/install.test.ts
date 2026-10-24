@@ -196,11 +196,82 @@ describe("planning an install (ADR-0038, items 2 and 3)", () => {
     expect(plan.modules.map((m) => m.id)).toEqual(["foundation"]);
   });
 
-  it("blocks on a component it cannot install, naming the module that needs it", async () => {
+  it("skips a module whose component it cannot install, and installs the rest (owner, 2026-10-24)", async () => {
     const plan = await planInstall(deps({ "com.snc.cmdb.csdm": "active" }), QUERY);
-    expect(plan.problems).toEqual([
-      "plugin com.snc.incident.mim (incident): not on the instance: the platform's installer cannot reach it",
+    expect(plan.problems).toEqual([]);
+    expect(plan.modules.map((m) => m.id)).toEqual(["foundation"]);
+    expect(plan.skipped).toEqual([
+      {
+        id: "incident",
+        reason:
+          "needs plugin com.snc.incident.mim: not on the instance: the platform's installer cannot reach it",
+      },
     ]);
+  });
+
+  it("skips the modules depending on a skipped one, and leaves out their data", async () => {
+    const chain: PackFixture = {
+      ...PACK,
+      modules: {
+        ...PACK.modules,
+        reporting: {
+          label: "ITSM: reporting",
+          dependsOn: ["incident"],
+          data: [
+            {
+              entity: "target",
+              table: "u_acc_imp_target",
+              target: "pa_targets",
+              key: ["name"],
+              columns: { name: { required: true } },
+            },
+          ],
+        },
+      },
+      files: { ...PACK.files, "modules/reporting/data/demo/target.csv": "name\nMTTR\n" },
+    };
+    const plan = await planInstall(
+      {
+        ...deps({ "com.snc.cmdb.csdm": "active" }),
+        packs: memoryPacks({ itsm: packFiles(chain) }),
+      },
+      QUERY,
+    );
+    expect(plan.modules.map((m) => m.id)).toEqual(["foundation"]);
+    expect(plan.skipped.map((s) => [s.id, s.reason])).toEqual([
+      [
+        "incident",
+        "needs plugin com.snc.incident.mim: not on the instance: the platform's installer cannot reach it",
+      ],
+      ["reporting", "depends on incident, which is skipped"],
+    ]);
+    expect(plan.data.entities.map((e) => e.entity)).toEqual(["group"]);
+    expect(plan.problems).toEqual([]);
+  });
+
+  it("blocks when every selected module would be skipped", async () => {
+    const plan = await planInstall(deps({}), QUERY);
+    expect(plan.modules).toEqual([]);
+    expect(plan.problems).toEqual([
+      "nothing to install: every selected module needs a component the install cannot install (see the skipped modules)",
+    ]);
+  });
+
+  it("names the skipped modules and why in the document the admin approves", async () => {
+    const plan = await planInstall(deps({ "com.snc.cmdb.csdm": "active" }), QUERY);
+    const document = installPlanDocument(plan);
+    expect(document).toContain("**Skipped modules**");
+    expect(document).toContain(
+      "| incident | needs plugin com.snc.incident.mim: not on the instance: the platform's installer cannot reach it |",
+    );
+  });
+
+  it("installs only the modules it does not skip", async () => {
+    const { steps, calls } = fakeSteps();
+    const states = { "com.snc.cmdb.csdm": "active" } as const;
+    const plan = await planInstall(deps(states), QUERY);
+    await installPack(deps(states, { steps }), { ...QUERY, confirm: plan.planId });
+    expect(calls.filter((c) => c.startsWith("add"))).toEqual(["add foundation"]);
   });
 
   it("keeps its id for the same pack and instance, and changes it when either changes", async () => {
@@ -406,9 +477,9 @@ describe("running an install (ADR-0038, item 2)", () => {
     await expect(
       installPack(deps(READY, { steps }), { ...QUERY, confirm: "0000" }),
     ).rejects.toBeInstanceOf(InstallPlanChangedError);
-    const blocked = await planInstall(deps({ "com.snc.cmdb.csdm": "active" }), QUERY);
+    const blocked = await planInstall(deps({}), QUERY);
     await expect(
-      installPack(deps({ "com.snc.cmdb.csdm": "active" }, { steps }), {
+      installPack(deps({}, { steps }), {
         ...QUERY,
         confirm: blocked.planId,
       }),

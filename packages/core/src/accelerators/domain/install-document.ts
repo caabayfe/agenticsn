@@ -77,6 +77,7 @@ function modules(plan: InstallPlan): string[] {
         [...new Set(m.files.map((f) => f.split("/").slice(0, 2).join("/")))].join(", "),
       ]),
     ),
+    ...skippedSection(plan),
     ...promotionOrder(plan),
     "",
     "**Out-of-box records changed** (an upgrade skips a customized record: review each):",
@@ -91,6 +92,20 @@ function modules(plan: InstallPlan): string[] {
     ),
     ...layouts(plan),
     ...leftovers(plan),
+  ];
+}
+
+// Selected modules the install leaves out, and why: install the component, then run it again.
+function skippedSection(plan: InstallPlan): string[] {
+  if (plan.skipped.length === 0) return [];
+  return [
+    "",
+    "**Skipped modules** (each needs a component the install cannot install, or depends on such a module: nothing of theirs is pushed or loaded; install the component, pull, then run the install again):",
+    "",
+    ...table(
+      ["Module", "Why"],
+      plan.skipped.map((m) => [m.id, m.reason]),
+    ),
   ];
 }
 

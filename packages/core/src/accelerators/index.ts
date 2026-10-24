@@ -116,6 +116,7 @@ export {
   fieldIssues,
   requiredFields,
 } from "./domain/required-fields";
+export { type RowFailure, type RowProblem, rowProblems } from "./domain/row-problems";
 export {
   type EntityReport,
   stagingRow,

@@ -32,7 +32,21 @@ export const acceleratorLoad = defineUseCase({
     instance: z.string(),
     entities: z
       .array(
-        z.object({ entity: z.string(), counts: Counts, failed: z.array(z.string()).readonly() }),
+        z.object({
+          entity: z.string(),
+          counts: Counts,
+          failed: z.array(z.string()).readonly(),
+          problems: z
+            .array(
+              z.object({
+                reason: z.string(),
+                action: z.string(),
+                rows: z.array(z.string()).readonly(),
+              }),
+            )
+            .readonly()
+            .describe("why rows were not taken, by reason: names columns, never values"),
+        }),
       )
       .readonly(),
     stopped: z.boolean(),
@@ -67,7 +81,11 @@ export const acceleratorLoad = defineUseCase({
     return [
       ...output.entities.flatMap((e) => [
         `${e.entity}: ${e.counts.inserted} inserted, ${e.counts.updated} updated, ${e.counts.ignored} unchanged, ${e.counts.skipped + e.counts.error} not taken`,
-        ...e.failed.map((key) => `  not taken: ${key}`),
+        ...e.problems.flatMap((p) => [
+          `  not taken (${p.rows.length}): ${p.reason}`,
+          `    rows: ${p.rows.join(", ")}`,
+          `    fix: ${p.action}`,
+        ]),
       ]),
       output.stopped
         ? "stopped: fix the rows not taken (see the import set rows on the instance), then load again"

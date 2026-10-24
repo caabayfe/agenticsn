@@ -4,6 +4,7 @@ import type { InstallJournal, InstallRecord, InstallSteps, ListState } from "@sn
 export function fakeSteps(
   options: {
     notApplied?: Record<string, number>;
+    notTaken?: { reason: string; action: string; rows: string[] };
     refused?: Record<string, { table: string; reason: string; records: string[]; action: string }>;
     nothingFor?: string[];
     customized?: string[];
@@ -67,15 +68,18 @@ export function fakeSteps(
     },
     load: async (modules) => {
       calls.push(`load ${modules.join("+")}`);
+      const problems = options.notTaken === undefined ? [] : [options.notTaken];
+      const skipped = options.notTaken?.rows.length ?? 0;
       return {
         entities: [
           {
             entity: "group",
-            counts: { inserted: 1, updated: 0, ignored: 0, skipped: 0, error: 0 },
-            failed: [],
+            counts: { inserted: 1, updated: 0, ignored: 0, skipped, error: 0 },
+            failed: options.notTaken?.rows ?? [],
+            problems,
           },
         ],
-        stopped: false,
+        stopped: skipped > 0,
       };
     },
     completeUpdateSets: async (sets) => {

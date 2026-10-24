@@ -492,6 +492,21 @@ describe("running an install (ADR-0038, item 2)", () => {
     ).toBe(true);
   });
 
+  it("stops at data rows not taken, with the platform's reason and what to do", async () => {
+    const notTaken = {
+      reason: "column schedule names a record service_offering.schedule does not find",
+      action: "change schedule to name a record the instance has",
+      rows: ["VPN", "ERP"],
+    };
+    const { steps } = fakeSteps({ notTaken });
+    const plan = await planInstall(deps(READY), QUERY);
+    const result = await installPack(deps(READY, { steps }), { ...QUERY, confirm: plan.planId });
+    expect(result.stopped?.step).toBe("data");
+    expect(result.stopped?.detail).toBe(
+      `group: 2 row(s) not taken (VPN, ERP): ${notTaken.reason}; ${notTaken.action}`,
+    );
+  });
+
   it("stops at records the platform refused, naming the reason and what unblocks them", async () => {
     const action = "activate com.snc.pa.premium, then run the same command again";
     const { steps } = fakeSteps({

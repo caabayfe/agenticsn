@@ -16,16 +16,19 @@ export class ImportSetApiWriter implements ImportSetWriter {
     table: string,
     row: Readonly<Record<string, string>>,
     signal: AbortSignal,
-  ): Promise<{ readonly status: ImportStatus; readonly sysId: string }> {
+  ): Promise<{ readonly status: ImportStatus; readonly sysId: string; readonly message?: string }> {
     const path = `/api/now/import/${encodeURIComponent(table)}`;
     const result = await this.api.callApi("POST", path, `import into ${table}`, signal, {
       body: JSON.stringify(row),
     });
     const first: unknown = Array.isArray(result) ? result[0] : undefined;
     const status = String(field(first, "status") ?? "");
+    // A row the transform skips or fails carries its reason (status_message or error_message).
+    const message = String(field(first, "status_message") ?? field(first, "error_message") ?? "");
     return {
       status: STATUSES.find((s) => s === status) ?? "error",
       sysId: String(field(first, "sys_id") ?? ""),
+      ...(message === "" ? {} : { message }),
     };
   }
 }

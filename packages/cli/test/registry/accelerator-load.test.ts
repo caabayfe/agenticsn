@@ -70,7 +70,9 @@ describe("accelerator load", () => {
     });
     const text = acceleratorLoad.render(output as never, "text");
     expect(text).toContain("location: 1 inserted, 0 updated, 0 unchanged, 1 not taken");
-    expect(text).toContain("not taken: Melbourne");
+    expect(text).toContain(
+      "  not taken (1): the transform failed it\n    rows: Melbourne\n    fix: ",
+    );
     expect(acceleratorLoad.exitCode(output as never)).toBe(1);
     const done = { ...(output as never as Record<string, unknown>), stopped: false, entities: [] };
     expect(acceleratorLoad.render(done as never, "text")).toBe("loaded into pdi");

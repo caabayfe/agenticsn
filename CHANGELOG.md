@@ -33,6 +33,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   its system log (for example "permission denied" from an access rule). After such a load, push
   reads that log once and reports each refused record's reason, grouped by table, with the action
   that unblocks it. For Performance Analytics that action is to activate a PA Premium plugin.
+- `accelerator load` and the install's data step say why rows were not taken, instead of only
+  naming them. The Import Set API's message for a skipped row is turned into a reason that names
+  the column and the target field, never the row's values (ASR-08), with what to do. For
+  example: "column schedule names a record service_offering.schedule does not find".
 
 ## [2.9.0] - 2026-10-23
 

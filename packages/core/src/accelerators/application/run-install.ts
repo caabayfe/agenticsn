@@ -9,6 +9,7 @@ import {
 import { installPlanDocument, installReportDocument } from "../domain/install-document";
 import type { InstallPlan, InstallRecord, InstallStepRecord } from "../domain/install-plan";
 import type { Adoption } from "../domain/materialize";
+import type { RowProblem } from "../domain/row-problems";
 import { ensureLayouts } from "./ensure-layouts";
 import { components } from "./install-components";
 import { type InstallRunDependencies, step } from "./install-step";
@@ -186,13 +187,24 @@ async function load(
     );
     const count = (k: "inserted" | "updated" | "ignored") =>
       result.entities.reduce((n, e) => n + e.counts[k], 0);
-    const failed = result.entities.flatMap((e) => e.failed.map((f) => `${e.entity} ${f}`));
-    if (result.stopped) throw new Error(`rows not taken: ${failed.join(", ")}`);
+    if (result.stopped) throw new Error(rowsNotTaken(result.entities));
     return {
       outcome: "done",
       detail: `${count("inserted")} inserted, ${count("updated")} updated, ${count("ignored")} unchanged`,
     };
   });
+}
+
+// Each entity's rows not taken, by reason, with what to do about them.
+function rowsNotTaken(entities: readonly { entity: string; problems: readonly RowProblem[] }[]) {
+  return entities
+    .flatMap((e) =>
+      e.problems.map(
+        (p) =>
+          `${e.entity}: ${p.rows.length} row(s) not taken (${p.rows.join(", ")}): ${p.reason}; ${p.action}`,
+      ),
+    )
+    .join("; ");
 }
 
 export type { InstallRunDependencies } from "./install-step";

@@ -2,6 +2,7 @@ import { dataOrder } from "../domain/capability-graph";
 import { type DataDomain, domainRow } from "../domain/data-domain";
 import { LoadConfirmationRequiredError, TemplatesInvalidError } from "../domain/errors";
 import type { DataEntity } from "../domain/manifest-types";
+import { type RowFailure, type RowProblem, rowProblems } from "../domain/row-problems";
 import { stagingRow, type Template } from "../domain/templates";
 import type { DataTemplates, ImportSetWriter, ImportStatus, PackSource } from "../ports";
 import { manifestOf } from "./check-pack";
@@ -12,6 +13,8 @@ export interface EntityLoad {
   readonly counts: Readonly<Record<ImportStatus, number>>;
   // Business keys of the rows the instance did not take: never other field values (ASR-08).
   readonly failed: readonly string[];
+  // Why they were not taken, by reason, with what to do: names columns, never values.
+  readonly problems: readonly RowProblem[];
 }
 
 export interface LoadResult {
@@ -36,19 +39,21 @@ async function loadEntity(
   signal: AbortSignal,
 ): Promise<EntityLoad> {
   const counts = { ...EMPTY };
-  const failed: string[] = [];
+  const failures: RowFailure[] = [];
   const index = (column: string) => template.columns.indexOf(column);
   for (const row of template.rows) {
     signal.throwIfAborted();
     const sent = domainRow(entity, domain, template.columns, row);
     const values = stagingRow(entity.table, sent.columns, sent.row);
-    const { status } = await importer.post(entity.table, values, signal);
+    const { status, message = "" } = await importer.post(entity.table, values, signal);
     counts[status] += 1;
     if (status === "error" || status === "skipped") {
-      failed.push(entity.key.map((k) => (row[index(k)] ?? "").trim()).join(" / "));
+      const key = entity.key.map((k) => (row[index(k)] ?? "").trim()).join(" / ");
+      failures.push({ key, status, message });
     }
   }
-  return { entity: entity.entity, counts, failed };
+  const failed = failures.map((f) => f.key);
+  return { entity: entity.entity, counts, failed, problems: rowProblems(entity, failures) };
 }
 
 // Loads a pack's data templates through its import set tables, on a development instance

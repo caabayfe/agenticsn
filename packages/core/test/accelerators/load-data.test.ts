@@ -96,11 +96,13 @@ describe("accelerator load (ADR-0026, item 3)", () => {
           entity: "company",
           counts: { inserted: 1, updated: 1, ignored: 0, skipped: 0, error: 0 },
           failed: [],
+          problems: [],
         },
         {
           entity: "location",
           counts: { inserted: 1, updated: 0, ignored: 0, skipped: 0, error: 0 },
           failed: [],
+          problems: [],
         },
       ],
       stopped: false,
@@ -118,6 +120,13 @@ describe("accelerator load (ADR-0026, item 3)", () => {
         entity: "company",
         counts: { inserted: 1, updated: 0, ignored: 0, skipped: 0, error: 1 },
         failed: ["Acme"],
+        problems: [
+          {
+            reason: "the transform failed it",
+            action: "the comment on its row in imp_company gives the platform's reason",
+            rows: ["Acme"],
+          },
+        ],
       },
     ]);
     expect(posted.some((p) => p.table === "imp_location")).toBe(false);

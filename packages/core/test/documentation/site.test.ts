@@ -5,6 +5,7 @@ import {
   type MediaTools,
   type PageSource,
   parseScene,
+  SITE_POLICY,
   siteFiles,
 } from "@snagentic/core";
 import {
@@ -61,6 +62,9 @@ describe("docs build: the site's sections", () => {
     const { result, written } = await build();
     expect(written.map((item) => item.path).sort()).toEqual([
       "animations/asg.html",
+      "assets/early.js",
+      "assets/menu.js",
+      "assets/players.js",
       "assets/search.js",
       "assets/site.css",
       "assets/theme/theme.css",
@@ -81,7 +85,7 @@ describe("docs build: the site's sections", () => {
       "processes/incident/use/understand/lifecycle.html",
       "processes/incident/use/understand/overview.html",
     ]);
-    expect(result.files).toBe(20);
+    expect(result.files).toBe(23);
   });
 
   it("opens each process with its lifecycle and a door for each reader, naming where they work", async () => {
@@ -455,11 +459,13 @@ describe("docs build: sound by the reader's choice", () => {
     const { file } = await build();
     const page = file("processes/incident/operate/assign.html");
     expect(page).toContain('sandbox="allow-scripts" allow="autoplay"');
-    expect(page).toContain("on=true");
-    expect(page).toContain("localStorage.getItem(K)!=='off'");
-    expect(page).toContain("snagenticSoundPref:on");
-    expect(page).toContain("addEventListener('pointerdown',go)");
-    expect(page).toContain("snagenticActivate:true");
+    expect(page).toContain('<script src="../../../assets/players.js"></script>');
+    const players = file("assets/players.js");
+    expect(players).toContain("on=true");
+    expect(players).toContain("localStorage.getItem(K)!=='off'");
+    expect(players).toContain("snagenticSoundPref:on");
+    expect(players).toContain("addEventListener('pointerdown',go)");
+    expect(players).toContain("snagenticActivate:true");
   });
 
   it("makes Play and a click on the stage play with sound, and tells the page", async () => {
@@ -479,5 +485,69 @@ describe("docs build: sound by the reader's choice", () => {
     expect(player).toContain(
       'addEventListener("message", (e) => {\n    if (e.source !== parent) return;',
     );
+  });
+});
+
+describe("docs build: instance text on a page is shown, never run (spec 012, B-08)", () => {
+  const quoted = withPage(pages.assign, {
+    body:
+      'The email says: <img src=x onerror="alert(1)"> <script>steal()</script>\n\n' +
+      "[Open it](javascript:alert(1)) or [the list](https://x.example/list). [E01]\n\n{{animation:asg}}\n",
+  });
+
+  async function rendered() {
+    const { sources } = fakeSources([
+      ...ALL.filter((page) => page.path !== pages.assign.path),
+      quoted,
+    ]);
+    let written: readonly { path: string; content: string | Uint8Array }[] = [];
+    await buildSite({
+      ...run,
+      sources,
+      markdown: { html: (md) => Bun.markdown.html(md) },
+      output: {
+        root: "/ws/.snagentic/site",
+        replace: async (files) => {
+          written = files;
+        },
+      },
+      media: NO_MEDIA,
+    });
+    const file = (path: string) =>
+      String(written.find((item) => item.path === path)?.content ?? "");
+    return { file, written };
+  }
+
+  it("shows HTML in a page's text as text, and keeps the page's own citations and players", async () => {
+    const page = (await rendered()).file("processes/incident/operate/assign.html");
+    expect(page).toContain("&lt;img src=x onerror=");
+    expect(page).toContain("&lt;script&gt;steal()");
+    expect(page).not.toContain("<img src=x");
+    expect(page).not.toContain("<script>steal");
+    expect(page).toContain('<a class="cite" href="#E01">E01</a>');
+    expect(page).toContain('<iframe class="player" data-animation="asg"');
+  });
+
+  it("keeps a web link and drops a javascript: one", async () => {
+    const page = (await rendered()).file("processes/incident/operate/assign.html");
+    expect(page).toContain('<a href="https://x.example/list">the list</a>');
+    expect(page).toContain("<a>Open it</a>");
+    expect(page).not.toContain("javascript:");
+  });
+
+  it("sets a strict content security policy, and runs no script written in the page", async () => {
+    const { file, written } = await rendered();
+    const pagesHtml = written.filter(
+      (item) => item.path.endsWith(".html") && !item.path.startsWith("animations/"),
+    );
+    expect(pagesHtml.length).toBeGreaterThan(5);
+    for (const item of pagesHtml) {
+      const html = String(item.content);
+      expect([item.path, html.includes(`content="${SITE_POLICY}"`)]).toEqual([item.path, true]);
+      expect([item.path, /<script>|<script [^>]*>[^<]/.test(html)]).toEqual([item.path, false]);
+    }
+    expect(file("assets/players.js")).toContain("snagenticSoundPref");
+    expect(file("assets/menu.js")).toContain("navtoggle");
+    expect(file("assets/early.js")).toContain("nav-hidden");
   });
 });

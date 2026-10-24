@@ -9,7 +9,7 @@ import {
 import { z } from "zod";
 import { CLAUDE_HOOK_EVENTS } from "../src/hooks/claude-hooks";
 import { USE_CASES } from "../src/registry/registry";
-import { mcpToolName } from "../src/registry/use-case";
+import { mcpToolName, qualifiedName } from "../src/registry/use-case";
 
 // Every field name and enum value a schema can produce or accept.
 function namesIn(schema: z.core.$ZodType, names: Set<string>): void {
@@ -92,6 +92,30 @@ describe("the Claude Code settings' contract with snagentic", () => {
     const rules = [...CLAUDE_SETTINGS.permissions.ask, ...CLAUDE_SETTINGS.permissions.deny];
     for (const rule of rules.filter((r) => r.startsWith("mcp__snagentic__"))) {
       expect(toolNames.has(rule.replace("mcp__snagentic__", ""))).toBe(true);
+    }
+  });
+
+  it("asks before every operation that writes to an instance or can't be undone (spec 012, B-11)", () => {
+    const { ask, deny } = CLAUDE_SETTINGS.permissions;
+    const covered = (rule: string) =>
+      ask.some((r) => r === rule) ||
+      deny.some((r) => r === rule || (r.endsWith(":*)") && rule.startsWith(r.slice(0, -3))));
+    const writes = USE_CASES.filter(
+      (useCase) => useCase.flags.destructive || useCase.flags.requiresDevelopmentInstance,
+    );
+    const rules = writes.flatMap((useCase) => [
+      ...(useCase.cli === false ? [] : [`Bash(snagentic ${qualifiedName(useCase)}:*)`]),
+      ...(useCase.mcp ? [`mcp__snagentic__${mcpToolName(useCase)}`] : []),
+    ]);
+    expect(rules).toContain("mcp__snagentic__plugin_activate");
+    expect(rules.filter((rule) => !covered(rule))).toEqual([]);
+  });
+
+  it("asks only about operations that exist", () => {
+    const commands = new Set(USE_CASES.map((useCase) => `snagentic ${qualifiedName(useCase)}`));
+    const bash = CLAUDE_SETTINGS.permissions.ask.filter((rule) => rule.startsWith("Bash("));
+    for (const rule of bash) {
+      expect([rule, commands.has(rule.slice("Bash(".length, -":*)".length))]).toEqual([rule, true]);
     }
   });
 

@@ -2,7 +2,7 @@
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { INSTRUCTIONS, PROMPTS } from "@snagentic/agent-packs";
+import { INSTRUCTIONS, PROMPTS, RESULT_NOTE } from "@snagentic/agent-packs";
 import {
   documentationLookup,
   InstanceName,
@@ -196,6 +196,7 @@ process.exitCode = await runCli(
       const development = await developmentInstances(context);
       await createMcpServer(USE_CASES, context, versionLine(), development, {
         instructions: INSTRUCTIONS,
+        resultNote: RESULT_NOTE,
         prompts: PROMPTS,
       }).connect(new StdioServerTransport());
     },

@@ -162,22 +162,98 @@ describe("accelerator install (ADR-0038)", () => {
     await expect(run).rejects.toBeInstanceOf(InstallPlanChangedError);
   });
 
+  // The plan pdi3 gave on 2026-10-24, shortened.
+  const VIEW = {
+    pack: "itsm",
+    version: "0.8.1",
+    instance: "pdi3",
+    planId: "adc383e455869b0c",
+    planPath: "accelerators/installs/pdi3/itsm-adc383e455869b0c/plan.md",
+    reportPath: null,
+    problems: [],
+    warnings: [],
+    modules: [
+      "foundation",
+      "incident-core",
+      "incident-problem",
+      "incident-analytics",
+      "major-incident",
+    ],
+    activates: [{ id: "com.snc.pa.premium", modules: ["incident-analytics"] }],
+    missingFields: [
+      {
+        field: "incident.problem_id",
+        from: "com.snc.incident",
+        blocking: false,
+        modules: [
+          {
+            module: "incident-problem",
+            effect: "the problem is linked only as first reported by the incident",
+          },
+          {
+            module: "major-incident",
+            effect: "the problem is linked only as first reported by the major incident",
+          },
+        ],
+      },
+    ],
+    notes: ["tested on australia only"],
+    steps: [],
+    stopped: null,
+    commit: null,
+  };
+
+  it("shows the plan in sections: modules, activations, missing fields, warnings, then the next step", () => {
+    expect(acceleratorInstall.render(VIEW, "text").split("\n")).toEqual([
+      "Install plan adc383e455869b0c: itsm 0.8.1 on pdi3",
+      "  review: accelerators/installs/pdi3/itsm-adc383e455869b0c/plan.md",
+      "",
+      "Modules (5)",
+      "  foundation, incident-core, incident-problem, incident-analytics, major-incident",
+      "",
+      "Activates (1)",
+      "  com.snc.pa.premium   for incident-analytics",
+      "",
+      "Missing fields (1): the install goes on without them",
+      "  incident.problem_id   (ships with com.snc.incident)",
+      "    incident-problem  the problem is linked only as first reported by the incident",
+      "    major-incident    the problem is linked only as first reported by the major incident",
+      "  fix: repair or activate the plugin that ships each field, then pull",
+      "",
+      "Warnings (1)",
+      "  - tested on australia only",
+      "",
+      "Next",
+      "  have the plan reviewed, then run the same command with:",
+      "    --confirm adc383e455869b0c",
+    ]);
+    expect(acceleratorInstall.exitCode(VIEW)).toBe(0);
+  });
+
   it("shows a blocked plan's problems and exits 1", () => {
     const blocked = {
-      planId: "p",
-      planPath: "plan.md",
-      reportPath: null,
-      problems: ["plugin x (base): not on the instance"],
-      warnings: ["tested on australia only"],
-      modules: ["base"],
-      steps: [],
-      stopped: null,
-      commit: null,
+      ...VIEW,
+      problems: [
+        "plugin x (base): not on the instance",
+        "field incident.u_y (base) is not on the instance. Find the plugin that ships it",
+      ],
+      activates: [],
+      missingFields: [
+        {
+          field: "incident.u_y",
+          from: null,
+          blocking: true,
+          modules: [{ module: "base", effect: null }],
+        },
+      ],
+      notes: [],
     };
     const text = acceleratorInstall.render(blocked, "text");
-    expect(text).toContain("blocked: plugin x (base): not on the instance");
-    expect(text).toContain("warning: tested on australia only");
+    expect(text).toContain(
+      "Blocked (2)\n  - plugin x (base): not on the instance\n  incident.u_y\n    base\n",
+    );
     expect(text).toContain("fix the blocking problems, then plan again");
+    expect(text).not.toContain("--confirm");
     expect(acceleratorInstall.exitCode(blocked)).toBe(1);
   });
 
@@ -185,37 +261,34 @@ describe("accelerator install (ADR-0038)", () => {
     const step = {
       step: "module base",
       outcome: "stopped" as const,
-      detail: "1 not applied",
-      seconds: 3,
+      detail: "the instance refused 2 pa_indicators record(s) (permission denied)",
+      seconds: 3.4,
     };
-    const text = acceleratorInstall.render(
-      {
-        planId: "p",
-        planPath: "plan.md",
-        reportPath: "report.md",
-        problems: [],
-        warnings: [],
-        modules: ["base"],
-        steps: [step],
-        stopped: step,
-        commit: "c",
-      },
-      "text",
-    );
-    expect(text).toContain("stopped  module base  1 not applied  (3 s)");
-    expect(text).toContain("stopped at module base");
-    expect(
-      acceleratorInstall.exitCode({
-        planId: "p",
-        planPath: "",
-        reportPath: "r",
-        problems: [],
-        warnings: [],
-        modules: [],
-        steps: [],
-        stopped: null,
-        commit: "c",
-      }),
-    ).toBe(0);
+    const done = {
+      step: "activate com.snc.pa.premium",
+      outcome: "done" as const,
+      detail: "active after 35 s",
+      seconds: 35,
+    };
+    const run = {
+      ...VIEW,
+      reportPath: "report.md",
+      steps: [done, step],
+      stopped: step,
+      commit: "c",
+    };
+    expect(acceleratorInstall.render(run, "text").split("\n")).toEqual([
+      "Install adc383e455869b0c: itsm 0.8.1 on pdi3",
+      "",
+      "  ✓ activate com.snc.pa.premium     35 s",
+      "      active after 35 s",
+      "  ✗ module base                      3 s",
+      "      the instance refused 2 pa_indicators record(s) (permission denied)",
+      "",
+      "Stopped at module base: fix it, then run the same command to resume.",
+      "Report: report.md",
+    ]);
+    expect(acceleratorInstall.exitCode(run)).toBe(1);
+    expect(acceleratorInstall.exitCode({ ...run, stopped: null })).toBe(0);
   });
 });

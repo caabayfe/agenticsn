@@ -28,6 +28,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - `integrate` no longer runs for about an hour without output after a first pull. It reads the
   changed records for the drift report only when units are adopted, all of them through one git
   process (435,638 records in 9 s on a fresh PDI), and reports its progress.
+- `push` and `accelerator install` say why records did not arrive, instead of only "not
+  captured, not applied as built". The platform names a record it skips during a load only in
+  its system log (for example "permission denied" from an access rule). After such a load, push
+  reads that log once and reports each refused record's reason, grouped by table, with the action
+  that unblocks it. For Performance Analytics that action is to activate a PA Premium plugin.
 
 ## [2.9.0] - 2026-10-23
 

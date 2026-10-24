@@ -1,4 +1,5 @@
 import { dataOrder, type Selection, selectCapabilities } from "../domain/capability-graph";
+import { type DataDomain, domainEntity } from "../domain/data-domain";
 import { TrackedDataError } from "../domain/errors";
 import type { DataEntity } from "../domain/manifest-types";
 import { demoPath } from "../domain/pack-layout";
@@ -15,6 +16,9 @@ export type DataSource =
 export interface DataQuery extends Selection {
   readonly pack: string;
   readonly source: DataSource;
+  // The instance's domains, when a load is planned for one: without it the templates are checked
+  // as the pack declares them (spec 011, section 15).
+  readonly domain?: DataDomain;
 }
 
 // The templates of a selection's entities, by entity, from the query's source.
@@ -50,7 +54,9 @@ export async function validateData(
     throw new TrackedDataError(query.source.directory);
   }
   const { capabilities: selected } = selectCapabilities(manifest, selectionOf(query));
-  const entities = dataOrder(manifest, selected);
+  const domain = query.domain;
+  const ordered = dataOrder(manifest, selected);
+  const entities = domain === undefined ? ordered : ordered.map((e) => domainEntity(e, domain));
   const templates = await readTemplates(deps, query, entities);
   return { selected, ...validateTemplates(entities, templates) };
 }

@@ -69,6 +69,7 @@ function deliverySteps(
         notApplied: out.notApplied,
         notCaptured: out.notCaptured,
         updateSets: out.updateSets.map((u) => u.name),
+        refused: out.refused,
       };
     },
   };
@@ -124,13 +125,14 @@ export function installSteps(
       };
     },
     ...deliverySteps(call, instance),
-    load: (modules, source) =>
+    load: (modules, source, domain) =>
       call(acceleratorLoad, {
         pack: where.pack,
         instance,
         modules: [...modules],
         confirm: true,
         ...(source.kind === "demo" ? { demo: true } : { data: source.directory }),
+        ...(domain === null ? {} : { domain }),
       }),
     async writeFile(path, text) {
       await context.workspaceFiles.write(join(where.root, path), text);

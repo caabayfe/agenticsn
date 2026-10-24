@@ -5,7 +5,6 @@ import {
   type InstallJournal,
   InstallLockedError,
   InstallPlanChangedError,
-  type InstallRecord,
   type InstallSteps,
   type InventoryReader,
   installPack,
@@ -16,6 +15,7 @@ import {
   planInstall,
   plannedComponents,
 } from "@snagentic/core";
+import { fakeSteps, memoryJournal } from "../support/install-fakes";
 import { memoryPacks, type PackFixture, packFiles } from "../support/memory-packs";
 
 // The ITSM shape, small: a foundation with data and a component, and a module that needs it.
@@ -89,109 +89,6 @@ const workspace = (
   merge: async () => ({ branch: "b", conflicts: [] }),
 });
 
-function fakeSteps(
-  options: {
-    notApplied?: Record<string, number>;
-    nothingFor?: string[];
-    customized?: string[];
-    absent?: string[];
-    layout?: ListState;
-  } = {},
-) {
-  const calls: string[] = [];
-  const owned: string[] = [];
-  const files = new Map<string, string>();
-  const steps: InstallSteps = {
-    activatePlugin: async (id) => {
-      calls.push(`activate ${id}`);
-      return { seconds: 3 };
-    },
-    refresh: async () => {
-      calls.push("refresh");
-    },
-    add: async (modules) => {
-      calls.push(`add ${modules.join("+")}`);
-      return { copied: [`source/global/src/fluent/${modules.at(-1)}.now.ts`], conflicts: [] };
-    },
-    keys: async (paths) => {
-      calls.push(`keys ${paths.length}`);
-    },
-    takeOver: async (records) => {
-      calls.push(`take-over ${records.length}`);
-      const customized = records
-        .filter((r) => (options.customized ?? []).includes(r.sysId))
-        .map((r) => `${r.table} ${r.sysId}`);
-      const absent = records
-        .filter((r) => (options.absent ?? []).includes(r.sysId))
-        .map((r) => `${r.table} ${r.sysId}`);
-      return {
-        taken: records.length - customized.length - absent.length,
-        customized,
-        absent,
-      };
-    },
-    planPush: async (label, _signal, own) => {
-      calls.push(`plan ${label}`);
-      owned.push(...own);
-      const nothing = (options.nothingFor ?? []).some((m) => label.includes(m));
-      return { planId: `p-${label}`, ready: !nothing, units: nothing ? 0 : 5, problems: [] };
-    },
-    push: async (planId, label) => {
-      calls.push(`push ${planId}`);
-      const notApplied =
-        Object.entries(options.notApplied ?? {}).find(([m]) => label.includes(m))?.[1] ?? 0;
-      return { units: 5, notApplied, notCaptured: 0, updateSets: [`snagentic: ${label}`] };
-    },
-    load: async (modules) => {
-      calls.push(`load ${modules.join("+")}`);
-      return {
-        entities: [
-          {
-            entity: "group",
-            counts: { inserted: 1, updated: 0, ignored: 0, skipped: 0, error: 0 },
-            failed: [],
-          },
-        ],
-        stopped: false,
-      };
-    },
-    completeUpdateSets: async (sets) => {
-      calls.push(`complete ${sets.map((set) => set.name).join(", ")}`);
-    },
-    layouts: async (facts) => {
-      calls.push(`layouts ${facts.length}`);
-      return facts.map(
-        () => options.layout ?? { container: null, view: "Default view", entries: [] },
-      );
-    },
-    writeFile: async (path, text) => {
-      files.set(path, text);
-    },
-    commit: async (paths) => {
-      calls.push(`commit ${paths.length}`);
-      return "r1";
-    },
-  };
-  return { steps, calls, files, owned };
-}
-
-function memoryJournal(start: InstallRecord | null = null, locked = false) {
-  const state = { record: start, locked, cleared: false };
-  const journal: InstallJournal = {
-    read: async () => state.record,
-    write: async (r) => {
-      state.record = r;
-    },
-    clear: async () => {
-      state.record = null;
-      state.cleared = true;
-    },
-    lock: async () => !state.locked,
-    unlock: async () => {},
-  };
-  return { journal, state };
-}
-
 const deps = (
   states: Record<string, "active" | "inactive">,
   extra: {
@@ -210,7 +107,7 @@ const deps = (
     updateSets: { open: async () => extra.open ?? [] },
     templates,
     // The fixture declares no platform fields: the mirror's schema is never asked.
-    schema: { ready: async () => true, fieldsOf: async () => [] },
+    schema: { ready: async () => true, fieldsOf: async () => [], refresh: () => {} },
     steps: extra.steps ?? fakeSteps().steps,
     journal: extra.journal ?? memoryJournal().journal,
     now: () => {
@@ -259,6 +156,8 @@ describe("planning an install (ADR-0038, items 2 and 3)", () => {
       entities: [
         { entity: "group", module: "foundation", target: "sys_user_group", rows: 1, anchors: true },
       ],
+      domain: { separated: false },
+      domainColumns: [],
     });
     expect(plan.problems).toEqual([]);
   });
@@ -352,6 +251,8 @@ describe("deciding what the install does with each component", () => {
             ...component,
           },
         ],
+        waitsOn: [],
+        installable: true,
       },
     ],
   });
@@ -589,6 +490,41 @@ describe("running an install (ADR-0038, item 2)", () => {
         `accelerators/installs/pdi2/itsm-${plan.planId}/resume-${resumed.plan.planId}.md`,
       ),
     ).toBe(true);
+  });
+
+  it("stops at data rows not taken, with the platform's reason and what to do", async () => {
+    const notTaken = {
+      reason: "column schedule names a record service_offering.schedule does not find",
+      action: "change schedule to name a record the instance has",
+      rows: ["VPN", "ERP"],
+    };
+    const { steps } = fakeSteps({ notTaken });
+    const plan = await planInstall(deps(READY), QUERY);
+    const result = await installPack(deps(READY, { steps }), { ...QUERY, confirm: plan.planId });
+    expect(result.stopped?.step).toBe("data");
+    expect(result.stopped?.detail).toBe(
+      `group: 2 row(s) not taken (VPN, ERP): ${notTaken.reason}; ${notTaken.action}`,
+    );
+  });
+
+  it("stops at records the platform refused, naming the reason and what unblocks them", async () => {
+    const action = "activate com.snc.pa.premium, then run the same command again";
+    const { steps } = fakeSteps({
+      refused: {
+        incident: {
+          table: "pa_indicators",
+          reason: "permission denied",
+          records: ["ACC MTTR", "ACC Backlog"],
+          action,
+        },
+      },
+    });
+    const plan = await planInstall(deps(READY), QUERY);
+    const result = await installPack(deps(READY, { steps }), { ...QUERY, confirm: plan.planId });
+    expect(result.stopped?.step).toBe("module incident");
+    expect(result.stopped?.detail).toBe(
+      `the instance refused 2 pa_indicators record(s) (permission denied): ${action}`,
+    );
   });
 
   it("resumes a stopped module in its own update set, though the workspace holds its files", async () => {

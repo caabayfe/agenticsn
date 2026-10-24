@@ -1,4 +1,4 @@
-import { InstanceError, loadData } from "@snagentic/core";
+import { DataDomainError, InstanceError, loadData, resolveDataDomain } from "@snagentic/core";
 import { z } from "zod";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
 import { connect } from "./connect";
@@ -32,7 +32,21 @@ export const acceleratorLoad = defineUseCase({
     instance: z.string(),
     entities: z
       .array(
-        z.object({ entity: z.string(), counts: Counts, failed: z.array(z.string()).readonly() }),
+        z.object({
+          entity: z.string(),
+          counts: Counts,
+          failed: z.array(z.string()).readonly(),
+          problems: z
+            .array(
+              z.object({
+                reason: z.string(),
+                action: z.string(),
+                rows: z.array(z.string()).readonly(),
+              }),
+            )
+            .readonly()
+            .describe("why rows were not taken, by reason: names columns, never values"),
+        }),
       )
       .readonly(),
     stopped: z.boolean(),
@@ -41,15 +55,21 @@ export const acceleratorLoad = defineUseCase({
   mcp: false,
   arguments: ["pack", "instance"],
   async handle(input, context, run) {
-    const { name, reader } = await connect(context, input.instance, run.signal);
+    const { root, name, reader } = await connect(context, input.instance, run.signal);
     if (reader.imports === undefined) {
       throw new InstanceError("this connection cannot load data through import sets");
     }
+    // Every row goes into one domain where the instance separates data by domain (spec 011, 15).
+    const domains = await context.inventory.read(root, String(name), "domains");
+    const { domain, problems } = resolveDataDomain(domains, input.domain, String(name));
+    const [problem] = problems;
+    if (problem !== undefined) throw new DataDomainError(problem);
     const result = await loadData(
       { packs: context.packs, templates: context.dataTemplates, importer: reader.imports },
       {
         pack: input.pack,
         source: dataSourceOf(input, context.host.cwd),
+        domain,
         confirm: input.confirm,
         signal: run.signal,
         ...selectionOf(input),
@@ -61,7 +81,11 @@ export const acceleratorLoad = defineUseCase({
     return [
       ...output.entities.flatMap((e) => [
         `${e.entity}: ${e.counts.inserted} inserted, ${e.counts.updated} updated, ${e.counts.ignored} unchanged, ${e.counts.skipped + e.counts.error} not taken`,
-        ...e.failed.map((key) => `  not taken: ${key}`),
+        ...e.problems.flatMap((p) => [
+          `  not taken (${p.rows.length}): ${p.reason}`,
+          `    rows: ${p.rows.join(", ")}`,
+          `    fix: ${p.action}`,
+        ]),
       ]),
       output.stopped
         ? "stopped: fix the rows not taken (see the import set rows on the instance), then load again"

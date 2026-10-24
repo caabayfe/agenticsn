@@ -29,8 +29,13 @@ export interface CapabilityReport {
   readonly id: string;
   readonly state: CapabilityState;
   readonly components: readonly ComponentCheck[];
-  // Commands that make it installable, in order.
+  // Commands that make it installable by hand, in order.
   readonly next: readonly string[];
+  // The modules it depends on that are not ready yet (why it is blocked).
+  readonly waitsOn: readonly string[];
+  // Whether accelerator install can install it as the instance is: what it lacks is only
+  // plugins the install activates, here or in the modules it waits on (spec 011, section 15).
+  readonly installable: boolean;
 }
 
 export interface PreflightReport {
@@ -76,6 +81,10 @@ function ownState(components: readonly ComponentCheck[]): CapabilityState {
   return components.some((c) => c.state !== "active") ? "needs-components" : "ready";
 }
 
+// Active, or a plugin the install activates through the platform's installer.
+const activatedByInstall = (c: ComponentCheck) =>
+  c.state === "active" || (c.state === "inactive" && c.kind === "plugin");
+
 function nextSteps(components: readonly ComponentCheck[], instance: string): string[] {
   const inactive = components.filter((c) => c.state === "inactive" && c.kind === "plugin");
   if (inactive.length === 0) return [];
@@ -116,16 +125,21 @@ export function preflight(input: {
   const keyOf = (c: { readonly kind: string; readonly id: string }) => `${c.kind}:${c.id}`;
   const installed = new Map(input.components.map((c) => [keyOf(c), c]));
   const states = new Map<string, CapabilityState>();
+  const installable = new Map<string, boolean>();
   const capabilities = input.selected.flatMap((id) => {
     const capability = input.manifest.capabilities.find((c) => c.id === id);
     if (capability === undefined) return [];
     const components = capability.components.map((r) => checkComponent(r, installed.get(keyOf(r))));
     const own = ownState(components);
-    const waiting = capability.dependsOn.some((d) => states.get(d) !== "ready");
-    const state: CapabilityState = own === "ready" && waiting ? "blocked" : own;
+    const waitsOn = capability.dependsOn.filter((d) => states.get(d) !== "ready");
+    const state: CapabilityState = own === "ready" && waitsOn.length > 0 ? "blocked" : own;
     states.set(id, state);
+    const can =
+      components.every(activatedByInstall) &&
+      capability.dependsOn.every((d) => installable.get(d) !== false);
+    installable.set(id, can);
     const next = own === "not-entitled" ? [] : nextSteps(components, input.instance);
-    return [{ id, state, components, next }];
+    return [{ id, state, components, next, waitsOn, installable: can }];
   });
   return {
     problems: packProblems(input.manifest, input.snagentic),

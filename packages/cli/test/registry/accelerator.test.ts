@@ -108,6 +108,8 @@ describe("accelerator use cases", () => {
         "snagentic plugins activate pdi2 com.snc.on_call_rotation --confirm",
         "snagentic pull pdi2",
       ],
+      waitsOn: [],
+      installable: true,
     };
     const output = {
       packs: [{ id: "minimal", version: "1.0.0", modules: [], profiles: {} }],
@@ -120,15 +122,23 @@ describe("accelerator use cases", () => {
     };
     const text = acceleratorCheck.render(output, "text");
     expect(text).toContain("needs-components extra");
-    expect(text).toContain("  plugin com.snc.on_call_rotation: inactive");
     expect(text).toContain(
-      "next: snagentic plugins activate pdi2 com.snc.on_call_rotation --confirm",
+      "  plugin com.snc.on_call_rotation: inactive (accelerator install activates it)",
     );
+    // The install activates it: no command by hand.
+    expect(text).not.toContain("next:");
     expect(text).toContain("unknown: nope");
     expect(text).toContain("warning: the pack was tested on zurich");
     expect(acceleratorCheck.exitCode(output)).toBe(1);
-    expect(acceleratorCheck.exitCode({ ...output, unknown: [], problems: [], modules: [] })).toBe(
-      0,
+    const clean = { ...output, unknown: [], problems: [] };
+    expect(acceleratorCheck.exitCode(clean)).toBe(0);
+    const waiting = { ...module, id: "later", state: "blocked" as const, components: [] };
+    const blocked = { ...clean, modules: [{ ...waiting, waitsOn: ["extra"] }] };
+    expect(acceleratorCheck.render(blocked, "text")).toContain("  waits on: extra");
+    const stuck = { ...module, installable: false };
+    expect(acceleratorCheck.exitCode({ ...clean, modules: [stuck] })).toBe(1);
+    expect(acceleratorCheck.render({ ...clean, modules: [stuck] }, "text")).toContain(
+      "next: snagentic plugins activate pdi2 com.snc.on_call_rotation --confirm",
     );
   });
 

@@ -51,6 +51,7 @@ function columnsOf(value: unknown): DataColumn[] {
       required: r?.["required"] === true,
       references: references === "" ? null : references,
       field: field === "" ? null : field,
+      domain: r?.["domain"] === true,
     };
   });
 }
@@ -71,6 +72,7 @@ function entity(value: unknown): DataEntity | null {
     after: texts(fields?.["after"]),
     columns: columnsOf(fields?.["columns"]),
     anchors: fields?.["anchors"] === true,
+    from: text(fields?.["from"]) || null,
   };
 }
 

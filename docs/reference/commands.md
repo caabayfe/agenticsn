@@ -475,6 +475,7 @@ Options:
 
 - `--data <value>`: the directory with the templates, outside the workspace
 - `--demo`: use the pack's fictional demo data
+- `--domain <value>`: the domain the data goes into, on an instance that separates data by domain
 - `--profile <value>`: install this profile's modules
 - `--modules <values...>`: install these modules (with what they need)
 
@@ -496,6 +497,7 @@ Options:
 - `--modules <values...>`: install these modules (with what they need)
 - `--data <value>`: the directory with the templates, outside the workspace
 - `--demo`: use the pack's fictional demo data
+- `--domain <value>`: the domain the data goes into, on an instance that separates data by domain
 - `--confirm <value>`: the plan id the admin approved
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
@@ -514,6 +516,7 @@ Options:
 
 - `--data <value>`: the directory with the templates, outside the workspace
 - `--demo`: use the pack's fictional demo data
+- `--domain <value>`: the domain the data goes into, on an instance that separates data by domain
 - `--profile <value>`: install this profile's modules
 - `--modules <values...>`: install these modules (with what they need)
 - `--confirm`: confirm that this writes records

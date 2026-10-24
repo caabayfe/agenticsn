@@ -86,11 +86,26 @@ export const push = defineUseCase({
           operation: z.enum(["create", "load", "delete", "record", "forget"]),
           captured: z.boolean().describe("recorded in the update set under its update name"),
           applied: z.boolean().describe("read back, the instance holds what the build loaded"),
+          refused: z
+            .string()
+            .nullable()
+            .describe("why the platform skipped it during the load, from its system log"),
         }),
       )
       .readonly(),
     notCaptured: z.number(),
     notApplied: z.number(),
+    refused: z
+      .array(
+        z.object({
+          table: z.string(),
+          reason: z.string(),
+          records: z.array(z.string()).readonly(),
+          action: z.string().describe("what unblocks these records"),
+        }),
+      )
+      .readonly()
+      .describe("records the platform skipped, by table and reason"),
     ledgerCommit: z
       .string()
       .nullable()
@@ -136,7 +151,10 @@ export const push = defineUseCase({
         .map((set) => `update set ${set.created ? "created" : "reused"}: ${set.name}  ${set.link}`),
       ...output.units.map(
         (u) =>
-          `${u.operation.padEnd(6)} ${u.updateName}${u.captured ? "" : "  NOT captured in the update set"}${u.applied ? "" : "  NOT applied as built"}`,
+          `${u.operation.padEnd(6)} ${u.updateName}${u.captured ? "" : "  NOT captured in the update set"}${u.applied ? "" : "  NOT applied as built"}${u.refused === null ? "" : ` (refused: ${u.refused})`}`,
+      ),
+      ...output.refused.map(
+        (g) => `refused: ${g.records.length} ${g.table} record(s), ${g.reason}: ${g.action}`,
       ),
       output.ledgerCommit === null
         ? "no ledger change"

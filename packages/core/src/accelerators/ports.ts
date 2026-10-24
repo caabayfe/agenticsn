@@ -2,6 +2,7 @@ import type { OpenSet } from "./domain/earlier-sets";
 import type { EnsureFact, ListState } from "./domain/ensure";
 import type { InstallRecord } from "./domain/install-plan";
 import type { MaterializedFile } from "./domain/materialize";
+import type { RowProblem } from "./domain/row-problems";
 import type { Template } from "./domain/templates";
 import type { PreviousAdd } from "./domain/upgrade";
 
@@ -67,7 +68,12 @@ export interface ImportSetWriter {
     table: string,
     row: Readonly<Record<string, string>>,
     signal: AbortSignal,
-  ): Promise<{ readonly status: ImportStatus; readonly sysId: string }>;
+  ): Promise<{
+    readonly status: ImportStatus;
+    readonly sysId: string;
+    // The transform's message for a row it skipped or failed, when the platform gives one.
+    readonly message?: string;
+  }>;
 }
 
 // The steps an install runs, each one an existing use case (ADR-0038, item 2): the install only
@@ -116,16 +122,26 @@ export interface InstallSteps {
     readonly notApplied: number;
     readonly notCaptured: number;
     readonly updateSets: readonly string[];
+    // Records the platform skipped during the load, by table and reason, with their action.
+    readonly refused: readonly {
+      readonly table: string;
+      readonly reason: string;
+      readonly records: readonly string[];
+      readonly action: string;
+    }[];
   }>;
   load(
     modules: readonly string[],
     source: { readonly kind: "demo" } | { readonly kind: "directory"; readonly directory: string },
+    // The domain the rows go into, by name; null where the instance has no domains.
+    domain: string | null,
     signal: AbortSignal,
   ): Promise<{
     readonly entities: readonly {
       readonly entity: string;
       readonly counts: Readonly<Record<ImportStatus, number>>;
       readonly failed: readonly string[];
+      readonly problems: readonly RowProblem[];
     }[];
     readonly stopped: boolean;
   }>;
@@ -161,4 +177,6 @@ export interface SchemaReader {
   ready(): Promise<boolean>;
   // A table's fields, its parents' included; null when the mirror has no such table.
   fieldsOf(table: string): Promise<readonly string[] | null>;
+  // Forgets what it read, so the next question reads the mirror again (after a pull).
+  refresh(): void;
 }

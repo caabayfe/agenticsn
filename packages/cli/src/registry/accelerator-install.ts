@@ -8,6 +8,8 @@ import {
   VERSION,
 } from "@snagentic/core";
 import { z } from "zod";
+import { renderPlan, renderRun } from "./accelerator-install-render";
+import { InstallViewOutput, installView } from "./accelerator-install-view";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
 import { connect } from "./connect";
 import { callerFor, installSteps } from "./install-steps";
@@ -48,6 +50,7 @@ export const acceleratorInstall = defineUseCase({
     steps: z.array(Step).readonly(),
     stopped: Step.nullable(),
     commit: z.string().nullable(),
+    ...InstallViewOutput,
   }),
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
   mcp: false,
@@ -92,6 +95,7 @@ export const acceleratorInstall = defineUseCase({
         source: dataSourceOf(input, context.host.cwd),
         snagentic: VERSION,
         signal: run.signal,
+        ...(input.domain === undefined ? {} : { domain: input.domain }),
         ...(input.confirm === undefined ? {} : { confirm: input.confirm }),
       },
     );
@@ -105,25 +109,11 @@ export const acceleratorInstall = defineUseCase({
       steps: result.steps,
       stopped: result.stopped,
       commit: result.commit,
+      ...installView(result.plan),
     };
   },
   render(output) {
-    if (output.reportPath === null) {
-      return [
-        `install plan ${output.planId} for ${output.modules.join(", ")}: ${output.planPath}`,
-        ...output.warnings.map((w) => `warning: ${w}`),
-        ...output.problems.map((p) => `blocked: ${p}`),
-        output.problems.length === 0
-          ? `next: have the plan reviewed, then run the same command with --confirm ${output.planId}`
-          : "fix the blocking problems, then plan again",
-      ].join("\n");
-    }
-    return [
-      ...output.steps.map((s) => `${s.outcome.padEnd(8)} ${s.step}  ${s.detail}  (${s.seconds} s)`),
-      output.stopped === null
-        ? `installed: report in ${output.reportPath}`
-        : `stopped at ${output.stopped.step}: fix it, then run the same command to resume (report in ${output.reportPath})`,
-    ].join("\n");
+    return output.reportPath === null ? renderPlan(output) : renderRun(output);
   },
   exitCode: (output) => (output.problems.length > 0 || output.stopped !== null ? 1 : 0),
 });

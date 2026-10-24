@@ -463,3 +463,72 @@ ADR-0038 section 6, amendment accepted by the product owner (2026-10-22).
 | | 5. Unchanged: the push's collision check (`ownedBy`) reads only sets in progress, so it needs no change: a record in someone else's set, or a newer version's, still stops the module | Unchanged |
 | | 6. Live (2026-10-22, plan `41e7aaf82bdd589c`, profile `incident-advanced`): the plan listed the seven earlier ITSM sets (0.1.0, 0.1.1, 0.3.0), the run completed them in 3.1 s (every scope child followed), then pushed 1 unit, `ACCRelatedChanges`, the record that had stopped the 0.3.1 install, into `snagentic: itsm 0.3.1 upgrade`; data 159 rows unchanged; installed. `snagentic: ACC itsm/foundation 0.1.0` and the other manual-push sets stayed in progress. The first plan showed two faults, fixed before the run: it named each module's set for this install (modules already installed go into the upgrade set) and ordered one version's sets by name, not creation | Done |
 | | Planning now connects to the instance (the live read): `accelerator install` without `--confirm` needs the credential it already needed to run | |
+
+## 15. Fresh instances and domain separation (2026-10-23)
+
+The first install on a fresh PDI (pdi3, dev402741, platform family australia, no domain
+separation) could not be planned. The mirrors of pdi2 and pdi3 show why:
+
+| Plan message on pdi3 | Evidence | Cause |
+|---|---|---|
+| `sys_user_group.company` blocks foundation | pdi2's groups have `company`, `managed_domain`, `sys_domain` and `sys_domain_path`; pdi3's have none of them. `task` has `company` and `sys_domain` on both | Domain separation adds them. An install cannot turn it on (no plugin in `v_plugin` on either instance), so a pack must never require them |
+| `major_incident_state`, `proposed_by`, `promoted_by`, `incident_alert.source` block major-incident | `com.snc.incident.mim` and `com.snc.iam` are inactive on pdi3; the plan already activates them | The field check reads the mirror as it is and ignores the plan's own activations |
+| `comm_contact_definition.*` blocks major-incident, "find the plugin" | On pdi2 the table is `sn_comm_management`'s, created on 2026-10-12 17:41, with `incident_alert` (17:41) and `sn_sow_inc_post_incident_review` (17:47): the minutes MIM was activated | The data entity names no source. `incident_ref` names `sn_sow_inc`, active on pdi3 without the table: its source is MIM too |
+| `incident.problem_id`, `caused_by`, `rfc` warn | No dictionary entry in either mirror, old or fresh | This family's PDIs lack them; not damage to pdi2 (section 13). The hint to repair `com.snc.incident` is wrong |
+| `incident-analytics` "blocked" with no reason | It depends on incident-knowledge, which needs a plugin | The check does not say what a module waits on |
+
+Product owner decisions (2026-10-23): an install takes a fresh instance to a working build on its
+own, activating what its modules need; and **when an instance separates data by domain, the
+domain fields are always populated**, with the domain chosen by `--domain`.
+
+### Design
+
+**Fields that come with an activation (snagentic).**
+
+1. A field's state is `after-activation` when it is missing and its source (`from`) is a component
+   the plan activates. It is not a problem; the plan document lists it apart. A field of unknown
+   source is never deferred: the pack must name where it comes from.
+2. `from` on a data entity names the source of its target table for every column.
+3. A run that activates components checks the fields again after it pulls, against a freshly
+   opened mirror index, before anything is pushed (`check fields`, journaled). A required field
+   still missing stops it there; a missing optional one becomes a warning in the report.
+4. `check` says what the install does: a plugin the plan activates is "activated by the install",
+   not a manual command; a module that waits names the module it waits on.
+
+**Domain separation (snagentic and the pack).**
+
+5. The instance separates data by domain when its mirrored inventory lists domains
+   (`operational/domains.yaml`, empty without domain separation since 2.8.2). Without that file
+   the install asks for a pull.
+6. `--domain <name>` on `accelerator install` and `accelerator load`: **required** on a
+   domain-separated instance when the selection loads data, **refused** on any other. The name
+   must be one of the mirrored domains; the plan shows it and it enters the plan id.
+7. On a domain-separated instance every row is loaded into that domain: snagentic adds the
+   domain's sys_id (from the mirror, so the instance never resolves a name) as `u_sys_domain`.
+8. A column marked `domain: true` (foundation's group `company`) holds a value only domain
+   separation uses. On a domain-separated instance it is mandatory in every row and its field is
+   checked like any other; elsewhere it is dropped from the rows and its field is not checked.
+9. The pack's transform maps are the same on every instance: each staging table has
+   `u_sys_domain`, always posted under that name (as `sys_domain` it would be the import row's own
+   domain), and the map script sets `sys_domain` from it only where the target table has the
+   field (`isValidField`). A `domain: true` column keeps its field map: snagentic sends its value
+   only to a domain-separated instance, so elsewhere the map has nothing to copy, and records an
+   earlier version delivered stay unchanged (removing the map would need a deletion). A reference
+   that does not resolve is rejected like any other.
+
+**The pack (itsm 0.8.1, needs snagentic 2.9.0).**
+
+10. Foundation's group `company`: `domain: true`. `comm_contact`: `from: com.snc.incident.mim`;
+    `incident_ref`: `from: com.snc.incident.mim`. The `problem_id`, `caused_by` and `rfc` notes
+    stop pointing at `com.snc.incident`.
+11. Later: a reference-instance check in the pack's CI, from the fields of a fresh instance
+    (pdi3), so a module that needs a field the base platform lacks fails before any install.
+
+| # | Item | State |
+|---|---|---|
+| V1 | Field state `after-activation`, entity `from` (items 1, 2) | Built |
+| V2 | `check fields` after the activation pull (item 3) | Built |
+| V3 | `check` wording (item 4) | Built |
+| V4 | Domain separation: detection, `--domain`, rows and columns (items 5 to 8) | Built; also on `validate-data` (checks as a load into a domain would) |
+| V5 | Pack: generated map scripts and staging column, module changes, 0.8.1 (items 9, 10) | Built (sn-accelerators branch `feat/platform-variance`); the `problem_id`, `caused_by`, `rfc` notes wait for a live check on pdi3 |
+| V6 | Live: full `incident-advanced` with demo data on pdi3 (no domains) and on pdi2 (`--domain`) | Planned |

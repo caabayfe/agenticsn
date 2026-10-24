@@ -1,12 +1,22 @@
 import { deliveredDetail } from "../domain/earlier-sets";
 import type { EnsureFact } from "../domain/ensure";
-import { InstallBlockedError, InstallLockedError, InstallPlanChangedError } from "../domain/errors";
+import {
+  InstallBlockedError,
+  InstallLockedError,
+  InstallPlanChangedError,
+  InstallStepStoppedError,
+} from "../domain/errors";
 import { installPlanDocument, installReportDocument } from "../domain/install-document";
 import type { InstallPlan, InstallRecord, InstallStepRecord } from "../domain/install-plan";
 import type { Adoption } from "../domain/materialize";
-import type { InstallJournal, InstallSteps } from "../ports";
+import type { RowProblem } from "../domain/row-problems";
 import { ensureLayouts } from "./ensure-layouts";
-import { type InstallPlanDependencies, type InstallQuery, planInstall } from "./plan-install";
+import { components } from "./install-components";
+import { type InstallRunDependencies, step } from "./install-step";
+import { type InstallQuery, planInstall } from "./plan-install";
+
+const folderOf = (pack: string, instance: string, planId: string) =>
+  `accelerators/installs/${instance}/${pack}-${planId}`;
 
 export interface InstallResult {
   readonly plan: InstallPlan;
@@ -17,69 +27,6 @@ export interface InstallResult {
   // The step that stopped the run, or null when it ran to the end (or only planned).
   readonly stopped: InstallStepRecord | null;
   readonly commit: string | null;
-}
-
-export interface InstallRunDependencies extends InstallPlanDependencies {
-  readonly steps: InstallSteps;
-  readonly journal: InstallJournal;
-  readonly now: () => Date;
-}
-
-// Thrown by a step to stop the run where it is, with the reason the report gives.
-class Stop extends Error {}
-
-const folderOf = (pack: string, instance: string, planId: string) =>
-  `accelerators/installs/${instance}/${pack}-${planId}`;
-
-// Runs one step, timed, recorded in the journal as it finishes.
-async function step(
-  deps: InstallRunDependencies,
-  record: { current: InstallRecord },
-  name: string,
-  run: () => Promise<{ outcome: "done" | "skipped"; detail: string }>,
-): Promise<void> {
-  const started = deps.now().getTime();
-  const seconds = () => Math.round((deps.now().getTime() - started) / 100) / 10;
-  try {
-    const { outcome, detail } = await run();
-    record.current = {
-      ...record.current,
-      steps: [...record.current.steps, { step: name, outcome, detail, seconds: seconds() }],
-    };
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    record.current = {
-      ...record.current,
-      steps: [
-        ...record.current.steps,
-        { step: name, outcome: "stopped", detail, seconds: seconds() },
-      ],
-    };
-    throw new Stop(detail);
-  } finally {
-    await deps.journal.write(record.current);
-  }
-}
-
-async function components(
-  deps: InstallRunDependencies,
-  plan: InstallPlan,
-  record: { current: InstallRecord },
-  signal: AbortSignal,
-) {
-  const activations = plan.components.filter((c) => c.action === "activate");
-  for (const c of activations) {
-    await step(deps, record, `activate ${c.id}`, async () => {
-      const { seconds } = await deps.steps.activatePlugin(c.id, signal);
-      return { outcome: "done", detail: `active after ${seconds} s` };
-    });
-  }
-  if (activations.length > 0) {
-    await step(deps, record, "pull and integrate", async () => {
-      await deps.steps.refresh(signal);
-      return { outcome: "done", detail: "the mirror holds the new components" };
-    });
-  }
 }
 
 // A module's out-of-box records become this branch's only where the client never changed them:
@@ -102,6 +49,23 @@ async function takeOver(
   if (refused.length > 0) {
     throw new Error(`${refused.join("; ")} (review it, then resume or drop it from the module)`);
   }
+}
+
+// Why a module's push did not arrive whole: the platform's reasons first, with their actions,
+// then what is left unexplained.
+function undelivered(pushed: Awaited<ReturnType<InstallRunDependencies["steps"]["push"]>>) {
+  const refused = pushed.refused.map(
+    (g) =>
+      `the instance refused ${g.records.length} ${g.table} record(s) (${g.reason}): ${g.action}`,
+  );
+  const explained = pushed.refused.reduce((n, g) => n + g.records.length, 0);
+  const captured = pushed.notCaptured - explained;
+  const applied = pushed.notApplied - explained;
+  const rest =
+    captured + applied > 0
+      ? [`${captured} not captured, ${applied} not applied as built: check them on the instance`]
+      : [];
+  return [...refused, ...rest].join("; ");
 }
 
 // Delivers modules already added (`ids`, cumulative) into the update sets named by `label`.
@@ -129,11 +93,7 @@ async function deliverAs(
   }
   if (!planned.ready) throw new Error(`plan not ready: ${planned.problems.join("; ")}`);
   const pushed = await deps.steps.push(planned.planId, label, signal);
-  if (pushed.notApplied + pushed.notCaptured > 0) {
-    throw new Error(
-      `${pushed.notCaptured} not captured, ${pushed.notApplied} not applied as built: check them on the instance`,
-    );
-  }
+  if (pushed.notApplied + pushed.notCaptured > 0) throw new Error(undelivered(pushed));
   return { outcome: "done", detail: deliveredDetail(pushed.units, pushed.updateSets) };
 }
 
@@ -218,21 +178,36 @@ async function load(
 ) {
   if (plan.data.entities.length === 0) return;
   await step(deps, record, "data", async () => {
+    const domain = plan.data.domain.separated ? plan.data.domain.name : null;
     const result = await deps.steps.load(
       plan.modules.map((m) => m.id),
       query.source,
+      domain,
       signal,
     );
     const count = (k: "inserted" | "updated" | "ignored") =>
       result.entities.reduce((n, e) => n + e.counts[k], 0);
-    const failed = result.entities.flatMap((e) => e.failed.map((f) => `${e.entity} ${f}`));
-    if (result.stopped) throw new Error(`rows not taken: ${failed.join(", ")}`);
+    if (result.stopped) throw new Error(rowsNotTaken(result.entities));
     return {
       outcome: "done",
       detail: `${count("inserted")} inserted, ${count("updated")} updated, ${count("ignored")} unchanged`,
     };
   });
 }
+
+// Each entity's rows not taken, by reason, with what to do about them.
+function rowsNotTaken(entities: readonly { entity: string; problems: readonly RowProblem[] }[]) {
+  return entities
+    .flatMap((e) =>
+      e.problems.map(
+        (p) =>
+          `${e.entity}: ${p.rows.length} row(s) not taken (${p.rows.join(", ")}): ${p.reason}; ${p.action}`,
+      ),
+    )
+    .join("; ");
+}
+
+export type { InstallRunDependencies } from "./install-step";
 
 // Plans, and with the plan's id confirmed, runs it (ADR-0038, item 2). A run that stopped is
 // resumed by the same command: its journal holds the plan id the admin approved.
@@ -282,7 +257,7 @@ async function run(
       return { outcome: "done", detail: "the mirror shows the installed modules" };
     });
   } catch (error) {
-    if (!(error instanceof Stop)) throw error;
+    if (!(error instanceof InstallStepStoppedError)) throw error;
     stopped = record.current.steps.at(-1) ?? null;
   }
   const { folder, planPath } = where;

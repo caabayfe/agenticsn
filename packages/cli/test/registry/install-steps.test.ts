@@ -24,6 +24,9 @@ const ANSWERS: Readonly<Record<string, unknown>> = {
     notApplied: 0,
     notCaptured: 1,
     updateSets: [{ name: "snagentic: L" }],
+    refused: [
+      { table: "pa_indicators", reason: "permission denied", records: ["ACC MTTR"], action: "a" },
+    ],
   },
   load: { entities: [], stopped: false },
   "take-over": {
@@ -122,6 +125,9 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
       notApplied: 0,
       notCaptured: 1,
       updateSets: ["snagentic: L"],
+      refused: [
+        { table: "pa_indicators", reason: "permission denied", records: ["ACC MTTR"], action: "a" },
+      ],
     });
     expect(calls.map(([name, input]) => [name, input])).toEqual([
       ["plan-push", { instance: "pdi", label: "L" }],
@@ -131,8 +137,8 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
 
   it("loads the demo data or a customer directory, and writes and commits workspace files", async () => {
     const { steps, calls, commits, written } = fakes();
-    await steps.load(["foundation"], { kind: "demo" }, signal);
-    await steps.load(["foundation"], { kind: "directory", directory: "/data" }, signal);
+    await steps.load(["foundation"], { kind: "demo" }, null, signal);
+    await steps.load(["foundation"], { kind: "directory", directory: "/data" }, "ACME", signal);
     await steps.writeFile("accelerators/installs/pdi/x/plan.md", "# plan");
     await steps.commit(["accelerators/installs/pdi/x/plan.md"], "install");
     expect(calls).toEqual([
@@ -142,7 +148,14 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
       ],
       [
         "load",
-        { pack: "itsm", instance: "pdi", modules: ["foundation"], confirm: true, data: "/data" },
+        {
+          pack: "itsm",
+          instance: "pdi",
+          modules: ["foundation"],
+          confirm: true,
+          data: "/data",
+          domain: "ACME",
+        },
       ],
     ]);
     expect(written).toEqual([["/w/accelerators/installs/pdi/x/plan.md", "# plan"]]);
@@ -189,7 +202,13 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
         gate: { blocking: [] },
         collisions: [{ record: "sys_z_3", heldBy: [{ updateSetName: "snagentic: L [global]" }] }],
       },
-      push: { units: [{}], notApplied: 0, notCaptured: 0, updateSets: [{ name: "snagentic: U" }] },
+      push: {
+        units: [{}],
+        notApplied: 0,
+        notCaptured: 0,
+        updateSets: [{ name: "snagentic: U" }],
+        refused: [],
+      },
     };
     const call = (async (useCase: { name: string }, input: unknown) => {
       calls.push([useCase.name, input]);

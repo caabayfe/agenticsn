@@ -39,6 +39,10 @@ export const acceleratorValidateData = defineUseCase({
         pack: input.pack,
         source: dataSourceOf(input, context.host.cwd),
         ...selectionOf(input),
+        // Without an instance: --domain checks the templates as a load into a domain would.
+        ...(input.domain === undefined
+          ? {}
+          : { domain: { separated: true as const, name: input.domain, sysId: "" } }),
       },
     );
   },

@@ -12,7 +12,8 @@ const PACKS = new DirectoryPackSource([
   resolve(import.meta.dir, "../../../../tests/fixtures/accelerators"),
 ]);
 
-async function loading(imports: boolean) {
+// The mirror's domains: none on a fresh instance (pdi3), some where data is separated (pdi2).
+async function loading(imports: boolean, domains: readonly Record<string, string>[] = []) {
   const { context } = await instanceWorkspace({ sys_user: [{ sys_id: "u1", user_name: "admin" }] });
   const posted: string[] = [];
   const open = context.connections.open;
@@ -23,6 +24,9 @@ async function loading(imports: boolean) {
     data,
     context: {
       ...context,
+      inventory: {
+        read: async (_r: string, _i: string, file: string) => (file === "domains" ? domains : null),
+      },
       packs: PACKS,
       dataTemplates: new CsvDataTemplates(),
       connections: {
@@ -32,7 +36,9 @@ async function loading(imports: boolean) {
             ? {
                 imports: {
                   post: async (table: string, row: Readonly<Record<string, string>>) => {
-                    posted.push(`${table} ${row["name"]}`);
+                    posted.push(
+                      `${table} ${row["name"]}${row["u_sys_domain"] === undefined ? "" : ` in ${row["u_sys_domain"]}`}`,
+                    );
                     return {
                       status:
                         row["name"] === "Melbourne" ? ("error" as const) : ("inserted" as const),
@@ -64,7 +70,9 @@ describe("accelerator load", () => {
     });
     const text = acceleratorLoad.render(output as never, "text");
     expect(text).toContain("location: 1 inserted, 0 updated, 0 unchanged, 1 not taken");
-    expect(text).toContain("not taken: Melbourne");
+    expect(text).toContain(
+      "  not taken (1): the transform failed it\n    rows: Melbourne\n    fix: ",
+    );
     expect(acceleratorLoad.exitCode(output as never)).toBe(1);
     const done = { ...(output as never as Record<string, unknown>), stopped: false, entities: [] };
     expect(acceleratorLoad.render(done as never, "text")).toBe("loaded into pdi");
@@ -80,5 +88,24 @@ describe("accelerator load", () => {
         context,
       ),
     ).rejects.toThrow("cannot load data through import sets");
+  });
+
+  it("puts every row into the domain --domain names where the instance separates data", async () => {
+    const acme = { sys_id: "a".repeat(32), name: "ACME", parent: "", active: "true" };
+    const { context, data, posted } = await loading(true, [acme]);
+    await expect(
+      executeUseCase(
+        acceleratorLoad,
+        { pack: "minimal", instance: "pdi", data, confirm: true },
+        context,
+      ),
+    ).rejects.toMatchObject({ code: "data-domain" });
+    expect(posted).toEqual([]);
+    await executeUseCase(
+      acceleratorLoad,
+      { pack: "minimal", instance: "pdi", data, confirm: true, domain: "ACME" },
+      context,
+    );
+    expect(posted[0]).toBe(`imp_location Sydney HQ in ${"a".repeat(32)}`);
   });
 });

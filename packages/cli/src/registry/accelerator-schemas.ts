@@ -20,6 +20,10 @@ export const selectionOf = (input: {
 export const DataSourceInput = {
   data: z.string().optional().describe("the directory with the templates, outside the workspace"),
   demo: z.boolean().default(false).describe("use the pack's fictional demo data"),
+  domain: z
+    .string()
+    .optional()
+    .describe("the domain the data goes into, on an instance that separates data by domain"),
 };
 
 export function dataSourceOf(

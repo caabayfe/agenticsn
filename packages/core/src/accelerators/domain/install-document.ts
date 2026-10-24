@@ -1,22 +1,13 @@
+import { dataSection, fieldsSection, table } from "./install-document-sections";
 import type {
   InstallPlan,
   InstallRecord,
   InstallStepRecord,
   PlannedComponent,
-  PlannedField,
 } from "./install-plan";
 
 // The install plan and report as Markdown, written for the platform admin who approves the
 // install (ADR-0038, item 3). Pure.
-
-const table = (head: readonly string[], rows: readonly (readonly string[])[]) =>
-  rows.length === 0
-    ? ["None."]
-    : [
-        `| ${head.join(" | ")} |`,
-        `|${head.map(() => "---").join("|")}|`,
-        ...rows.map((r) => `| ${r.map((c) => c.replace(/\|/g, "\\|")).join(" | ")} |`),
-      ];
 
 const ACTION: Readonly<Record<PlannedComponent["action"], string>> = {
   none: "nothing (already active)",
@@ -66,40 +57,7 @@ function components(plan: InstallPlan): string[] {
       ]),
     ),
     "",
-    ...fields(plan.fields),
-  ];
-}
-
-function fieldAction(f: PlannedField): string {
-  if (f.whenMissing === "warn") return `install anyway: ${f.note ?? "the module works without it"}`;
-  return "**blocked**: repair or activate the plugin that ships it, then pull";
-}
-
-// The platform fields the modules read (plan gap G13): a missing one blocks its module, unless
-// the module declared it can do without. Present fields are only counted.
-function fields(planned: readonly PlannedField[]): string[] {
-  const missing = planned.filter((f) => f.state !== "present");
-  const present = planned.length - missing.length;
-  if (planned.length === 0) return [];
-  return [
-    "**Platform fields the modules read**, checked against the mirror:",
-    "",
-    ...(missing.length === 0
-      ? [`All ${present} field(s) are on the instance.`]
-      : [
-          ...table(
-            ["Field", "Module", "On the instance", "Ships with", "The install will"],
-            missing.map((f) => [
-              `\`${f.table}.${f.field}\``,
-              f.module,
-              `**${f.state === "missing" ? "missing" : "no table"}**`,
-              f.from ?? "–",
-              fieldAction(f),
-            ]),
-          ),
-          "",
-          `The other ${present} field(s) the modules read are on the instance.`,
-        ]),
+    ...fieldsSection(plan.fields),
   ];
 }
 
@@ -191,25 +149,6 @@ function promotionOrder(plan: InstallPlan): string[] {
   ];
 }
 
-function data(plan: InstallPlan): string[] {
-  return [
-    "## 3. Data",
-    "",
-    `Loaded through each entity's import set after the modules, in dependency order. Every template is validated first and nothing loads until all pass. A row whose choice or reference does not resolve is rejected, not guessed. Loading again updates the same records: rows the pack owns (anchors) keep a fixed sys_id, other rows match on their business key.`,
-    "",
-    ...table(
-      ["Entity", "Into", "Module", "Rows", "Matched on"],
-      plan.data.entities.map((e) => [
-        e.entity,
-        e.target ?? "",
-        e.module,
-        String(e.rows),
-        e.anchors ? "anchor sys_id, else business key" : "business key",
-      ]),
-    ),
-  ];
-}
-
 function risks(plan: InstallPlan): string[] {
   return [
     "## 4. Risks and recovery",
@@ -245,6 +184,7 @@ function selectionFlags(plan: InstallPlan): string {
     ...(profile === undefined ? [] : [`--profile ${profile} `]),
     ...(modules === undefined ? [] : modules.map((m) => `--modules ${m} `)),
     plan.data.source === "demo" ? "--demo " : "--data <directory> ",
+    ...(plan.data.domain.separated ? [`--domain ${plan.data.domain.name} `] : []),
   ].join("");
 }
 
@@ -256,7 +196,7 @@ export function installPlanDocument(plan: InstallPlan): string {
     "",
     ...modules(plan),
     "",
-    ...data(plan),
+    ...dataSection(plan),
     "",
     ...risks(plan),
     "",

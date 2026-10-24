@@ -66,7 +66,7 @@ describe("push (ADR-0031 item 4)", () => {
     ).rejects.toBeInstanceOf(PushConfirmationRequiredError);
   });
 
-  it("shows the batch once, each other scope's update set, and what did not land as built", () => {
+  it("shows the batch once, each other scope's update set, and what did not land as built and why", () => {
     const set = (name: string, sysId: string) => ({
       name,
       sysId,
@@ -92,10 +92,12 @@ describe("push (ADR-0031 item 4)", () => {
             operation: "load",
             captured: true,
             applied: false,
+            refused: "permission denied",
           },
         ],
         notCaptured: 0,
         notApplied: 1,
+        refused: [{ table: "t", reason: "permission denied", records: ["n"], action: "do x" }],
         ledgerCommit: "0123456789abcdef",
         next: [],
       },
@@ -105,7 +107,8 @@ describe("push (ADR-0031 item 4)", () => {
       "batch reused: snagentic: main  l/b1",
       "pull request: https://github.com/a/b/pull/1",
       "update set reused: snagentic: main [x_acme]  l/c1",
-      "load   u1  NOT applied as built",
+      "load   u1  NOT applied as built (refused: permission denied)",
+      "refused: 1 t record(s), permission denied: do x",
       "ledger committed: 0123456789",
       "0 load(s) not captured, 1 not applied as built: check them on the instance before moving the update set",
     ]);

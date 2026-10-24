@@ -37,6 +37,16 @@ describe("Import Set API writer", () => {
     ]);
   });
 
+  it("keeps the transform's message for a row it skipped", async () => {
+    const message = "Reference field value for service_offering.schedule rejected: 24 x 7";
+    const { poster } = api([{ status: "skipped", sys_id: "", status_message: message }]);
+    expect(await new ImportSetApiWriter(poster).post("t", {}, signal)).toEqual({
+      status: "skipped",
+      sysId: "",
+      message,
+    });
+  });
+
   it("takes an answer without a known status as an error", async () => {
     expect(
       await new ImportSetApiWriter(api([{ status: "odd" }]).poster).post("t", {}, signal),

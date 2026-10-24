@@ -1,6 +1,7 @@
+import { withoutAuthorHtml } from "./authored-html";
 import { escapeHtml } from "./html";
 import { notePages, type Release, type ReleaseNote } from "./releases";
-import { type Built, guideCrumbs, link } from "./site-context";
+import { type Built, guideCrumbs, link, renderedMarkdown } from "./site-context";
 import { layout, pageFile, prefixOf } from "./site-layout";
 import { navFor } from "./site-nav";
 import { type NotesPage, releasesFor, shown, whatsNewOf } from "./site-releases";
@@ -25,7 +26,8 @@ function noteHtml(b: Built, page: NotesPage, file: string, note: ReleaseNote): s
 
 function releaseHtml(b: Built, page: NotesPage, file: string, release: Release) {
   const notes = release.notes.filter((note) => shown(page, note));
-  const intro = release.intro.trim() === "" ? "" : b.input.markdown(release.intro);
+  const intro =
+    release.intro.trim() === "" ? "" : renderedMarkdown(b, withoutAuthorHtml(release.intro));
   const items = notes.map((note) => noteHtml(b, page, file, note)).join("");
   return `<section class="release"><h2>${escapeHtml(release.title)}</h2><p class="mute">${escapeHtml(release.date)}</p>${intro}<ul>${items}</ul></section>`;
 }

@@ -53,7 +53,21 @@ export const CLAUDE_SETTINGS = {
       // Claude Code applies Edit rules to every file-writing tool; Write rules are ignored.
       ...PROTECTED.map((path) => `Edit(${path})`),
     ],
-    ask: ["mcp__snagentic__push", "Bash(snagentic push:*)"],
+    // A person confirms every operation that writes to an instance or can't be undone: the
+    // registry flags them destructive or development-only, and a test keeps this list in step
+    // (spec 012, B-11). Instance text can steer an agent; these prompts are where it stops.
+    ask: [
+      "mcp__snagentic__push",
+      "Bash(snagentic push:*)",
+      "mcp__snagentic__adopt",
+      "Bash(snagentic adopt:*)",
+      "Bash(snagentic take-over:*)",
+      "mcp__snagentic__plugin_activate",
+      "Bash(snagentic plugins activate:*)",
+      "Bash(snagentic accelerator install:*)",
+      "Bash(snagentic accelerator load:*)",
+      "Bash(snagentic instance remove:*)",
+    ],
   },
 } as const;
 

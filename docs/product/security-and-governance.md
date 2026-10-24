@@ -118,7 +118,7 @@ and CI:
 | # | Layer | What it stops | 1.1 |
 |---|---|---|---|
 | 1 | Host hooks: refuse edits to protected files (including the hook settings themselves), `check` after each edit, `validate` before the agent ends its turn | Agent mistakes, immediately | Claude Code, Copilot CLI |
-| 2 | Host permission rules and a shell hook: deny direct HTTP to the instance, deny skipping git hooks, ask before `push` | The agent working around snagentic | Claude Code; Copilot CLI (shell hook, no `ask`) |
+| 2 | Host permission rules and a shell hook: deny direct HTTP to the instance, deny skipping git hooks, ask before every operation that writes to an instance or can't be undone | The agent working around snagentic | Claude Code; Copilot CLI (shell hook, no `ask`) |
 | 3 | Push gate (above) | Unvalidated pushes through the tool | **Yes** |
 | 4 | Git pre-commit hook running `validate` | Bad commits | **Yes** |
 | 5 | Git server branch protection and CI checks | Anything merged, whoever wrote it | 1.3 (templates) |

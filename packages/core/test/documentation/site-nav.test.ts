@@ -53,7 +53,8 @@ describe("docs build: the menu", () => {
     expect(page).toContain('href="../../../index.html"');
     expect(page).toContain('href="../../../employees/index.html"');
     expect(page).toContain('href="../../../it/index.html"');
-    expect(page).toContain("localStorage.getItem('snagentic-nav')");
+    expect(page).toContain('<script src="../../../assets/menu.js"></script>');
+    expect(file("assets/menu.js")).toContain("localStorage.getItem('snagentic-nav')");
   });
 
   it("shows on an employee page the employee guide's groups, with the current page marked", async () => {
@@ -166,7 +167,8 @@ describe("docs build: the menu for keyboards and screen readers", () => {
     expect(page).toContain("<title>Employee guide · Incident docs</title>");
     expect(page).toContain('aria-current="page" href="../employees/index.html">');
     expect(page).toContain('<p class="count" role="status" aria-live="polite"></p>');
-    expect(page).toContain(
+    expect(page).toContain('<body data-prefix="../"><script src="../assets/early.js"></script>');
+    expect(file("assets/early.js")).toContain(
       "matchMedia('(max-width: 800px)').matches||localStorage.getItem('snagentic-nav')==='hidden'",
     );
     expect(file("processes/incident/operate/assign.html")).toContain(

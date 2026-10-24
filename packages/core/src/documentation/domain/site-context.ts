@@ -1,3 +1,4 @@
+import { safeLinks, withoutAuthorHtml } from "./authored-html";
 import type { ConfigIndex } from "./config-index";
 import type { EvidenceStatus } from "./evidence";
 import type { ProcessFeatures } from "./features";
@@ -169,6 +170,10 @@ export const questionSite = (b: Built): QuestionSite => ({
   tracked: b.input.config.employees !== undefined,
 });
 
+// The renderer's HTML for Markdown the page model has expanded, with only safe link addresses.
+export const renderedMarkdown = (b: Built, markdown: string): string =>
+  safeLinks(b.input.markdown(markdown));
+
 // `plain`: for employees, without citations, review labels or open questions (ADR-0037).
 export function bodyHtml(
   b: Built,
@@ -180,8 +185,9 @@ export function bodyHtml(
   const viewed = view === undefined ? page.body : viewOf(page.body, view);
   const markdown = plain ? withoutOpenQuestions(viewed) : viewed;
   const prefix = prefixOf(file);
-  const html = b.input.markdown(
-    expandProse(markdown, {
+  const html = renderedMarkdown(
+    b,
+    expandProse(withoutAuthorHtml(markdown), {
       evidence: new Set(page.evidence.map((item) => item.id)),
       citeTarget: null,
       scenes: b.scenes,

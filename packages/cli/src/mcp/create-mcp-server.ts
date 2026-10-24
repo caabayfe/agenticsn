@@ -47,6 +47,8 @@ function toolInput(useCase: UseCase, developmentInstances: readonly string[]): z
 // offered as prompts (slash commands in hosts that show them).
 export interface AgentInterface {
   readonly instructions: string;
+  // Appended to every tool's description.
+  readonly resultNote?: string;
   readonly prompts: readonly {
     readonly name: string;
     readonly description: string;
@@ -91,7 +93,7 @@ export function createMcpServer(
     server.registerTool(
       mcpToolName(useCase),
       {
-        description: useCase.description,
+        description: [useCase.description, agent.resultNote].filter(Boolean).join(" "),
         inputSchema,
         outputSchema: useCase.output,
         annotations: {

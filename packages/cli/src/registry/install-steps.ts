@@ -69,6 +69,7 @@ function deliverySteps(
         notApplied: out.notApplied,
         notCaptured: out.notCaptured,
         updateSets: out.updateSets.map((u) => u.name),
+        refused: out.refused,
       };
     },
   };

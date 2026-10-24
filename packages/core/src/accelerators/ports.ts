@@ -116,6 +116,13 @@ export interface InstallSteps {
     readonly notApplied: number;
     readonly notCaptured: number;
     readonly updateSets: readonly string[];
+    // Records the platform skipped during the load, by table and reason, with their action.
+    readonly refused: readonly {
+      readonly table: string;
+      readonly reason: string;
+      readonly records: readonly string[];
+      readonly action: string;
+    }[];
   }>;
   load(
     modules: readonly string[],

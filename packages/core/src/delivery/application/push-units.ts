@@ -8,6 +8,7 @@ import {
   PlanNotReadyError,
   PushConfirmationRequiredError,
 } from "../domain/errors";
+import { type RefusedGroup, refusalGroups } from "../domain/load-refusals";
 import type {
   DeliveryWorkspace,
   FluentInstaller,
@@ -69,6 +70,8 @@ export interface UnitPushResult {
   readonly notCaptured: number;
   // Units that, read back, do not hold what the build loaded: their ledger entry is unchanged.
   readonly notApplied: number;
+  // Units the platform skipped during the load, by table and reason, with what unblocks them.
+  readonly refused: readonly RefusedGroup[];
   // The commit of the ledgers, or null when no ledger changed.
   readonly ledgerCommit: string | null;
   readonly next: readonly NextCall[];
@@ -230,6 +233,7 @@ export async function pushUnits(
     units,
     notCaptured: units.filter((u) => !u.captured).length,
     notApplied: units.filter((u) => !u.applied).length,
+    refused: refusalGroups(units, deps.username),
     ledgerCommit,
     next: [{ tool: "status", args: { instance: query.instance } }],
   };

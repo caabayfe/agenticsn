@@ -10,6 +10,7 @@ import { fluentRecordOf, toPublish } from "../domain/fluent-records";
 import type { PlannedUnit } from "../domain/unit-plan";
 import { nextCount, stampedXml } from "../domain/unit-stamp";
 import type { FluentInstaller, PushJournal, PushJournalStore, SwitchedPreference } from "../ports";
+import { readRefusals } from "./load-refusals";
 import type { ProjectLoad } from "./plan-units";
 import { settle, switchFor } from "./push-preferences";
 import { captured, type InstanceSession, openChild } from "./push-steps";
@@ -40,6 +41,8 @@ export interface PushedUnit {
   readonly captured: boolean;
   // Read back, the instance holds what the build loaded.
   readonly applied: boolean;
+  // Why the platform skipped it during the load, as its system log says; null otherwise.
+  readonly refused: string | null;
 }
 
 export interface ProjectPush {
@@ -163,7 +166,16 @@ async function outcomes(
     const { project, updateName, table, name, operation } = unit;
     const done = loaded(unit) ? await captured(run.session, updateName, into) : true;
     const applied = back.applied.get(updateName) ?? true;
-    pushed.push({ project, updateName, table, name, operation, captured: done, applied });
+    pushed.push({
+      project,
+      updateName,
+      table,
+      name,
+      operation,
+      captured: done,
+      applied,
+      refused: null,
+    });
     if (operation === "record") {
       const instance = unit.version ?? "";
       back.ledger.set(updateName, { build: unit.digest, instance, losses: unit.losses });
@@ -186,6 +198,28 @@ async function loadAndPublish(
   await publish(run, load.project.scope, files);
 }
 
+// Loaded units that neither arrived nor were recorded: the platform skipped them, and its log
+// says why. A push where everything arrived reads no log.
+async function withRefusals(
+  run: ProjectRun,
+  planned: readonly PlannedUnit[],
+  pushed: readonly PushedUnit[],
+  since: Date,
+): Promise<PushedUnit[]> {
+  const missing = pushed.filter((u) => !u.captured && !u.applied && u.operation !== "delete");
+  if (missing.length === 0) return [...pushed];
+  const names = new Set(missing.map((u) => u.updateName));
+  const sysIds = new Set(planned.filter((u) => names.has(u.updateName)).map((u) => u.sysId));
+  const reasons = await readRefusals(run.session.reader, since, sysIds, run.session.signal);
+  const sysIdOf = new Map(planned.map((u) => [u.updateName, u.sysId]));
+  return pushed.map((u) => {
+    const reason = names.has(u.updateName)
+      ? reasons.get(sysIdOf.get(u.updateName) ?? "")
+      : undefined;
+    return reason === undefined ? u : { ...u, refused: reason };
+  });
+}
+
 export async function pushProject(run: ProjectRun, load: ProjectLoad): Promise<ProjectPush> {
   const { session, journal } = run;
   const save = (preferences: readonly SwitchedPreference[]) => {
@@ -205,9 +239,11 @@ export async function pushProject(run: ProjectRun, load: ProjectLoad): Promise<P
     // push takes that preference as well, to put it back afterwards.
     await prefer("sys_update_set", project.scopeId === GLOBAL ? set.sysId : run.batch.sysId);
     if (project.scopeId !== GLOBAL) await prefer(`updateSetForScope${project.scopeId}`, set.sysId);
-    await loadAndPublish(run, load, set.sysId, filesFor(load, units, before, run.now()));
+    const loadedAt = run.now();
+    await loadAndPublish(run, load, set.sysId, filesFor(load, units, before, loadedAt));
     const back = await readBack(run, load, units);
-    const pushed = await outcomes(run, units, set.sysId, back);
+    const arrived = await outcomes(run, units, set.sysId, back);
+    const pushed = await withRefusals(run, units, arrived, loadedAt);
     await settle(session, journal, save);
     return { updateSet: set, units: pushed, ledger: back.ledger };
   } catch (error) {

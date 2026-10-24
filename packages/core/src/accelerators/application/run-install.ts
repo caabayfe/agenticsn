@@ -50,6 +50,23 @@ async function takeOver(
   }
 }
 
+// Why a module's push did not arrive whole: the platform's reasons first, with their actions,
+// then what is left unexplained.
+function undelivered(pushed: Awaited<ReturnType<InstallRunDependencies["steps"]["push"]>>) {
+  const refused = pushed.refused.map(
+    (g) =>
+      `the instance refused ${g.records.length} ${g.table} record(s) (${g.reason}): ${g.action}`,
+  );
+  const explained = pushed.refused.reduce((n, g) => n + g.records.length, 0);
+  const captured = pushed.notCaptured - explained;
+  const applied = pushed.notApplied - explained;
+  const rest =
+    captured + applied > 0
+      ? [`${captured} not captured, ${applied} not applied as built: check them on the instance`]
+      : [];
+  return [...refused, ...rest].join("; ");
+}
+
 // Delivers modules already added (`ids`, cumulative) into the update sets named by `label`.
 async function deliverAs(
   deps: InstallRunDependencies,
@@ -75,11 +92,7 @@ async function deliverAs(
   }
   if (!planned.ready) throw new Error(`plan not ready: ${planned.problems.join("; ")}`);
   const pushed = await deps.steps.push(planned.planId, label, signal);
-  if (pushed.notApplied + pushed.notCaptured > 0) {
-    throw new Error(
-      `${pushed.notCaptured} not captured, ${pushed.notApplied} not applied as built: check them on the instance`,
-    );
-  }
+  if (pushed.notApplied + pushed.notCaptured > 0) throw new Error(undelivered(pushed));
   return { outcome: "done", detail: deliveredDetail(pushed.units, pushed.updateSets) };
 }
 

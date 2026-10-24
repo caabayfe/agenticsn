@@ -4,6 +4,7 @@ import type { InstallJournal, InstallRecord, InstallSteps, ListState } from "@sn
 export function fakeSteps(
   options: {
     notApplied?: Record<string, number>;
+    refused?: Record<string, { table: string; reason: string; records: string[]; action: string }>;
     nothingFor?: string[];
     customized?: string[];
     absent?: string[];
@@ -52,7 +53,17 @@ export function fakeSteps(
       calls.push(`push ${planId}`);
       const notApplied =
         Object.entries(options.notApplied ?? {}).find(([m]) => label.includes(m))?.[1] ?? 0;
-      return { units: 5, notApplied, notCaptured: 0, updateSets: [`snagentic: ${label}`] };
+      const refused = Object.entries(options.refused ?? {})
+        .filter(([m]) => label.includes(m))
+        .map(([, group]) => group);
+      const skipped = refused.reduce((n, g) => n + g.records.length, 0);
+      return {
+        units: 5,
+        notApplied: notApplied + skipped,
+        notCaptured: skipped,
+        updateSets: [`snagentic: ${label}`],
+        refused,
+      };
     },
     load: async (modules) => {
       calls.push(`load ${modules.join("+")}`);

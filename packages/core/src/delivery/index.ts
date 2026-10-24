@@ -41,6 +41,12 @@ export {
 } from "./domain/fluent-records";
 export { type GateFinding, type GateResult, gateOf } from "./domain/gate";
 export {
+  type LoadRefusal,
+  type RefusedGroup,
+  refusalGroups,
+  refusalOf,
+} from "./domain/load-refusals";
+export {
   changesOf,
   deletionFor,
   type PlannedUnit,

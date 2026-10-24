@@ -492,6 +492,26 @@ describe("running an install (ADR-0038, item 2)", () => {
     ).toBe(true);
   });
 
+  it("stops at records the platform refused, naming the reason and what unblocks them", async () => {
+    const action = "activate com.snc.pa.premium, then run the same command again";
+    const { steps } = fakeSteps({
+      refused: {
+        incident: {
+          table: "pa_indicators",
+          reason: "permission denied",
+          records: ["ACC MTTR", "ACC Backlog"],
+          action,
+        },
+      },
+    });
+    const plan = await planInstall(deps(READY), QUERY);
+    const result = await installPack(deps(READY, { steps }), { ...QUERY, confirm: plan.planId });
+    expect(result.stopped?.step).toBe("module incident");
+    expect(result.stopped?.detail).toBe(
+      `the instance refused 2 pa_indicators record(s) (permission denied): ${action}`,
+    );
+  });
+
   it("resumes a stopped module in its own update set, though the workspace holds its files", async () => {
     const first = fakeSteps({ notApplied: { incident: 1 } });
     const { journal } = memoryJournal();

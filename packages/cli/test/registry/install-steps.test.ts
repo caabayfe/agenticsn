@@ -24,6 +24,9 @@ const ANSWERS: Readonly<Record<string, unknown>> = {
     notApplied: 0,
     notCaptured: 1,
     updateSets: [{ name: "snagentic: L" }],
+    refused: [
+      { table: "pa_indicators", reason: "permission denied", records: ["ACC MTTR"], action: "a" },
+    ],
   },
   load: { entities: [], stopped: false },
   "take-over": {
@@ -122,6 +125,9 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
       notApplied: 0,
       notCaptured: 1,
       updateSets: ["snagentic: L"],
+      refused: [
+        { table: "pa_indicators", reason: "permission denied", records: ["ACC MTTR"], action: "a" },
+      ],
     });
     expect(calls.map(([name, input]) => [name, input])).toEqual([
       ["plan-push", { instance: "pdi", label: "L" }],
@@ -196,7 +202,13 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
         gate: { blocking: [] },
         collisions: [{ record: "sys_z_3", heldBy: [{ updateSetName: "snagentic: L [global]" }] }],
       },
-      push: { units: [{}], notApplied: 0, notCaptured: 0, updateSets: [{ name: "snagentic: U" }] },
+      push: {
+        units: [{}],
+        notApplied: 0,
+        notCaptured: 0,
+        updateSets: [{ name: "snagentic: U" }],
+        refused: [],
+      },
     };
     const call = (async (useCase: { name: string }, input: unknown) => {
       calls.push([useCase.name, input]);

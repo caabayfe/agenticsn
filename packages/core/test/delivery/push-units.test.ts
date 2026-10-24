@@ -35,6 +35,7 @@ describe("push on built units (ADR-0031 item 4)", () => {
         operation: "load",
         captured: true,
         applied: true,
+        refused: null,
       },
     ]);
     expect(result.notCaptured + result.notApplied).toBe(0);

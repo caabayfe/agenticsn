@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-10-24
+
+An accelerator install takes a fresh instance to a working build on its own, with or without
+domain separation, and says why anything it sends does not arrive (spec 011, section 15). Text
+from the instance is data, never instructions, and Claude Code asks before every write (spec
+012, step 9).
+
 ### Added
 
 - An accelerator install takes a fresh instance to a working build on its own (spec 011,

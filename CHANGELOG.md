@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- `accelerator install` wraps a long step name (such as the list of modules already installed)
+  instead of padding every other step line to its width.
+
 ## [2.10.0] - 2026-10-24
 
 An accelerator install takes a fresh instance to a working build on its own, with or without

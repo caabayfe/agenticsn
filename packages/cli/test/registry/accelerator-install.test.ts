@@ -257,6 +257,30 @@ describe("accelerator install (ADR-0038)", () => {
     expect(acceleratorInstall.exitCode(blocked)).toBe(1);
   });
 
+  it("wraps a long step name instead of widening every line (pdi3, 2026-10-24)", () => {
+    const long = {
+      step: "modules already installed: foundation, incident-core, incident-relations, incident-task",
+      outcome: "skipped" as const,
+      detail: "the instance already holds it as built",
+      seconds: 84,
+    };
+    const data = {
+      step: "data",
+      outcome: "done" as const,
+      detail: "0 inserted, 0 updated, 335 unchanged",
+      seconds: 85,
+    };
+    const run = { ...VIEW, reportPath: "report.md", steps: [long, data], commit: "c" };
+    expect(acceleratorInstall.render(run, "text").split("\n").slice(2, 8)).toEqual([
+      "  – modules already installed: foundation,               84 s",
+      "    incident-core, incident-relations, incident-task",
+      "      the instance already holds it as built",
+      "  ✓ data                                                 85 s",
+      "      0 inserted, 0 updated, 335 unchanged",
+      "",
+    ]);
+  });
+
   it("reports the steps it ran and where it stopped", () => {
     const step = {
       step: "module base",

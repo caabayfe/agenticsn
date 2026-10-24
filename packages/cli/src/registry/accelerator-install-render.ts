@@ -34,20 +34,24 @@ export interface InstallView {
 
 const WIDTH = 88;
 
-// Words joined by `separator`, wrapped to lines indented by `indent`.
-function wrapped(words: readonly string[], indent: string, separator = " "): string[] {
+// Words joined by `separator`, wrapped to lines of at most `width` (a longer word keeps its line).
+function fit(words: readonly string[], width: number, separator = " "): string[] {
   const lines: string[] = [];
   let line = "";
   for (const word of words) {
     const next = line === "" ? word : `${line}${separator}${word}`;
-    if (line !== "" && indent.length + next.length > WIDTH) {
-      lines.push(`${indent}${line}${separator.trimEnd()}`);
+    if (line !== "" && next.length > width) {
+      lines.push(`${line}${separator.trimEnd()}`);
       line = word;
     } else line = next;
   }
-  if (line !== "") lines.push(`${indent}${line}`);
+  if (line !== "") lines.push(line);
   return lines;
 }
+
+// Words joined by `separator`, wrapped to lines indented by `indent`.
+const wrapped = (words: readonly string[], indent: string, separator = " ") =>
+  fit(words, WIDTH - indent.length, separator).map((line) => `${indent}${line}`);
 
 const text = (sentence: string, indent: string) => wrapped(sentence.split(" "), indent);
 
@@ -111,15 +115,26 @@ export function renderPlan(view: InstallView): string {
 
 const MARK = { done: "✓", skipped: "–", stopped: "✗" } as const;
 
+// A step's name takes at most this many columns: a longer one wraps, its time on the first line.
+const STEP_WIDTH = 48;
+
+function stepLines(step: InstallView["steps"][number], width: number): string[] {
+  const [first = "", ...rest] = fit(step.step.split(" "), width);
+  const time = `${String(Math.round(step.seconds)).padStart(5)} s`;
+  return [
+    `  ${MARK[step.outcome]} ${first.padEnd(width)}  ${time}`,
+    ...rest.map((line) => `    ${line}`),
+    ...text(step.detail, "      "),
+  ];
+}
+
 export function renderRun(view: InstallView): string {
-  const width = Math.max(0, ...view.steps.map((s) => s.step.length));
+  const longest = Math.max(0, ...view.steps.map((s) => s.step.length));
+  const width = Math.min(STEP_WIDTH, longest);
   return [
     `Install ${view.planId}: ${view.pack} ${view.version} on ${view.instance}`,
     "",
-    ...view.steps.flatMap((s) => [
-      `  ${MARK[s.outcome]} ${s.step.padEnd(width)}  ${String(Math.round(s.seconds)).padStart(5)} s`,
-      ...text(s.detail, "      "),
-    ]),
+    ...view.steps.flatMap((s) => stepLines(s, width)),
     "",
     view.stopped === null
       ? `Installed. Report: ${view.reportPath ?? ""}`

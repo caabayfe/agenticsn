@@ -4,7 +4,6 @@ import { iconSvg } from "./icons";
 import { recordHtml } from "./instance-links";
 import type { DocPage, Section } from "./page";
 import type { SiteConfig } from "./site-config";
-import { MENU_SCRIPT } from "./site-menu-script";
 import type { View } from "./views";
 
 // The section an Understand page is shown in, for each reader.
@@ -39,23 +38,6 @@ export function prefixOf(file: string): string {
   return "../".repeat(file.split("/").length - 1);
 }
 
-// Talks to the players on the page; nothing else is accepted. Sizes each from its height message,
-// remembers the reader's sound choice across pages (localStorage; a sandboxed player can't), and
-// tells the players about the reader's first click, after which browsers allow sound. Sound is on
-// until the reader turns it off: browsers play an animation muted until that first click.
-// Messages count only from a player's own frame (e.source). They are sent with "*" because a
-// sandboxed player's origin is opaque, so no origin can name it.
-const PLAYERS_SCRIPT =
-  "<script>(function(){var K='snagentic-sound',on=true,act=false;try{on=localStorage.getItem(K)!=='off';}catch(x){}" +
-  "var all=function(){return document.querySelectorAll('iframe.player');};" +
-  "var send=function(f,m){try{f.contentWindow.postMessage(m,'*');}catch(x){}};" +
-  "addEventListener('message',function(e){all().forEach(function(f){if(e.source!==f.contentWindow||!e.data)return;" +
-  "if(e.data.snagenticAnimH){f.style.height=e.data.snagenticAnimH+'px';send(f,{snagenticSoundPref:on});if(act)send(f,{snagenticActivate:true});}" +
-  "if(typeof e.data.snagenticSound==='boolean'){on=e.data.snagenticSound;try{localStorage.setItem(K,on?'on':'off');}catch(x){}" +
-  "all().forEach(function(g){send(g,{snagenticSoundPref:on});});}});});" +
-  "var go=function(){if(act)return;act=true;all().forEach(function(f){send(f,{snagenticActivate:true});});};" +
-  "addEventListener('pointerdown',go);addEventListener('keydown',go);})();</script>";
-
 export interface Crumb {
   // Relative to the site root.
   readonly href: string;
@@ -64,10 +46,14 @@ export interface Crumb {
 
 const TOGGLE = `<button class="navtoggle" type="button" aria-label="Menu" aria-controls="menu" aria-expanded="true">${iconSvg("menu")}</button>`;
 
-// Before the page is drawn, so a phone never flashes the menu over the content.
-const EARLY_SCRIPT =
-  "<script>try{if(matchMedia('(max-width: 800px)').matches||localStorage.getItem('snagentic-nav')==='hidden')" +
-  "document.body.classList.add('nav-hidden');}catch(x){}</script>";
+// The site runs only its own scripts and styles, from files: a page's text can't add any, and a
+// link can't lead to script (spec 012, B-08). Animations play in sandboxed frames of the site.
+export const SITE_POLICY =
+  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; " +
+  "frame-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
+
+const script = (prefix: string, name: string) =>
+  `<script src="${prefix}assets/${name}.js"></script>`;
 
 // A page: the header, the menu beside the content when there is one (site-nav.ts), the footer.
 export function layout(
@@ -82,8 +68,8 @@ export function layout(
   const trail = crumbs
     .map((crumb) => `<a href="${prefix}${crumb.href}">${escapeHtml(crumb.text)}</a>`)
     .join(" › ");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title === config.title ? title : `${title} · ${config.title}`)}</title><link rel="stylesheet" href="${prefix}assets/site.css"><link rel="stylesheet" href="${prefix}assets/theme/theme.css"></head><body data-prefix="${prefix}">${aside === "" ? "" : EARLY_SCRIPT}<a class="skip" href="#main">Skip to the content</a>
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${SITE_POLICY}">
+<title>${escapeHtml(title === config.title ? title : `${title} · ${config.title}`)}</title><link rel="stylesheet" href="${prefix}assets/site.css"><link rel="stylesheet" href="${prefix}assets/theme/theme.css"></head><body data-prefix="${prefix}">${aside === "" ? "" : script(prefix, "early")}<a class="skip" href="#main">Skip to the content</a>
 <header class="site">${aside === "" ? "" : TOGGLE}<span class="logo" aria-hidden="true"></span><a class="home" href="${prefix}index.html">${escapeHtml(config.title)}</a>${trail === "" ? "" : `<nav class="crumbs" aria-label="Breadcrumb">${trail}</nav>`}</header>
 <div class="shell">${aside}<div class="content">
 <main id="main">
@@ -91,7 +77,7 @@ ${main}
 </main>
 <footer class="site">${escapeHtml(config.footer)}</footer>
 </div></div>
-${PLAYERS_SCRIPT}${aside === "" ? "" : `<script src="${prefix}assets/search.js"></script>${MENU_SCRIPT}`}
+${script(prefix, "players")}${aside === "" ? "" : script(prefix, "search") + script(prefix, "menu")}
 </body></html>
 `;
 }

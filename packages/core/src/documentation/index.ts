@@ -170,7 +170,7 @@ export {
 } from "./domain/scene";
 export { type SiteFile, type SiteInput, siteFiles } from "./domain/site";
 export { parseSiteConfig, type SiteConfig, type Surface } from "./domain/site-config";
-export { pageFile, sectionHome } from "./domain/site-layout";
+export { pageFile, SITE_POLICY, sectionHome } from "./domain/site-layout";
 export {
   capabilityAudience,
   DOCS_PROBLEM_KINDS,

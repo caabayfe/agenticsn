@@ -7,8 +7,10 @@ import { configureHomeHtml, processHtml, viewHomeHtml } from "./site-homes";
 import { recordsFile, recordsHtml } from "./site-index";
 import { EMPLOYEES_HOME, IT_HOME, OPEN_QUESTIONS, pageFile, sectionHome } from "./site-layout";
 import { itHomeHtml, siteMapHtml } from "./site-map";
+import { MENU_JS } from "./site-menu-script";
 import { openQuestionsHtml } from "./site-open-questions";
 import { configureHtml, guideHtml, understandHtml } from "./site-pages";
+import { EARLY_JS, PLAYERS_JS } from "./site-scripts";
 import { searchScript } from "./site-search";
 import { SITE_STYLE } from "./site-style";
 import { THEME_TEMPLATE } from "./site-theme";
@@ -96,6 +98,9 @@ export function siteFiles(input: SiteInput): readonly SiteFile[] {
   const files: SiteFile[] = [
     ...homes,
     { path: "assets/site.css", content: SITE_STYLE },
+    { path: "assets/players.js", content: PLAYERS_JS },
+    { path: "assets/early.js", content: EARLY_JS },
+    { path: "assets/menu.js", content: MENU_JS },
     ...themeFiles(input.theme ?? []),
     ...processes.flatMap((process) => processFiles(b, process)),
   ];

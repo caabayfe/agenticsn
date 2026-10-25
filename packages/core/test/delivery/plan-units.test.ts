@@ -113,6 +113,27 @@ describe("plan on built units (ADR-0031, ADR-0033)", () => {
     expect(plan.problems).toMatchObject([{ updateName: SI_UNIT, kind: "removed" }]);
   });
 
+  it("releases a removed definition of a record a plugin ships: the record stays, the ledger lets go", async () => {
+    const { deps, builds, project, tables } = unitSetup();
+    builds.set(project.path, []);
+    const [row] = tables["sys_script_include"] ?? [];
+    tables["sys_script_include"] = [{ ...row, sys_package: "b".repeat(32) }];
+    const { plan } = await computeUnitPlan(deps, QUERY);
+    expect(plan.units).toMatchObject([{ updateName: SI_UNIT, operation: "forget" }]);
+    expect(plan.problems).toEqual([]);
+  });
+
+  it("keeps refusing a removed definition of a record the project made", async () => {
+    for (const sysPackage of ["global", SCOPE_ID]) {
+      const { deps, builds, project, tables } = unitSetup();
+      builds.set(project.path, []);
+      const [row] = tables["sys_script_include"] ?? [];
+      tables["sys_script_include"] = [{ ...row, sys_package: sysPackage }];
+      const { plan } = await computeUnitPlan(deps, QUERY);
+      expect(plan.problems).toMatchObject([{ updateName: SI_UNIT, kind: "removed" }]);
+    }
+  });
+
   it("names the Now.del that deletes a removed definition (B2)", async () => {
     const { deps, builds, project } = unitSetup();
     builds.set(project.path, []);

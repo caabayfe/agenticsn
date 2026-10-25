@@ -9,26 +9,39 @@ import { deletionFor, type PlannedUnit, recordOf, type UnitProblem } from "../do
 // (ADR-0031 item 7): a configuration project never deletes, so a record still on the instance
 // would silently stay, and the plan refuses. A record gone from the instance too (a plugin
 // activation can remove one without a trace) is forgotten: push drops its ledger entry and loads
-// nothing (ADR-0033 as amended, 2026-10-22).
+// nothing (ADR-0033 as amended, 2026-10-22). So is a record a plugin ships, which the source
+// stopped restating: deleting it would remove the platform's own record, so the branch releases
+// it and the instance keeps it as it is (ADR-0038 section 8, amended 2026-10-25).
 
-async function present(
+type Held = "absent" | "shipped" | "own" | "unknown";
+
+// Whether the instance holds the record, and whose it is: a plugin's package, or this project's
+// (its scope, or global for a project in the global scope).
+async function held(
   reader: InstanceReader,
+  project: SourceProject,
   record: { table: string; sysId: string },
   signal: AbortSignal,
-): Promise<boolean> {
+): Promise<Held> {
   const rows = await reader
     .query(
       {
         table: TableName.parse(record.table),
         query: `sys_id=${record.sysId}`,
-        fields: ["sys_id"],
+        fields: ["sys_id", "sys_package"],
         limit: 1,
       },
       signal,
     )
     // An unreadable table proves nothing: the definition stays a problem.
     .catch(() => null);
-  return rows === null || rows.length > 0;
+  if (rows === null) return "unknown";
+  const [row] = rows;
+  if (row === undefined) return "absent";
+  const sysPackage = row["sys_package"] ?? "";
+  return sysPackage === "" || sysPackage === "global" || sysPackage === project.scopeId
+    ? "own"
+    : "shipped";
 }
 
 function refusal(project: SourceProject, name: string): UnitProblem {
@@ -84,7 +97,8 @@ export async function removedDefinitions(
   for (const [name, entry] of entries) {
     if (built.has(name) || deleting.has(name)) continue;
     const record = recordOf(name);
-    if (record !== null && !(await present(reader, record, signal))) {
+    const where = record === null ? "unknown" : await held(reader, project, record, signal);
+    if (record !== null && (where === "absent" || where === "shipped")) {
       forgotten.push(forget(project, name, record, entry));
     } else problems.push(refusal(project, name));
   }

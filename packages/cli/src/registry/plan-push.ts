@@ -32,7 +32,7 @@ export const PlanOutput = z.object({
         operation: z
           .enum(["create", "load", "delete", "record", "forget"])
           .describe(
-            "record: the instance already holds it as built; only the ledger is written. forget: gone from source and instance; only the ledger entry is dropped",
+            "record: the instance already holds it as built; only the ledger is written. forget: gone from source, and from the instance or shipped by a plugin; only the ledger entry is dropped, the instance is not changed",
           ),
         ledger: z
           .string()
@@ -99,7 +99,8 @@ export const PlanOutput = z.object({
 // What a reviewer must see beside a unit that is not an ordinary change (ADR-0033 as amended).
 const NOTES = {
   again: "  (deleted on the instance since it last agreed with source: created again)",
-  forget: "  (gone from source and from the instance: only its ledger entry is dropped)",
+  forget:
+    "  (gone from source, and from the instance or shipped by a plugin: only its ledger entry is dropped)",
   none: "",
 } as const;
 

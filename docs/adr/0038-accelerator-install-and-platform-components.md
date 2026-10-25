@@ -212,6 +212,15 @@ so we can have the right support from ServiceNow".
   record, the install creates it from the module's source, which restates it whole, instead of
   stopping. Every instance ends with the same records. Without it, a lacking record stops the
   module for review, as before.
+
+  Amended 2026-10-25 at the product owner's request: **a shipped record the source stops
+  restating is released, never deleted.** itsm 0.11.2 stopped restating the shipped property
+  `glide.knowman.task_kb` (setup now writes it), and the plan refused it as a removed
+  definition, asking for a `Now.del` that would delete the platform's own record. Now, when a
+  ledger entry's definition leaves the source and the record is on the instance with a plugin's
+  package (`sys_package` neither `global` nor the project's scope), the plan releases it: push
+  drops the ledger entry and changes nothing on the instance. A removed definition of a record
+  the project made still needs a `Now.del` or a restore (ADR-0031 item 7).
 - **Shipped records only.** A module may reference an out-of-box record shipped by a plugin
   (the same sys_id on every instance); the plan checks it exists.
 - **Platform fields it reads.** Proposed amendment, 2026-10-20 (pack gap G13; the product

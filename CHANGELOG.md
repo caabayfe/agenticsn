@@ -10,6 +10,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   with the field's dictionary entry, so loading the same label records no update of its own; the
   dictionary entry's update carries it. An accelerator install adding new tables or fields stopped
   on every such module (pdi4, 2026-10-25).
+- `accelerator install` takes over a lock left by an install that no longer runs. A second Ctrl-C
+  or a closed terminal ended the process before it removed `.snagentic/<instance>/install.lock`,
+  and every later install stopped with `install-locked` until the file was deleted by hand.
 
 ## [2.11.0] - 2026-10-25
 

@@ -4,6 +4,7 @@ import type { LedgerEntry } from "../../authoring/domain/ledger";
 import type { BuiltUnit, InstanceCopy } from "../../authoring/domain/unit";
 import { unitSpec } from "../../authoring/domain/unit-specs";
 import { GLOBAL } from "../domain/batch";
+import { carrierOf } from "../domain/carried";
 import { RecordChangedOnInstanceError } from "../domain/errors";
 import { FlowPublishFailedError } from "../domain/fluent-errors";
 import { fluentRecordOf, toPublish } from "../domain/fluent-records";
@@ -184,6 +185,20 @@ async function outcomes(
   return pushed;
 }
 
+// A label not recorded on its own is captured when the push captured its dictionary entry and
+// the label reads back as built: that entry's update carries it.
+function withCarried(load: ProjectLoad, pushed: readonly PushedUnit[]): PushedUnit[] {
+  const loadedNow = new Map(
+    pushed.filter((u) => u.operation !== "record").map((u) => [u.updateName, u]),
+  );
+  return pushed.map((u) => {
+    if (u.captured || !u.applied || u.operation === "delete") return u;
+    const built = load.built.get(u.updateName)?.unit;
+    const carrier = built === undefined ? null : carrierOf(built);
+    return loadedNow.get(carrier ?? "")?.captured === true ? { ...u, captured: true } : u;
+  });
+}
+
 // Loads the project's files, then publishes the flows among them.
 async function loadAndPublish(
   run: ProjectRun,
@@ -242,7 +257,7 @@ export async function pushProject(run: ProjectRun, load: ProjectLoad): Promise<P
     const loadedAt = run.now();
     await loadAndPublish(run, load, set.sysId, filesFor(load, units, before, loadedAt));
     const back = await readBack(run, load, units);
-    const arrived = await outcomes(run, units, set.sysId, back);
+    const arrived = withCarried(load, await outcomes(run, units, set.sysId, back));
     const pushed = await withRefusals(run, units, arrived, loadedAt);
     await settle(session, journal, save);
     return { updateSet: set, units: pushed, ledger: back.ledger };

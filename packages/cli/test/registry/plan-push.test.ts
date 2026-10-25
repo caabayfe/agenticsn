@@ -178,7 +178,7 @@ describe("plan-push rendering", () => {
       "create sys_ui_related_list_entry_a  source/global  (deleted on the instance since it last agreed with source: created again)",
     );
     expect(text).toContain(
-      "forget sys_ui_related_list_b  source/global  (gone from source and from the instance: only its ledger entry is dropped)",
+      "forget sys_ui_related_list_b  source/global  (gone from source, and from the instance or shipped by a plugin: only its ledger entry is dropped)",
     );
     expect(text).toContain("create sys_ui_related_list_entry_c  source/global\n");
   });

@@ -8,8 +8,8 @@ import type { GateResult } from "./gate";
 
 // What a plan does with each unit of the workspace's Fluent source (ADR-0033 item 4).
 
-// forget: a ledger entry whose definition left the source and whose record left the instance;
-// push drops the entry and loads nothing.
+// forget: a ledger entry whose definition left the source, and whose record left the instance or
+// is a plugin's own record; push drops the entry and loads nothing.
 export type UnitOperation = "create" | "load" | "delete" | "record" | "forget";
 
 export interface PlannedUnit {

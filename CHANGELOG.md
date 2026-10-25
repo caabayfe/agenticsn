@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A plan releases a record a plugin ships once the source stops restating it, instead of
+  refusing it as a removed definition and asking for a `Now.del` that would delete the
+  platform's own record. Push drops its ledger entry and leaves the record on the instance
+  (ADR-0038 section 8, amended; pdi4 `glide.knowman.task_kb`, 2026-10-25).
+
 ## [2.11.1] - 2026-10-25
 
 An accelerator install that adds new tables and fields runs to the end on a clean instance.

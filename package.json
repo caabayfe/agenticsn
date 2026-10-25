@@ -29,6 +29,7 @@
   },
   "overrides": {
     "@fastify/static": "10.1.7",
+    "body-parser": "2.4.0",
     "fastify": "5.12.7",
     "handlebars": "4.7.10",
     "ip-address": "10.7.4",

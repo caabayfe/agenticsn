@@ -21,6 +21,12 @@ An accelerator install continues past what the instance cannot install (spec 011
   in the planned units, known by the fixed `$id`s of its source. Before, one such module blocked
   every push of the project the pack's modules share.
 
+### Security
+
+- `body-parser` 2.4.0 (GHSA-27r3-jxmh-p828, high) through an override. New advisories in
+  `fast-uri` and `zod` 3, both reached only through the ServiceNow SDK, are recorded with dated
+  decisions in `docs/security/advisories.md`.
+
 ### Fixed
 
 - `accelerator install` wraps a long step name (such as the list of modules already installed)

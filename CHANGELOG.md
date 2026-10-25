@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A push no longer reports a new field's label as "not captured". The platform creates the label
+  with the field's dictionary entry, so loading the same label records no update of its own; the
+  dictionary entry's update carries it. An accelerator install adding new tables or fields stopped
+  on every such module (pdi4, 2026-10-25).
+
 ## [2.11.0] - 2026-10-25
 
 An accelerator install continues past what the instance cannot install (spec 011, section 16).

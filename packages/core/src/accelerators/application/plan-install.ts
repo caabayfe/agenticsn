@@ -8,6 +8,7 @@ import {
   installPlanId,
   type PlannedModule,
   plannedComponents,
+  skippedModules,
 } from "../domain/install-plan";
 import type { Manifest } from "../domain/manifest-types";
 import { materialize } from "../domain/materialize";
@@ -116,6 +117,20 @@ const contentOf = (files: ReadonlyMap<string, string>, selected: readonly string
       .join("\n"),
   );
 
+// The modules the plan installs, and those it skips: a module needing a component the install
+// cannot install is skipped, with its dependents, and the rest installs (owner, 2026-10-24).
+// The report it returns holds the kept modules only, so a skipped module's plugin is not
+// activated.
+function keptModules(report: PreflightReport, chosen: readonly string[]) {
+  const skipped = skippedModules(plannedComponents(report), report);
+  const selected = chosen.filter((id) => !skipped.some((s) => s.id === id));
+  const kept = {
+    ...report,
+    capabilities: report.capabilities.filter((c) => selected.includes(c.id)),
+  };
+  return { skipped, selected, kept };
+}
+
 // The components the plan installs, and the platform fields its modules read, checked knowing
 // which components it activates and the domain its data goes into.
 async function plannedPlatform(
@@ -148,12 +163,13 @@ export async function planInstall(
   });
   const manifest = await manifestOf(deps.packs, query.pack);
   const files = await deps.packs.files(query.pack);
-  const { capabilities: selected } = selectCapabilities(manifest, selection);
-  const built = plannedModules(manifest, selected, files, (t) => deps.packs.parse(t));
+  const { capabilities: chosen } = selectCapabilities(manifest, selection);
   const report = check.report ?? { problems: [], warnings: [], capabilities: [] };
+  const { skipped, selected, kept } = keptModules(report, chosen);
+  const built = plannedModules(manifest, selected, files, (t) => deps.packs.parse(t));
   const planned = await plannedData(deps, query, manifest, selected);
   const { components, required } = await plannedPlatform(deps, query, manifest, selected, {
-    report,
+    report: kept,
     domain: planned.data.domain,
   });
   const leftovers = await plannedLeftovers(deps, manifest, files);
@@ -163,7 +179,7 @@ export async function planInstall(
     ...(check.report === null
       ? [`pull ${query.instance.name} first: the mirror has no component inventory`]
       : []),
-    ...blockingProblems(components, report),
+    ...blockingProblems(report, { kept: selected.length, skipped: skipped.length }),
     ...required.problems,
     ...built.problems,
     ...planned.problems,
@@ -175,6 +191,7 @@ export async function planInstall(
     instance: { name: query.instance.name, kind: query.instance.kind },
     selection,
     modules: built.modules,
+    skipped,
     components,
     fields: required.fields,
     earlierSets: await plannedEarlierSets(deps, manifest, query.signal),

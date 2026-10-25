@@ -38,6 +38,11 @@ export interface PlannedModule {
   readonly ensures: readonly EnsureFact[];
 }
 
+export interface SkippedModule {
+  readonly id: string;
+  readonly reason: string;
+}
+
 export interface PlannedEntity {
   readonly entity: string;
   readonly module: string;
@@ -57,6 +62,9 @@ export interface InstallPlan {
   readonly selection: Selection;
   // Module ids, dependencies first.
   readonly modules: readonly PlannedModule[];
+  // Selected modules the install leaves out: they need a component it cannot install, or
+  // depend on such a module (owner, 2026-10-24; spec 011, section 16).
+  readonly skipped: readonly SkippedModule[];
   readonly components: readonly PlannedComponent[];
   // The platform fields the modules read, each with its state on the instance.
   readonly fields: readonly PlannedField[];
@@ -124,6 +132,26 @@ export function plannedComponents(report: PreflightReport): PlannedComponent[] {
   return [...byKey.values()];
 }
 
+// The selected modules the install cannot install as the instance is, and why: their own
+// component, or a module they depend on that is skipped. Preflight's `installable` already
+// follows dependencies.
+export function skippedModules(
+  components: readonly PlannedComponent[],
+  report: PreflightReport,
+): SkippedModule[] {
+  const skipped: SkippedModule[] = [];
+  for (const module of report.capabilities.filter((m) => !m.installable)) {
+    const own = components.find((c) => c.action === "blocked" && c.modules.includes(module.id));
+    const upstream = module.waitsOn.filter((d) => skipped.some((s) => s.id === d));
+    const reason =
+      own !== undefined
+        ? `needs ${own.kind} ${own.id}: ${own.reason}`
+        : `depends on ${upstream.join(", ")}, which ${upstream.length > 1 ? "are" : "is"} skipped`;
+    skipped.push({ id: module.id, reason });
+  }
+  return skipped;
+}
+
 // The plan's id: its content and the facts it was built from, so any change makes a new plan.
 export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
   const material = canonicalJson({
@@ -135,6 +163,8 @@ export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
       modules: [...(plan.selection.modules ?? [])],
     },
     modules: plan.modules.map((m) => ({ id: m.id, label: m.label, files: [...m.files] })),
+    // Absent when empty, so plans that skip nothing keep the ids they had.
+    ...(plan.skipped.length === 0 ? {} : { skipped: plan.skipped.map((m) => m.id) }),
     components: plan.components.map((c) => ({
       key: `${c.kind}:${c.id}`,
       state: c.state,
@@ -155,16 +185,19 @@ export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
   return sha256Hex(material).slice(0, 16);
 }
 
+// What stops the plan: the pack's own problems, and a selection the install would skip whole.
+// A component it cannot install skips the modules needing it instead (skippedModules).
 export function blockingProblems(
-  components: readonly PlannedComponent[],
   report: PreflightReport,
+  selection: { readonly kept: number; readonly skipped: number },
 ): string[] {
-  return [
-    ...report.problems,
-    ...components
-      .filter((c) => c.action === "blocked")
-      .map((c) => `${c.kind} ${c.id} (${c.modules.join(", ")}): ${c.reason}`),
-  ];
+  const empty =
+    selection.kept === 0 && selection.skipped > 0
+      ? [
+          "nothing to install: every selected module needs a component the install cannot install (see the skipped modules)",
+        ]
+      : [];
+  return [...report.problems, ...empty];
 }
 
 // One step of an install, as the journal and the report record it.

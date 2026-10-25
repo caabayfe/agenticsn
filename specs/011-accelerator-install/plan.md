@@ -532,3 +532,30 @@ domain fields are always populated**, with the domain chosen by `--domain`.
 | V4 | Domain separation: detection, `--domain`, rows and columns (items 5 to 8) | Built; also on `validate-data` (checks as a load into a domain would) |
 | V5 | Pack: generated map scripts and staging column, module changes, 0.8.1 (items 9, 10) | Built (sn-accelerators branch `feat/platform-variance`); the `problem_id`, `caused_by`, `rfc` notes wait for a live check on pdi3 |
 | V6 | Live: full `incident-advanced` with demo data on pdi3 (no domains) and on pdi2 (`--domain`) | Planned |
+
+## 16. Skip what a missing component needs (2026-10-24)
+
+**Why.** The ITSM pack made the store application `sn_sow_itsm_adv_ct` (Service Operations
+Workspace ITSM Advanced Applications: Problem, Change, MIM and the incident's `problem_id`,
+`rfc`, `caused_by` on new Australia instances) a component of incident-problem,
+incident-relations and major-incident. pdi2 does not offer it and pdi3 cannot download it
+(spike S-F, run on pdi3 the same day: `POST /api/sn_cicd/app_repo/install` is accepted and
+followed through `/api/sn_cicd/progress`, and ends "Unable to download app package"). The
+install then refused the plan, and the gate (SN-MNT-012) blocked every push of `source/global`,
+foundation's included. The product owner: "it needs to continue and skip what needs this
+module". ADR-0038 amended.
+
+1. **Plan.** Modules that preflight marks not installable are skipped with a reason: "needs
+   <kind> <id>: <reason>" or "depends on <module>, which is skipped". The plan's modules, data,
+   fields and components are those of the modules it keeps; a selection left empty is a
+   problem. The plan id covers the skipped modules; plans that skip nothing keep their ids.
+2. **Document.** Section 2 lists the skipped modules and why.
+3. **Gate.** `packFindings` takes the planned units (project, sys_id). A module that is not
+   ready blocks only when a planned unit is one of its records, known by the `$id` literals of
+   its source; a module whose source declares no fixed id blocks as before. Callers without
+   units (none today) keep the project-level check.
+
+| # | Item | State |
+|---|---|---|
+| I17 | Skip modules whose components cannot be installed, with dependents; gate by record | Built (branch `feat/accelerator-skip-unready`) |
+| I3 | Store application installer | Unblocked by S-F (API as above); not built |

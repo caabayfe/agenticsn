@@ -23,10 +23,10 @@ export function unitPlanDependencies(
     reader,
     workspace: context.delivery(root, instance),
     governance: context.governance(root, instance),
-    packGate: (paths) =>
+    packGate: (paths, units) =>
       packFindings(
         { packs: context.packs, inventory: context.inventory },
-        { instance: { root, name: instance }, paths, snagentic: VERSION },
+        { instance: { root, name: instance }, paths, snagentic: VERSION, units },
       ),
     updateSets: { pager, statistics: reader, now: context.clock },
     now: context.clock,

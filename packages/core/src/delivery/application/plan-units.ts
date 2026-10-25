@@ -50,7 +50,10 @@ export interface UnitPlanDependencies {
     "branch" | "mirrorCommit" | "uncommittedSource" | "waivers" | "metadataRoot"
   >;
   readonly governance: ValidateDependencies;
-  readonly packGate?: (paths: readonly string[]) => Promise<readonly Finding[]>;
+  readonly packGate?: (
+    paths: readonly string[],
+    units: readonly { readonly project: string; readonly sysId: string }[],
+  ) => Promise<readonly Finding[]>;
   readonly updateSets: UpdateSetDependencies;
   readonly now: () => Date;
   readonly signal: AbortSignal;
@@ -251,7 +254,8 @@ export async function computeUnitPlan(
   const units = loads.flatMap((load) => load.units);
   const base = (await deps.workspace.mirrorCommit()) ?? "HEAD";
   const loading = [...new Set(units.map((u) => u.project))];
-  const gate = await gateFor(deps, base, loading, await ledgerBases(deps, loading));
+  const gated = units.map((u) => ({ project: u.project, sysId: u.sysId }));
+  const gate = await gateFor(deps, base, loading, await ledgerBases(deps, loading), gated);
   const collisions = await collisionsOf(deps, units, label);
   const ready =
     units.length > 0 &&

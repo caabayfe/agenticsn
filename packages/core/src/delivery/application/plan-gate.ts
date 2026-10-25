@@ -6,7 +6,10 @@ import type { DeliveryWorkspace } from "../ports";
 // What the gate reads: validate's dependencies, the accelerator check, the committed waivers.
 export interface GateDependencies {
   readonly governance: ValidateDependencies;
-  readonly packGate?: (paths: readonly string[]) => Promise<readonly Finding[]>;
+  readonly packGate?: (
+    paths: readonly string[],
+    units: readonly { readonly project: string; readonly sysId: string }[],
+  ) => Promise<readonly Finding[]>;
   readonly workspace: Pick<DeliveryWorkspace, "waivers" | "metadataRoot">;
   readonly now: () => Date;
 }
@@ -20,9 +23,11 @@ export async function gateFor(
   commit: string,
   paths: readonly string[],
   bases: Readonly<Record<string, string | null>> = {},
+  // The planned units' records: the accelerator check blocks only modules whose records they are.
+  units: readonly { readonly project: string; readonly sysId: string }[] = [],
 ): Promise<GateResult> {
   const validation = await validate(deps.governance, { base: commit, include: paths, bases });
-  const packs = deps.packGate === undefined ? [] : await deps.packGate(paths);
+  const packs = deps.packGate === undefined ? [] : await deps.packGate(paths, units);
   const waiverFile = await deps.workspace.waivers();
   const { waivers, problems: read } = readWaivers(waiverFile.committed, deps.now());
   const waiverProblems = waiverFile.uncommitted ? [UNCOMMITTED_WAIVERS, ...read] : read;

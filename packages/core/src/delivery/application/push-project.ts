@@ -1,8 +1,6 @@
 import { readUnits } from "../../authoring/application/read-units";
-import { compareUnit } from "../../authoring/domain/compare";
 import type { LedgerEntry } from "../../authoring/domain/ledger";
-import type { BuiltUnit, InstanceCopy } from "../../authoring/domain/unit";
-import { unitSpec } from "../../authoring/domain/unit-specs";
+import type { InstanceCopy } from "../../authoring/domain/unit";
 import { GLOBAL } from "../domain/batch";
 import { carrierOf } from "../domain/carried";
 import { RecordChangedOnInstanceError } from "../domain/errors";
@@ -14,6 +12,7 @@ import type { FluentInstaller, PushJournal, PushJournalStore, SwitchedPreference
 import { readRefusals } from "./load-refusals";
 import type { ProjectLoad } from "./plan-units";
 import { settle, switchFor } from "./push-preferences";
+import { readBack } from "./push-read-back";
 import { captured, type InstanceSession, openChild } from "./push-steps";
 
 // One project's push (ADR-0031 item 4): its application made current, its update set opened,
@@ -108,54 +107,6 @@ async function publish(run: ProjectRun, scope: string, files: readonly { content
   }
 }
 
-// What the instance holds after the load, unit by unit, and the ledger it makes.
-async function readBack(run: ProjectRun, load: ProjectLoad, units: readonly PlannedUnit[]) {
-  const built = units.flatMap((u) => load.built.get(u.updateName)?.unit ?? []);
-  const copies = await readUnits(run.session.reader, built, run.session.signal);
-  const ledger = new Map<string, LedgerEntry | undefined>();
-  const applied = new Map<string, boolean>();
-  for (const unit of units) {
-    const copy = copies.get(unit.updateName) ?? null;
-    const builtUnit = load.built.get(unit.updateName)?.unit;
-    if (unit.operation === "forget") {
-      applied.set(unit.updateName, true);
-      ledger.set(unit.updateName, undefined);
-      continue;
-    }
-    if (unit.operation === "delete") {
-      applied.set(unit.updateName, copy === null);
-      if (copy === null && unit.removes !== null) ledger.set(unit.removes, undefined);
-      continue;
-    }
-    const same = copy !== null && builtUnit !== undefined && agrees(builtUnit, copy);
-    applied.set(unit.updateName, same);
-    const entry = loadedEntry(unit, copy, same);
-    if (entry !== null) ledger.set(unit.updateName, entry);
-  }
-  return { ledger, applied };
-}
-
-// A loaded unit's new ledger entry, or null to keep the one it has.
-function loadedEntry(
-  unit: PlannedUnit,
-  copy: InstanceCopy | null,
-  same: boolean,
-): LedgerEntry | null {
-  if (copy === null) return null;
-  if (same) return { build: unit.digest, instance: copy.version, losses: unit.losses };
-  return unit.operation === "create"
-    ? { build: NOT_BUILT, instance: copy.version, losses: [] }
-    : null;
-}
-
-// The build of a record this push created but that reads back otherwise (the platform sets a
-// new table's label its own way): no build matches it, so the next plan loads it again rather
-// than asking to adopt a record the push itself made.
-const NOT_BUILT = "0".repeat(32);
-
-const agrees = (unit: BuiltUnit, copy: InstanceCopy) =>
-  !unitSpec(unit.head.table).comparable || compareUnit(unit, copy).length === 0;
-
 async function openSet(run: ProjectRun, load: ProjectLoad) {
   const { project } = load;
   if (project.scopeId === GLOBAL) return run.batch;
@@ -227,6 +178,24 @@ async function loadAndPublish(
   await publish(run, load.project.scope, files);
 }
 
+// The platform sets some fields its own way when it inserts a record, such as a new table's
+// label, and keeps the loaded value only on an update: created units that read back otherwise
+// are loaded once more, then read back again.
+async function loadedAgain(
+  run: ProjectRun,
+  load: ProjectLoad,
+  updateSet: string,
+  back: Awaited<ReturnType<typeof readBack>>,
+) {
+  const again = load.units.filter(
+    (u) =>
+      u.operation === "create" && !back.applied.get(u.updateName) && back.copies.get(u.updateName),
+  );
+  if (again.length === 0) return back;
+  await loadAndPublish(run, load, updateSet, filesFor(load, again, back.copies, run.now()));
+  return readBack(run.session, load, load.units);
+}
+
 // Loaded units that neither arrived nor were recorded: the platform skipped them, and its log
 // says why. A push where everything arrived reads no log.
 async function withRefusals(
@@ -270,7 +239,7 @@ export async function pushProject(run: ProjectRun, load: ProjectLoad): Promise<P
     if (project.scopeId !== GLOBAL) await prefer(`updateSetForScope${project.scopeId}`, set.sysId);
     const loadedAt = run.now();
     await loadAndPublish(run, load, set.sysId, filesFor(load, units, before, loadedAt));
-    const back = await readBack(run, load, units);
+    const back = await loadedAgain(run, load, set.sysId, await readBack(run.session, load, units));
     const arrived = withCarried(load, await outcomes(run, units, set.sysId, back));
     const pushed = await withRefusals(run, units, arrived, loadedAt);
     await settle(session, journal, save);

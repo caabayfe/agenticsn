@@ -56,6 +56,28 @@ function finding(
   return { ruleId, path, line, message, evidence };
 }
 
+// A failed build blocks, at each error's place when the SDK names one: a failure it names no
+// error for still blocks, so validate never passes a project with no units.
+function buildErrorFindings(
+  project: FluentProject,
+  errors: readonly FluentBuildError[],
+): FluentHit[] {
+  if (errors.length === 0) {
+    return [finding("SN-MNT-009", project.path, null, "the build failed; the SDK named no error")];
+  }
+  return errors.map((error) =>
+    error.file === ""
+      ? finding("SN-MNT-009", project.path, null, `${error.code}: ${error.message}`)
+      : finding(
+          "SN-MNT-009",
+          `${project.path}/${error.file}`,
+          error.line,
+          `${error.code}: ${error.message}`,
+          `column ${error.column}`,
+        ),
+  );
+}
+
 // What one Fluent project's build says about the change (ADR-0028 as amended, items 4 and 5).
 export function fluentFindings(
   project: FluentProject,
@@ -74,17 +96,7 @@ export function fluentFindings(
     );
   }
   if (!build.built) {
-    for (const error of build.errors) {
-      findings.push(
-        finding(
-          "SN-MNT-009",
-          `${project.path}/${error.file}`,
-          error.line,
-          `${error.code}: ${error.message}`,
-          `column ${error.column}`,
-        ),
-      );
-    }
+    findings.push(...buildErrorFindings(project, build.errors));
     return findings;
   }
   if (build.keys !== null) {

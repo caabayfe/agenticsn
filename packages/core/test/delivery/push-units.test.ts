@@ -127,12 +127,38 @@ describe("push on built units: deletions, flows, global, recovery", () => {
     expect(context.authoring.ledgers.get(context.project.path)?.get("dev")).toBeUndefined();
   });
 
+  it("loads a created record again when the platform set a field its own way on insert", async () => {
+    const context = unitSetup({ ledger: null });
+    context.tables["sys_script_include"] = [];
+    const { plan } = await computeUnitPlan(context.deps, QUERY);
+    // As the platform does a new table's label: only the insert sets it its own way.
+    const load = context.deps.installer.load;
+    let loads = 0;
+    const platform = {
+      ...context.deps,
+      installer: {
+        ...context.deps.installer,
+        load: async (...args: Parameters<typeof load>) => {
+          await load(...args);
+          loads += 1;
+          if (loads === 1) saveOnInstance(context.tables, { description: "Set by the platform." });
+        },
+      },
+    };
+    const result = await pushUnits(platform, { ...QUERY, planId: plan.planId, confirm: true });
+    expect(loads).toBe(2);
+    expect(result.units).toMatchObject([{ operation: "create", captured: true, applied: true }]);
+    expect(result.notApplied).toBe(0);
+    const after = await computeUnitPlan(context.deps, QUERY);
+    expect(after.plan.units).toEqual([]);
+  });
+
   it("records a created record that reads back otherwise, so the next plan loads it again instead of asking for adopt", async () => {
     const context = unitSetup({ ledger: null });
     context.tables["sys_script_include"] = [];
     const { plan } = await computeUnitPlan(context.deps, QUERY);
     expect(plan.units).toMatchObject([{ operation: "create" }]);
-    // The platform sets a field its own way on insert, as it does a new table's label.
+    // The platform sets a field its own way on every load: the second load does not help.
     const load = context.deps.installer.load;
     const platform = {
       ...context.deps,

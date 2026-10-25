@@ -24,7 +24,9 @@ const SHOWN_ERRORS = 5;
 // (an unresolved data pill of a step whose id the SDK refused).
 function buildErrors(errors: readonly FluentBuildError[]): string {
   if (errors.length === 0) return "the build failed";
-  const shown = errors.slice(0, SHOWN_ERRORS).map((e) => `${e.file}:${e.line} ${e.message}`);
+  const shown = errors
+    .slice(0, SHOWN_ERRORS)
+    .map((e) => (e.file === "" ? e.message : `${e.file}:${e.line} ${e.message}`));
   const more = errors.length > SHOWN_ERRORS ? ` and ${errors.length - SHOWN_ERRORS} more` : "";
   return `${shown.join("; ")}${more}`;
 }

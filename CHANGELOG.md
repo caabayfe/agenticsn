@@ -4,6 +4,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.11.1] - 2026-10-25
+
+An accelerator install that adds new tables and fields runs to the end on a clean instance.
+
 ### Fixed
 
 - A push no longer reports a new field's label as "not captured". The platform creates the label

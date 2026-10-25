@@ -55,6 +55,28 @@ export class JsonInstallJournal implements InstallJournal {
 
   async lock(): Promise<boolean> {
     await mkdir(this.directory, { recursive: true });
+    if (await this.create()) return true;
+    // A second Ctrl-C or a closed terminal ends the process before it unlocks; its lock
+    // names a process that no longer runs, so it holds nothing.
+    if (!(await this.heldByEndedProcess())) return false;
+    await rm(this.lockPath, { force: true });
+    return this.create();
+  }
+
+  private async heldByEndedProcess(): Promise<boolean> {
+    const text = await readFile(this.lockPath, "utf8").catch(() => "");
+    const pid = Number.parseInt(text, 10);
+    if (!Number.isSafeInteger(pid) || pid <= 0) return false;
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch (error) {
+      // EPERM: the process runs, under another user.
+      return Reflect.get(Object(error), "code") === "ESRCH";
+    }
+  }
+
+  private async create(): Promise<boolean> {
     try {
       const handle = await open(this.lockPath, "wx");
       await handle.writeFile(`${process.pid}\n`);

@@ -129,15 +129,29 @@ async function readBack(run: ProjectRun, load: ProjectLoad, units: readonly Plan
     }
     const same = copy !== null && builtUnit !== undefined && agrees(builtUnit, copy);
     applied.set(unit.updateName, same);
-    if (same)
-      ledger.set(unit.updateName, {
-        build: unit.digest,
-        instance: copy.version,
-        losses: unit.losses,
-      });
+    const entry = loadedEntry(unit, copy, same);
+    if (entry !== null) ledger.set(unit.updateName, entry);
   }
   return { ledger, applied };
 }
+
+// A loaded unit's new ledger entry, or null to keep the one it has.
+function loadedEntry(
+  unit: PlannedUnit,
+  copy: InstanceCopy | null,
+  same: boolean,
+): LedgerEntry | null {
+  if (copy === null) return null;
+  if (same) return { build: unit.digest, instance: copy.version, losses: unit.losses };
+  return unit.operation === "create"
+    ? { build: NOT_BUILT, instance: copy.version, losses: [] }
+    : null;
+}
+
+// The build of a record this push created but that reads back otherwise (the platform sets a
+// new table's label its own way): no build matches it, so the next plan loads it again rather
+// than asking to adopt a record the push itself made.
+const NOT_BUILT = "0".repeat(32);
 
 const agrees = (unit: BuiltUnit, copy: InstanceCopy) =>
   !unitSpec(unit.head.table).comparable || compareUnit(unit, copy).length === 0;

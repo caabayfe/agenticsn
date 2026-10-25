@@ -127,6 +127,30 @@ describe("push on built units: deletions, flows, global, recovery", () => {
     expect(context.authoring.ledgers.get(context.project.path)?.get("dev")).toBeUndefined();
   });
 
+  it("records a created record that reads back otherwise, so the next plan loads it again instead of asking for adopt", async () => {
+    const context = unitSetup({ ledger: null });
+    context.tables["sys_script_include"] = [];
+    const { plan } = await computeUnitPlan(context.deps, QUERY);
+    expect(plan.units).toMatchObject([{ operation: "create" }]);
+    // The platform sets a field its own way on insert, as it does a new table's label.
+    const load = context.deps.installer.load;
+    const platform = {
+      ...context.deps,
+      installer: {
+        ...context.deps.installer,
+        load: async (...args: Parameters<typeof load>) => {
+          await load(...args);
+          saveOnInstance(context.tables, { description: "Set by the platform." });
+        },
+      },
+    };
+    const result = await pushUnits(platform, { ...QUERY, planId: plan.planId, confirm: true });
+    expect(result.units).toMatchObject([{ operation: "create", applied: false }]);
+    const after = await computeUnitPlan(context.deps, QUERY);
+    expect(after.plan.problems).toEqual([]);
+    expect(after.plan.units).toMatchObject([{ updateName: SI_UNIT, operation: "load" }]);
+  });
+
   const FLOW = "f".repeat(32);
   const flow = {
     updateName: `sys_hub_flow_${FLOW}`,

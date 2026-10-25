@@ -4,6 +4,23 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-10-25
+
+An accelerator install continues past what the instance cannot install (spec 011, section 16).
+
+### Added
+
+- `accelerator install` skips a module that preflight marks as not installable (for example a
+  store application the instance does not offer), together with every module that depends on it,
+  and plans, activates, pushes and loads the rest. The plan document lists each skipped module
+  with its reason; a selection left empty blocks the plan (I17, ADR-0038 amended).
+
+### Changed
+
+- The gate's accelerator check blocks only a module that is not ready and has its own records
+  in the planned units, known by the fixed `$id`s of its source. Before, one such module blocked
+  every push of the project the pack's modules share.
+
 ### Fixed
 
 - `accelerator install` wraps a long step name (such as the list of modules already installed)

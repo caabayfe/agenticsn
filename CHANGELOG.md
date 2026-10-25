@@ -4,6 +4,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.11.2] - 2026-10-25
+
+An accelerator upgrade lets go of a shipped record its new version no longer restates.
+
 ### Fixed
 
 - A plan releases a record a plugin ships once the source stops restating it, instead of

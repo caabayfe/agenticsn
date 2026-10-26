@@ -11,6 +11,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   ended as it ends. A resumed run says how many modules are left, and a stopped run names the
   modules it has still to install.
 
+### Fixed
+
+- A push no longer reports a catalog item as "not applied as built" because the platform raised
+  its `version`, nor a variable's choice because the build keys a variable in no variable set as
+  `NULL` where the instance reads it empty (pdi2, 2026-10-26: 11 units stopped an install).
+
 ## [2.11.3] - 2026-10-26
 
 An accelerator install runs through modules that add tables without stopping, and a failed

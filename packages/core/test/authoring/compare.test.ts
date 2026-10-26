@@ -194,6 +194,41 @@ describe("compareUnit (ADR-0033 item 2)", () => {
     ]);
   });
 
+  // pdi2, 2026-10-26: a catalog item's variable keyed with no variable set read back otherwise.
+  it("reads a key the build writes as NULL as the instance's empty reference", () => {
+    const choice = unit(
+      "question_choice_c1",
+      record("question_choice", "c1", {
+        sys_id: "c1",
+        question: "keys:cat_item=d18d&name=acc_list_change&variable_set=NULL",
+        value: "leave",
+      }),
+    );
+    const held = (variableSet: string) =>
+      copy({
+        sys_id: "c1",
+        question: "50b6",
+        "question.cat_item": "d18d",
+        "question.name": "acc_list_change",
+        "question.variable_set": variableSet,
+        value: "leave",
+      });
+    expect(compareUnit(choice, held(""))).toEqual([]);
+    expect(compareUnit(choice, held("a1b2"))).toMatchObject([
+      { field: "question.variable_set", built: "NULL", instance: "a1b2" },
+    ]);
+  });
+
+  it("ignores a catalog item's version: the platform raises it on every save", () => {
+    const item = unit(
+      "sc_cat_item_i1",
+      record("sc_cat_item", "i1", { sys_id: "i1", name: "Peripherals", version: "1" }),
+    );
+    expect(compareUnit(item, copy({ sys_id: "i1", name: "Peripherals", version: "3" }))).toEqual(
+      [],
+    );
+  });
+
   it("compares a list's columns as an ordered sequence, not by sys_id", () => {
     const built = revocationList(["number", "subject_user", "outcome"]);
     expect(compareUnit(built, listCopy(["number", "subject_user", "outcome"]))).toEqual([]);

@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-10-26
+
+An accelerator install shows where it is and how much is left, and catalog items read back as
+built.
+
 ### Changed
 
 - `accelerator install` says where it is while it runs: each module numbered among the plan's

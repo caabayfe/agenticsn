@@ -412,9 +412,25 @@ the section; D4 the global domain's section only; D5 ticket fields later.
   none (a workspace section belongs to the workspace application, S-FF5), and committed with it.
 - The section is taken over as restated: take-over's new `restated` input skips the customization
   refusal for it, since its source is the instance's own copy plus the field (D1).
-- Not yet: the after-install check (both kinds), and removal: a fact dropped from `ensure.yaml`
-  leaves its element on the instance and the last generated section file in the workspace, so a
-  later change to that section on the instance shows as drift.
+- **After-install check (both kinds, 2026-10-26):** the install's last step, after the pull, reads
+  every fact of the plan's modules again, live like at delivery (the mirror holds only what the
+  last pull caught, and the read is a handful of keyed queries), and reports in "check the
+  layouts and forms" how many hold, each one no longer on the instance (install again to add it
+  back, ADR-0042 section 4) and each skipped because the instance lacks its layout or section. It
+  does not stop the install.
+- **Removal (form_field, 2026-10-26):** the install keeps a committed record of the sections each
+  module added fields to (`accelerators/installs/<instance>/<pack>-form-sections.json`). When a
+  module is delivered, each section the record names for it is read again, and an element is
+  taken off the restated section only when its sys_id is the one that module derives for that
+  field and none of its facts makes it any more: the client's elements and other modules' never
+  match. A field moved to another section is added there although the view still shows it where
+  it was. Live on pdi2 (2026-10-26, spike workspace, update set "snagentic: spike form-field"):
+  problem_task "Analysis Information" restated without `u_acc_rca_method` was loaded, push read it
+  back as built and a new plan had nothing to push, so the platform deletes an element its section
+  update leaves out; restated again with it, the element came back under its sys_id.
+- Not yet: removal for related lists (a dropped list fact leaves its entry; the module's
+  generated file keeps the last entries), and the install plan does not list removals before the
+  run: the record is read when the module is delivered.
 
 **Files a pack version drops (owner decision, 2026-10-23).** An add never deletes a file the last
 add wrote that the new version no longer ships (ADR-0026, M8): it is kept. On pdi2 the kept

@@ -181,6 +181,7 @@ export function installSteps(
     async writeFile(path, text) {
       await context.workspaceFiles.write(join(where.root, path), text);
     },
+    readFile: (path) => context.workspaceFiles.read(join(where.root, path)),
     commit: (paths, message) => delivery().commitFiles(paths, message),
   };
 }

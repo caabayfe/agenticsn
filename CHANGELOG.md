@@ -4,6 +4,16 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- An accelerator install checks every layout and form fact again as its last step, after the
+  pull, and says how many still hold, which are no longer on the instance (install again to add
+  them back) and which were skipped because the instance lacks the layout or section.
+- A `form_field` fact dropped from a module's `ensure.yaml` takes the module's own field off the
+  form at the next install, and a field whose section changed moves there. The install records
+  the sections each module added to; only an element with the sys_id that module derives for
+  the field is ever removed.
+
 ## [2.14.0] - 2026-10-26
 
 An accelerator module can add a field to a form the platform ships, without replacing the

@@ -169,6 +169,8 @@ export interface InstallSteps {
   }): Promise<{ readonly path: string; readonly written: readonly string[] }>;
   // Writes a workspace file (the plan and the report), relative to the workspace root.
   writeFile(path: string, text: string): Promise<void>;
+  // A workspace file's text, relative to the workspace root; null when there is none.
+  readFile(path: string): Promise<string | null>;
   commit(paths: readonly string[], message: string): Promise<string>;
 }
 

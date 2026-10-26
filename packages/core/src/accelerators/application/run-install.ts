@@ -153,8 +153,13 @@ async function deliver(
       adoptions: before.flatMap((m) => m.adoptions),
       ensures: before.flatMap((m) => m.ensures),
     };
-    await step(deps, record, upgrade, () =>
-      deliverAs(deps, done, changes, { label: upgradeLabel, own }, signal),
+    const place = { first: 1, last: before.length, total: plan.modules.length };
+    await step(
+      deps,
+      record,
+      upgrade,
+      () => deliverAs(deps, done, changes, { label: upgradeLabel, own }, signal),
+      place,
     );
   }
   for (const module of plan.modules.filter((m) => !done.includes(m.id))) {
@@ -163,8 +168,13 @@ async function deliver(
     // Every module up to this one: a later add never drops an earlier module's files.
     const ids = [...done];
     const changes = { pack: plan.pack, adoptions: module.adoptions, ensures: module.ensures };
-    await step(deps, record, `module ${module.id}`, () =>
-      deliverAs(deps, ids, changes, { label: module.label, own }, signal),
+    const place = { first: ids.length, last: ids.length, total: plan.modules.length };
+    await step(
+      deps,
+      record,
+      `module ${module.id}`,
+      () => deliverAs(deps, ids, changes, { label: module.label, own }, signal),
+      place,
     );
   }
 }
@@ -207,7 +217,7 @@ function rowsNotTaken(entities: readonly { entity: string; problems: readonly Ro
     .join("; ");
 }
 
-export type { InstallRunDependencies } from "./install-step";
+export type { InstallPlace, InstallProgress, InstallRunDependencies } from "./install-step";
 
 // Plans, and with the plan's id confirmed, runs it (ADR-0038, item 2). A run that stopped is
 // resumed by the same command: its journal holds the plan id the admin approved.
@@ -246,6 +256,14 @@ async function run(
   start: InstallRecord,
 ): Promise<InstallResult> {
   const record = { current: start };
+  const finished = new Set(start.steps.filter((s) => s.outcome !== "stopped").map((s) => s.step));
+  deps.progress?.({
+    kind: "begin",
+    planId: start.planId,
+    title: `${plan.pack} ${plan.version} on ${plan.instance.name}`,
+    modules: plan.modules.length,
+    finished: plan.modules.filter((m) => finished.has(`module ${m.id}`)).length,
+  });
   let stopped: InstallStepRecord | null = null;
   try {
     await components(deps, plan, record, query.signal);

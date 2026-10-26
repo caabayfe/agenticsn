@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- `accelerator install` says where it is while it runs: each module numbered among the plan's
+  (`[5/13] module problem-sla`), what it is doing under it in plain words, and how each step
+  ended as it ends. A resumed run says how many modules are left, and a stopped run names the
+  modules it has still to install.
+
 ## [2.11.3] - 2026-10-26
 
 An accelerator install runs through modules that add tables without stopping, and a failed

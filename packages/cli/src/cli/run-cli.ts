@@ -25,13 +25,16 @@ export interface CliOptions {
   readonly signal?: AbortSignal;
 }
 
+const MARK = { done: "✓", skipped: "–", stopped: "✗" } as const;
+
 // Progress goes to stderr in every format, so stdout carries only the result.
 function progressLine(event: ProgressEvent): string {
   const count =
     event.completed === undefined
       ? ""
       : ` (${event.completed}${event.total === undefined ? "" : `/${event.total}`})`;
-  return `… ${event.message}${count}\n`;
+  const mark = event.outcome === undefined ? "…" : MARK[event.outcome];
+  return `${"  ".repeat(event.depth ?? 0)}${mark} ${event.message}${count}\n`;
 }
 
 function printError(error: unknown, format: OutputFormat, io: CliIo): number {

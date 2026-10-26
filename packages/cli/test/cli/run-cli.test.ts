@@ -6,6 +6,7 @@ import {
   captureIo,
   echoUseCase,
   FAKE_CONTEXT,
+  nestedProgressUseCase,
   progressUseCase,
   waitForCancelUseCase,
 } from "../support/fakes";
@@ -145,6 +146,11 @@ describe("generated CLI", () => {
     );
     expect(JSON.parse(out)).toEqual({ echoed: "done" });
     expect(err).toBe("… reading catalog (1/2)\n… writing records (2/2)\n");
+  });
+
+  it("indents a step's sub-steps and marks how a step ended", async () => {
+    const { err } = await run(["nested-steps", "--message", "x"], [nestedProgressUseCase()]);
+    expect(err).toBe("  … module a\n    … pushing\n  ✗ module a: refused\n");
   });
 
   it("exits with 130 when the run is cancelled", async () => {

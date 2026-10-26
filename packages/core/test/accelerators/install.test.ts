@@ -5,6 +5,7 @@ import {
   type InstallJournal,
   InstallLockedError,
   InstallPlanChangedError,
+  type InstallProgress,
   type InstallSteps,
   type InventoryReader,
   installPack,
@@ -97,6 +98,7 @@ const deps = (
     mirror?: string;
     open?: readonly OpenSet[];
     reports?: readonly string[];
+    progress?: (event: InstallProgress) => void;
   } = {},
 ) => {
   const clock = { ms: 0 };
@@ -110,6 +112,7 @@ const deps = (
     schema: { ready: async () => true, fieldsOf: async () => [], refresh: () => {} },
     steps: extra.steps ?? fakeSteps().steps,
     journal: extra.journal ?? memoryJournal().journal,
+    ...(extra.progress === undefined ? {} : { progress: extra.progress }),
     now: () => {
       clock.ms += 1000;
       return new Date(clock.ms);
@@ -523,6 +526,47 @@ describe("running an install (ADR-0038, item 2)", () => {
       "**Result:** installed",
     );
     expect(state.cleared).toBe(true);
+  });
+
+  it("says each step as it starts and ends, and where a module stands among the plan's", async () => {
+    const events: InstallProgress[] = [];
+    const plan = await planInstall(deps(READY), QUERY);
+    const progress = (event: InstallProgress) => events.push(event);
+    await installPack(deps(READY, { progress }), { ...QUERY, confirm: plan.planId });
+    expect(events[0]).toEqual({
+      kind: "begin",
+      planId: plan.planId,
+      title: "itsm 0.1.0 on pdi2",
+      modules: 2,
+      finished: 0,
+    });
+    expect(events.filter((e) => e.kind === "start").map((e) => [e.step, e.place])).toEqual([
+      ["activate com.snc.cmdb.csdm", null],
+      ["pull and integrate", null],
+      ["module foundation", { first: 1, last: 1, total: 2 }],
+      ["module incident", { first: 2, last: 2, total: 2 }],
+      ["data", null],
+      ["pull and integrate", null],
+    ]);
+    expect(events.at(-1)).toMatchObject({
+      kind: "end",
+      step: "pull and integrate",
+      outcome: "done",
+    });
+  });
+
+  it("counts the modules an earlier run finished when it resumes", async () => {
+    const { journal } = memoryJournal();
+    const plan = await planInstall(deps(READY), QUERY);
+    const first = fakeSteps({ notApplied: { incident: 1 } });
+    await installPack(deps(READY, { steps: first.steps, journal }), {
+      ...QUERY,
+      confirm: plan.planId,
+    });
+    const events: InstallProgress[] = [];
+    const progress = (event: InstallProgress) => events.push(event);
+    await installPack(deps(READY, { journal, progress }), { ...QUERY, confirm: plan.planId });
+    expect(events[0]).toMatchObject({ kind: "begin", modules: 2, finished: 1 });
   });
 
   it("skips a module the instance already holds as built", async () => {

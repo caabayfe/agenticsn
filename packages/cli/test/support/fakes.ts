@@ -252,6 +252,18 @@ export function progressUseCase(): UseCase {
   });
 }
 
+export function nestedProgressUseCase(): UseCase {
+  return echoUseCase({
+    name: "nested-steps",
+    handle: async (_input, _context, run) => {
+      run.progress({ message: "module a", depth: 1 });
+      run.progress({ message: "pushing", depth: 2 });
+      run.progress({ message: "module a: refused", depth: 1, outcome: "stopped" });
+      return { echoed: "done" };
+    },
+  });
+}
+
 // Waits until its run is cancelled, then stops the way an aborted fetch does.
 export function waitForCancelUseCase(
   started: () => void = () => {},

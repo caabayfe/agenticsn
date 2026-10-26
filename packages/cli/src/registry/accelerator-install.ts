@@ -8,6 +8,7 @@ import {
   VERSION,
 } from "@snagentic/core";
 import { z } from "zod";
+import { installProgress } from "./accelerator-install-progress";
 import { renderPlan, renderRun } from "./accelerator-install-render";
 import { InstallViewOutput, installView } from "./accelerator-install-view";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
@@ -87,6 +88,7 @@ export const acceleratorInstall = defineUseCase({
         },
         journal: context.installJournal(root, name),
         now: context.clock,
+        progress: (event) => run.progress(installProgress(event)),
       },
       {
         ...selectionOf(input),

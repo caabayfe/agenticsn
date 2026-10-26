@@ -128,16 +128,41 @@ function stepLines(step: InstallView["steps"][number], width: number): string[] 
   ];
 }
 
+const ALREADY = "modules already installed: ";
+
+// The modules a step delivered or found delivered: its own, or those it re-installed together.
+function delivered(step: InstallView["steps"][number]): string[] {
+  if (step.outcome === "stopped") return [];
+  if (step.step.startsWith("module ")) return [step.step.slice("module ".length)];
+  if (step.step.startsWith(ALREADY)) return step.step.slice(ALREADY.length).split(", ");
+  return [];
+}
+
+// How far a stopped run got, and the modules it has still to install.
+function pending(view: InstallView): string[] {
+  const installed = new Set(view.steps.flatMap(delivered));
+  const left = view.modules.filter((m) => !installed.has(m));
+  const count = `${view.modules.length - left.length} of ${view.modules.length} module(s) installed`;
+  if (left.length === 0) return [`${count}; the steps after them are left`];
+  return [`${count}; still to install (${left.length}):`, ...wrapped(left, "  ", ", ")];
+}
+
 export function renderRun(view: InstallView): string {
   const longest = Math.max(0, ...view.steps.map((s) => s.step.length));
   const width = Math.min(STEP_WIDTH, longest);
+  const total = Math.round(view.steps.reduce((n, s) => n + s.seconds, 0) / 60);
   return [
     `Install ${view.planId}: ${view.pack} ${view.version} on ${view.instance}`,
     "",
     ...view.steps.flatMap((s) => stepLines(s, width)),
     "",
-    view.stopped === null
-      ? `Installed. Report: ${view.reportPath ?? ""}`
-      : `Stopped at ${view.stopped.step}: fix it, then run the same command to resume.\nReport: ${view.reportPath ?? ""}`,
+    ...(view.stopped === null
+      ? [`Installed in ${total} min. Report: ${view.reportPath ?? ""}`]
+      : [
+          `Stopped at ${view.stopped.step}, ${total} min so far.`,
+          ...pending(view),
+          "Fix it, then run the same command to resume.",
+          `Report: ${view.reportPath ?? ""}`,
+        ]),
   ].join("\n");
 }

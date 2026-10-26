@@ -173,6 +173,10 @@ export interface ProgressEvent {
   readonly message: string;
   readonly completed?: number;
   readonly total?: number;
+  // How deep in a longer run this is: a step's sub-steps are indented under it.
+  readonly depth?: number;
+  // A step that finished, as opposed to one starting.
+  readonly outcome?: "done" | "skipped" | "stopped";
 }
 
 // Per-run controls. Cancelling the signal must stop all further work, including requests

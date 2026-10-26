@@ -25,6 +25,12 @@ export const takeOver = defineUseCase({
   input: z.object({
     instance: z.string().describe("the development instance holding the records"),
     records: z.array(z.string()).min(1).describe("out-of-box records, as table:sys_id"),
+    restated: z
+      .array(z.string())
+      .default([])
+      .describe(
+        "records among them whose source restates the instance's copy as it is now (a form section an accelerator adds a field to): taken over even when customized",
+      ),
   }),
   output: z.object({
     instance: z.string(),
@@ -43,7 +49,7 @@ export const takeOver = defineUseCase({
     run.progress({ message: "building the source and reading the instance" });
     const result = await takeOverRecords(
       { reader: connection.reader, workspace, toolchain, signal: run.signal },
-      { instance: connection.name, records },
+      { instance: connection.name, records, restated: input.restated.map(targetOf) },
     );
     return { instance: connection.name, ...result };
   },

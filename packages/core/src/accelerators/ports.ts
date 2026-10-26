@@ -1,5 +1,6 @@
 import type { OpenSet } from "./domain/earlier-sets";
-import type { EnsureFact, ListState } from "./domain/ensure";
+import type { ListFact, ListState } from "./domain/ensure";
+import type { FormFieldFact, SectionState } from "./domain/ensure-form";
 import type { InstallRecord } from "./domain/install-plan";
 import type { MaterializedFile } from "./domain/materialize";
 import type { RowProblem } from "./domain/row-problems";
@@ -94,7 +95,13 @@ export interface InstallSteps {
   // take-over for the out-of-box records a module declares whole (ADR-0038 item 8): those
   // untouched since shipped become this branch's; customized or absent ones are named.
   takeOver(
-    records: readonly { readonly table: string; readonly sysId: string }[],
+    // A restated record is the instance's own copy plus the module's change: taken over even when
+    // the client customized it (form_field, D1).
+    records: readonly {
+      readonly table: string;
+      readonly sysId: string;
+      readonly restated?: true;
+    }[],
     signal: AbortSignal,
   ): Promise<{
     readonly taken: number;
@@ -151,7 +158,15 @@ export interface InstallSteps {
   // children follow (spec 011, spike S-U).
   completeUpdateSets(sets: readonly OpenSet[], signal: AbortSignal): Promise<void>;
   // The related-list layouts the facts name, read live, one per fact in order (ADR-0042).
-  layouts(facts: readonly EnsureFact[], signal: AbortSignal): Promise<readonly ListState[]>;
+  layouts(facts: readonly ListFact[], signal: AbortSignal): Promise<readonly ListState[]>;
+  // The form sections the facts name, read live, one per fact in order (ADR-0042 form_field).
+  sections(facts: readonly FormFieldFact[], signal: AbortSignal): Promise<readonly SectionState[]>;
+  // The workspace's project for an application scope, made when it has none (a workspace's
+  // section belongs to the workspace application); the files it made, to commit.
+  project(scope: {
+    readonly name: string;
+    readonly sysId: string;
+  }): Promise<{ readonly path: string; readonly written: readonly string[] }>;
   // Writes a workspace file (the plan and the report), relative to the workspace root.
   writeFile(path: string, text: string): Promise<void>;
   commit(paths: readonly string[], message: string): Promise<string>;

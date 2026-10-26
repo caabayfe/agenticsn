@@ -267,6 +267,7 @@ Changes the instance: **yes, development instances only**. MCP tool: none.
 Options:
 
 - `--instance <value>`: the development instance holding the records
+- `--restated <values...>`: records among them whose source restates the instance's copy as it is now (a form section an accelerator adds a field to): taken over even when customized
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 

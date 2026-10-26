@@ -5,6 +5,7 @@ import {
   mirrorSchema,
   openUpdateSets,
   readLayouts,
+  readSections,
   VERSION,
 } from "@snagentic/core";
 import { z } from "zod";
@@ -85,6 +86,7 @@ export const acceleratorInstall = defineUseCase({
               signal,
             ),
           layouts: (facts, signal) => readLayouts(reader, facts, signal),
+          sections: (facts, signal) => readSections(reader, facts, signal),
         },
         journal: context.installJournal(root, name),
         now: context.clock,

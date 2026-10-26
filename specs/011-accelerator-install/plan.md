@@ -392,6 +392,30 @@ delivered as generated Fluent through the SDK, and checked again after the insta
 - Not yet: the after-install check, form fields (planned in `form-field-plan.md`, 2026-10-25) and active flags; dropping a fact from
   `ensure.yaml` leaves the generated entry, which then needs a `Now.del` as any removed definition.
 
+**I10, second kind built (2026-10-26, branch `feat/form-field`): fields on shipped forms.** Plan:
+`form-field-plan.md` (spikes S-FF1, 2, 3, 5 passed on pdi2, S-FF4 partly). Owner decisions
+2026-10-26, as recommended: D1 a customized section is restated as it is now, with the field
+added, not stopped; D2 workspace views included; D3 a missing `after` puts the field at the end of
+the section; D4 the global domain's section only; D5 ticket fields later.
+- `ensure.yaml` entries `{ kind: form_field, table, view, section, field, after, note }`: view by
+  name ("Default view" when left out), section by caption ("" is the first section), `after` optional.
+  The plan lists them under "Fields the modules add to forms", with the promotion note.
+- When the module is delivered, each fact's section is read live: the view, the global domain's
+  non-personal section of that caption, its elements, and the fields of every section of the view
+  (a field already on the form is left where it is), through the keyset pager.
+- A section holding or lacking one of the facts' fields is restated whole in
+  `source/<scope>/src/fluent/ensure-section-<sys_id>.now.ts`: the section by its keys and every
+  element it has now with its own sys_id, the missing fields inserted after their `after` element
+  (keeping its column), each with a sys_id derived from pack, module, table, view, section and
+  field. Field rows leave `type` out; split markers, formatters and annotations keep theirs.
+- The project is the scope that owns the section (`sys_scope`), scaffolded when the workspace has
+  none (a workspace section belongs to the workspace application, S-FF5), and committed with it.
+- The section is taken over as restated: take-over's new `restated` input skips the customization
+  refusal for it, since its source is the instance's own copy plus the field (D1).
+- Not yet: the after-install check (both kinds), and removal: a fact dropped from `ensure.yaml`
+  leaves its element on the instance and the last generated section file in the workspace, so a
+  later change to that section on the instance shows as drift.
+
 **Files a pack version drops (owner decision, 2026-10-23).** An add never deletes a file the last
 add wrote that the new version no longer ships (ADR-0026, M8): it is kept. On pdi2 the kept
 `incident-relations-lists.now.ts` (moved to `ensure.yaml` in 0.7.0) restated records the generated

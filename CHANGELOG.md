@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-10-26
+
+An accelerator module can add a field to a form the platform ships, without replacing the
+client's own changes to it.
+
 ### Added
 
 - An accelerator module can put a field on a shipped form with a `form_field` fact in its

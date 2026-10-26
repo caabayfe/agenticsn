@@ -3,6 +3,11 @@ import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { fieldsToRedact } from "../../metadata/domain/redaction";
+import {
+  type SecretRedaction,
+  scanDocumentSecrets,
+  sortSecretRedactions,
+} from "../../metadata/domain/secret-scan";
 import type { FingerprintChange } from "../domain/fingerprint";
 import { CHILD_TABLES, type ChildTable, childFamily } from "../domain/pull-scope";
 import { chunks } from "../domain/record-changes";
@@ -17,11 +22,13 @@ export interface ChildOutcome {
   readonly childFiles: number;
   readonly removedChildFiles: number;
   readonly unreadable: readonly string[];
+  readonly secretRedactions: readonly SecretRedaction[];
 }
 
 interface Totals {
   childFiles: number;
   removedChildFiles: number;
+  secretRedactions: SecretRedaction[];
 }
 
 const childFile = (base: string, table: string) => `${base}.children.${table}.yaml`;
@@ -36,7 +43,14 @@ async function store(
 ): Promise<void> {
   const path = childFile(base, table);
   if (rows !== undefined && rows.length > 0) {
-    await deps.records.writeDocument(deps.metadataRoot, path, rows);
+    const scanned = scanDocumentSecrets(rows);
+    await deps.records.writeDocument(deps.metadataRoot, path, scanned.document);
+    if (scanned.patterns.length > 0) {
+      totals.secretRedactions.push({
+        path: `${deps.metadataRoot}/${path}`,
+        patterns: scanned.patterns,
+      });
+    }
     totals.childFiles += 1;
   } else if (deps.records.filesOf(deps.metadataRoot, base).includes(path)) {
     await deps.records.remove(deps.metadataRoot, path);
@@ -213,7 +227,7 @@ export async function applyChildChanges(
   signal: AbortSignal,
 ): Promise<ChildOutcome> {
   const { since, neverRead, created = [] } = window;
-  const totals: Totals = { childFiles: 0, removedChildFiles: 0 };
+  const totals: Totals = { childFiles: 0, removedChildFiles: 0, secretRedactions: [] };
   const unreadable: string[] = [];
   const families = familiesToRelist(changes, neverRead);
   const relisted = new Set(families.flat().map((child) => child.table));
@@ -240,7 +254,11 @@ export async function applyChildChanges(
       unreadable.push(...(await readNewOwners(deps, catalog, child, owners, signal, totals)));
     }
   }
-  return { ...totals, unreadable: [...new Set(unreadable)].sort() };
+  return {
+    ...totals,
+    unreadable: [...new Set(unreadable)].sort(),
+    secretRedactions: sortSecretRedactions(totals.secretRedactions),
+  };
 }
 
 // The rows of records new to the mirror, read whole whatever their timestamps.

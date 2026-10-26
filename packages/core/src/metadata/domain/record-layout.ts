@@ -8,6 +8,7 @@ import { TableName } from "../../kernel/table-name";
 import type { Artifact } from "./artifact";
 import type { Catalog } from "./catalog";
 import { fileFields } from "./field-rules";
+import { SECRET_PATTERN_IDS, type SecretPatternId } from "./secret-scan";
 
 const NAME_FIELDS = ["sys_name", "name", "api_name", "internal_name", "element", "title", "id"];
 const LAYOUT_KEYS = new Set(["scope", "hash", "hash_version", "redacted"]);
@@ -28,6 +29,7 @@ export interface RenderedRecord {
   readonly base: string;
   readonly document: Readonly<Record<string, unknown>>;
   readonly files: readonly { readonly path: string; readonly content: string }[];
+  readonly secretPatterns: readonly SecretPatternId[];
 }
 
 function displayName(fields: Readonly<Record<string, string>>): string {
@@ -88,7 +90,9 @@ export function renderRecord(artifact: Artifact, catalog: Catalog): RenderedReco
     hash_version: 1,
     ...(artifact.redacted.length > 0 ? { redacted: [...artifact.redacted] } : {}),
   };
-  return { base, document: { _meta: meta, ...plain }, files };
+  const found = new Set(artifact.secretFindings.flatMap((finding) => finding.patterns));
+  const secretPatterns = SECRET_PATTERN_IDS.filter((id) => found.has(id));
+  return { base, document: { _meta: meta, ...plain }, files, secretPatterns };
 }
 
 function metaOf(document: unknown): Record<string, unknown> {
@@ -144,6 +148,13 @@ export function parseRecord(
     domain: ScopeName.fromInstance(meta["sys_domain"] ?? "global"),
   };
   const redacted = Array.isArray(raw["redacted"]) ? raw["redacted"].map(String) : [];
-  const artifact = { identity, meta, fields, redacted, hash: recordHash(className, fields) };
+  const artifact = {
+    identity,
+    meta,
+    fields,
+    redacted,
+    secretFindings: [],
+    hash: recordHash(className, fields),
+  };
   return { artifact, storedHash: typeof raw["hash"] === "string" ? raw["hash"] : null };
 }

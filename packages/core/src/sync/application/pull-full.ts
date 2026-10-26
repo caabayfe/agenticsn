@@ -1,4 +1,5 @@
 import { Catalog } from "../../metadata/domain/catalog";
+import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domain/secret-scan";
 import { classesToPull } from "../domain/pull-scope";
 import { FIRST_REDACTION_VERSION } from "../domain/redaction-upgrades";
 import type { PullCheckpoint, SyncState, SyncStateStore } from "../ports";
@@ -9,6 +10,11 @@ import { pullChildren } from "./pull-children";
 import { type PullDependencies, type PullProgress, rawTimestamp } from "./pull-dependencies";
 import { inventorySignatures, pullOperational } from "./pull-operational";
 import { pullRecords } from "./pull-records";
+import {
+  migrateExistingSecrets,
+  SECRET_SCAN_VERSION,
+  scanCatalogSecrets,
+} from "./secret-migration";
 
 export interface PullSummary {
   readonly classes: number;
@@ -23,6 +29,7 @@ export interface PullSummary {
   readonly operationalRows: number;
   // Classes and tables the integration user may not read.
   readonly unreadable: readonly string[];
+  readonly secretRedactions: readonly SecretRedaction[];
   readonly watermark: string;
   // The sync state to store once the mirror commit is durable (see completePull).
   readonly next: SyncState;
@@ -48,6 +55,7 @@ async function startCheckpoint(
       fingerprints: (await fetchFingerprints(deps.statistics, signal)).fingerprints,
       inventory: await inventorySignatures(deps.statistics, signal),
       redactionVersion: deps.policy.version,
+      secretScanVersion: SECRET_SCAN_VERSION,
     }
   );
 }
@@ -69,6 +77,46 @@ function fullNextState(
       checkpoint.redactionVersion ?? FIRST_REDACTION_VERSION,
       policyVersion,
     ),
+    secretScanVersion: SECRET_SCAN_VERSION,
+  };
+}
+
+async function prepareFull(
+  deps: PullDependencies,
+  signal: AbortSignal,
+  progress: (event: PullProgress) => void,
+  catalogSeconds: () => number,
+) {
+  const scanned = scanCatalogSecrets(await fetchCatalog(deps.pager, signal, progress));
+  const seconds = catalogSeconds();
+  await deps.state.writeCatalog(scanned.catalog);
+  let checkpoint = await startCheckpoint(deps, signal);
+  await deps.state.writeCheckpoint(checkpoint);
+  const migration = await migrateExistingSecrets(
+    deps.records,
+    deps.instanceRoot,
+    deps.catalogPath,
+    scanned.catalog,
+    checkpoint,
+    signal,
+  );
+  if ((checkpoint.secretScanVersion ?? 0) < SECRET_SCAN_VERSION) {
+    await deps.records.checkpoint();
+    checkpoint = {
+      ...checkpoint,
+      secretScanVersion: SECRET_SCAN_VERSION,
+      secretRedactions: sortSecretRedactions([
+        ...(checkpoint.secretRedactions ?? []),
+        ...migration.secretRedactions,
+      ]),
+    };
+    await deps.state.writeCheckpoint(checkpoint);
+  }
+  return {
+    catalog: new Catalog(migration.catalog),
+    checkpoint,
+    patterns: scanned.patterns,
+    seconds,
   };
 }
 
@@ -82,12 +130,8 @@ export async function pullFull(
   progress: (event: PullProgress) => void = () => {},
 ): Promise<PullSummary> {
   const clock = phaseClock(deps.now);
-  const data = await fetchCatalog(deps.pager, signal, progress);
-  const catalogSeconds = clock.lap();
-  await deps.state.writeCatalog(data);
-  const catalog = new Catalog(data);
-  const checkpoint = await startCheckpoint(deps, signal);
-  await deps.state.writeCheckpoint(checkpoint);
+  const prepared = await prepareFull(deps, signal, progress, clock.lap);
+  const { catalog, checkpoint } = prepared;
   const classes = classesToPull(catalog);
   const records = await pullRecords(deps, catalog, classes, checkpoint, signal, progress);
   const applications = await pullApplications(deps, catalog, signal);
@@ -104,6 +148,15 @@ export async function pullFull(
     ...children.unreadable,
     ...operational.unreadable,
   ];
+  const secretRedactions = sortSecretRedactions([
+    ...(prepared.patterns.length === 0
+      ? []
+      : [{ path: deps.catalogPath, patterns: prepared.patterns }]),
+    ...records.secretRedactions,
+    ...applications.secretRedactions,
+    ...children.secretRedactions,
+    ...operational.secretRedactions,
+  ]);
   return {
     next: fullNextState(checkpoint, deps.policy.version, unreadable),
     classes: classes.length,
@@ -115,9 +168,10 @@ export async function pullFull(
     orphanChildRows: children.orphanChildRows,
     operationalRows: operational.operationalRows,
     unreadable,
+    secretRedactions,
     watermark: checkpoint.startedAt,
     phaseSeconds: {
-      catalog: catalogSeconds,
+      catalog: prepared.seconds,
       records: recordsSeconds,
       children: childrenSeconds,
       operational: operationalSeconds,

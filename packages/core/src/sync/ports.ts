@@ -1,6 +1,7 @@
 import type { PulledRecord } from "../authoring/domain/drift";
 import type { CatalogData } from "../metadata/domain/catalog";
 import type { RenderedRecord } from "../metadata/domain/record-layout";
+import type { SecretRedaction } from "../metadata/domain/secret-scan";
 import type { TableFingerprint } from "./domain/fingerprint";
 
 // Fingerprints of the change sources a pull has mirrored, by table.
@@ -16,7 +17,15 @@ export interface PullCheckpoint {
   readonly inventory?: Readonly<Record<string, string>>;
   // The redaction policy version the pull started under; absent means 1 (ADR-0034 #2).
   readonly redactionVersion?: number;
+  // Secret redactions already written by a resumable full pull (ADR-0035).
+  readonly secretRedactions?: readonly SecretRedaction[];
+  // Existing progress files have been scanned under this ASR-08 policy version.
+  readonly secretScanVersion?: number;
 }
+
+export type ExistingMirrorFile =
+  | { readonly kind: "document"; readonly path: string; readonly document: unknown }
+  | { readonly kind: "text"; readonly path: string; readonly text: string };
 
 export interface SyncState {
   // Changes at or after this raw UTC timestamp (minus the overlap) are not yet mirrored.
@@ -32,6 +41,8 @@ export interface SyncState {
   readonly hiddenCounts?: Readonly<Record<string, number>>;
   // The redaction policy version the mirror was pulled with; absent means 1 (ADR-0034 #2).
   readonly redactionVersion?: number;
+  // Existing committed files have been scanned under this ASR-08 policy version (ADR-0035).
+  readonly secretScanVersion?: number;
 }
 
 // Local, per-instance sync state (.snagentic/<name>/, never committed).
@@ -50,6 +61,9 @@ export interface SyncStateStore {
 export interface MirrorWriter {
   write(root: string, rendered: RenderedRecord): Promise<void>;
   writeDocument(root: string, path: string, document: unknown): Promise<void>;
+  writeText(root: string, path: string, text: string): Promise<void>;
+  existingFiles(root: string): AsyncIterable<ExistingMirrorFile>;
+  move(root: string, from: string, to: string): Promise<void>;
   // Every record base under `root`, including those written by an interrupted earlier run.
   bases(root: string): AsyncIterable<string>;
   // Makes everything written so far durable; called before a class is recorded as done.
@@ -92,7 +106,6 @@ export interface IncrementalMirror extends MirrorSession, MirrorTree {
   // Reads the mirrored tree; an incremental pull calls it only once something changed.
   prepare(): Promise<void>;
   remove(root: string, path: string): Promise<void>;
-  move(root: string, from: string, to: string): Promise<void>;
 }
 
 export interface IntegrationResult {

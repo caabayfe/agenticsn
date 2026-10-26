@@ -57,6 +57,30 @@ describe("artifactFromRow", () => {
     expect(artifact.hash).toBe(recordHash("sys_script", artifact.fields));
   });
 
+  it("redacts a high-confidence secret before hashing and names its field and pattern", () => {
+    const withSecret = artifactFromRow(
+      {
+        ...ROW,
+        name: "ghp_0123456789abcdefghijklmnopqrstuvwxyz",
+        script: "const key = 'AKIAIOSFODNN7EXAMPLE';\n",
+      },
+      catalog,
+      DEFAULT_REDACTION,
+    );
+    expect(withSecret.fields["name"]).toBe("[redacted:github-token]");
+    expect(withSecret.fields["script"]).toBe("const key = '[redacted:aws-access-key-id]';");
+    expect(withSecret.redacted).toEqual(["name", "password", "script"]);
+    expect(withSecret.secretFindings).toEqual([
+      { field: "name", patterns: ["github-token"] },
+      { field: "script", patterns: ["aws-access-key-id"] },
+    ]);
+    expect(withSecret.hash).toBe(recordHash("sys_script", withSecret.fields));
+    expect(renderRecord(withSecret, catalog).secretPatterns).toEqual([
+      "aws-access-key-id",
+      "github-token",
+    ]);
+  });
+
   it("rejects a row without a valid sys_id or class", () => {
     expect(() => artifactFromRow({ ...ROW, sys_id: "../x" }, catalog, DEFAULT_REDACTION)).toThrow();
     expect(() =>
@@ -116,6 +140,7 @@ describe("flat record layout (ADR-0017)", () => {
     const files = rendered.files.map((file) => ({ field: "script", content: file.content }));
     const parsed = parseRecord(rendered.document, files);
     expect(parsed.artifact.fields).toEqual(artifact.fields);
+    expect(parsed.artifact.secretFindings).toEqual([]);
     expect(parsed.artifact.hash).toBe(artifact.hash);
     expect(parsed.storedHash).toBe(artifact.hash);
   });

@@ -14,7 +14,7 @@ import { type LedgerEntry, withEntries } from "../domain/ledger";
 import { knownLoss, type LossId, lossSets } from "../domain/losses";
 import { conversionRefusal, knownRefusal } from "../domain/refusals";
 import type { BuiltUnit, InstanceCopy } from "../domain/unit";
-import { unitSecrets } from "../domain/unit-secrets";
+import { draftFileSecrets, unitSecrets } from "../domain/unit-secrets";
 import { unitSpec } from "../domain/unit-specs";
 import type {
   AuthoringWorkspace,
@@ -184,7 +184,10 @@ async function adoptInto(
   const units = adoptedUnits(outcome.draft);
   const catalog = await unitCatalog(dependencies, units);
   const secrets = unitSecrets(units, catalog, DEFAULT_REDACTION);
-  if (secrets.length > 0) throw new AdoptSecretError(secrets);
+  const draftSecrets = draftFileSecrets(outcome.draft.files);
+  if (secrets.length > 0 || draftSecrets.length > 0) {
+    throw new AdoptSecretError([...secrets, ...draftSecrets]);
+  }
   const entries = await checkedEntries(dependencies, units, catalog);
   let conflicts: readonly string[] = [];
   if (base === null) await workspace.writeFiles(project, outcome.draft.files);

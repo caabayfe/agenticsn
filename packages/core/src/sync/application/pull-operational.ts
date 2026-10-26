@@ -3,12 +3,23 @@ import { AccessDeniedError, InstanceError } from "../../index-errors";
 import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
 import type { Catalog } from "../../metadata/domain/catalog";
+import {
+  type SecretRedaction,
+  scanDocumentSecrets,
+  sortSecretRedactions,
+} from "../../metadata/domain/secret-scan";
 import { INVENTORY, type InventorySource, inventorySignature } from "../domain/inventory";
 import type { PullDependencies } from "./pull-dependencies";
 
 export interface OperationalOutcome {
   readonly operationalRows: number;
   readonly unreadable: readonly string[];
+  readonly secretRedactions: readonly SecretRedaction[];
+}
+
+interface ListedSource {
+  readonly rows: number;
+  readonly secretRedaction: SecretRedaction | null;
 }
 
 // Lists one inventory source into its YAML file; null when the user may not read it.
@@ -18,11 +29,12 @@ async function listSource(
   catalog: Catalog,
   source: InventorySource,
   signal: AbortSignal,
-): Promise<number | null> {
+): Promise<ListedSource | null> {
   const rows: Row[] = [];
+  const relative = `${source.file}.yaml`;
   if (source.optional === true && !catalog.knowsClass(source.table)) {
-    await deps.records.writeDocument(deps.operationalRoot, `${source.file}.yaml`, rows);
-    return 0;
+    await deps.records.writeDocument(deps.operationalRoot, relative, rows);
+    return { rows: 0, secretRedaction: null };
   }
   const fields = source.key === "sys_id" ? source.fields : [...source.fields, "sys_id"];
   const listing = {
@@ -42,8 +54,15 @@ async function listSource(
     return null;
   }
   rows.sort((a, b) => ((a[source.key] ?? "") < (b[source.key] ?? "") ? -1 : 1));
-  await deps.records.writeDocument(deps.operationalRoot, `${source.file}.yaml`, rows);
-  return rows.length;
+  const scanned = scanDocumentSecrets(rows);
+  await deps.records.writeDocument(deps.operationalRoot, relative, scanned.document);
+  return {
+    rows: rows.length,
+    secretRedaction:
+      scanned.patterns.length === 0
+        ? null
+        : { path: `${deps.operationalRoot}/${relative}`, patterns: scanned.patterns },
+  };
 }
 
 // Plugins, store applications and domains (all of them, or the sources given).
@@ -55,15 +74,21 @@ export async function pullOperational(
 ): Promise<OperationalOutcome> {
   let operationalRows = 0;
   const unreadable: string[] = [];
+  const secretRedactions: SecretRedaction[] = [];
   for (const source of sources) {
     const rows = await listSource(deps, catalog, source, signal);
     if (rows === null) {
       unreadable.push(source.table);
     } else {
-      operationalRows += rows;
+      operationalRows += rows.rows;
+      if (rows.secretRedaction !== null) secretRedactions.push(rows.secretRedaction);
     }
   }
-  return { operationalRows, unreadable };
+  return {
+    operationalRows,
+    unreadable,
+    secretRedactions: sortSecretRedactions(secretRedactions),
+  };
 }
 
 // The change signal of every source that has one: file -> signature. One aggregate request

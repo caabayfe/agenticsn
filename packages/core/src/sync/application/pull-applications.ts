@@ -3,12 +3,14 @@ import { TableName } from "../../kernel/table-name";
 import { artifactFromRow } from "../../metadata/domain/artifact";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { renderRecord } from "../../metadata/domain/record-layout";
+import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domain/secret-scan";
 import type { IncrementalMirror } from "../ports";
 import type { PullDependencies } from "./pull-dependencies";
 
 export interface ApplicationsOutcome {
   readonly applications: number;
   readonly unreadable: readonly string[];
+  readonly secretRedactions: readonly SecretRedaction[];
 }
 
 const SYS_APP = "sys_app";
@@ -30,6 +32,7 @@ export async function pullApplications(
     base: "",
   };
   const written = new Set<string>();
+  const secretRedactions: SecretRedaction[] = [];
   try {
     for await (const row of deps.pager.rows(listing, signal)) {
       const sysId = row["sys_id"] ?? "";
@@ -38,17 +41,27 @@ export async function pullApplications(
       const rendered = renderRecord(artifactFromRow(own, scoped, deps.policy), scoped);
       await deps.records.write(deps.metadataRoot, rendered);
       written.add(rendered.base);
+      if (rendered.secretPatterns.length > 0) {
+        secretRedactions.push({
+          path: `${deps.metadataRoot}/${rendered.base}.yaml`,
+          patterns: rendered.secretPatterns,
+        });
+      }
     }
   } catch (error) {
     if (!(error instanceof AccessDeniedError)) {
       throw error;
     }
-    return { applications: 0, unreadable: [SYS_APP] };
+    return { applications: 0, unreadable: [SYS_APP], secretRedactions: [] };
   }
   if (stale !== undefined) {
     await removeOthers(deps, stale, written);
   }
-  return { applications: written.size, unreadable: [] };
+  return {
+    applications: written.size,
+    unreadable: [],
+    secretRedactions: sortSecretRedactions(secretRedactions),
+  };
 }
 
 // Removes the files of applications the instance no longer lists under that name.

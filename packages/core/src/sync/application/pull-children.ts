@@ -5,6 +5,11 @@ import { TableName } from "../../kernel/table-name";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { fieldsToRedact } from "../../metadata/domain/redaction";
 import {
+  type SecretRedaction,
+  scanDocumentSecrets,
+  sortSecretRedactions,
+} from "../../metadata/domain/secret-scan";
+import {
   type AttachedChildren,
   CHILD_TABLES,
   type ChildTable,
@@ -18,6 +23,7 @@ export interface ChildrenOutcome {
   readonly childRows: number;
   readonly orphanChildRows: number;
   readonly unreadable: readonly string[];
+  readonly secretRedactions: readonly SecretRedaction[];
 }
 
 export function cleaned(row: Row, redact: ReadonlySet<string>): Row {
@@ -113,6 +119,7 @@ export async function pullChildren(
   const unreadable: string[] = [];
   let childRows = 0;
   let orphanChildRows = 0;
+  const secretRedactions: SecretRedaction[] = [];
   for (const child of CHILD_TABLES) {
     const grouped = await groupTable(deps, catalog, child, ownerMap, signal);
     if (grouped === null) {
@@ -120,14 +127,23 @@ export async function pullChildren(
       continue;
     }
     for (const [base, list] of grouped.attached) {
-      await deps.records.writeDocument(
-        deps.metadataRoot,
-        `${base}.children.${child.table}.yaml`,
-        list,
-      );
+      const relative = `${base}.children.${child.table}.yaml`;
+      const scanned = scanDocumentSecrets(list);
+      await deps.records.writeDocument(deps.metadataRoot, relative, scanned.document);
+      if (scanned.patterns.length > 0) {
+        secretRedactions.push({
+          path: `${deps.metadataRoot}/${relative}`,
+          patterns: scanned.patterns,
+        });
+      }
       childRows += list.length;
     }
     orphanChildRows += grouped.orphans;
   }
-  return { childRows, orphanChildRows, unreadable };
+  return {
+    childRows,
+    orphanChildRows,
+    unreadable,
+    secretRedactions: sortSecretRedactions(secretRedactions),
+  };
 }

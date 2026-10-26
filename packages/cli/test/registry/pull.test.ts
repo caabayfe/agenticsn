@@ -103,6 +103,62 @@ describe("pull and integrate", () => {
     expect(integrated.output["changedFiles"]).toBe(5);
   });
 
+  it("reports a redacted secret by path and pattern, never by value", async () => {
+    const data = structuredClone(DATA);
+    const leaked = "AKIAIOSFODNN7EXAMPLE";
+    Object.assign(data["sys_script"]?.[0] ?? {}, { script: `const key = '${leaked}';` });
+    const { root, context } = await setup(data);
+    const result = await executeUseCase(pull, { instance: "pdi" }, context);
+    expect(result.output["secretRedactions"]).toEqual([
+      {
+        path: "instances/pdi/metadata/global/sys_script/rule--00000000000000000000000000000001.yaml",
+        patterns: ["aws-access-key-id"],
+      },
+    ]);
+    expect(JSON.stringify(result.output)).not.toContain(leaked);
+    const text = pull.render(result.output as never, "text");
+    expect(text).toContain("remove the secret from the instance and rotate the credential");
+    expect(text).toContain("earlier git history may still contain it");
+    expect(text).not.toContain(leaked);
+    expect(
+      await runGitOrThrow(
+        [
+          "show",
+          "servicenow-remote/pdi:instances/pdi/metadata/global/sys_script/rule--00000000000000000000000000000001.script.js",
+        ],
+        root,
+      ),
+    ).toBe("const key = '[redacted:aws-access-key-id]';\n");
+  });
+
+  it("migrates an older committed mirror and records completion after the pull commit", async () => {
+    const leaked = "AKIAIOSFODNN7EXAMPLE";
+    const { root, context } = await setup();
+    await executeUseCase(pull, { instance: "pdi" }, context);
+    const name = InstanceName.parse("pdi");
+    const paths = instancePaths(name);
+    const oldMirror = await GitMirror.open(root, name, "incremental");
+    await oldMirror.prepare();
+    const field = "global/sys_script/rule--00000000000000000000000000000001.script.js";
+    await oldMirror.writeText(paths.metadata, field, `const key = '${leaked}';\n`);
+    await oldMirror.finish("old mirror with a secret");
+    const state = new JsonSyncStateStore(join(root, paths.localState));
+    const stored = await state.readState();
+    if (stored === null) throw new Error("the first pull did not store sync state");
+    await state.writeState({ ...stored, secretScanVersion: 0 });
+
+    const result = await executeUseCase(pull, { instance: "pdi" }, context);
+    expect(result.output["secretRedactions"]).toContainEqual({
+      path: `${paths.metadata}/${field}`,
+      patterns: ["aws-access-key-id"],
+    });
+    expect(JSON.stringify(result.output)).not.toContain(leaked);
+    expect((await state.readState())?.secretScanVersion).toBe(1);
+    expect(
+      await runGitOrThrow(["show", `${paths.remoteBranch}:${paths.metadata}/${field}`], root),
+    ).toBe("const key = '[redacted:aws-access-key-id]';\n");
+  });
+
   it("pulls only what changed after the first pull, and reports when nothing did", async () => {
     const { root, context, instance } = await setup();
     await executeUseCase(pull, { instance: "pdi" }, context);
@@ -189,6 +245,7 @@ describe("pull and integrate", () => {
         commit: "abcdef1234567",
         changed: true,
         records: 10,
+        secretRedactions: [],
         full: {
           classes: 3,
           childRows: 2,
@@ -266,6 +323,7 @@ describe("pull and integrate", () => {
       commit: "abcdef1234567",
       records: 2,
       unreadable: [],
+      secretRedactions: [],
       watermark: "w",
       requests: 24,
       retries: 0,

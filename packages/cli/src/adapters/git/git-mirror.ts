@@ -1,6 +1,5 @@
-import { readdir, rm, stat } from "node:fs/promises";
-import { join } from "node:path";
 import type {
+  ExistingMirrorFile,
   FinishedPull,
   IncrementalMirror,
   InstanceName,
@@ -13,6 +12,8 @@ import { serialQueue } from "../serial-queue";
 import { toYaml } from "../yaml/own-style";
 import { childRowOwners, countChildRows } from "./child-row-files";
 import { FastImport, fastImportPath } from "./fast-import";
+import { removeTemporaryPacks } from "./git-pack-cleanup";
+import { existingMirrorFiles } from "./git-tree-files";
 import { MirrorIndex } from "./mirror-index";
 import { gitLines, runGit, runGitOrThrow } from "./run-git";
 
@@ -129,9 +130,19 @@ export class GitMirror implements IncrementalMirror {
     });
   }
 
-  writeDocument(root: string, path: string, document: unknown): Promise<void> {
+  async writeDocument(root: string, path: string, document: unknown): Promise<void> {
+    await this.prepare();
     const yaml = toYaml(document);
-    return this.serial.run(() => this.add(`${root}/${path}`, yaml));
+    await this.serial.run(() => this.add(`${root}/${path}`, yaml));
+  }
+
+  async writeText(root: string, path: string, text: string): Promise<void> {
+    await this.prepare();
+    await this.serial.run(() => this.add(`${root}/${path}`, text));
+  }
+
+  async *existingFiles(root: string): AsyncIterable<ExistingMirrorFile> {
+    yield* existingMirrorFiles(this.repository, this.startFrom, root);
   }
 
   async *bases(root: string): AsyncIterable<string> {
@@ -173,8 +184,9 @@ export class GitMirror implements IncrementalMirror {
     });
   }
 
-  move(root: string, from: string, to: string): Promise<void> {
-    return this.serial.run(async () => {
+  async move(root: string, from: string, to: string): Promise<void> {
+    await this.prepare();
+    await this.serial.run(async () => {
       this.pending.push(
         `R ${fastImportPath(`${root}/${from}`)} ${fastImportPath(`${root}/${to}`)}\n`,
       );
@@ -258,19 +270,7 @@ export class GitMirror implements IncrementalMirror {
 
   async abort(): Promise<void> {
     await this.stream.stop();
-    await this.removeTemporaryPacks();
-  }
-
-  // Temporary packs fast-import was still writing when stopped. Only files created during
-  // this session are removed, never those of another git process.
-  private async removeTemporaryPacks(): Promise<void> {
-    const directory = join(this.repository, ".git", "objects", "pack");
-    for (const name of await readdir(directory).catch((): string[] => [])) {
-      const path = join(directory, name);
-      if (name.startsWith("tmp_") && (await stat(path)).mtimeMs >= this.openedAt) {
-        await rm(path, { force: true });
-      }
-    }
+    await removeTemporaryPacks(this.repository, this.openedAt);
   }
 
   private async add(path: string, content: string): Promise<void> {

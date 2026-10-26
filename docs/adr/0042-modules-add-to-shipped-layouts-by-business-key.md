@@ -1,6 +1,7 @@
 # 0042. Modules add to shipped layouts through ensure rules, found by table and view
 
-- Status: Accepted (product owner, 2026-10-22). Not built yet: spec 011 I10
+- Status: Accepted (product owner, 2026-10-22). Built: `related_list` (2026-10-22) and
+  `form_field` (2026-10-26, spec 011 `form-field-plan.md`, decisions D1-D5); `inactive` not yet
 - Date: 2026-10-22
 - Requirements: G1, ASR-01, ASR-15
 - Amends: 0038 (item 8, taking over an out-of-box layout)

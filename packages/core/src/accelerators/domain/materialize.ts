@@ -22,6 +22,9 @@ export interface Adoption {
   // What the install does where the instance lacks the record: stop for review, or create it
   // from the module's source (a record that ships only with demo data, restated whole).
   readonly whenAbsent: "stop" | "create";
+  // A record the module's build restates as the instance holds it now (a form section it adds
+  // fields to): a client's customization is kept in it, so it does not stop the install.
+  readonly restated?: true;
 }
 
 export interface MaterializeInput {

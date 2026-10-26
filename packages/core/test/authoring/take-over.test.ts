@@ -87,6 +87,16 @@ describe("taking over an out-of-box record (ADR-0038 item 8)", () => {
     expect(ledgers.get("source/global")).toBeUndefined();
   });
 
+  it("takes over a customized record whose source restates it as it is now (form_field, D1)", async () => {
+    const { deps, ledgers } = setup({
+      sys_update_xml: [{ sys_id: "u".repeat(32), name: UPDATE_NAME }],
+    });
+    const result = await takeOver(deps, { instance: "pdi2", records: asked, restated: asked });
+    expect(result.customized).toEqual([]);
+    expect(result.taken).toMatchObject([{ sysId: SHIPPED, project: "source/global" }]);
+    expect(ledgers.get("source/global")?.get("pdi2")?.has(`sys_ui_section_${BUILT}`)).toBe(true);
+  });
+
   it("names a record no unit of the build makes as absent", async () => {
     const { deps } = setup({ sys_update_xml: [] });
     const other = { table: "sys_ui_section", sysId: "9".repeat(32) };

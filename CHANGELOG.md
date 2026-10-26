@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- An accelerator module can put a field on a shipped form with a `form_field` fact in its
+  `ensure.yaml` (ADR-0042): table, view, section caption, field and optionally the field it goes
+  after. When the module is delivered, the section is read live and restated whole, the client's
+  own fields kept, with the field added; in the project of the application that owns the section,
+  scaffolded when missing (a workspace's `sow` sections); a customized section is taken over, not
+  stopped. A field already on the form is left alone, and a section the instance lacks is skipped.
+
 ## [2.13.0] - 2026-10-26
 
 Pulls redact high-confidence secrets before writing them, adoption refuses secret-bearing

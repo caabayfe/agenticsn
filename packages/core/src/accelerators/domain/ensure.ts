@@ -1,4 +1,5 @@
 import { sha256Hex } from "../../kernel/sha256";
+import { type FormFieldFact, formFieldFactOf } from "./ensure-form";
 
 // Ensure rules (ADR-0042): a module states facts about layouts it does not own, found by table
 // and view rather than by sys_id, so a plugin that replaces a layout (as KCS for Incident does on
@@ -6,7 +7,7 @@ import { sha256Hex } from "../../kernel/sha256";
 // on the instance becomes Fluent in the module's build: the container restated by its keys and
 // one entry per list the module adds. Pure: the instance's layouts come in as ListState.
 
-export interface EnsureFact {
+export interface ListFact {
   readonly capability: string;
   readonly kind: "related_list";
   // The table, the view (its name; the default view is "Default view") and the related list
@@ -19,6 +20,13 @@ export interface EnsureFact {
   // moved to ensure.yaml): kept, so nothing is deleted or created again. Otherwise derived.
   readonly id?: string;
 }
+
+// A fact of either kind: a related list on a layout, or a field on a form section.
+export type EnsureFact = ListFact | FormFieldFact;
+
+export const isListFact = (fact: EnsureFact): fact is ListFact => fact.kind === "related_list";
+export const isFormFieldFact = (fact: EnsureFact): fact is FormFieldFact =>
+  fact.kind === "form_field";
 
 // A table's related lists for one view, as the instance holds them now.
 export interface ListState {
@@ -44,6 +52,47 @@ const text = (entry: Readonly<Record<string, unknown>>, key: string) => {
   return typeof value === "string" ? value.trim() : "";
 };
 
+// A related_list entry, or null with its problem named.
+function listFactOf(
+  capability: string,
+  where: string,
+  entry: Readonly<Record<string, unknown>>,
+  problems: string[],
+): ListFact | null {
+  const fact = {
+    capability,
+    kind: "related_list" as const,
+    table: text(entry, "table"),
+    view: text(entry, "view"),
+    list: text(entry, "list"),
+    note: text(entry, "note"),
+  };
+  if (!fact.table || !fact.view || !fact.list || !fact.note) {
+    problems.push(`${where} needs table, view, list and note`);
+    return null;
+  }
+  const id = text(entry, "id");
+  if (id === "") return fact;
+  if (!SYS_ID.test(id)) {
+    problems.push(`${where} id must be a sys_id (32 hexadecimal characters)`);
+    return null;
+  }
+  return { ...fact, id };
+}
+
+type FactParser = (
+  capability: string,
+  where: string,
+  entry: Readonly<Record<string, unknown>>,
+  problems: string[],
+) => EnsureFact | null;
+
+// A Map, so a kind such as "constructor" names no parser.
+const PARSERS: ReadonlyMap<string, FactParser> = new Map<string, FactParser>([
+  ["related_list", listFactOf],
+  ["form_field", formFieldFactOf],
+]);
+
 // The facts in a module's ensure.yaml, naming every entry it cannot use.
 export function ensureFactsOf(
   capability: string,
@@ -52,47 +101,35 @@ export function ensureFactsOf(
   problems: string[],
 ): EnsureFact[] {
   if (!Array.isArray(document)) {
-    problems.push(`${path}: a list of { kind, table, view, list, note }`);
+    problems.push(`${path}: a list of { kind, table, view, list or field, note }`);
     return [];
   }
   return document.flatMap((item: unknown, index): EnsureFact[] => {
     const entry =
       item !== null && typeof item === "object" ? Object.fromEntries(Object.entries(item)) : {};
-    const kind = text(entry, "kind");
-    if (kind !== "" && kind !== "related_list") {
-      problems.push(`${path}: entry ${index + 1} kind can only be related_list`);
+    const where = `${path}: entry ${index + 1}`;
+    const parse = PARSERS.get(text(entry, "kind"));
+    if (parse === undefined) {
+      problems.push(
+        text(entry, "kind") === ""
+          ? `${where} needs table, view, list and note`
+          : `${where} kind can only be related_list or form_field`,
+      );
       return [];
     }
-    const fact = {
-      capability,
-      kind: "related_list" as const,
-      table: text(entry, "table"),
-      view: text(entry, "view"),
-      list: text(entry, "list"),
-      note: text(entry, "note"),
-    };
-    if (kind === "" || !fact.table || !fact.view || !fact.list || !fact.note) {
-      problems.push(`${path}: entry ${index + 1} needs table, view, list and note`);
-      return [];
-    }
-    const id = text(entry, "id");
-    if (id === "") return [fact];
-    if (!SYS_ID.test(id)) {
-      problems.push(`${path}: entry ${index + 1} id must be a sys_id (32 hexadecimal characters)`);
-      return [];
-    }
-    return [{ ...fact, id }];
+    const fact = parse(capability, where, entry, problems);
+    return fact === null ? [] : [fact];
   });
 }
 
 // The module's entry for a fact: the same sys_id wherever the pack is installed.
-export const ensureEntryId = (pack: string, fact: EnsureFact): string =>
+export const ensureEntryId = (pack: string, fact: ListFact): string =>
   fact.id ??
   sha256Hex(
     ["ensure", pack, fact.capability, fact.kind, fact.table, fact.view, fact.list].join("/"),
   ).slice(0, 32);
 
-export function factStatus(fact: EnsureFact, state: ListState, ownId: string): FactStatus {
+export function factStatus(fact: ListFact, state: ListState, ownId: string): FactStatus {
   if (state.container === null) return "absent";
   if (state.entries.some((e) => e.sysId === ownId)) return "ours";
   return state.entries.some((e) => e.relatedList === fact.list) ? "present" : "missing";
@@ -115,7 +152,7 @@ export interface EnsureContainer {
 }
 
 // The entries the module's build makes: its own where they are, missing ones after the last list.
-function entriesOf(pack: string, resolved: readonly { fact: EnsureFact; state: ListState }[]) {
+function entriesOf(pack: string, resolved: readonly { fact: ListFact; state: ListState }[]) {
   const next = new Map<string, number>();
   const entries: Entry[] = [];
   const containers = new Map<string, EnsureContainer>();
@@ -150,7 +187,7 @@ const HEADER = "import { Record } from '@servicenow/sdk/core'";
 export function ensureSource(
   pack: string,
   module: string,
-  resolved: readonly { fact: EnsureFact; state: ListState }[],
+  resolved: readonly { fact: ListFact; state: ListState }[],
 ): { readonly text: string; readonly containers: readonly EnsureContainer[] } {
   const { entries, containers } = entriesOf(pack, resolved);
   if (entries.length === 0) return { text: "", containers: [] };

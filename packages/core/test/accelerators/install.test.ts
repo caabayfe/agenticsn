@@ -15,6 +15,7 @@ import {
   type PackWorkspace,
   planInstall,
   plannedComponents,
+  type SectionState,
 } from "@snagentic/core";
 import { fakeSteps, memoryJournal } from "../support/install-fakes";
 import { memoryPacks, type PackFixture, packFiles } from "../support/memory-packs";
@@ -909,6 +910,93 @@ describe("layouts a module adds to (ADR-0042)", () => {
     expect(result.stopped?.detail).toContain(
       `customized on the instance: sys_ui_related_list ${CONTAINER}`,
     );
+  });
+});
+
+describe("fields a module adds to shipped forms (ADR-0042 form_field)", () => {
+  const SECTION = "2da34abfc74230105a06a1e603c260ec";
+  const WITH_FIELD: PackFixture = {
+    ...PACK,
+    files: {
+      ...PACK.files,
+      "modules/incident/ensure.yaml": JSON.stringify([
+        {
+          kind: "form_field",
+          table: "sc_task",
+          view: "sow",
+          section: "Catalog task",
+          field: "comments",
+          after: "work_notes",
+          note: "workspace compose can post to the requester",
+        },
+      ]),
+    },
+  };
+  const fieldDeps = (steps: InstallSteps) => ({
+    ...deps(ACTIVE, { steps }),
+    packs: memoryPacks({ itsm: packFiles(WITH_FIELD) }),
+  });
+  const section = (elements: readonly string[]): SectionState => ({
+    sysId: SECTION,
+    scope: { name: "sn_sow_req", sysId: "ff5e8e53c3a53010965e070e9140ddb2" },
+    table: "sc_task",
+    view: "sow",
+    caption: "Catalog task",
+    title: "false",
+    header: "false",
+    elements: elements.map((element, position) => ({
+      sysId: `e${position}`,
+      element,
+      type: "",
+      formatter: "",
+      position,
+    })),
+    onView: elements,
+  });
+
+  it("lists each field in the plan by form and section, with the promotion note", async () => {
+    const plan = await planInstall(fieldDeps(fakeSteps().steps), QUERY);
+    expect(plan.problems).toEqual([]);
+    const document = installPlanDocument(plan);
+    expect(document).toContain(
+      "| incident | sc_task, sow | Catalog task | comments after work_notes | workspace compose can post to the requester |",
+    );
+    expect(document).toContain("install the accelerator on each instance");
+  });
+
+  it("restates the section in its scope's project, made when missing, and takes it over though customized", async () => {
+    const { steps, calls, files } = fakeSteps({
+      section: section(["number", "work_notes", "state"]),
+      noProject: ["sn_sow_req"],
+      customized: [SECTION],
+    });
+    const plan = await planInstall(fieldDeps(steps), QUERY);
+    const result = await installPack(fieldDeps(steps), { ...QUERY, confirm: plan.planId });
+    expect(result.stopped).toBeNull();
+    const generated = files.get(`source/sn_sow_req/src/fluent/ensure-section-${SECTION}.now.ts`);
+    expect(generated).toContain("element: 'work_notes', position: 1 }");
+    expect(generated).toContain("element: 'comments', position: 2 }");
+    expect(generated).toContain("element: 'state', position: 3 }");
+    const at = calls.indexOf("sections 1");
+    expect(calls.slice(at, at + 6)).toEqual([
+      "sections 1",
+      "project sn_sow_req",
+      // The project's two files and the section.
+      "commit 3",
+      "keys 4",
+      "take-over 1",
+      "plan ITSM: incident 0.1.0",
+    ]);
+  });
+
+  it("changes nothing when the field is already on the form, or the instance lacks the section", async () => {
+    for (const state of [section(["number", "comments"]), { ...section([]), sysId: null }]) {
+      const { steps, calls, files } = fakeSteps({ section: state });
+      const plan = await planInstall(fieldDeps(steps), QUERY);
+      await installPack(fieldDeps(steps), { ...QUERY, confirm: plan.planId });
+      expect([...files.keys()].some((p) => p.includes("ensure-section-"))).toBe(false);
+      expect(calls).not.toContain("project sn_sow_req");
+    }
   });
 });
 

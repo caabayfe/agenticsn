@@ -194,6 +194,7 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
         {
           instance: "pdi",
           records: ["sys_ui_section:s1", "sys_ui_form:f1", "sys_ui_section:s2"],
+          restated: [],
         },
       ],
     ]);

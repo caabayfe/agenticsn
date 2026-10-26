@@ -6,6 +6,7 @@ import {
   ensureFactsOf,
   ensureSource,
   factStatus,
+  isListFact,
   type ListState,
 } from "@snagentic/core";
 
@@ -55,19 +56,23 @@ describe("reading ensure.yaml (ADR-0042)", () => {
     const facts = ensureFactsOf(
       "m",
       "modules/m/ensure.yaml",
-      [{ kind: "form_field", table: "incident" }, { kind: "related_list", table: "incident" }, "x"],
+      [
+        { kind: "form_section", table: "incident" },
+        { kind: "related_list", table: "incident" },
+        "x",
+      ],
       problems,
     );
     expect(facts).toEqual([]);
     expect(problems).toEqual([
-      "modules/m/ensure.yaml: entry 1 kind can only be related_list",
+      "modules/m/ensure.yaml: entry 1 kind can only be related_list or form_field",
       "modules/m/ensure.yaml: entry 2 needs table, view, list and note",
       "modules/m/ensure.yaml: entry 3 needs table, view, list and note",
     ]);
     const notAList: string[] = [];
     ensureFactsOf("m", "modules/m/ensure.yaml", { kind: "related_list" }, notAList);
     expect(notAList).toEqual([
-      "modules/m/ensure.yaml: a list of { kind, table, view, list, note }",
+      "modules/m/ensure.yaml: a list of { kind, table, view, list or field, note }",
     ]);
   });
 });
@@ -159,7 +164,9 @@ describe("the Fluent a module's facts become", () => {
       [{ ...FACT, kind: "related_list", id: "3ca1ca8f29547f4dc1502e09484e17e7" }],
       problems,
     );
-    expect(kept && ensureEntryId("itsm", kept)).toBe("3ca1ca8f29547f4dc1502e09484e17e7");
+    expect(kept && isListFact(kept) && ensureEntryId("itsm", kept)).toBe(
+      "3ca1ca8f29547f4dc1502e09484e17e7",
+    );
     ensureFactsOf(
       "m",
       "modules/m/ensure.yaml",

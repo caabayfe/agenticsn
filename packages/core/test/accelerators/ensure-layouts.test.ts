@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { type EnsureFact, readLayouts } from "@snagentic/core";
+import { type ListFact, readLayouts } from "@snagentic/core";
 import { fakeInstance } from "../support/fake-instance";
 
 // ADR-0042: a fact's layout is read live, by table and view, in the global domain.
 
 const signal = new AbortController().signal;
-const fact = (view: string, table = "incident"): EnsureFact => ({
+const fact = (view: string, table = "incident"): ListFact => ({
   capability: "incident-relations",
   kind: "related_list",
   table,

@@ -146,6 +146,80 @@ describe("accelerator install (ADR-0038)", () => {
     ]);
   });
 
+  it("reads the layouts and form sections its modules add to from the instance, live (ADR-0042)", async () => {
+    const SOW = "f5c0a49877413010dc2c885d9f5a999e";
+    const installed = await installing({
+      sys_ui_view: [{ sys_id: SOW, name: "sow" }],
+      sys_ui_section: [
+        {
+          sys_id: "s1",
+          name: "sc_task",
+          view: SOW,
+          caption: "Catalog task",
+          sys_domain: "global",
+          sys_user: "",
+          sys_scope: "global",
+        },
+      ],
+      sys_ui_element: [{ sys_id: "e1", sys_ui_section: "s1", element: "comments", position: "0" }],
+    });
+    const files = new Map([
+      [
+        "accelerator.yaml",
+        JSON.stringify({ id: "forms", version: "0.1.0", requires: { snagentic: ">=2.0.0" } }),
+      ],
+      ["modules/base/module.yaml", JSON.stringify({ label: "Forms: base" })],
+      ["modules/base/source/global/src/fluent/base.now.ts", "// base"],
+      [
+        "modules/base/ensure.yaml",
+        JSON.stringify([
+          {
+            kind: "related_list",
+            table: "sc_task",
+            view: "sow",
+            list: "task_sla.task",
+            note: "SLAs",
+          },
+          {
+            kind: "form_field",
+            table: "sc_task",
+            view: "sow",
+            section: "Catalog task",
+            field: "comments",
+            note: "compose",
+          },
+        ]),
+      ],
+    ]);
+    const packs = {
+      ids: async () => ["forms"],
+      files: async () => files,
+      parse: (text: string) => JSON.parse(text),
+    };
+    const read: string[] = [];
+    const reader = installed.instance.reader;
+    const recording = {
+      ...reader,
+      query: (request: Parameters<typeof reader.query>[0], signal: AbortSignal) => {
+        read.push(String(request.table));
+        return reader.query(request, signal);
+      },
+    };
+    const context = {
+      ...installed.context,
+      packs,
+      workspaceFiles: fsWorkspaceFiles,
+      connections: { open: () => recording },
+    };
+    const input = { pack: "forms", instance: "pdi", demo: true };
+    const { output: plan } = await executeUseCase(acceleratorInstall, input, context);
+    const planId = (plan as { planId: string }).planId;
+    await executeUseCase(acceleratorInstall, { ...input, confirm: planId }, context);
+    expect(read).toContain("sys_ui_related_list");
+    expect(read).toContain("sys_ui_section");
+    expect(read).toContain("sys_ui_element");
+  });
+
   it("refuses a confirmation that is not the current plan's id", async () => {
     const { context } = await installing();
     const run = executeUseCase(

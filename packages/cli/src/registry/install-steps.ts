@@ -103,15 +103,29 @@ function deliverySteps(
   };
 }
 
+// The workspace's project for a scope, scaffolded when missing, with the files it made.
+async function projectFor(
+  context: UseCaseContext,
+  root: string,
+  scope: { readonly name: string; readonly sysId: string },
+) {
+  const { workspace } = context.authoring(root);
+  const existing = await workspace.project(scope.name);
+  if (existing !== null) return { path: existing.path, written: [] };
+  const made = await workspace.scaffold(scope);
+  const files = ["now.config.json", "package.json", ".gitignore"];
+  return { path: made.path, written: files.map((f) => `${made.path}/${f}`) };
+}
+
 // An install's steps as the use cases that already do them (ADR-0038, item 2): no logic here,
 // only each use case's input and the part of its output the install needs. Completing update
-// sets and reading layouts have no use case of their own: the install wires them on its
-// connection.
+// sets and reading layouts and sections have no use case of their own: the install wires them
+// on its connection.
 export function installSteps(
   context: UseCaseContext,
   where: { readonly root: string; readonly instance: InstanceName; readonly pack: string },
   call: CallUseCase,
-): Omit<InstallSteps, "completeUpdateSets" | "layouts"> {
+): Omit<InstallSteps, "completeUpdateSets" | "layouts" | "sections"> {
   const instance = String(where.instance);
   const delivery = () => context.delivery(where.root, where.instance);
   return {
@@ -141,6 +155,7 @@ export function installSteps(
       const out = await call(takeOver, {
         instance,
         records: records.map((r) => `${r.table}:${r.sysId}`),
+        restated: records.filter((r) => r.restated).map((r) => `${r.table}:${r.sysId}`),
       });
       const ledgers = [...new Set(out.taken.map((r) => `${r.project}/${LEDGER_FILE}`))];
       if (ledgers.length > 0) {
@@ -162,6 +177,7 @@ export function installSteps(
         ...(source.kind === "demo" ? { demo: true } : { data: source.directory }),
         ...(domain === null ? {} : { domain }),
       }),
+    project: (scope) => projectFor(context, where.root, scope),
     async writeFile(path, text) {
       await context.workspaceFiles.write(join(where.root, path), text);
     },

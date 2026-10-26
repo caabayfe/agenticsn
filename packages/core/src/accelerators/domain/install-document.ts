@@ -1,3 +1,4 @@
+import { isFormFieldFact, isListFact } from "./ensure";
 import { dataSection, fieldsSection, table } from "./install-document-sections";
 import type {
   InstallPlan,
@@ -91,6 +92,7 @@ function modules(plan: InstallPlan): string[] {
       ]),
     ),
     ...layouts(plan),
+    ...formFields(plan),
     ...leftovers(plan),
   ];
 }
@@ -112,7 +114,9 @@ function skippedSection(plan: InstallPlan): string[] {
 // Facts about layouts the modules add to (ADR-0042): found by table and view when each module is
 // delivered, after any plugin activation; a list already there is left as it is.
 function layouts(plan: InstallPlan): string[] {
-  const facts = plan.modules.flatMap((m) => m.ensures.map((f) => ({ ...f, module: m.id })));
+  const facts = plan.modules.flatMap((m) =>
+    m.ensures.filter(isListFact).map((f) => ({ ...f, module: m.id })),
+  );
   if (facts.length === 0) return [];
   return [
     "",
@@ -121,6 +125,29 @@ function layouts(plan: InstallPlan): string[] {
     ...table(
       ["Module", "Table and view", "Adds", "Why"],
       facts.map((f) => [f.module, `${f.table}, ${f.view}`, `related list ${f.list}`, f.note]),
+    ),
+  ];
+}
+
+// Fields the modules put on forms they do not own (ADR-0042 form_field).
+function formFields(plan: InstallPlan): string[] {
+  const facts = plan.modules.flatMap((m) =>
+    m.ensures.filter(isFormFieldFact).map((f) => ({ ...f, module: m.id })),
+  );
+  if (facts.length === 0) return [];
+  return [
+    "",
+    "**Fields the modules add to forms**, found by table, view and section when each module is delivered. Each section is restated whole as the instance holds it then, the client's own fields kept, with the module's field added; a field already on the form is left where it is, and a section the instance lacks is skipped. An update set holding a section replaces that section where it is committed: install the accelerator on each instance rather than moving these update sets by hand.",
+    "",
+    ...table(
+      ["Module", "Table and view", "Section", "Adds", "Why"],
+      facts.map((f) => [
+        f.module,
+        `${f.table}, ${f.view}`,
+        f.section === "" ? "(first)" : f.section,
+        f.after === "" ? f.field : `${f.field} after ${f.after}`,
+        f.note,
+      ]),
     ),
   ];
 }

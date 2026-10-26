@@ -1,4 +1,10 @@
-import type { InstallJournal, InstallRecord, InstallSteps, ListState } from "@snagentic/core";
+import type {
+  InstallJournal,
+  InstallRecord,
+  InstallSteps,
+  ListState,
+  SectionState,
+} from "@snagentic/core";
 
 // An install's steps and journal in memory: each step is recorded as a call, in order.
 export function fakeSteps(
@@ -10,6 +16,9 @@ export function fakeSteps(
     customized?: string[];
     absent?: string[];
     layout?: ListState;
+    section?: SectionState;
+    // Scopes the workspace has no project for yet.
+    noProject?: string[];
   } = {},
 ) {
   const calls: string[] = [];
@@ -33,7 +42,7 @@ export function fakeSteps(
     takeOver: async (records) => {
       calls.push(`take-over ${records.length}`);
       const customized = records
-        .filter((r) => (options.customized ?? []).includes(r.sysId))
+        .filter((r) => (options.customized ?? []).includes(r.sysId) && !r.restated)
         .map((r) => `${r.table} ${r.sysId}`);
       const absent = records
         .filter((r) => (options.absent ?? []).includes(r.sysId))
@@ -94,6 +103,29 @@ export function fakeSteps(
       return facts.map(
         () => options.layout ?? { container: null, view: "Default view", entries: [] },
       );
+    },
+    sections: async (facts) => {
+      calls.push(`sections ${facts.length}`);
+      return facts.map(
+        (f) =>
+          options.section ?? {
+            sysId: null,
+            scope: { name: "global", sysId: "global" },
+            table: f.table,
+            view: f.view,
+            caption: f.section,
+            title: "",
+            header: "",
+            elements: [],
+            onView: [],
+          },
+      );
+    },
+    project: async (scope) => {
+      calls.push(`project ${scope.name}`);
+      const path = `source/${scope.name}`;
+      const made = (options.noProject ?? []).includes(scope.name);
+      return { path, written: made ? [`${path}/now.config.json`, `${path}/package.json`] : [] };
     },
     writeFile: async (path, text) => {
       files.set(path, text);

@@ -6,10 +6,14 @@ import {
   type EnsureFact,
   ensureContainerSource,
   ensureSource,
+  isFormFieldFact,
+  isListFact,
+  type ListFact,
   type ListState,
 } from "../domain/ensure";
 import type { Adoption } from "../domain/materialize";
 import type { InstallSteps } from "../ports";
+import { ensureForms } from "./ensure-forms";
 
 // Ensure rules at install time (ADR-0042): the layouts a module adds to are read live, after any
 // plugin activation, and its lists to add are generated as Fluent in the module's build.
@@ -30,7 +34,7 @@ async function viewId(reader: InstanceReader, view: string, signal: AbortSignal)
 // its entries (read through the keyset pager, ADR-0016).
 async function layoutOf(
   reader: InstanceReader,
-  fact: EnsureFact,
+  fact: ListFact,
   signal: AbortSignal,
 ): Promise<ListState> {
   const view = await viewId(reader, fact.view, signal);
@@ -67,7 +71,7 @@ async function layoutOf(
 // The layouts the facts name, one per fact in order.
 export async function readLayouts(
   reader: InstanceReader,
-  facts: readonly EnsureFact[],
+  facts: readonly ListFact[],
   signal: AbortSignal,
 ): Promise<ListState[]> {
   const states: ListState[] = [];
@@ -75,14 +79,31 @@ export async function readLayouts(
   return states;
 }
 
-// The layouts the modules add to (ADR-0042): each fact read live after the components, so a
-// plugin that replaced a layout is found by table and view; the lists to add become a generated
-// Fluent file per module, committed, and each container they add to is taken over like an
-// adopted record (a container the client customized stops for review).
+type EnsureSteps = Pick<InstallSteps, "layouts" | "sections" | "project" | "writeFile" | "commit">;
+
+// The layouts and forms the modules add to (ADR-0042): related lists, then form fields.
 export async function ensureLayouts(
-  deps: { readonly steps: Pick<InstallSteps, "layouts" | "writeFile" | "commit"> },
+  deps: { readonly steps: EnsureSteps },
   pack: string,
   facts: readonly EnsureFact[],
+  signal: AbortSignal,
+): Promise<{ readonly adoptions: Adoption[]; readonly written: readonly string[] }> {
+  const lists = await ensureLists(deps, pack, facts.filter(isListFact), signal);
+  const forms = await ensureForms(deps, pack, facts.filter(isFormFieldFact), signal);
+  return {
+    adoptions: [...lists.adoptions, ...forms.adoptions],
+    written: [...lists.written, ...forms.written],
+  };
+}
+
+// The related lists the modules add to: each fact read live after the components, so a plugin
+// that replaced a layout is found by table and view; the lists to add become a generated Fluent
+// file per module, committed, and each container they add to is taken over like an adopted
+// record (a container the client customized stops for review).
+async function ensureLists(
+  deps: { readonly steps: Pick<InstallSteps, "layouts" | "writeFile" | "commit"> },
+  pack: string,
+  facts: readonly ListFact[],
   signal: AbortSignal,
 ): Promise<{ readonly adoptions: Adoption[]; readonly written: readonly string[] }> {
   if (facts.length === 0) return { adoptions: [], written: [] };

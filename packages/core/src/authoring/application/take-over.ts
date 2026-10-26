@@ -11,7 +11,9 @@ import { readUnits } from "./read-units";
 // (ADR-0038 item 8): a record still as the platform shipped it (no customer update under its
 // update name) is recorded in the ledger as this branch's, so the next plan loads the module's
 // version over it. A record the client customized is refused and nothing is written: merging
-// is the admin's decision, never the install's.
+// is the admin's decision, never the install's. A restated record is the exception: its source
+// is the instance's copy as it is now plus the module's change (a form section a module adds a
+// field to, ADR-0042 form_field), so the client's customization is kept, not overwritten.
 
 export interface TakeOverDependencies {
   readonly reader: InstanceReader;
@@ -23,6 +25,8 @@ export interface TakeOverDependencies {
 export interface TakeOverInput {
   readonly instance: string;
   readonly records: readonly TransformTarget[];
+  // Records among them whose source restates the instance's current copy.
+  readonly restated?: readonly TransformTarget[];
 }
 
 export interface TakenRecord extends TransformTarget {
@@ -106,7 +110,9 @@ export async function takeOver(
   const open = found.filter((m) => !m.owned);
   const nameOf = (m: Match) => m.copy.head["sys_update_name"] ?? "";
   const changed = await customized(deps.reader, open.map(nameOf).filter(Boolean), deps.signal);
-  const taken = open.filter((m) => !changed.has(nameOf(m)));
+  const restated = new Set((input.restated ?? []).map(key));
+  const refused = (m: Match) => changed.has(nameOf(m)) && !restated.has(key(m.target));
+  const taken = open.filter((m) => !refused(m));
   for (const [project, group] of Map.groupBy(taken, (m) => m.project)) {
     const entries = new Map<string, LedgerEntry>(
       group.map((m) => [m.unit.updateName, { build: "", instance: m.copy.version, losses: [] }]),
@@ -123,7 +129,7 @@ export async function takeOver(
     })),
     owned: found.filter((m) => m.owned).map((m) => m.unit.updateName),
     customized: open
-      .filter((m) => changed.has(nameOf(m)))
+      .filter(refused)
       .map((m) => ({ ...m.target, updateName: nameOf(m), project: "" })),
     absent: input.records.filter((target) => !matched.has(key(target))),
   };

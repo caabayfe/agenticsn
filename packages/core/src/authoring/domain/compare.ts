@@ -51,6 +51,11 @@ export type Difference =
       readonly instance: readonly string[];
     };
 
+// A key the build writes as NULL is an empty reference, which the instance reads as "" (a
+// catalog item's variable in no variable set).
+const sameKey = (built: string, actual: string) =>
+  sameValue(built, actual) || (built === "NULL" && actual === "");
+
 // A reference held as its keys, compared key by key with the instance's dot-walked values.
 function keyedDifferences(
   table: string,
@@ -61,7 +66,7 @@ function keyedDifferences(
 ): Difference[] {
   return [...keys].flatMap(([key, built]): Difference[] => {
     const actual = instance[`${field}.${key}`];
-    return actual === undefined || sameValue(built, actual)
+    return actual === undefined || sameKey(built, actual)
       ? []
       : [{ kind: "field", table, row, field: `${field}.${key}`, built, instance: actual }];
   });

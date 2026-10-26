@@ -38,10 +38,17 @@ const KNOWN_FILE_FIELDS: Readonly<Record<string, Readonly<Record<string, string>
   sp_angular_provider: { script: "js" },
 };
 
+// A catalog item's version, which the platform raises on every save (pdi2, 2026-10-26).
+const CATALOG_VERSION = new Set(["version"]);
+
 // Fields the platform rewrites on save, whatever was sent: ServiceNow generates an ACL's
 // description from its operation, table and roles.
 const PLATFORM_WRITTEN_FIELDS: Readonly<Record<string, ReadonlySet<string>>> = {
   sys_security_acl: new Set(["description"]),
+  sc_cat_item: CATALOG_VERSION,
+  sc_cat_item_producer: CATALOG_VERSION,
+  sc_cat_item_guide: CATALOG_VERSION,
+  sc_cat_item_content: CATALOG_VERSION,
 };
 
 export function platformWritten(className: string, field: string): boolean {

@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.11.3] - 2026-10-26
+
+An accelerator install runs through modules that add tables without stopping, and a failed
+build says why.
+
 ### Fixed
 
 - A push loads a record it created once more when it reads back otherwise, such as a new table

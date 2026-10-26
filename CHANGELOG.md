@@ -4,12 +4,25 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-10-26
+
+Pulls redact high-confidence secrets before writing them, adoption refuses secret-bearing
+output, and existing mirrors are migrated once.
+
 ### Changed
 
 - A unit that reads back otherwise after a push now says why: each field with what the build
   loaded and what the instance holds (`sc_cat_item.version: built "1", instance "3"`), in push's
   output and in the reason an accelerator install stops. It said only "not applied as built:
   check them on the instance".
+
+### Security
+
+- Pull redacts private keys, authorization tokens, cloud and provider credentials, URL
+  credentials, and JWTs before hashing or writing instance-derived files. Findings expose only
+  sanitized paths and pattern IDs, and a resumable one-time migration rewrites existing mirrors.
+- Adopt refuses rebuilt units or generated draft files containing the same high-confidence
+  secret patterns before it writes source files.
 
 ## [2.12.0] - 2026-10-26
 

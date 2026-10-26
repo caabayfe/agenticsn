@@ -424,8 +424,10 @@ the section; D4 the global domain's section only; D5 ticket fields later.
   taken off the restated section only when its sys_id is the one that module derives for that
   field and none of its facts makes it any more: the client's elements and other modules' never
   match. A field moved to another section is added there although the view still shows it where
-  it was. The platform replaces a section's elements with those of its update (the live test
-  checks it).
+  it was. Live on pdi2 (2026-10-26, spike workspace, update set "snagentic: spike form-field"):
+  problem_task "Analysis Information" restated without `u_acc_rca_method` was loaded, push read it
+  back as built and a new plan had nothing to push, so the platform deletes an element its section
+  update leaves out; restated again with it, the element came back under its sys_id.
 - Not yet: removal for related lists (a dropped list fact leaves its entry; the module's
   generated file keeps the last entries), and the install plan does not list removals before the
   run: the record is read when the module is delivered.

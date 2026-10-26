@@ -4,6 +4,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.15.1] - 2026-10-26
+
+A pull removes the records a push deleted, and the install plan lists the records it deletes.
+
 ### Fixed
 
 - A pull removes from the mirror the records a push deleted. The platform keeps no deletion record

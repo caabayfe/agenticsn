@@ -12,6 +12,7 @@ import {
 } from "../domain/install-plan";
 import type { Manifest } from "../domain/manifest-types";
 import { materialize } from "../domain/materialize";
+import { deletionsOf } from "../domain/module-deletions";
 import { moduleOf } from "../domain/pack-layout";
 import type { PreflightReport } from "../domain/preflight";
 import { afterActivation, fieldIssues, requiredFields } from "../domain/required-fields";
@@ -85,6 +86,7 @@ function plannedModules(
       files: result.files.map((f) => f.path),
       adoptions: result.adoptions,
       ensures: result.ensures,
+      deletions: result.files.flatMap((f) => deletionsOf(f.text)),
     };
   });
   return { modules, problems };

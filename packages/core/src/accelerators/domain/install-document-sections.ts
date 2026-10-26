@@ -1,7 +1,7 @@
 import type { InstallPlan, PlannedField } from "./install-plan";
 
 // Sections of the install plan document (ADR-0038, item 2.1): the platform fields the modules
-// read, and the data the install loads.
+// read, the records they delete, and the data the install loads.
 
 export const table = (head: readonly string[], rows: readonly (readonly string[])[]) =>
   rows.length === 0
@@ -88,4 +88,18 @@ function domainNote(plan: InstallPlan): string[] {
         "",
         `The instance does not separate data by domain: these columns are left out: ${columns}.`,
       ];
+}
+
+// Records the modules' source deletes (Now.del): the pack's own, such as a test step it replaced,
+// deleted where the instance still holds them. A record a plugin ships is never deleted (ADR-0038
+// section 8).
+export function deletionsSection(plan: InstallPlan): string[] {
+  const rows = plan.modules.flatMap((m) => m.deletions.map((d) => [m.id, d.table, d.sysId]));
+  if (rows.length === 0) return [];
+  return [
+    "",
+    "**Records the modules delete**, the pack's own records its source removes, deleted where the instance still holds them (none of the platform's):",
+    "",
+    ...table(["Module", "Table", "sys_id"], rows),
+  ];
 }

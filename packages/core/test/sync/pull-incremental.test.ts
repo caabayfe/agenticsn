@@ -156,12 +156,14 @@ describe("pullIncremental: records", () => {
     expect([...files.keys()].filter((path) => path.startsWith(FLOW))).toEqual([]);
   });
 
-  it("reports records that vanished without a deletion record", async () => {
+  it("removes records that vanished without a deletion record, by verifying the counts", async () => {
     const { incremental, tables, files } = await pulledInstance();
+    // A push's update-set load deletes records without a deletion record (pdi2, 2026-10-26).
     tables["sys_script"] = tables["sys_script"]?.slice(0, 1) ?? [];
     const { summary } = await incremental();
     expect(summary.lostRecords).toBe(1);
-    expect(files.has(`global/sys_script/two--${sid(2)}.yaml`)).toBe(true);
+    expect(summary.verification?.removed).toBe(1);
+    expect(files.has(`global/sys_script/two--${sid(2)}.yaml`)).toBe(false);
   });
 
   it("brings in records a plugin installed with their packaged timestamps, as new ones", async () => {

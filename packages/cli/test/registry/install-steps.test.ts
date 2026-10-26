@@ -20,7 +20,17 @@ const ANSWERS: Readonly<Record<string, unknown>> = {
     collisions: [{ record: "sys_y_2", heldBy: [{ updateSetName: "someone's work" }] }],
   },
   push: {
-    units: [{}, {}, {}],
+    units: [
+      { applied: true, refused: null, mismatches: [] },
+      { applied: false, refused: "permission denied", mismatches: [] },
+      {
+        table: "sc_cat_item",
+        name: "Peripherals",
+        applied: false,
+        refused: null,
+        mismatches: ['sc_cat_item.version: built "1", instance "3"', "x"],
+      },
+    ],
     notApplied: 0,
     notCaptured: 1,
     updateSets: [{ name: "snagentic: L" }],
@@ -125,6 +135,7 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
       notApplied: 0,
       notCaptured: 1,
       updateSets: ["snagentic: L"],
+      mismatched: ['sc_cat_item Peripherals: sc_cat_item.version: built "1", instance "3"; x'],
       refused: [
         { table: "pa_indicators", reason: "permission denied", records: ["ACC MTTR"], action: "a" },
       ],

@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- A unit that reads back otherwise after a push now says why: each field with what the build
+  loaded and what the instance holds (`sc_cat_item.version: built "1", instance "3"`), in push's
+  output and in the reason an accelerator install stops. It said only "not applied as built:
+  check them on the instance".
+
 ## [2.12.0] - 2026-10-26
 
 An accelerator install shows where it is and how much is left, and catalog items read back as

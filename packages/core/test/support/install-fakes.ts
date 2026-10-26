@@ -63,6 +63,10 @@ export function fakeSteps(
         notApplied: notApplied + skipped,
         notCaptured: skipped,
         updateSets: [`snagentic: ${label}`],
+        mismatched: Array.from(
+          { length: notApplied },
+          (_, i) => `sys_script_include U${i}: description: built "a", instance "b"`,
+        ),
         refused,
       };
     },

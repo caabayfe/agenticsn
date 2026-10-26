@@ -36,6 +36,7 @@ describe("push on built units (ADR-0031 item 4)", () => {
         captured: true,
         applied: true,
         refused: null,
+        mismatches: [],
       },
     ]);
     expect(result.notCaptured + result.notApplied).toBe(0);
@@ -171,7 +172,15 @@ describe("push on built units: deletions, flows, global, recovery", () => {
       },
     };
     const result = await pushUnits(platform, { ...QUERY, planId: plan.planId, confirm: true });
-    expect(result.units).toMatchObject([{ operation: "create", applied: false }]);
+    expect(result.units).toMatchObject([
+      {
+        operation: "create",
+        applied: false,
+        mismatches: [
+          'sys_script_include.description: built "Helpers.", instance "Set by the platform."',
+        ],
+      },
+    ]);
     const after = await computeUnitPlan(context.deps, QUERY);
     expect(after.plan.problems).toEqual([]);
     expect(after.plan.units).toMatchObject([{ updateName: SI_UNIT, operation: "load" }]);

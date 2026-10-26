@@ -309,10 +309,39 @@ describe("accelerator install (ADR-0038)", () => {
       "  ✗ module base                      3 s",
       "      the instance refused 2 pa_indicators record(s) (permission denied)",
       "",
-      "Stopped at module base: fix it, then run the same command to resume.",
+      "Stopped at module base, 1 min so far.",
+      "0 of 5 module(s) installed; still to install (5):",
+      "  foundation, incident-core, incident-problem, incident-analytics, major-incident",
+      "Fix it, then run the same command to resume.",
       "Report: report.md",
     ]);
     expect(acceleratorInstall.exitCode(run)).toBe(1);
     expect(acceleratorInstall.exitCode({ ...run, stopped: null })).toBe(0);
+  });
+
+  it("counts the modules installed before and in earlier runs, and names those left", () => {
+    const step = (name: string, outcome: "done" | "skipped" | "stopped", seconds = 60) => ({
+      step: name,
+      outcome,
+      detail: "d",
+      seconds,
+    });
+    const stopped = step("module incident-analytics", "stopped");
+    const steps = [
+      step("modules already installed: foundation, incident-core", "skipped"),
+      step("module incident-problem", "stopped"),
+      step("module incident-problem", "done"),
+      stopped,
+    ];
+    const run = { ...VIEW, reportPath: "report.md", steps, stopped, commit: "c" };
+    expect(acceleratorInstall.render(run, "text").split("\n").slice(-5, -2)).toEqual([
+      "Stopped at module incident-analytics, 4 min so far.",
+      "3 of 5 module(s) installed; still to install (2):",
+      "  incident-analytics, major-incident",
+    ]);
+    const done = { ...run, steps: [steps[0], steps[2]].flatMap((s) => (s ? [s] : [])) };
+    expect(acceleratorInstall.render({ ...done, stopped: null }, "text")).toContain(
+      "Installed in 2 min. Report: report.md",
+    );
   });
 });

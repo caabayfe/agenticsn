@@ -18,11 +18,36 @@ export type CallUseCase = <I extends z.ZodObject, O extends z.ZodObject>(
   input: z.input<I>,
 ) => Promise<z.output<O>>;
 
+// What each use case does for an install, in the admin's words.
+const DOING: Readonly<Record<string, string>> = {
+  activate: "activating the plugin on the instance",
+  pull: "pulling the instance into the mirror",
+  integrate: "merging the mirror into the working branch",
+  add: "copying the module's files into the workspace",
+  "fluent-keys": "generating keys for the new records",
+  "take-over": "taking over the out-of-box records it changes",
+  "plan-push": "building the source and comparing it with the instance",
+  push: "loading the changes into the module's update set",
+  load: "loading the data",
+};
+
+// Use cases whose own progress only restates the line above.
+const RESTATED = new Set(["plan-push", "push"]);
+
+// Each use case shows as a sub-step of the install's step; its own progress goes one level
+// deeper.
 export const callerFor =
   (context: UseCaseContext, run: RunControl): CallUseCase =>
   (useCase, input) => {
-    run.progress({ message: [useCase.group, useCase.name].filter(Boolean).join(" ") });
-    return useCase.handle(useCase.input.parse(input), context, run);
+    const named = [useCase.group, useCase.name].filter(Boolean).join(" ");
+    run.progress({ message: DOING[useCase.name] ?? named, depth: 2 });
+    const nested: RunControl = {
+      signal: run.signal,
+      progress: (event) => {
+        if (!RESTATED.has(useCase.name)) run.progress({ ...event, depth: 3 });
+      },
+    };
+    return useCase.handle(useCase.input.parse(input), context, nested);
   };
 
 // A collision with update sets this install named (an earlier run's, still open) is the

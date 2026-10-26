@@ -20,6 +20,8 @@ export {
   planInstall,
 } from "./application/plan-install";
 export {
+  type InstallPlace,
+  type InstallProgress,
   type InstallResult,
   type InstallRunDependencies,
   installPack,

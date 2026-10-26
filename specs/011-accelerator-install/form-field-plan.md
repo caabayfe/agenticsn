@@ -1,6 +1,7 @@
 # Ensure rules, second kind: fields on shipped forms (ADR-0042 `form_field`)
 
-- Status: plan, for the owner's review (2026-10-25)
+- Status: plan, for the owner's review (2026-10-25); spikes S-FF1, S-FF2, S-FF3 and S-FF5 passed on pdi2
+  the same day, S-FF4 partly (section 5.1)
 - Decision: ADR-0042 (accepted 2026-10-22) already lists `form_field`; this plan is its build. No
   new ADR unless the owner changes a decision in section 7.
 - Builds on: I10 `related_list` (built), F6 take-over, F7 sections matched by caption, F13 and I13
@@ -131,6 +132,33 @@ If S-FF1 fails (the SDK cannot express a section without the whole form), the fa
 SDK's `Form()` restated from the live form with every section, generated the same way, at the cost
 of one generated form file per view instead of per section.
 
+### 5.1 Spike results (pdi2, 2026-10-25)
+
+Run with snagentic 2.10.0 plus I17, from a worktree of the ITSM pack's pdi2 workspace (branch
+`spike/form-field`), through `take-over`, `plan-push` and `push`. Update sets "snagentic: spike
+form-field" and its `[sn_sow_req]` child.
+
+| Spike | Result |
+|---|---|
+| S-FF1 | **Passed.** `Record(sys_ui_section)` with one `Record(sys_ui_element)` per row builds into **one** unit, and the platform captures one "Form Layout" update `sys_ui_section_<id>` with every element inside. No `Form()` needed. A re-plan after the push: nothing to push. |
+| S-FF2 | **Passed.** Problem task, Default view, "Analysis Information" (8 shipped elements) restated with `u_acc_rca_method` after `cause_code`: loaded, the 8 elements keep their sys_ids and order, the new one is at position 1, and the classic form shows "Root cause method" under Cause code. |
+| S-FF3 | **Passed.** Catalog task, view `sow`, section "Catalog task" (17 elements; it has no Notes section) with `comments` after `work_notes`: the workspace compose's More menu offers "Additional comments (sent to the requester)", and a comment posted there is saved on the task (and request-portal copies it to the item, as built). |
+| S-FF4 | **Partly.** The pull already reads sections of other domains: 3 of 7,130 sections on pdi2 are in the Default domain, none on the pack's forms. Not run: which section a user in the Default domain sees when both exist. That needs viewing as a Default-domain user (impersonation, refused here) or switching admin's domain (which other sessions' REST calls as admin would follow). |
+| S-FF5 | **Passed.** The `sn_sow_req` section loaded from a project of that scope into the child update set `[sn_sow_req]`, as S-E did for `sn_sow_inc`. |
+
+What the build must do, from the run:
+- **Field rows leave `type` out.** The SDK types `sys_ui_element.type` and refuses `''`; split
+  markers keep their type (`.split`, `.end_split`, `.begin_split`), and formatters keep `type:
+  'formatter'` and their `sys_ui_formatter`.
+- **The view by name** (`Default view`, `sow`); the SDK resolves it, and the live copy then
+  compares equal.
+- **Take-over first.** `plan-push` refuses an unadopted shipped section; `take-over` records it in
+  the ledger. Decision D1 (restate a customized section) means the install's take-over must accept
+  a customized section for this kind, which it refuses today.
+- The two sections changed by the spike stay on pdi2. They are what the pack wants (the RCA
+  method, the catalog task compose); the pack's `form_field` facts will own them from the first
+  install with this kind.
+
 ## 6. Build, tests and order (about a week after the spikes)
 
 | Step | Work | Tests |
@@ -154,5 +182,5 @@ lines: the kind goes in its own file, `ensure-form.ts`).
 | D1 | A section the client customized: stop for review (as adopted records do), or restate it as it is now with the field added? | Restate as it is now: nothing of the client's is lost, and stopping would block most real instances, whose forms are customized |
 | D2 | Workspace forms in the first slice? | Yes: the catalog task compose gap is the main reason, and S-E already proved the scope route |
 | D3 | Where the field goes when `after` is not on the instance | At the end of the section, said in the plan |
-| D4 | Domains (after S-FF4) | Extend the global section only, as related lists do; a domain's own section is reported, not changed |
+| D4 | Domains (S-FF4 partly run) | Extend the global section only, as related lists do; a domain's own section (the pull sees them) is reported, not changed. To settle what a domain user sees: allow a test as a Default-domain user, or go ahead without it (a domain's own section is reported either way) |
 | D5 | Employee Center ticket fields (`ticket_configuration.info_fields`, today a whole restatement in request-portal) | A later kind, `list_value` ("this comma list contains this value"); not in this slice |

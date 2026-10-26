@@ -1,6 +1,6 @@
 # 0035. Pulls scan what they write for secrets
 
-- Status: Proposed (awaiting the product owner's decision)
+- Status: Accepted (product owner, 2026-10-26)
 - Date: 2026-10-17
 - Requirements: ASR-08 (data protection), ASR-07 (instance scale), ASR-16 (instance load)
 - Relates to: 0034 (typed property values), 0031 (Fluent authoring), 0033 (adopt), security
@@ -31,9 +31,10 @@ high-confidence token shapes find real secrets at almost no cost in false positi
 
 ## Decision
 
-1. **Every file a pull writes is scanned before it is written**: record files, script and other
-   field files, child-row files. The scan is a pure function over canonical text, in the metadata
-   domain, applied where records are rendered. No request to the instance.
+1. **Every instance-derived file a pull writes is scanned before it is written**: record files,
+   script and other field files, child-row files, applications, catalog and operational
+   inventory. The scan is a pure function over canonical text, in the metadata domain, applied
+   where records and documents are rendered. No request to the instance.
 2. **Only high-confidence patterns**, each with an id: private key blocks, AWS access key ids,
    GitHub, Slack and Google API tokens, JWTs, credentials in URLs, and literal tokens in an
    `Authorization` header. A pattern joins the list only after it is measured on a real mirror
@@ -48,7 +49,8 @@ high-confidence token shapes find real secrets at almost no cost in false positi
    is refused, as source must not hold what the mirror doesn't.
 6. **Existing mirrors are scanned once without the instance**: on the first pull after upgrading,
    the committed mirror files are scanned locally and those with a match are rewritten in that
-   pull's commit. Git history keeps the old content: the report says to rotate the credential;
+   pull's commit. A separate `secretScanVersion` in sync state records completion only after the
+   commit succeeds. Git history keeps the old content: the report says to rotate the credential;
    rewriting history stays the user's decision.
 7. ASR-08's fit criterion becomes: "Every file a pull writes is scanned for high-confidence secret
    patterns; matches are redacted before writing and reported."

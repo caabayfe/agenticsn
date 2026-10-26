@@ -67,6 +67,57 @@ describe("GitMirror in incremental mode", () => {
     await mirror.abort();
   });
 
+  it("streams existing YAML as documents and field files as text", async () => {
+    const mirror = await GitMirror.open(await pulled(), PDI, "incremental");
+    const files = [];
+    for await (const file of mirror.existingFiles(ROOT)) files.push(file);
+    expect(files).toContainEqual({
+      kind: "document",
+      path: `${ONE}.children.sys_ui_element.yaml`,
+      document: [{ sys_id: "c" }],
+    });
+    expect(files).toContainEqual({
+      kind: "text",
+      path: `${ONE}.script.js`,
+      text: "one();\n",
+    });
+    expect(() => mirror.baseOf(ROOT, "00000000000000000000000000000001")).toThrow(/prepare/);
+    await mirror.abort();
+  });
+
+  it("rewrites an existing text file in the next pull commit", async () => {
+    const repo = await pulled();
+    const mirror = await GitMirror.open(repo, PDI, "incremental");
+    await mirror.prepare();
+    await mirror.writeText(ROOT, `${ONE}.script.js`, "[redacted:aws-access-key-id]\n");
+    await mirror.finish("redact existing mirror");
+    expect(
+      await runGitOrThrow(["show", `servicenow-remote/pdi:${ROOT}/${ONE}.script.js`], repo),
+    ).toBe("[redacted:aws-access-key-id]\n");
+  });
+
+  it("does not echo a secret from malformed legacy YAML", async () => {
+    const repo = await pulled();
+    const leaked = "AKIAIOSFODNN7EXAMPLE";
+    const old = await GitMirror.open(repo, PDI, "incremental");
+    await old.writeText(ROOT, "legacy.yaml", `value: '${leaked}\n`);
+    await old.finish("malformed legacy YAML");
+    const mirror = await GitMirror.open(repo, PDI, "incremental");
+    const error = await (async () => {
+      try {
+        for await (const _file of mirror.existingFiles(ROOT)) {
+          // Consume the stream so the malformed file is parsed.
+        }
+        return null;
+      } catch (caught) {
+        return caught;
+      }
+    })();
+    expect(String(error)).toContain("could not be parsed");
+    expect(String(error)).not.toContain(leaked);
+    await mirror.abort();
+  });
+
   it("commits only the changes on top of the previous pull", async () => {
     const repo = await pulled();
     const before = (await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], repo)).trim();

@@ -6,6 +6,7 @@ import { SysId } from "../../kernel/sys-id";
 import { TableName } from "../../kernel/table-name";
 import type { Catalog } from "./catalog";
 import { fieldsToRedact, type RedactionPolicy } from "./redaction";
+import { type SecretPatternId, scanSecrets } from "./secret-scan";
 
 export interface ArtifactIdentity {
   readonly sysId: SysId;
@@ -22,7 +23,28 @@ export interface Artifact {
   readonly meta: Readonly<Record<string, string>>;
   readonly fields: Readonly<Record<string, string>>;
   readonly redacted: readonly string[];
+  readonly secretFindings: readonly SecretFieldFinding[];
   readonly hash: string;
+}
+
+export interface SecretFieldFinding {
+  readonly field: string;
+  readonly patterns: readonly SecretPatternId[];
+}
+
+function keepScanned(
+  target: Record<string, string>,
+  field: string,
+  value: string,
+  redacted: string[],
+  findings: SecretFieldFinding[],
+): void {
+  const scanned = scanSecrets(value);
+  target[field] = scanned.text;
+  if (scanned.patterns.length > 0) {
+    redacted.push(field);
+    findings.push({ field, patterns: scanned.patterns });
+  }
 }
 
 export function artifactFromRow(row: Row, catalog: Catalog, policy: RedactionPolicy): Artifact {
@@ -31,15 +53,14 @@ export function artifactFromRow(row: Row, catalog: Catalog, policy: RedactionPol
   const meta: Record<string, string> = {};
   const fields: Record<string, string> = {};
   const redacted: string[] = [];
+  const secretFindings: SecretFieldFinding[] = [];
   for (const [field, value] of Object.entries(row)) {
     if (HASH_EXCLUDED_FIELDS.has(field)) {
-      if (value !== "") {
-        meta[field] = value;
-      }
+      if (value !== "") keepScanned(meta, field, value, redacted, secretFindings);
     } else if (redact.has(field.toLowerCase())) {
       redacted.push(field);
     } else {
-      fields[field] = canonicalText(value);
+      keepScanned(fields, field, canonicalText(value), redacted, secretFindings);
     }
   }
   const identity = {
@@ -48,5 +69,12 @@ export function artifactFromRow(row: Row, catalog: Catalog, policy: RedactionPol
     scope: catalog.scopeNamespace(row["sys_scope"]),
     domain: ScopeName.fromInstance(row["sys_domain"] ?? "global"),
   };
-  return { identity, meta, fields, redacted: redacted.sort(), hash: recordHash(className, fields) };
+  return {
+    identity,
+    meta,
+    fields,
+    redacted: redacted.sort(),
+    secretFindings: secretFindings.sort((a, b) => a.field.localeCompare(b.field)),
+    hash: recordHash(className, fields),
+  };
 }

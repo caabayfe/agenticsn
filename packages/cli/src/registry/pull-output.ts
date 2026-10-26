@@ -1,4 +1,10 @@
-import type { ConnectionStats, IncrementalSummary, PullSummary, ServerCost } from "@snagentic/core";
+import {
+  type ConnectionStats,
+  type IncrementalSummary,
+  type PullSummary,
+  SECRET_PATTERN_IDS,
+  type ServerCost,
+} from "@snagentic/core";
 import { z } from "zod";
 
 export const PullOutput = z.object({
@@ -10,6 +16,12 @@ export const PullOutput = z.object({
   changed: z.boolean(),
   records: z.number(),
   unreadable: z.array(z.string()),
+  secretRedactions: z.array(
+    z.object({
+      path: z.string(),
+      patterns: z.array(z.enum(SECRET_PATTERN_IDS)),
+    }),
+  ),
   watermark: z.string(),
   requests: z.number(),
   retries: z.number(),
@@ -94,13 +106,33 @@ export interface RunFacts {
   readonly serverCost: ServerCost | null;
 }
 
-function common(facts: RunFacts, summary: { unreadable: readonly string[]; watermark: string }) {
+function secretLines(redactions: PullOutput["secretRedactions"]): string[] {
+  if (redactions.length === 0) return [];
+  return [
+    `  warning: ${redactions.length} instance-derived file(s) contained a high-confidence secret and were redacted before writing`,
+    ...redactions.map((redaction) => `    ${redaction.path}: ${redaction.patterns.join(", ")}`),
+    "  remove the secret from the instance and rotate the credential; earlier git history may still contain it",
+  ];
+}
+
+function common(
+  facts: RunFacts,
+  summary: {
+    unreadable: readonly string[];
+    secretRedactions: PullSummary["secretRedactions"];
+    watermark: string;
+  },
+) {
   return {
     instance: facts.instance,
     resumed: facts.resumed,
     commit: facts.commit,
     changed: facts.changed,
     unreadable: [...summary.unreadable],
+    secretRedactions: summary.secretRedactions.map((redaction) => ({
+      path: redaction.path,
+      patterns: [...redaction.patterns],
+    })),
     watermark: summary.watermark,
     requests: facts.stats.requests,
     retries: facts.stats.retries,
@@ -176,6 +208,7 @@ function renderFull(output: PullOutput, full: NonNullable<PullOutput["full"]>): 
     `pulled ${output.instance}${output.resumed ? " (resumed)" : ""} in ${output.seconds} s -> ${output.commit.slice(0, 10)} on servicenow-remote/${output.instance}`,
     `  ${output.records} records in ${full.classes} classes, ${full.childRows} child rows, ${full.operationalRows} inventory rows, ${full.skippedRows} skipped`,
     ...malformedLine(full.malformedValues),
+    ...secretLines(output.secretRedactions),
     load(output),
     `  time: catalog ${phases.catalog} s, records ${phases.records} s, child rows ${phases.children} s, inventory ${phases.operational} s, commit ${phases.commit} s; ${output.requestSeconds} s in requests; peak memory ${output.peakMemoryMb} MB`,
   ];
@@ -230,6 +263,7 @@ function renderIncremental(
       ? [`  read again for the new redaction rules: ${changes.rereadForRedaction.join(", ")}`]
       : []),
     ...malformedLine(changes.malformedValues),
+    ...secretLines(output.secretRedactions),
     ...(changes.inventoryRefreshed.length > 0
       ? [`  inventory listed again: ${changes.inventoryRefreshed.join(", ")}`]
       : []),

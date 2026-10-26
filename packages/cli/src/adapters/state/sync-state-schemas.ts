@@ -1,4 +1,9 @@
-import type { CatalogData, PullCheckpoint, SyncState } from "@snagentic/core";
+import {
+  type CatalogData,
+  type PullCheckpoint,
+  SECRET_PATTERN_IDS,
+  type SyncState,
+} from "@snagentic/core";
 import { z } from "zod";
 
 // The shapes of the files in .snagentic/<name>/, as JsonSyncStateStore writes them. Fields
@@ -10,6 +15,13 @@ const TextMap = z.record(z.string(), z.string());
 const Fingerprints = z.record(
   z.string(),
   z.object({ count: z.number(), maxUpdatedOn: z.string().nullable() }),
+);
+
+const SecretRedactions = z.array(
+  z.object({
+    path: z.string(),
+    patterns: z.array(z.enum(SECRET_PATTERN_IDS)),
+  }),
 );
 
 export const CatalogFile: z.ZodType<CatalogData> = z.looseObject({
@@ -25,6 +37,8 @@ export const CheckpointFile: z.ZodType<PullCheckpoint> = z.looseObject({
   fingerprints: Fingerprints.exactOptional(),
   inventory: TextMap.exactOptional(),
   redactionVersion: z.number().exactOptional(),
+  secretRedactions: SecretRedactions.exactOptional(),
+  secretScanVersion: z.number().exactOptional(),
 });
 
 export const SyncStateFile: z.ZodType<SyncState> = z.looseObject({
@@ -35,4 +49,5 @@ export const SyncStateFile: z.ZodType<SyncState> = z.looseObject({
   unreadable: z.array(z.string()).exactOptional(),
   hiddenCounts: z.record(z.string(), z.number()).exactOptional(),
   redactionVersion: z.number().exactOptional(),
+  secretScanVersion: z.number().exactOptional(),
 });

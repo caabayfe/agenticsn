@@ -128,8 +128,10 @@ export async function pulledInstance(shape: (tables: Record<string, Row[]>) => v
     statistics: instance.reader,
     records: mirror,
     state: state.store,
+    instanceRoot: "meta",
     metadataRoot: "meta",
     operationalRoot: "ops",
+    catalogPath: ".snagentic/pdi/catalog.json",
     policy: DEFAULT_REDACTION,
     now: () => now,
   };

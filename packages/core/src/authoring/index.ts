@@ -66,7 +66,7 @@ export {
   type UnitAction,
   type UnitRecord,
 } from "./domain/unit";
-export { unitSecrets } from "./domain/unit-secrets";
+export { draftFileSecrets, unitSecrets } from "./domain/unit-secrets";
 export {
   type ChildSpec,
   childLink,

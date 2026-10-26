@@ -1,5 +1,6 @@
 import { SnagenticError } from "../../kernel/errors";
 import { Catalog } from "../../metadata/domain/catalog";
+import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domain/secret-scan";
 import { changesSince, type FingerprintChange } from "../domain/fingerprint";
 import type { InventorySource } from "../domain/inventory";
 import { CHILD_TABLES } from "../domain/pull-scope";
@@ -13,6 +14,7 @@ import { pullApplications } from "./pull-applications";
 import { type PullProgress, rawTimestamp } from "./pull-dependencies";
 import { pullOperational } from "./pull-operational";
 import type { RedactionReread } from "./redaction-reread";
+import { migrateExistingSecrets, SECRET_SCAN_VERSION } from "./secret-migration";
 import type { RecordVerification, VerifiedRecords } from "./verify-records";
 
 export class FullPullRequiredError extends SnagenticError {
@@ -47,6 +49,7 @@ export interface IncrementalSummary {
   // pull --verify only: what the count comparison found and repaired.
   readonly verification: (RecordVerification & { recovered: number; removed: number }) | null;
   readonly unreadable: readonly string[];
+  readonly secretRedactions: readonly SecretRedaction[];
   readonly watermark: string;
   // The sync state to store once the mirror commit is durable (see completePull).
   readonly next: SyncState;
@@ -66,6 +69,13 @@ function summarize(
   unreadable: readonly string[],
 ): Omit<IncrementalSummary, "watermark" | "next" | "inventoryRefreshed"> {
   const { records } = step;
+  const secretRedactions: SecretRedaction[] = [
+    ...records.secretRedactions,
+    ...step.catalogSecretRedactions,
+    ...(verified?.records.secretRedactions ?? []),
+    ...reread.secretRedactions,
+    ...children.secretRedactions,
+  ];
   return {
     changedSources: [...changes].filter(([, change]) => change !== "unchanged").map(([t]) => t),
     catalogRefreshed: step.catalogRefreshed || (verified?.catalogRefreshed ?? false),
@@ -88,6 +98,7 @@ function summarize(
             removed: verified.records.deleted,
           },
     unreadable: [...new Set([...unreadable, ...children.unreadable])].sort(),
+    secretRedactions: sortSecretRedactions(secretRedactions),
   };
 }
 
@@ -103,7 +114,7 @@ async function applicationsIfMoved(
 ) {
   return stale.some((source) => source.table === "sys_scope")
     ? pullApplications(deps, catalog, signal, deps.records)
-    : { applications: 0, unreadable: [] };
+    : { applications: 0, unreadable: [], secretRedactions: [] };
 }
 
 function nextState(
@@ -118,6 +129,7 @@ function nextState(
   return {
     ...state,
     redactionVersion,
+    secretScanVersion: SECRET_SCAN_VERSION,
     watermark: startedAt,
     fingerprints,
     // A signal not read this time keeps the signature it had.
@@ -156,7 +168,34 @@ async function pullBesideRecords(
   );
   const applications = await applicationsIfMoved(deps, catalog, stale, signal);
   const operational = await pullOperational(deps, catalog, signal, stale);
-  return { children, unreadable: [...applications.unreadable, ...operational.unreadable] };
+  return {
+    children,
+    unreadable: [...applications.unreadable, ...operational.unreadable],
+    secretRedactions: sortSecretRedactions([
+      ...applications.secretRedactions,
+      ...operational.secretRedactions,
+    ]),
+  };
+}
+
+async function prepareIncremental(
+  deps: IncrementalDependencies,
+  instance: string,
+  signal: AbortSignal,
+) {
+  const state = await deps.state.readState();
+  const stored = await deps.state.readCatalog();
+  if (state === null || stored === null) throw new FullPullRequiredError(instance);
+  const migration = await migrateExistingSecrets(
+    deps.records,
+    deps.instanceRoot,
+    deps.catalogPath,
+    stored,
+    state,
+    signal,
+  );
+  if (migration.catalogChanged) await deps.state.writeCatalog(migration.catalog);
+  return { state, catalog: new Catalog(migration.catalog), migration };
 }
 
 export async function pullIncremental(
@@ -166,11 +205,7 @@ export async function pullIncremental(
   progress: (event: PullProgress) => void = () => {},
   options: PullOptions = {},
 ): Promise<IncrementalSummary> {
-  const state = await deps.state.readState();
-  const stored = await deps.state.readCatalog();
-  if (state === null || stored === null) {
-    throw new FullPullRequiredError(instance);
-  }
+  const { state, catalog, migration } = await prepareIncremental(deps, instance, signal);
   const verify = options.verify === true;
   const startedAt = rawTimestamp(deps.now());
   progress({ message: "checking for changes" });
@@ -183,7 +218,7 @@ export async function pullIncremental(
   const since = changesSince(state.watermark);
   const run = {
     state,
-    catalog: new Catalog(stored),
+    catalog,
     fingerprints: current.fingerprints,
     change: changes.get("sys_metadata") ?? "changed",
     window: { since, previous: state.watermark, current: startedAt },
@@ -199,8 +234,14 @@ export async function pullIncremental(
     signal,
   );
   const unreadable = [...current.unreadable, ...records.unreadable, ...rest.unreadable];
+  const summary = summarize(fingerprintChanges, step, verified, reread, rest.children, unreadable);
   return {
-    ...summarize(fingerprintChanges, step, verified, reread, rest.children, unreadable),
+    ...summary,
+    secretRedactions: sortSecretRedactions([
+      ...migration.secretRedactions,
+      ...summary.secretRedactions,
+      ...rest.secretRedactions,
+    ]),
     inventoryRefreshed: stale.map((source) => source.file),
     watermark: startedAt,
     next: nextState(

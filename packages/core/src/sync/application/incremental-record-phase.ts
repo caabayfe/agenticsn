@@ -1,4 +1,5 @@
 import type { Catalog } from "../../metadata/domain/catalog";
+import type { SecretRedaction } from "../../metadata/domain/secret-scan";
 import type { FingerprintChange } from "../domain/fingerprint";
 import { unexplainedLoss } from "../domain/record-changes";
 import type { Fingerprints, SyncState } from "../ports";
@@ -20,11 +21,13 @@ const NO_RECORD_CHANGES: RecordOutcome = {
   malformedValues: 0,
   unreadable: [],
   unwritten: [],
+  secretRedactions: [],
 };
 
 export interface RecordStep {
   readonly catalog: Catalog;
   readonly catalogRefreshed: boolean;
+  readonly catalogSecretRedactions: readonly SecretRedaction[];
   readonly lostRecords: number;
   readonly records: RecordOutcome;
 }
@@ -58,7 +61,13 @@ async function recordStep(
   progress: (event: PullProgress) => void,
 ): Promise<RecordStep> {
   if (change === "unchanged") {
-    return { catalog, catalogRefreshed: false, lostRecords: 0, records: NO_RECORD_CHANGES };
+    return {
+      catalog,
+      catalogRefreshed: false,
+      catalogSecretRedactions: [],
+      lostRecords: 0,
+      records: NO_RECORD_CHANGES,
+    };
   }
   const counts = {
     before: state.fingerprints?.["sys_metadata"]?.count,

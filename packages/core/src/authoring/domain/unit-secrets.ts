@@ -1,6 +1,7 @@
 import type { Catalog } from "../../metadata/domain/catalog";
 import { deniedAncestor } from "../../metadata/domain/field-rules";
 import { fieldsToRedact, type RedactionPolicy } from "../../metadata/domain/redaction";
+import { scanSecrets } from "../../metadata/domain/secret-scan";
 import type { BuiltUnit, UnitRecord } from "./unit";
 
 // What a built unit would put in source that a pull keeps out of the mirror (security finding
@@ -38,7 +39,25 @@ function rowSecrets(
     return [`${updateName}: ${row.table} is never kept`];
   }
   const redacted = fieldsToRedact(catalog, row.table, row.fields, policy);
-  return Object.entries(row.fields)
+  const protectedFields = Object.entries(row.fields)
     .filter(([field, value]) => value !== "" && redacted.has(field.toLowerCase()))
     .map(([field]) => `${updateName}: ${field}`);
+  const detected = Object.entries(row.fields).flatMap(([field, value]) =>
+    redacted.has(field.toLowerCase())
+      ? []
+      : scanSecrets(value).patterns.map((pattern) => `${updateName}: ${field} contains ${pattern}`),
+  );
+  return [...protectedFields, ...detected];
+}
+
+// Checks the exact source files the SDK would write, including content not represented by
+// its rebuilt units. Paths are scanned too so an error never echoes a credential-shaped name.
+export function draftFileSecrets(files: ReadonlyMap<string, string>): string[] {
+  return [...files]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .flatMap(([path, content]) => {
+      const safePath = scanSecrets(path);
+      const patterns = new Set([...safePath.patterns, ...scanSecrets(content).patterns]);
+      return [...patterns].map((pattern) => `${safePath.text}: ${pattern}`);
+    });
 }

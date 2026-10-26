@@ -1,5 +1,6 @@
 import { AccessDeniedError } from "../../index-errors";
 import type { Catalog } from "../../metadata/domain/catalog";
+import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domain/secret-scan";
 import { classesToPull } from "../domain/pull-scope";
 import { FIRST_REDACTION_VERSION, rereadsBetween } from "../domain/redaction-upgrades";
 import type { SyncState } from "../ports";
@@ -13,6 +14,7 @@ export interface RedactionReread {
   readonly records: number;
   readonly malformedValues: number;
   readonly unreadable: readonly string[];
+  readonly secretRedactions: readonly SecretRedaction[];
 }
 
 // When the redaction policy is newer than the mirror's, lists again the classes the change
@@ -30,11 +32,13 @@ export async function rereadForRedaction(
   const unreadable: string[] = [];
   let records = 0;
   let malformedValues = 0;
+  const secretRedactions: SecretRedaction[] = [];
   for (const table of rereads.classes.filter((name) => mirrored.has(name))) {
     try {
       const outcome = await pullClass(table, deps, catalog, signal);
       records += outcome.records;
       malformedValues += outcome.malformed;
+      secretRedactions.push(...outcome.secretRedactions);
     } catch (error) {
       if (!(error instanceof AccessDeniedError)) {
         throw error;
@@ -48,5 +52,6 @@ export async function rereadForRedaction(
     records,
     malformedValues,
     unreadable,
+    secretRedactions: sortSecretRedactions(secretRedactions),
   };
 }

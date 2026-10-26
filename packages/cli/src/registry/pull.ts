@@ -85,8 +85,10 @@ async function openSession(
     statistics: reader,
     records: mirror,
     state,
+    instanceRoot: paths.root,
     metadataRoot: paths.metadata,
     operationalRoot: paths.operational,
+    catalogPath: `${paths.localState}/catalog.json`,
     policy: DEFAULT_REDACTION,
     now: context.clock,
   };

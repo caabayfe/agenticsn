@@ -33,6 +33,24 @@ describe("pullIncremental: nothing changed", () => {
     expect(prepared()).toBe(before);
   });
 
+  it("migrates an older mirror once and carries the marker only in the next state", async () => {
+    const { incremental, files, state, prepared } = await pulledInstance();
+    const current = state.saved.state;
+    if (current === null) throw new Error("the fixture did not complete its full pull");
+    state.saved.state = { ...current, secretScanVersion: 0 };
+    files.set(`${RULE}.script.js`, "const key = 'AKIAIOSFODNN7EXAMPLE';\n");
+    const before = prepared();
+    const { summary } = await incremental();
+    expect(prepared()).toBe(before + 1);
+    expect(files.get(`${RULE}.script.js`)).toBe("const key = '[redacted:aws-access-key-id]';\n");
+    expect(summary.secretRedactions).toContainEqual({
+      path: `meta/${RULE}.script.js`,
+      patterns: ["aws-access-key-id"],
+    });
+    expect(summary.next.secretScanVersion).toBe(1);
+    expect(state.saved.state?.secretScanVersion).toBe(0);
+  });
+
   it("leaves storing the new state to the caller, after the mirror commit", async () => {
     const { incremental, state } = await pulledInstance();
     await incremental();
@@ -66,6 +84,16 @@ describe("pullIncremental: records", () => {
     // By sys_id alone: other conditions hide other domains' form sections (pdi2).
     expect(download?.query).toStartWith(`sys_idIN${sid(1)}`);
     expect(download?.fields).toBe("all");
+  });
+
+  it("redacts and reports a secret in a changed record", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    touch(tables["sys_script"]?.[0], { script: "const key = 'AKIAIOSFODNN7EXAMPLE';" });
+    const { summary } = await incremental();
+    expect(files.get(`${RULE}.script.js`)).toBe("const key = '[redacted:aws-access-key-id]';\n");
+    expect(summary.secretRedactions).toEqual([
+      { path: `meta/${RULE}.yaml`, patterns: ["aws-access-key-id"] },
+    ]);
   });
 
   it("skips a downloaded row of another class than the one the change feed named", async () => {
@@ -232,6 +260,26 @@ describe("pullIncremental: the operational inventory", () => {
     expect(files.get("plugins.yaml")).toEqual([
       expect.objectContaining({ id: "com.snc.a", active: "active" }),
       expect.objectContaining({ id: "com.snc.b", active: "active" }),
+    ]);
+  });
+
+  it("redacts and reports a secret in refreshed operational inventory", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    const plugin = tables["v_plugin"]?.find((row) => row["id"] === "com.snc.b");
+    Object.assign(plugin ?? {}, {
+      active: "active",
+      name: "https://admin:hunter2@example.com/api",
+    });
+    const { summary } = await incremental();
+    expect(files.get("plugins.yaml")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "https://[redacted:url-credentials]@example.com/api",
+        }),
+      ]),
+    );
+    expect(summary.secretRedactions).toEqual([
+      { path: "ops/plugins.yaml", patterns: ["url-credentials"] },
     ]);
   });
 

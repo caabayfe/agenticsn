@@ -15,9 +15,11 @@ export interface PullDependencies {
   readonly statistics: TableStatistics;
   readonly records: MirrorWriter;
   readonly state: SyncStateStore;
-  // Prefixes inside the mirror: instances/<name>/metadata and instances/<name>/operational.
+  // Prefixes inside the mirror and local state.
+  readonly instanceRoot: string;
   readonly metadataRoot: string;
   readonly operationalRoot: string;
+  readonly catalogPath: string;
   readonly policy: RedactionPolicy;
   readonly now: () => Date;
   // Classes listed at the same time (default 4, the scheduler's maximum, so the scheduler

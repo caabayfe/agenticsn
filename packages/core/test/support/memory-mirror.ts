@@ -49,12 +49,25 @@ export function memoryMirror() {
     writeDocument: async (_root, path, document) => {
       set(path, document);
     },
+    writeText: async (_root, path, text) => {
+      set(path, text);
+    },
     bases: async function* () {
       yield* [...byBase.keys()];
     },
     checkpoint: async () => {},
     prepare: async () => {
       prepared += 1;
+    },
+    existingFiles: async function* () {
+      prepared += 1;
+      for (const [path, content] of files) {
+        if (path.endsWith(".yaml")) {
+          yield { kind: "document" as const, path, document: content };
+        } else {
+          yield { kind: "text" as const, path, text: String(content) };
+        }
+      }
     },
     finish: async () => ({ commit: "commit", created: true }),
     abort: async () => {},

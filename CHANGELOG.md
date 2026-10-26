@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-10-26
+
+An accelerator install checks its layouts and forms after it runs, and takes off a form field a
+module no longer adds.
+
 ### Added
 
 - An accelerator install checks every layout and form fact again as its last step, after the

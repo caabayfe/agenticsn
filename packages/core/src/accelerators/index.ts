@@ -68,6 +68,12 @@ export {
   sectionSource,
 } from "./domain/ensure-form";
 export {
+  droppedElements,
+  type FormSectionRecord,
+  formRecordOf,
+  formRecordText,
+} from "./domain/ensure-form-record";
+export {
   DataDomainError,
   DataSourceRequiredError,
   InstallBlockedError,

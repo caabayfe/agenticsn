@@ -13,7 +13,7 @@ import {
 } from "../domain/ensure";
 import type { Adoption } from "../domain/materialize";
 import type { InstallSteps } from "../ports";
-import { ensureForms } from "./ensure-forms";
+import { ensureForms, type FormDelivery } from "./ensure-forms";
 
 // Ensure rules at install time (ADR-0042): the layouts a module adds to are read live, after any
 // plugin activation, and its lists to add are generated as Fluent in the module's build.
@@ -79,17 +79,21 @@ export async function readLayouts(
   return states;
 }
 
-type EnsureSteps = Pick<InstallSteps, "layouts" | "sections" | "project" | "writeFile" | "commit">;
+type EnsureSteps = Pick<
+  InstallSteps,
+  "layouts" | "sections" | "project" | "writeFile" | "readFile" | "commit"
+>;
 
 // The layouts and forms the modules add to (ADR-0042): related lists, then form fields.
 export async function ensureLayouts(
   deps: { readonly steps: EnsureSteps },
   pack: string,
   facts: readonly EnsureFact[],
+  delivery: FormDelivery,
   signal: AbortSignal,
 ): Promise<{ readonly adoptions: Adoption[]; readonly written: readonly string[] }> {
   const lists = await ensureLists(deps, pack, facts.filter(isListFact), signal);
-  const forms = await ensureForms(deps, pack, facts.filter(isFormFieldFact), signal);
+  const forms = await ensureForms(deps, pack, facts.filter(isFormFieldFact), delivery, signal);
   return {
     adoptions: [...lists.adoptions, ...forms.adoptions],
     written: [...lists.written, ...forms.written],

@@ -105,14 +105,17 @@ export function formFieldStatus(
 
 type Placed = Omit<SectionElement, "position">;
 
-// The section's elements as the build restates them: every one it has, in order, with each
-// missing field after its `after` element, or at the end when the section lacks it.
+// The section's elements as the build restates them: every one it has, in order, but the
+// modules' own elements their facts dropped, with each missing field after its `after` element,
+// or at the end when the section lacks it.
 export function placedElements(
   pack: string,
   state: SectionState,
   facts: readonly FormFieldFact[],
+  dropped: ReadonlySet<string> = new Set(),
 ): { readonly elements: readonly Placed[]; readonly added: readonly string[] } {
   const elements: Placed[] = [...state.elements]
+    .filter((element) => !dropped.has(element.sysId))
     .sort((a, b) => a.position - b.position)
     .map(({ position: _, ...element }) => element);
   const added: string[] = [];

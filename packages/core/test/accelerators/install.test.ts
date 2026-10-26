@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   type DataTemplates,
+  formFieldId,
   InstallBlockedError,
   type InstallJournal,
   InstallLockedError,
@@ -911,10 +912,33 @@ describe("layouts a module adds to (ADR-0042)", () => {
       `customized on the instance: sys_ui_related_list ${CONTAINER}`,
     );
   });
+
+  it("checks each list again after the install, after the pull", async () => {
+    const already: ListState = {
+      container: CONTAINER,
+      view: "Default view",
+      entries: [{ sysId: "e1", relatedList: "incident_task.incident", position: 2 }],
+    };
+    const { steps, calls } = fakeSteps({ layout: already });
+    const plan = await planInstall(ensureDeps(steps), QUERY);
+    const result = await installPack(ensureDeps(steps), { ...QUERY, confirm: plan.planId });
+    expect(calls.slice(-3)).toEqual(["refresh", "layouts 1", "commit 2"]);
+    expect(result.steps.at(-1)).toMatchObject({
+      step: "check the layouts and forms",
+      outcome: "done",
+      detail: "1 of 1 hold",
+    });
+    const lost = fakeSteps({ layout: { ...already, entries: [] } });
+    const again = await installPack(ensureDeps(lost.steps), { ...QUERY, confirm: plan.planId });
+    expect(again.steps.at(-1)?.detail).toBe(
+      "0 of 1 hold; no longer on the instance: incident Default view: related list incident_task.incident (incident) (install again to add them back)",
+    );
+  });
 });
 
 describe("fields a module adds to shipped forms (ADR-0042 form_field)", () => {
   const SECTION = "2da34abfc74230105a06a1e603c260ec";
+  const RECORD = "accelerators/installs/pdi2/itsm-form-sections.json";
   const WITH_FIELD: PackFixture = {
     ...PACK,
     files: {
@@ -977,12 +1001,23 @@ describe("fields a module adds to shipped forms (ADR-0042 form_field)", () => {
     expect(generated).toContain("element: 'work_notes', position: 1 }");
     expect(generated).toContain("element: 'comments', position: 2 }");
     expect(generated).toContain("element: 'state', position: 3 }");
+    expect(JSON.parse(files.get(RECORD) ?? "{}")).toEqual({
+      sections: [
+        {
+          module: "incident",
+          sysId: SECTION,
+          table: "sc_task",
+          view: "sow",
+          caption: "Catalog task",
+        },
+      ],
+    });
     const at = calls.indexOf("sections 1");
     expect(calls.slice(at, at + 6)).toEqual([
       "sections 1",
       "project sn_sow_req",
-      // The project's two files and the section.
-      "commit 3",
+      // The project's two files, the section and the record of sections; keys for the first three.
+      "commit 4",
       "keys 4",
       "take-over 1",
       "plan ITSM: incident 0.1.0",
@@ -997,6 +1032,102 @@ describe("fields a module adds to shipped forms (ADR-0042 form_field)", () => {
       expect([...files.keys()].some((p) => p.includes("ensure-section-"))).toBe(false);
       expect(calls).not.toContain("project sn_sow_req");
     }
+  });
+
+  // The record a first install with the field left, naming the module's section.
+  const recorded = (sections: { sysId: string; caption: string }[]) =>
+    JSON.stringify({
+      sections: sections.map((s) => ({ module: "incident", table: "sc_task", view: "sow", ...s })),
+    });
+  const ownId = (capability: string, section: string, field: string) =>
+    formFieldId("itsm", {
+      capability,
+      kind: "form_field",
+      table: "sc_task",
+      view: "sow",
+      section,
+      field,
+      after: "",
+      note: "",
+    });
+
+  it("takes a dropped field's own element off the section, and no one else's", async () => {
+    const own = ownId("incident", "Catalog task", "u_old");
+    const others = ownId("problem", "Catalog task", "u_theirs");
+    const state = {
+      ...section(["number", "u_old", "u_theirs", "u_client"]),
+      elements: [
+        { sysId: "e0", element: "number", type: "", formatter: "", position: 0 },
+        { sysId: own, element: "u_old", type: "", formatter: "", position: 1 },
+        { sysId: others, element: "u_theirs", type: "", formatter: "", position: 2 },
+        // The client's own element of the same field name keeps its place.
+        { sysId: "e3", element: "u_old", type: "", formatter: "", position: 3 },
+      ],
+    };
+    const { steps, files } = fakeSteps({
+      section: state,
+      workspace: { [RECORD]: recorded([{ sysId: SECTION, caption: "Catalog task" }]) },
+    });
+    // The module's ensure.yaml no longer names the field.
+    const plan = await planInstall(deps(ACTIVE, { steps }), QUERY);
+    const result = await installPack(deps(ACTIVE, { steps }), { ...QUERY, confirm: plan.planId });
+    expect(result.stopped).toBeNull();
+    const generated = files.get(`source/sn_sow_req/src/fluent/ensure-section-${SECTION}.now.ts`);
+    expect(generated).not.toContain(`$id: '${own}'`);
+    expect(generated).toContain(`$id: '${others}'`);
+    expect(generated).toContain("$id: 'e3'");
+    expect(JSON.parse(files.get(RECORD) ?? "{}")).toEqual({ sections: [] });
+  });
+
+  it("moves a field to the section its fact now names, off the one it was in", async () => {
+    const NOTES = "0123456789abcdef0123456789abcdef";
+    const old = ownId("incident", "Notes", "comments");
+    const notes: SectionState = {
+      ...section(["comments"]),
+      sysId: NOTES,
+      caption: "Notes",
+      elements: [{ sysId: old, element: "comments", type: "", formatter: "", position: 0 }],
+      onView: ["number", "work_notes", "comments"],
+    };
+    const task = { ...section(["number", "work_notes"]), onView: notes.onView };
+    const { steps, files } = fakeSteps({
+      sectionOf: (fact) => (fact.section === "Notes" ? notes : task),
+      workspace: { [RECORD]: recorded([{ sysId: NOTES, caption: "Notes" }]) },
+    });
+    const plan = await planInstall(fieldDeps(steps), QUERY);
+    await installPack(fieldDeps(steps), { ...QUERY, confirm: plan.planId });
+    const path = (id: string) => `source/sn_sow_req/src/fluent/ensure-section-${id}.now.ts`;
+    expect(files.get(path(SECTION))).toContain("element: 'comments', position: 2 }");
+    expect(files.get(path(NOTES))).not.toContain("element: 'comments'");
+    expect(JSON.parse(files.get(RECORD) ?? "{}").sections).toEqual([
+      {
+        module: "incident",
+        sysId: SECTION,
+        table: "sc_task",
+        view: "sow",
+        caption: "Catalog task",
+      },
+    ]);
+  });
+
+  it("checks every field again after the install, naming one no longer on its form", async () => {
+    const run = async (state: SectionState) => {
+      const { steps } = fakeSteps({ section: state });
+      const plan = await planInstall(fieldDeps(steps), QUERY);
+      const result = await installPack(fieldDeps(steps), { ...QUERY, confirm: plan.planId });
+      return result.steps.find((s) => s.step === "check the layouts and forms");
+    };
+    expect(await run(section(["number", "comments"]))).toMatchObject({
+      outcome: "done",
+      detail: "1 of 1 hold",
+    });
+    // The instance still lacks the field: a plugin replaced the section after the push.
+    expect((await run(section(["number", "work_notes"])))?.detail).toBe(
+      '0 of 1 hold; no longer on the instance: sc_task sow "Catalog task": field comments (incident) (install again to add them back)',
+    );
+    expect((await run({ ...section([]), sysId: null }))?.detail).toBe(
+      '0 of 1 hold; skipped, not on this instance: sc_task sow "Catalog task": field comments (incident)',
+    );
   });
 });
 

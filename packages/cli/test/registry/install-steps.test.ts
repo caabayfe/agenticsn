@@ -73,7 +73,7 @@ function fakes() {
         },
       }) as unknown as ReturnType<UseCaseContext["delivery"]>,
     workspaceFiles: {
-      read: async () => null,
+      read: async (path) => written.find(([p]) => p === path)?.[1] ?? null,
       write: async (path, text) => {
         written.push([path, text]);
       },
@@ -170,6 +170,8 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
       ],
     ]);
     expect(written).toEqual([["/w/accelerators/installs/pdi/x/plan.md", "# plan"]]);
+    expect(await steps.readFile("accelerators/installs/pdi/x/plan.md")).toBe("# plan");
+    expect(await steps.readFile("accelerators/installs/pdi/x/none.md")).toBeNull();
     expect(commits).toEqual([[["accelerators/installs/pdi/x/plan.md"], "install"]]);
   });
 

@@ -1,4 +1,5 @@
 import type {
+  FormFieldFact,
   InstallJournal,
   InstallRecord,
   InstallSteps,
@@ -17,13 +18,17 @@ export function fakeSteps(
     absent?: string[];
     layout?: ListState;
     section?: SectionState;
+    // Each fact's section, where facts name different sections.
+    sectionOf?: (fact: FormFieldFact) => SectionState;
+    // Workspace files before the install, by path.
+    workspace?: Record<string, string>;
     // Scopes the workspace has no project for yet.
     noProject?: string[];
   } = {},
 ) {
   const calls: string[] = [];
   const owned: string[] = [];
-  const files = new Map<string, string>();
+  const files = new Map<string, string>(Object.entries(options.workspace ?? {}));
   const steps: InstallSteps = {
     activatePlugin: async (id) => {
       calls.push(`activate ${id}`);
@@ -108,6 +113,7 @@ export function fakeSteps(
       calls.push(`sections ${facts.length}`);
       return facts.map(
         (f) =>
+          options.sectionOf?.(f) ??
           options.section ?? {
             sysId: null,
             scope: { name: "global", sysId: "global" },
@@ -130,6 +136,7 @@ export function fakeSteps(
     writeFile: async (path, text) => {
       files.set(path, text);
     },
+    readFile: async (path) => files.get(path) ?? null,
     commit: async (paths) => {
       calls.push(`commit ${paths.length}`);
       return "r1";

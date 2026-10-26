@@ -1,14 +1,14 @@
 import { AccessDeniedError, InvalidIdentifierError } from "../../index-errors";
 import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
-import { artifactFromRow } from "../../metadata/domain/artifact";
 import type { Catalog } from "../../metadata/domain/catalog";
-import { renderRecord } from "../../metadata/domain/record-layout";
 import { propertyValueVerdict } from "../../metadata/domain/redaction";
+import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domain/secret-scan";
 import { classesToPull } from "../domain/pull-scope";
-import { chunks, isChildRowFile, type RecordChanges } from "../domain/record-changes";
+import { chunks, type RecordChanges } from "../domain/record-changes";
 import { forEachConcurrently } from "./concurrently";
 import type { IncrementalDependencies } from "./incremental-dependencies";
+import { replaceRecord } from "./replace-record";
 import { removeReplaced } from "./replaced-records";
 
 // sys_ids per download request: keeps the URL short and the page within the size target.
@@ -27,6 +27,7 @@ export interface RecordOutcome {
   readonly unwritten: readonly string[];
   // Records new to the mirror (base and class): their child rows may predate them (B4).
   readonly created: readonly { readonly base: string; readonly className: string }[];
+  readonly secretRedactions: readonly SecretRedaction[];
 }
 
 const SYS_METADATA = TableName.parse("sys_metadata");
@@ -128,28 +129,6 @@ export async function readRecordChanges(
   return { changed, scopes, deleted, createdBetween, deletedBetween };
 }
 
-// Writes a changed record over its previous version: its own files are replaced and its
-// child-row files follow it when a new name moves it to a new base.
-async function replaceRecord(
-  deps: IncrementalDependencies,
-  catalog: Catalog,
-  row: Row,
-): Promise<{ kind: "written" | "renamed"; base: string; created: boolean }> {
-  const rendered = renderRecord(artifactFromRow(row, catalog, deps.policy), catalog);
-  const root = deps.metadataRoot;
-  const previous = deps.records.baseOf(root, row["sys_id"] ?? "");
-  for (const path of previous === undefined ? [] : deps.records.filesOf(root, previous)) {
-    if (!isChildRowFile(previous ?? "", path)) {
-      await deps.records.remove(root, path);
-    } else if (previous !== rendered.base) {
-      await deps.records.move(root, path, rendered.base + path.slice((previous ?? "").length));
-    }
-  }
-  await deps.records.write(root, rendered);
-  const kind = previous === undefined || previous === rendered.base ? "written" : "renamed";
-  return { kind, base: rendered.base, created: previous === undefined };
-}
-
 type DownloadOutcome = {
   written: number;
   renamed: number;
@@ -158,6 +137,7 @@ type DownloadOutcome = {
   received: string[];
   stored: string[];
   created: { base: string; className: string }[];
+  secretRedactions: SecretRedaction[];
 };
 
 // Writes one downloaded row; a row whose sys_id cannot be a path is skipped.
@@ -178,6 +158,12 @@ async function storeRow(
     outcome.stored.push(row["sys_id"] ?? "");
     if (replaced.created) {
       outcome.created.push({ base: replaced.base, className: table });
+    }
+    if (replaced.secretPatterns.length > 0) {
+      outcome.secretRedactions.push({
+        path: `${deps.metadataRoot}/${replaced.base}.yaml`,
+        patterns: replaced.secretPatterns,
+      });
     }
   } catch (error) {
     if (!(error instanceof InvalidIdentifierError)) {
@@ -202,6 +188,7 @@ async function downloadClass(
     received: [],
     stored: [],
     created: [],
+    secretRedactions: [],
   };
   for (const batch of chunks(ids, DOWNLOAD_BATCH)) {
     const listing = {
@@ -245,6 +232,7 @@ export async function applyRecordChanges(
   const unreadable: string[] = [];
   const totals = { written: 0, renamed: 0, deleted: 0, skippedRows: 0, malformedValues: 0 };
   const created: { base: string; className: string }[] = [];
+  const secretRedactions: SecretRedaction[] = [];
   const classes = [...changes.changed.keys()].filter((table) => mirrored.has(table)).sort();
   await forEachConcurrently(classes, deps.classConcurrency ?? 4, async (table) => {
     try {
@@ -255,6 +243,7 @@ export async function applyRecordChanges(
       totals.skippedRows += outcome.skipped;
       totals.malformedValues += outcome.malformed;
       created.push(...outcome.created);
+      secretRedactions.push(...outcome.secretRedactions);
       for (const id of outcome.received) {
         received.add(id);
       }
@@ -276,5 +265,11 @@ export async function applyRecordChanges(
   totals.deleted += await removeReplaced(deps, created, signal);
   const requested = [...changes.changed.values()].flat();
   const unwritten = requested.filter((sysId) => !stored.has(sysId)).sort();
-  return { ...totals, unreadable: unreadable.sort(), unwritten, created };
+  return {
+    ...totals,
+    unreadable: unreadable.sort(),
+    unwritten,
+    created,
+    secretRedactions: sortSecretRedactions(secretRedactions),
+  };
 }

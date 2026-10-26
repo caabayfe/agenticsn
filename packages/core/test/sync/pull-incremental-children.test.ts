@@ -56,6 +56,21 @@ describe("pullIncremental: child rows", () => {
     ]);
   });
 
+  it("redacts and reports a secret in a changed child-row file", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    touch(tables["wf_activity"]?.[0], { name: "AKIAIOSFODNN7EXAMPLE" });
+    const { summary } = await incremental();
+    expect(files.get(`${WORKFLOW}.children.wf_activity.yaml`)).toEqual([
+      expect.objectContaining({ name: "[redacted:aws-access-key-id]" }),
+    ]);
+    expect(summary.secretRedactions).toEqual([
+      {
+        path: `meta/${WORKFLOW}.children.wf_activity.yaml`,
+        patterns: ["aws-access-key-id"],
+      },
+    ]);
+  });
+
   it("attaches child rows of a record created in the same pull", async () => {
     const { incremental, tables, files } = await pulledInstance();
     tables["sys_ui_section"]?.push({

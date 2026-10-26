@@ -33,16 +33,20 @@ describe("JsonSyncStateStore", () => {
       startedAt: "2026-10-05 12:00:00",
       completedClasses: ["sys_script"],
       records: 3,
+      secretScanVersion: 1,
+      secretRedactions: [{ path: "instances/pdi/a.yaml", patterns: ["jwt" as const] }],
     };
     await state.writeCatalog(catalog);
     await state.writeCheckpoint(checkpoint);
     await state.writeState({
       watermark: "2026-10-05 12:00:00",
       lastFullPull: "2026-10-05 12:00:00",
+      secretScanVersion: 1,
     });
     expect(await state.readCatalog()).toEqual(catalog);
     expect(await state.readCheckpoint()).toEqual(checkpoint);
     expect((await state.readState())?.watermark).toBe("2026-10-05 12:00:00");
+    expect((await state.readState())?.secretScanVersion).toBe(1);
   });
 
   it("clears the checkpoint and leaves no temporary files behind", async () => {

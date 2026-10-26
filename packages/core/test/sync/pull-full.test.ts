@@ -118,6 +118,11 @@ function memoryRecords(timeline: string[] = []) {
     writeDocument: async (root, path, document) => {
       documents.set(`${root}|${path}`, document);
     },
+    writeText: async (root, path, text) => {
+      documents.set(`${root}|${path}`, text);
+    },
+    existingFiles: async function* () {},
+    move: async () => {},
     bases: async function* () {
       yield* written.keys();
     },
@@ -165,8 +170,10 @@ function run(reader: InstanceReader, state = memoryState(), records = memoryReco
     },
     records: records.store,
     state: state.store,
+    instanceRoot: "instances/pdi",
     metadataRoot: "meta",
     operationalRoot: "ops",
+    catalogPath: ".snagentic/pdi/catalog.json",
     policy: DEFAULT_REDACTION,
     now: () => new Date("2026-10-05T12:00:00Z"),
   };
@@ -206,6 +213,55 @@ describe("pullFull", () => {
     expect(summary.records).toBe(2);
   });
 
+  it("redacts a secret before writing and reports only its path and pattern", async () => {
+    const row = {
+      sys_id: sid(4),
+      sys_class_name: "sys_script",
+      name: "Leaked key",
+      script: "const key = 'AKIAIOSFODNN7EXAMPLE';",
+      sys_scope: "global",
+    };
+    const { result, records } = run(instance({ sys_script: [row] }).reader);
+    const summary = await result;
+    const base = `global/sys_script/leaked-key--${sid(4)}`;
+    expect(records.written.get(base)?.files).toEqual([
+      {
+        path: `${base}.script.js`,
+        content: "const key = '[redacted:aws-access-key-id]';\n",
+      },
+    ]);
+    expect(summary.secretRedactions).toEqual([
+      { path: `meta/${base}.yaml`, patterns: ["aws-access-key-id"] },
+    ]);
+    expect(JSON.stringify(summary)).not.toContain("AKIAIOSFODNN7EXAMPLE");
+  });
+
+  it("redacts and reports a secret-shaped value in the local catalog", async () => {
+    const state = memoryState();
+    const dictionary = [
+      {
+        sys_id: "d1",
+        name: "sys_script",
+        element: "script",
+        internal_type: "AKIAIOSFODNN7EXAMPLE",
+      },
+      {
+        sys_id: "d2",
+        name: "sys_auth_profile_basic",
+        element: "password",
+        internal_type: "password2",
+      },
+    ];
+    const summary = await run(instance({ sys_dictionary: dictionary }).reader, state).result;
+    expect(state.saved.catalog).toMatchObject({
+      typedFields: { sys_script: { script: "[redacted:aws-access-key-id]" } },
+    });
+    expect(summary.secretRedactions).toContainEqual({
+      path: ".snagentic/pdi/catalog.json",
+      patterns: ["aws-access-key-id"],
+    });
+  });
+
   it("resumes from a checkpoint without reading completed classes again, keeping the original start", async () => {
     const { reader, queries } = instance();
     const state = memoryState({
@@ -228,6 +284,7 @@ describe("pullFull", () => {
       inventory: {},
       unreadable: [],
       redactionVersion: 1,
+      secretScanVersion: 1,
     });
   });
 
@@ -246,6 +303,48 @@ describe("pullFull", () => {
     );
     expect(activity).toEqual([{ sys_id: sid(11), workflow_version: sid(10), name: "Begin" }]);
     expect(summary.childRows).toBe(2);
+  });
+
+  it("scans child-row and operational documents before writing them", async () => {
+    const { result, records } = run(
+      instance({
+        wf_activity: [
+          {
+            sys_id: sid(11),
+            workflow_version: sid(10),
+            name: "AKIAIOSFODNN7EXAMPLE",
+          },
+        ],
+        v_plugin: [
+          {
+            sys_id: "p1",
+            id: "com.a",
+            name: "https://admin:hunter2@example.com/api",
+            active: "active",
+            version: "1",
+            scope: "global",
+          },
+        ],
+      }).reader,
+    );
+    const summary = await result;
+    const childPath = `global/wf_workflow/approve--${sid(3)}.children.wf_activity.yaml`;
+    expect(records.documents.get(`meta|${childPath}`)).toEqual([
+      {
+        sys_id: sid(11),
+        workflow_version: sid(10),
+        name: "[redacted:aws-access-key-id]",
+      },
+    ]);
+    expect(records.documents.get("ops|plugins.yaml")).toEqual([
+      expect.objectContaining({
+        name: "https://[redacted:url-credentials]@example.com/api",
+      }),
+    ]);
+    expect(summary.secretRedactions).toEqual([
+      { path: `meta/${childPath}`, patterns: ["aws-access-key-id"] },
+      { path: "ops/plugins.yaml", patterns: ["url-credentials"] },
+    ]);
   });
 
   it("writes operational tables with their curated fields, ordered by key", async () => {

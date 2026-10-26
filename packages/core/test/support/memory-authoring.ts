@@ -51,6 +51,7 @@ export function memoryToolchain(
     readonly builds?: ReadonlyMap<string, readonly BuiltUnit[]>;
     // A built file's XML by update name; a placeholder otherwise.
     readonly xml?: ReadonlyMap<string, string>;
+    readonly draftFiles?: ReadonlyMap<string, string>;
   } = {},
 ) {
   const asked: unknown[] = [];
@@ -67,7 +68,8 @@ export function memoryToolchain(
     },
     draftTransform: async (project, records, _access, commit) => {
       asked.push({ project: project.path, records, ...(commit === undefined ? {} : { commit }) });
-      const files = new Map([["src/fluent/generated/si.now.ts", "ScriptInclude({})"]]);
+      const files =
+        options.draftFiles ?? new Map([["src/fluent/generated/si.now.ts", "ScriptInclude({})"]]);
       return {
         ok: true,
         draft: { before: options.before ?? [], after: options.after ?? [], files },

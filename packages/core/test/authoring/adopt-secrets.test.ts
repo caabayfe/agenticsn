@@ -34,22 +34,30 @@ async function adopting(
   units: readonly BuiltUnit[],
   table: string,
   sysId: string,
-  options: { dictionary?: Record<string, string>[]; catalog?: CatalogData } = {},
+  options: {
+    dictionary?: Record<string, string>[];
+    catalog?: CatalogData;
+    draftFiles?: ReadonlyMap<string, string>;
+  } = {},
 ) {
   const fake = instance(options.dictionary);
-  const { workspace, ledgers, written } = memoryWorkspace();
+  const { workspace, ledgers, written, merged } = memoryWorkspace();
   const result = adopt(
     {
       reader: fake.reader,
       workspace,
-      toolchain: memoryToolchain({ after: units, before: [] }).chain,
+      toolchain: memoryToolchain({
+        after: units,
+        before: [],
+        ...(options.draftFiles === undefined ? {} : { draftFiles: options.draftFiles }),
+      }).chain,
       access,
       signal,
       ...(options.catalog === undefined ? {} : { catalog: options.catalog }),
     },
     { instance: "pdi2", records: [{ table, sysId }] },
   );
-  return { result, written, ledgers, queries: fake.queries };
+  return { result, written, ledgers, merged, queries: fake.queries };
 }
 
 // Security finding S2: adopt never puts in source what a pull keeps out of the mirror.
@@ -88,6 +96,41 @@ describe("adopt: secrets", () => {
       SCRIPT_INCLUDE_ID,
     );
     await expect(run.result).rejects.toBeInstanceOf(AdoptSecretError);
+  });
+
+  it("refuses a high-confidence credential embedded in an ordinary field", async () => {
+    const leaked = "AKIAIOSFODNN7EXAMPLE";
+    const run = await adopting(
+      [withField("script", `const key = '${leaked}';`)],
+      "sys_script_include",
+      SCRIPT_INCLUDE_ID,
+    );
+    const error = await run.result.catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AdoptSecretError);
+    expect(String(error)).toContain(
+      `sys_script_include_${SCRIPT_INCLUDE_ID}: script contains aws-access-key-id`,
+    );
+    expect(String(error)).not.toContain(leaked);
+    expect(run.written.size).toBe(0);
+    expect(run.ledgers.size).toBe(0);
+  });
+
+  it("refuses a credential in the final generated draft before writing files", async () => {
+    const leaked = "ghp_0123456789abcdefghijklmnopqrstuvwxyz";
+    const path = "src/fluent/generated/si.now.ts";
+    const run = await adopting(
+      [scriptInclude("Helpers.")],
+      "sys_script_include",
+      SCRIPT_INCLUDE_ID,
+      { draftFiles: new Map([[path, `export const token = "${leaked}";`]]) },
+    );
+    const error = await run.result.catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AdoptSecretError);
+    expect(String(error)).toContain(`${path}: github-token`);
+    expect(String(error)).not.toContain(leaked);
+    expect(run.written.size).toBe(0);
+    expect(run.merged).toEqual([]);
+    expect(run.ledgers.size).toBe(0);
   });
 
   it("refuses a property whose value a pull would redact", async () => {

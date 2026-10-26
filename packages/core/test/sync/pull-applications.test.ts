@@ -34,6 +34,17 @@ describe("pull: custom applications (ADR-0025)", () => {
     });
   });
 
+  it("redacts and reports a secret in an application record", async () => {
+    const { files, full } = await pulledInstance((tables) => {
+      tables["sys_app"] = [app({ name: "AKIAIOSFODNN7EXAMPLE" })];
+    });
+    const secretFile = `x_acme_access_rev/sys_app/redacted-aws-access-key-id--${APP}.yaml`;
+    expect(files.get(secretFile)).toMatchObject({ name: "[redacted:aws-access-key-id]" });
+    expect(full.secretRedactions).toEqual([
+      { path: `meta/${secretFile}`, patterns: ["aws-access-key-id"] },
+    ]);
+  });
+
   it("reads applications again when an application changed, though no change feed shows it", async () => {
     const { incremental, tables, files } = await pulledInstance((t) => {
       t["sys_app"] = [app()];
@@ -55,6 +66,20 @@ describe("pull: custom applications (ADR-0025)", () => {
     expect(files.has(FILE)).toBe(false);
     expect(files.has(`x_acme_access_rev/sys_app/access-reviews--${APP}.yaml`)).toBe(true);
     expect([...files.keys()].some((path) => path.includes(sid(51)))).toBe(false);
+  });
+
+  it("reports a secret when an incremental pull relists applications", async () => {
+    const { incremental, tables } = await pulledInstance((t) => {
+      t["sys_app"] = [app()];
+    });
+    changeApplications(tables, [app({ name: "AKIAIOSFODNN7EXAMPLE" })]);
+    const { summary } = await incremental();
+    expect(summary.secretRedactions).toEqual([
+      {
+        path: `meta/x_acme_access_rev/sys_app/redacted-aws-access-key-id--${APP}.yaml`,
+        patterns: ["aws-access-key-id"],
+      },
+    ]);
   });
 
   it("names applications the user may not read as unreadable, and goes on", async () => {

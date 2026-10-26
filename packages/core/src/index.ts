@@ -71,7 +71,12 @@ export { slug } from "./kernel/slug";
 export { SysId } from "./kernel/sys-id";
 export { TableName } from "./kernel/table-name";
 export * from "./knowledge/index";
-export { type Artifact, type ArtifactIdentity, artifactFromRow } from "./metadata/domain/artifact";
+export {
+  type Artifact,
+  type ArtifactIdentity,
+  artifactFromRow,
+  type SecretFieldFinding,
+} from "./metadata/domain/artifact";
 export { Catalog, type CatalogData } from "./metadata/domain/catalog";
 export {
   deniedAncestor,
@@ -96,6 +101,16 @@ export {
   propertyValueVerdict,
   type RedactionPolicy,
 } from "./metadata/domain/redaction";
+export {
+  SECRET_PATTERN_IDS,
+  type SecretDocumentScan,
+  type SecretPatternId,
+  type SecretRedaction,
+  type SecretScan,
+  scanDocumentSecrets,
+  scanSecrets,
+  sortSecretRedactions,
+} from "./metadata/domain/secret-scan";
 export type { RecordStore, StoredRecord } from "./metadata/ports";
 export * from "./plugins/index";
 export { forEachConcurrently } from "./sync/application/concurrently";
@@ -125,6 +140,13 @@ export {
   pullIncremental,
 } from "./sync/application/pull-incremental";
 export { inventorySignatures, pullOperational } from "./sync/application/pull-operational";
+export {
+  type ExistingSecretMigrationMirror,
+  migrateExistingSecrets,
+  SECRET_SCAN_VERSION,
+  type SecretMigrationResult,
+  scanCatalogSecrets,
+} from "./sync/application/secret-migration";
 export { NothingPulledError, PaginationStalledError } from "./sync/domain/errors";
 export {
   changesSince,
@@ -198,6 +220,7 @@ export {
   verifyStep,
 } from "./sync/domain/verify-buckets";
 export type {
+  ExistingMirrorFile,
   Fingerprints,
   FinishedPull,
   IncrementalMirror,

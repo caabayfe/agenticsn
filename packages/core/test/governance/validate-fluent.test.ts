@@ -41,6 +41,22 @@ describe("validate, Fluent projects", () => {
     ]);
   });
 
+  it("blocks a build that failed without naming an error, rather than reporting nothing", async () => {
+    const result = await run({ [APP]: { now: { errors: [] } } });
+    expect(result.passed).toBe(false);
+    expect(result.findings).toEqual([
+      expect.objectContaining({ ruleId: "SN-MNT-009", severity: "block", path: APP }),
+    ]);
+  });
+
+  it("names the place of a build error, but not an empty one", async () => {
+    const error = { file: "", line: 0, column: 0, code: "fluent-build", message: "stopped" };
+    const result = await run({ [APP]: { now: { errors: [error] } } });
+    expect(result.findings).toEqual([
+      expect.objectContaining({ ruleId: "SN-MNT-009", path: APP, line: null }),
+    ]);
+  });
+
   it("blocks until the generated keys are committed", async () => {
     const result = await run({
       [APP]: { now: [], base: [], keys: { committed: null, built: "k" } },

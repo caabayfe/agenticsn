@@ -59,6 +59,20 @@ describe("embedded Fluent build", () => {
     BUILD_TIMEOUT,
   );
 
+  it(
+    "says why a build failed when the SDK reports no diagnostic, as for a record defined twice",
+    async () => {
+      const project = copyFixture(join(FLUENT_FIXTURES, "accelerator-records"));
+      const records = join(project, "src", "fluent", "records.now.ts");
+      writeFileSync(join(project, "src", "fluent", "copy.now.ts"), readFileSync(records, "utf8"));
+      const outcome = await (await loadInProcessRuntime()).build(project);
+      if (outcome.success) throw new Error("a record defined twice built");
+      expect(outcome.errors.length).toBeGreaterThan(0);
+      expect(outcome.errors.every((e) => e.message.trim() !== "")).toBe(true);
+    },
+    BUILD_TIMEOUT,
+  );
+
   // A project's build scripts would run inside snagentic, which holds the instance's
   // credentials (security finding S1): snagentic refuses the build and never runs them.
   const MARKER = "script-ran.txt";

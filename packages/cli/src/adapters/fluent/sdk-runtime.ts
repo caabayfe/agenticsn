@@ -78,34 +78,76 @@ type Opened =
   | { readonly project: Project; readonly refused?: undefined }
   | { readonly refused: readonly FluentBuildError[] };
 
-function openProject(rootDir: string, typeFiles: TypeFiles, scratch?: string): Opened {
+function openProject(
+  rootDir: string,
+  typeFiles: TypeFiles,
+  scratch?: string,
+  logger = quietLogger,
+): Opened {
   const fileSystem = new OverlayFileSystem(rootDir, typeFiles, scratch);
-  const config = NowConfig.parseFromDirectory(rootDir, fileSystem, quietLogger);
+  const config = NowConfig.parseFromDirectory(rootDir, fileSystem, logger);
   const refused = projectRefusals(config, rootDir);
   if (refused.length > 0) return { refused };
   const project = new Project({
     config,
     fileSystem,
     rootDir,
-    logger: quietLogger,
+    logger,
     telemetryClient: new NoOpTelemetry(),
   });
   return { project };
 }
 
 async function build(rootDir: string, typeFiles: TypeFiles): Promise<FluentBuildOutcome> {
-  const opened = openProject(rootDir, typeFiles);
+  const logged: string[] = [];
+  const collect = (...parts: unknown[]) => {
+    logged.push(...parts.filter((part): part is string => typeof part === "string"));
+  };
+  const opened = openProject(rootDir, typeFiles, undefined, { ...quietLogger, error: collect });
   if (opened.refused !== undefined) {
     return { success: false, errors: opened.refused };
   }
   const project = opened.project;
   // The SDK throws after reporting diagnostics; the diagnostics are the answer.
-  const result = await new Orchestrator(project).build({}).catch(() => undefined);
+  let thrown: unknown = null;
+  const result = await new Orchestrator(project).build({}).catch((error: unknown) => {
+    thrown = error;
+    return undefined;
+  });
   if (result?.success) {
     return { success: true, records: result.files.map((f) => toPosix(relative(rootDir, f.path))) };
   }
   const errors = project.getDiagnosticsService().getErrors();
-  return { success: false, errors: errors.map((d) => toError(rootDir, d)) };
+  if (errors.length > 0) return { success: false, errors: errors.map((d) => toError(rootDir, d)) };
+  const reasons = logged.map(undiagnosed);
+  return { success: false, errors: reasons.length > 0 ? reasons : [undiagnosed(thrown)] };
+}
+
+// Some failures reach no diagnostic: the SDK logs them as errors, such as a record two files
+// define ("... is defined 2 times in the project:" then "1. <file>:<line>" for each), or only
+// throws. The first place named, if any, is the error's file and line.
+const PLACE = /^\s*\d+\.\s+(\S+):(\d+)\s*$/;
+
+function undiagnosed(reason: unknown): FluentBuildError {
+  const text = reason instanceof Error ? reason.message : String(reason ?? "");
+  const lines = text.split("\n").filter((line) => line.trim() !== "");
+  const place = lines.map((line) => PLACE.exec(line)).find((match) => match !== null);
+  const places = lines
+    .filter((line) => PLACE.test(line))
+    .map((line) => line.trim().replace(/^\d+\.\s+/, ""));
+  const first = lines[0]?.trim();
+  return {
+    file: place?.[1] ?? "",
+    line: Number(place?.[2] ?? 0),
+    column: 0,
+    code: "fluent-build",
+    message:
+      first === undefined
+        ? "the SDK stopped the build without saying why"
+        : places.length > 1
+          ? `${first} ${places.join(", ")}`
+          : first,
+  };
 }
 
 const TEMP_VARIABLES = ["TMPDIR", "TMP", "TEMP"] as const;

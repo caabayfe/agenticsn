@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A push loads a record it created once more when it reads back otherwise, such as a new table
+  whose label the platform sets its own way on insert. An accelerator install stopped once at
+  every module that adds a table ("1 not applied as built") until it was resumed.
+- A Fluent build that fails without a diagnostic now says why: the errors the SDK logs, such as
+  a record two files define, with the files and lines it names. Push reported only "the build
+  failed", and validate reported no units and no error.
+
 ## [2.11.2] - 2026-10-25
 
 An accelerator upgrade lets go of a shipped record its new version no longer restates.

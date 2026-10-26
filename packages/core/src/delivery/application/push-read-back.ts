@@ -3,7 +3,7 @@ import { compareUnit } from "../../authoring/domain/compare";
 import type { LedgerEntry } from "../../authoring/domain/ledger";
 import type { BuiltUnit, InstanceCopy } from "../../authoring/domain/unit";
 import { unitSpec } from "../../authoring/domain/unit-specs";
-import type { PlannedUnit } from "../domain/unit-plan";
+import { mismatchesOf, type PlannedUnit } from "../domain/unit-plan";
 import type { ProjectLoad } from "./plan-units";
 import type { InstanceSession } from "./push-steps";
 
@@ -17,6 +17,8 @@ export async function readBack(
   const copies = await readUnits(session.reader, built, session.signal);
   const ledger = new Map<string, LedgerEntry | undefined>();
   const applied = new Map<string, boolean>();
+  // Why each unit not applied reads back otherwise.
+  const mismatches = new Map<string, readonly string[]>();
   for (const unit of units) {
     const copy = copies.get(unit.updateName) ?? null;
     const builtUnit = load.built.get(unit.updateName)?.unit;
@@ -30,12 +32,14 @@ export async function readBack(
       if (copy === null && unit.removes !== null) ledger.set(unit.removes, undefined);
       continue;
     }
-    const same = copy !== null && builtUnit !== undefined && agrees(builtUnit, copy);
+    const differences = mismatchesAfterLoad(builtUnit, copy);
+    const same = differences.length === 0;
     applied.set(unit.updateName, same);
+    if (!same) mismatches.set(unit.updateName, differences);
     const entry = loadedEntry(unit, copy, same);
     if (entry !== null) ledger.set(unit.updateName, entry);
   }
-  return { ledger, applied, copies };
+  return { ledger, applied, copies, mismatches };
 }
 
 // A loaded unit's new ledger entry, or null to keep the one it has.
@@ -56,5 +60,9 @@ function loadedEntry(
 // than asking to adopt a record the push itself made.
 const NOT_BUILT = "0".repeat(32);
 
-const agrees = (unit: BuiltUnit, copy: InstanceCopy) =>
-  !unitSpec(unit.head.table).comparable || compareUnit(unit, copy).length === 0;
+// What keeps the instance's copy from agreeing with the build: nothing when it agrees.
+function mismatchesAfterLoad(unit: BuiltUnit | undefined, copy: InstanceCopy | null): string[] {
+  if (copy === null) return ["not on the instance after the load"];
+  if (unit === undefined) return ["not in the build"];
+  return unitSpec(unit.head.table).comparable ? mismatchesOf(compareUnit(unit, copy)) : [];
+}

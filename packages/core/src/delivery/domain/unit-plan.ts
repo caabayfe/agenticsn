@@ -87,6 +87,20 @@ export const changesOf = (differences: readonly Difference[]): string[] => [
   ),
 ];
 
+// A value short enough to read in a line: its first characters, on one line.
+const shown = (value: string) => {
+  const line = value.replace(/\s+/g, " ").trim();
+  return JSON.stringify(line.length > 60 ? `${line.slice(0, 57)}...` : line);
+};
+
+// Each difference as the admin reads it: where, what the build loaded, what the instance holds.
+export const mismatchesOf = (differences: readonly Difference[]): string[] =>
+  differences.map((d) =>
+    d.kind === "field"
+      ? `${d.table}${d.row === "" ? "" : ` [${d.row}]`}.${d.field}: built ${shown(d.built)}, instance ${shown(d.instance)}`
+      : `${d.table} rows: built [${d.built.join(", ")}], instance [${d.instance.join(", ")}]`,
+  );
+
 const REASONS: Readonly<Record<"drift" | "not-adopted", string>> = {
   drift:
     "changed on the instance since it last agreed with source: run snagentic adopt --refresh, then plan again",

@@ -585,7 +585,11 @@ describe("running an install (ADR-0038, item 2)", () => {
       ...QUERY,
       confirm: plan.planId,
     });
-    expect(stopped.stopped?.step).toBe("module incident");
+    expect(stopped.stopped).toMatchObject({
+      step: "module incident",
+      detail:
+        '0 not captured, 1 not applied as built; sys_script_include U0: description: built "a", instance "b"',
+    });
     expect(first.calls).not.toContain("load foundation+incident");
     expect(state.record?.planId).toBe(plan.planId);
     // The instance changed (the plugin is active now): the approved id still resumes the run.

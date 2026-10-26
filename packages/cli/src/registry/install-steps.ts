@@ -94,6 +94,9 @@ function deliverySteps(
         notApplied: out.notApplied,
         notCaptured: out.notCaptured,
         updateSets: out.updateSets.map((u) => u.name),
+        mismatched: out.units
+          .filter((u) => !u.applied && u.refused === null)
+          .map((u) => `${u.table} ${u.name}: ${u.mismatches.join("; ")}`),
         refused: out.refused,
       };
     },

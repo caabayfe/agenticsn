@@ -43,6 +43,8 @@ export interface PushedUnit {
   readonly applied: boolean;
   // Why the platform skipped it during the load, as its system log says; null otherwise.
   readonly refused: string | null;
+  // Not applied: each field or row the instance holds otherwise than the build.
+  readonly mismatches: readonly string[];
 }
 
 export interface ProjectPush {
@@ -141,6 +143,7 @@ async function outcomes(
       captured: done,
       applied,
       refused: null,
+      mismatches: back.mismatches.get(updateName) ?? [],
     });
     if (operation === "record") {
       const instance = unit.version ?? "";

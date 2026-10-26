@@ -90,6 +90,10 @@ export const push = defineUseCase({
             .string()
             .nullable()
             .describe("why the platform skipped it during the load, from its system log"),
+          mismatches: z
+            .array(z.string())
+            .readonly()
+            .describe("not applied: each field or row the instance holds otherwise than the build"),
         }),
       )
       .readonly(),
@@ -149,10 +153,10 @@ export const push = defineUseCase({
       ...output.updateSets
         .filter((set) => set.sysId !== output.batch.sysId)
         .map((set) => `update set ${set.created ? "created" : "reused"}: ${set.name}  ${set.link}`),
-      ...output.units.map(
-        (u) =>
-          `${u.operation.padEnd(6)} ${u.updateName}${u.captured ? "" : "  NOT captured in the update set"}${u.applied ? "" : "  NOT applied as built"}${u.refused === null ? "" : ` (refused: ${u.refused})`}`,
-      ),
+      ...output.units.flatMap((u) => [
+        `${u.operation.padEnd(6)} ${u.updateName}${u.captured ? "" : "  NOT captured in the update set"}${u.applied ? "" : "  NOT applied as built"}${u.refused === null ? "" : ` (refused: ${u.refused})`}`,
+        ...u.mismatches.map((m) => `         ${m}`),
+      ]),
       ...output.refused.map(
         (g) => `refused: ${g.records.length} ${g.table} record(s), ${g.reason}: ${g.action}`,
       ),

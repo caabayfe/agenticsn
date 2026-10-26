@@ -122,6 +122,8 @@ export interface InstallSteps {
     readonly notApplied: number;
     readonly notCaptured: number;
     readonly updateSets: readonly string[];
+    // Each unit not applied as built, with what the instance holds otherwise.
+    readonly mismatched: readonly string[];
     // Records the platform skipped during the load, by table and reason, with their action.
     readonly refused: readonly {
       readonly table: string;

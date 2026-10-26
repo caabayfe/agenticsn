@@ -63,7 +63,7 @@ function undelivered(pushed: Awaited<ReturnType<InstallRunDependencies["steps"][
   const applied = pushed.notApplied - explained;
   const rest =
     captured + applied > 0
-      ? [`${captured} not captured, ${applied} not applied as built: check them on the instance`]
+      ? [`${captured} not captured, ${applied} not applied as built`, ...pushed.mismatched]
       : [];
   return [...refused, ...rest].join("; ");
 }

@@ -50,46 +50,61 @@ async function workspace() {
   return { ...ws, write };
 }
 
-describe("plan-push (ADR-0033)", () => {
-  it("plans an edited unit against the instance's live copy, ready to push, without writing", async () => {
-    const ws = await unitWorkspace({ source: "Edited in source.", instance: "" });
-    cleanups.push(ws.cleanup);
-    const { output, exitCode } = await executeUseCase(planPush, {}, ws.context);
-    expect(output).toMatchObject({
-      instance: "pdi",
-      units: [
-        { updateName: SI_UNIT, operation: "load", changes: ["sys_script_include.description"] },
-      ],
-      problems: [],
-      gate: { passed: true },
-      ready: true,
-    });
-    expect(exitCode).toBe(0);
-    expect(ws.instance.writes).toEqual([]);
-    expect(planPush.render(output as never, "text")).toContain(
-      "ready: snagentic push --instance pdi --plan",
-    );
-  });
+// A plan builds, validates and reads a real git workspace; the first in a run also loads the
+// toolchain, which takes over 5 s on a loaded machine (as push.test.ts allows).
+const PLAN_TIMEOUT = 15_000;
 
-  it("says when there is nothing to push, and exits 1 when the plan is not ready", async () => {
-    const same = await unitWorkspace({ source: "", instance: "" });
-    cleanups.push(same.cleanup);
-    const quiet = await executeUseCase(planPush, {}, same.context);
-    expect(planPush.render(quiet.output as never, "text")).toContain("nothing to push");
-    const drifted = await unitWorkspace({ source: "Edited in source.", instance: "Edited there." });
-    cleanups.push(drifted.cleanup);
-    drifted.tables["sys_script_include"] = (drifted.tables["sys_script_include"] ?? []).map(
-      (row) => ({
-        ...row,
-        sys_mod_count: "2",
-      }),
-    );
-    const { output, exitCode } = await executeUseCase(planPush, {}, drifted.context);
-    expect(exitCode).toBe(1);
-    const text = planPush.render(output as never, "text");
-    expect(text).toContain(`problem: ${SI_UNIT}: changed on the instance`);
-    expect(text).toContain("not ready");
-  });
+describe("plan-push (ADR-0033)", () => {
+  it(
+    "plans an edited unit against the instance's live copy, ready to push, without writing",
+    async () => {
+      const ws = await unitWorkspace({ source: "Edited in source.", instance: "" });
+      cleanups.push(ws.cleanup);
+      const { output, exitCode } = await executeUseCase(planPush, {}, ws.context);
+      expect(output).toMatchObject({
+        instance: "pdi",
+        units: [
+          { updateName: SI_UNIT, operation: "load", changes: ["sys_script_include.description"] },
+        ],
+        problems: [],
+        gate: { passed: true },
+        ready: true,
+      });
+      expect(exitCode).toBe(0);
+      expect(ws.instance.writes).toEqual([]);
+      expect(planPush.render(output as never, "text")).toContain(
+        "ready: snagentic push --instance pdi --plan",
+      );
+    },
+    PLAN_TIMEOUT,
+  );
+
+  it(
+    "says when there is nothing to push, and exits 1 when the plan is not ready",
+    async () => {
+      const same = await unitWorkspace({ source: "", instance: "" });
+      cleanups.push(same.cleanup);
+      const quiet = await executeUseCase(planPush, {}, same.context);
+      expect(planPush.render(quiet.output as never, "text")).toContain("nothing to push");
+      const drifted = await unitWorkspace({
+        source: "Edited in source.",
+        instance: "Edited there.",
+      });
+      cleanups.push(drifted.cleanup);
+      drifted.tables["sys_script_include"] = (drifted.tables["sys_script_include"] ?? []).map(
+        (row) => ({
+          ...row,
+          sys_mod_count: "2",
+        }),
+      );
+      const { output, exitCode } = await executeUseCase(planPush, {}, drifted.context);
+      expect(exitCode).toBe(1);
+      const text = planPush.render(output as never, "text");
+      expect(text).toContain(`problem: ${SI_UNIT}: changed on the instance`);
+      expect(text).toContain("not ready");
+    },
+    PLAN_TIMEOUT,
+  );
 });
 
 describe("GitDeliveryWorkspace", () => {

@@ -8,7 +8,7 @@ import { toYaml } from "../../src/adapters/yaml/own-style";
 import { executeUseCase } from "../../src/registry/execute";
 import { planPush } from "../../src/registry/plan-push";
 import { instanceWorkspace } from "../support/instance-workspace";
-import { SI_UNIT, unitWorkspace } from "../support/unit-workspace";
+import { PLAN_TIMEOUT, SI_UNIT, unitWorkspace } from "../support/unit-workspace";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -49,10 +49,6 @@ async function workspace() {
   await git(ws.root, "branch", "servicenow-remote/pdi");
   return { ...ws, write };
 }
-
-// A plan builds, validates and reads a real git workspace; the first in a run also loads the
-// toolchain, which takes over 5 s on a loaded machine (as push.test.ts allows).
-const PLAN_TIMEOUT = 15_000;
 
 describe("plan-push (ADR-0033)", () => {
   it(

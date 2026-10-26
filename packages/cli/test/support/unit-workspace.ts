@@ -136,3 +136,8 @@ export async function unitWorkspace(options: {
     git: (...args: string[]) => git(ws.root, ...args),
   };
 }
+
+// A test that plans against this workspace builds, validates and reads a real git repository;
+// the first in a run also loads the toolchain. Over 5 s on a loaded machine, about 5 s on a CI
+// runner (#102), so such tests get 15 s.
+export const PLAN_TIMEOUT = 15_000;

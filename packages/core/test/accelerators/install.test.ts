@@ -167,6 +167,39 @@ describe("planning an install (ADR-0038, items 2 and 3)", () => {
     expect(plan.problems).toEqual([]);
   });
 
+  it("lists the records each module's source deletes, and says it deletes only those", async () => {
+    const plain = installPlanDocument(await planInstall(deps(ACTIVE), QUERY));
+    expect(plain).toContain(
+      "**It will not:** delete a record other than the form element of a field a module no longer adds,",
+    );
+    expect(plain).not.toContain("Records the modules delete");
+    const retiring: PackFixture = {
+      ...PACK,
+      files: {
+        ...PACK.files,
+        "modules/incident/source/global/src/fluent/incident.now.ts": [
+          "// a test step replaced, and a model the module no longer ships",
+          "Now.del('sys_atf_step', '079dcd30a3ae5c432ce8a67babe65c1a')",
+          'Now.del("prb_model", "dc6e1da1dee511cd23fa0de321d02c93")',
+          "Now.del('sys_ui_list', { name: 'incident' })",
+        ].join("\n"),
+      },
+    };
+    const plan = await planInstall(
+      { ...deps(ACTIVE), packs: memoryPacks({ itsm: packFiles(retiring) }) },
+      QUERY,
+    );
+    expect(plan.modules.find((m) => m.id === "incident")?.deletions).toEqual([
+      { table: "sys_atf_step", sysId: "079dcd30a3ae5c432ce8a67babe65c1a" },
+      { table: "prb_model", sysId: "dc6e1da1dee511cd23fa0de321d02c93" },
+    ]);
+    const document = installPlanDocument(plan);
+    expect(document).toContain(
+      '**It will not:** delete a record other than those listed under "Records the modules delete"',
+    );
+    expect(document).toContain("| incident | sys_atf_step | 079dcd30a3ae5c432ce8a67babe65c1a |");
+  });
+
   it("names an unknown profile and every template problem as blocking", async () => {
     const broken: PackFixture = {
       ...PACK,

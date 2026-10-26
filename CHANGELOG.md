@@ -4,6 +4,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A pull removes from the mirror the records a push deleted. The platform keeps no deletion record
+  for most deletions an update set loads (pdi2, 2026-10-26: 72 of 73), so they stayed in the mirror,
+  shown as present and active. A pull that finds records gone without one now verifies the counts,
+  as `pull --verify` does, and removes them; it used to warn and ask for a full pull, which an
+  accelerator install's pull never showed.
+- The install plan no longer says it deletes no record. It lists the records each module's source
+  deletes (`Now.del`, the pack's own), deleted where the instance still holds them, and says it
+  deletes nothing else but the form element of a field a module no longer adds.
+
 ## [2.15.0] - 2026-10-26
 
 An accelerator install checks its layouts and forms after it runs, and takes off a form field a

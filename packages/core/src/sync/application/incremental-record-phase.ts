@@ -103,9 +103,12 @@ export async function recordPhase(
   );
   const reread = await rereadForRedaction(deps, state, step.catalog, signal);
   const previous = { unreadable: state.unreadable ?? [], hidden: state.hiddenCounts ?? {} };
-  const verified = verify
-    ? await verifyAndRepairRecords(deps, step.catalog, previous, signal, progress)
-    : null;
+  // Records that left without a deletion record (an update-set load deletes without one, pdi2
+  // 2026-10-26) are found by the counts, as pull --verify does: only on such a pull.
+  const verified =
+    verify || step.lostRecords > 0
+      ? await verifyAndRepairRecords(deps, step.catalog, previous, signal, progress)
+      : null;
   const unreadable = [
     ...step.records.unreadable,
     ...(verified?.records.unreadable ?? []),

@@ -1,5 +1,5 @@
 import { isFormFieldFact, isListFact } from "./ensure";
-import { dataSection, fieldsSection, table } from "./install-document-sections";
+import { dataSection, deletionsSection, fieldsSection, table } from "./install-document-sections";
 import type {
   InstallPlan,
   InstallRecord,
@@ -29,6 +29,9 @@ function summary(plan: InstallPlan): string[] {
   const activations = plan.components.filter((c) => c.action === "activate").length;
   const rows = plan.data.entities.reduce((n, e) => n + e.rows, 0);
   const files = plan.modules.reduce((n, m) => n + m.files.length, 0);
+  const listed = plan.modules.some((m) => m.deletions.length > 0)
+    ? 'those listed under "Records the modules delete" (the pack\'s own) and '
+    : "";
   return [
     `# Install plan: ${plan.pack} ${plan.version} on ${plan.instance.name}`,
     "",
@@ -37,7 +40,7 @@ function summary(plan: InstallPlan): string[] {
     `- **Selection:** ${selectionText(plan)}: ${plan.modules.map((m) => m.id).join(", ")}`,
     `- **Changes:** ${activations} component(s) activated; ${plan.modules.length} module(s) delivered from ${files} source file(s), each into its own update set; ${rows} ${plan.data.source === "demo" ? "fictional demo" : "customer"} data row(s) loaded`,
     "",
-    "**It will not:** delete any record, change a record the plan does not list, write to a test or production instance, move, commit or cancel an update set, or complete an update set the plan does not list. Customizations are promoted with the platform's own update set process.",
+    `**It will not:** delete a record other than ${listed}the form element of a field a module no longer adds, change a record the plan does not list, write to a test or production instance, move, commit or cancel an update set, or complete an update set the plan does not list. Customizations are promoted with the platform's own update set process.`,
   ];
 }
 
@@ -93,6 +96,7 @@ function modules(plan: InstallPlan): string[] {
     ),
     ...layouts(plan),
     ...formFields(plan),
+    ...deletionsSection(plan),
     ...leftovers(plan),
   ];
 }

@@ -5,6 +5,7 @@ import type { DataDomain } from "./data-domain";
 import type { OpenSet } from "./earlier-sets";
 import type { EnsureFact } from "./ensure";
 import type { Adoption } from "./materialize";
+import type { PlannedDeletion } from "./module-deletions";
 import type { ComponentCheck, PreflightReport } from "./preflight";
 import type { FieldCheck } from "./required-fields";
 
@@ -36,6 +37,8 @@ export interface PlannedModule {
   readonly adoptions: readonly Adoption[];
   // Layouts the module adds to, found by table and view when it is delivered (ADR-0042).
   readonly ensures: readonly EnsureFact[];
+  // Records its source deletes (Now.del): the pack's own, deleted where the instance holds them.
+  readonly deletions: readonly PlannedDeletion[];
 }
 
 export interface SkippedModule {

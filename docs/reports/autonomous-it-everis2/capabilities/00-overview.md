@@ -145,3 +145,6 @@ Tests ran in the UI on everis2 on 28 October as `svc_fcaamano`. Every capability
 | V18 | AI Control Tower | Workspace | 0 of 334 managed | – | Never set up |
 | V19 | AI Agent Analytics | Dashboard | Pass | – | 81 blocked runs, inferred CSAT 3.5 |
 | V20 | Integration blockers | Live queries | 8 proven | – | No MID, HLA core, SRM, Discovery, telephony, chat queue |
+| V21 | LEAP | LEAP workspace and panel | Not configured | – | Its agent still took 7 of 7 generate, recommend and set-up requests in the panel |
+| V22 | AI Agent Advisor (agent miner) | Execution records | 9 of 9 runs failed | – | Only 35 of the 500 closed incidents it needs had a usable issue and root cause |
+| V23 | Guardian and value dashboards | Platform Analytics | Guardian: 0 flagged since July; AI Value: widgets in error | – | The guardian adds 426 ms per call |

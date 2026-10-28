@@ -29,21 +29,21 @@ P1-1 evidence is in [../evidence/p1-1-2026-10-28/](../evidence/p1-1-2026-10-28/)
 | Status | Count | Meaning for the plan |
 |---|---|---|
 | pass | 22 | Ready to show, most of them after small UX tweaks |
-| partial | 12 | Valuable, but routing, data or a hidden precondition gets in the way |
-| fail | 5 | All 5 are Otto panel routing or record-lookup failures, not broken skills |
-| blocked | 10 | 8 integration or licence (proven live), 1 access (ACL), 1 data |
-| not run | 41 | 18 need activation (owner approval) or an integration; 23 can run now and are next |
+| partial | 13 | Valuable, but routing, data or a hidden precondition gets in the way |
+| fail | 9 | 7 are panel routing: 4 went to LEAP, 1 insisted on a task, 1 described the wrong record, 1 erred. Plus a skill-picker loop (OP18) and the agent miner, which lacks usable data (PG15) |
+| blocked | 14 | 8 integration or licence (proven live), 1 access (ACL), 5 data or setup (no collected indicators, no clusters, LEAP not configured) |
+| not run | 32 | 18 need activation (owner approval) or an integration; 14 can run now |
 | skipped | 3 | On purpose |
 
-52 of 93 capabilities have a live result. The testing continues; this table is the state at commit time.
+61 of 93 capabilities have a live result. The testing continues; this table is the state at commit time.
 
 ```mermaid
 pie showData title 93 capabilities, 28 Oct 2026
   "pass" : 22
-  "partial" : 12
-  "fail" : 5
-  "blocked" : 10
-  "not run" : 41
+  "partial" : 13
+  "fail" : 9
+  "blocked" : 14
+  "not run" : 32
   "skipped" : 3
 ```
 
@@ -59,13 +59,13 @@ pie showData title 93 capabilities, 28 Oct 2026
 | SD06 | Major incident email content | A | not run | Needs activation | – |
 | SD07 | Generate post incident review | D | fail | Routed to the LEAP agent, which asked for an AOPP number | 28 |
 | SD08 | Attachment summarization | A | not run | Needs activation | – |
-| SD09 | Find catalog item ("wrong door") | T | not run | – | – |
+| SD09 | Find catalog item ("wrong door") | T | pass | Panel named the right catalog item (Standard 22" Monitor) with a link and context, through Q&A; the record action was not tried | 75 |
 | SD10 | Work Allocator | T | fail | Routed to the LEAP agent | 13 |
 | SD11 | Generate my work plan | T | partial | Works on request ("No assigned tasks" for the test user). The daily trigger runs as `system` and was blocked 78 times | 05, 60, 61 |
 | SD12 | Proactive escalation signals | T | partial | Natural language misroutes; the exact name works, but "SLA due: UNKNOWN" is wrong | 10-12 |
 | SD13 | Explain SLA | T | pass | Correct SLAs and planned breach | 04 |
 | SD14 | Who is on call | D | pass | "David Dan, Primary" for Network | 14 |
-| SD15 | Routing and category setup agents | T | not run | – | – |
+| SD15 | Routing and category setup agents | T | fail | "Recommend assignment rules" went to the LEAP agent, which finished with "All done!" and no content. Nothing created | 73 |
 | SD16 | Catalog Agent (Employee Center) | T | pass | Two Visio options; RITM0010057 submitted | 38, 39 |
 | SD17 | Catalog form slot fill | A | not run | Needs activation | – |
 | SD18 | Catalog item generation | I | not run | – | – |
@@ -78,11 +78,11 @@ pie showData title 93 capabilities, 28 Oct 2026
 | SD25 | Requester ticket summary | A | not run | Needs activation | – |
 | SD26 | Intent to action (email) | A, I | not run | SMTP off (P1-1) | – |
 | SD27 | Email Generator | T | pass | Drafted and sent in P1-1 | P1-1 01, 04 |
-| SD28 | Notification agents (admin) | T | not run | – | – |
+| SD28 | Notification agents (admin) | T | fail | "Set up a notification" went to the LEAP agent, which asked for an AOPP number | 74 |
 | SD29 | Compose email in the SOW composer | T | pass | Works (P1-1). The Otto icon shows only when the email body has focus: hard to discover | 64, P1-1 01 |
 | SD30 | Chat summarization and reply | I | blocked | 131 chats in 90 days, all handled by the Virtual Agent with no queue; 0 agents available | results log |
 | SD31 | Sidebar summarization | T | not run | Needs two users | – |
-| SD32 | ITSM Insights dashboards | T | not run | – | – |
+| SD32 | ITSM Insights dashboards | T | blocked | "Insights and Opportunities for Incident" shows no data for 6 months: the indicators are not collected (data) | 66 |
 
 ## Operations ([dossier](20-operations.md))
 
@@ -98,14 +98,14 @@ pie showData title 93 capabilities, 28 Oct 2026
 | OP08 | Alert remediation subflows | I | blocked | No MID Server (`ecc_agent` empty) | results log |
 | OP09 | SRE Investigate, observability vendors | I | not run | – | – |
 | OP10 | SRE readiness check | T | not run | – | – |
-| OP11 | LEAP automation opportunities | T | not run | The LEAP agent captures other requests (see SD07, SD10) | – |
+| OP11 | LEAP automation opportunities | T | blocked | LEAP home: "Settings are not configured!" Yet its agent takes the panel's generate requests | 71 |
 | OP12 | Error analysis and remediation | T | blocked | "You don't have the required access" (ACL, `itil`) | 49 |
 | OP13 | Pattern diagnostic (Discovery) | I | blocked | ITOM Discovery not active | results log |
 | OP14 | MID Guardian | I | blocked | No MID Server | results log |
 | OP15 | Service Mapping AI | I | blocked | Plugin active, no MID Server | results log |
 | OP16 | SLO and synthetic agents | I | blocked | No SRM tables | results log |
 | OP17 | Health Log Analytics agents | I | blocked | Agent app installed, HLA core missing | results log |
-| OP18 | Link to major incident or problem | T | not run | – | – |
+| OP18 | Link to major incident or problem | T | fail | "Analyze related incidents" (a suggested skill) looped: 59 copies of "I didn't understand your last response" | 69, 70 |
 
 ## Knowledge, search and analytics ([dossier](30-knowledge-analytics.md))
 
@@ -123,11 +123,11 @@ pie showData title 93 capabilities, 28 Oct 2026
 | KA10 | Knowledge graph answers | T | partial | Found the laptop; ignored the open-incidents half | 09 |
 | KA11 | Web search answers | I | not run | A Perplexity property and alias exist; deliberately not called | – |
 | KA12 | AI Analytics Q&A | T | pass | Chart matches the stats API; no written comparison | 15, 16 |
-| KA13 | ITSM Insights dashboard | T | not run | – | – |
+| KA13 | ITSM Insights dashboard | T | blocked | Same as SD32 | 66 |
 | KA14 | Analyze task trends | T | blocked | "No clustered data" (data) | 08 |
 | KA15 | Data visualization | T | pass | Stacked chart with edit and add to dashboard | 06, 07 |
 | KA16 | Analytics query generation | T | pass | Same as KA12 | 15 |
-| KA17 | Dashboard summarization | T | not run | – | – |
+| KA17 | Dashboard summarization | T | blocked | The dashboard Insights panel says "No insights to display", because there is no collected data | 67 |
 | KA18 | AI filter, list questions | T | fail | Panel: "problem on my side". The classic list has no AI filter | 50, 51 |
 | KA19 | AI Lens | I | not run | A "Create with Lens" button is on the list | 51 |
 | KA20 | Document extraction | T | not run | – | – |
@@ -149,13 +149,13 @@ pie showData title 93 capabilities, 28 Oct 2026
 | PG06 | Flow generation | T | not run | – | – |
 | PG07 | AI Control Tower | T | pass | Opens on its first-time wizard. 0 managed assets; 334 AI systems and 3 MCP servers unmanaged, with risk not set | 56-58 |
 | PG08 | AI security detectors | A | not run | Needs approval | – |
-| PG09 | Guardians | T | partial | The planner refused a prompt injection and nothing leaked; the guardian left no trace and the UI said "don't understand" | 17 |
+| PG09 | Guardians | T | partial | The planner refused the injection and nothing leaked. The guardian runs on every call (+426 ms) and has an OOB dashboard: 0 flagged since July; today's data not loaded yet | 17, 65 |
 | PG10 | Conversation Evaluator | A | not run | Needs approval | – |
 | PG11 | Agent memory | T | pass | No memory stored for the test user | results log |
-| PG12 | AI analytics dashboards | T | pass | AI Agent Analytics (OOB): 81 blocked runs, inferred CSAT 3.5, errors. Consumption showed 0 for this week | 60-63 |
+| PG12 | AI analytics dashboards | T | partial | AI Agent Analytics works (81 blocked runs, inferred CSAT 3.5). The AI Value Dashboard widgets show "Error" | 60-63, 68 |
 | PG13 | MCP server registry | T | pass | 3 active servers, including the iCenter "Test MCP" with 21 tools; no execution log | 58 |
 | PG14 | External agents (A2A) | T | pass | None registered | results log |
-| PG15 | AI Agent Advisor, Automation Explorer | T | not run | Runs monthly as `agent-miner-svc-account` (all 359 POV calls) | – |
+| PG15 | AI Agent Advisor, Automation Explorer | T | fail | All 9 agent-miner runs failed: only 35 of the 500 closed incidents needed had a usable issue and root cause. 359 LLM calls, no output | 72 |
 | PG16 | Voice input in the panel | A | not run | Needs approval | – |
 | PG17 | Phone voice agents | I | blocked | Twilio config has a placeholder account (`-1`); 0 phone interactions | results log |
 | PG18 | Document voice | S | skipped | Not IT | – |

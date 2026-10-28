@@ -3,7 +3,7 @@
 **Date:** 28 October 2026.
 
 **Basis:**
-- 52 capabilities tested live on everis2, with 64 screenshots and the AI logs;
+- 61 capabilities tested live on everis2, with 75 screenshots and the AI logs;
 - results are in [50-test-plan.md](50-test-plan.md), the raw log in the
   [evidence README](../evidence/capabilities-2026-10-28/README.md).
 
@@ -14,11 +14,11 @@ This plan replaces assumptions in the [roadmap](../06-roadmap.md) and the
 
 | # | Lesson | Evidence |
 |---|---|---|
-| L1 | **The skills work. The Otto panel's routing is the weak link.** Every skill reached from a record (summarize card, alert insight, wrap-up, SLA, recommendation) worked. Free-text requests in the panel failed in 5 of 5 "generate ..." cases: the LEAP agent took them and asked for an automation opportunity number. Record numbers were not looked up: KB0000008 was described as the wrong article. A plain list question ended in "problem on my side". | SD07, SD10, KA02, KA07, KA18 (13, 28, 50, 54, 55) |
+| L1 | **The skills work. The Otto panel's routing is the weak link.** Every skill reached from a record (summarize card, alert insight, wrap-up, SLA, recommendation) worked. Free-text requests in the panel failed in 7 of 7 generate, recommend, create and set-up cases: the LEAP agent took them and asked for an automation opportunity number. LEAP itself shows "Settings are not configured!". Record numbers were not looked up: KB0000008 was described as the wrong article. A plain list question ended in "problem on my side". The suggested skill "Analyze related incidents" looped 59 times. | SD07, SD10, SD15, SD28, KA02, KA07, KA18, OP11, OP18 (13, 28, 50, 54, 55, 70, 71, 73, 74) |
 | L2 | **Admin is not a persona, and access fails silently.** Some agents ran for the admin test user, others were refused with "You don't have the required access". In two cases the real cause was an inactive workflow or an ACL. 8 agents have no ACL roles. The daily "Generate my work plan" trigger runs as `system` and was blocked 78 times, so the "80 runs" in usage were never real use. | OP12, std change, SD11, PG02, PG12 (18, 49, 59-61) |
-| L3 | **Weak data makes agents look wrong.** The alert didn't bind to a CI (`SAP WEB01` exists but isn't a host). Change CI suggestion found nothing. The KB comes from a US university (VPN shared secret, "8-HELP"). Incident numbers are duplicated, and some records are On Hold but inactive. Clustering is empty. | OP01, CI suggestion, KA06, KA08, KA14 (20, 33, 52, 08) |
+| L3 | **Weak data makes agents look wrong.** The alert didn't bind to a CI (`SAP WEB01` exists but isn't a host). Change CI suggestion found nothing. The KB comes from a US university (VPN shared secret, "8-HELP"). Incident numbers are duplicated, and some records are On Hold but inactive. Clustering is empty. All 9 AI Agent Advisor runs failed: only 35 of the 500 closed incidents it needs have a usable issue and root cause. That cost 359 LLM calls for no output. The Insights dashboards show no data because their indicators are not collected. | OP01, CI suggestion, KA06, KA08, KA14, PG15, SD32 (08, 20, 33, 52, 66, 72) |
 | L4 | **Hand-offs between AI steps break.** Chat to incident: forms open empty. Alert to incident: a plain copy without the AI insight. Wrap-up to KB: "Unable to create knowledge article". The Approve button in the panel starts a new plan. | SD21, OP04, SD05 (31, 35, 42-44, 48) |
-| L5 | **Governance exists but is not switched on.** AI Control Tower manages 0 of 334 AI systems and none of the 3 MCP servers, including the iCenter "Test MCP" with 21 tools. The guardian left no trace of a prompt-injection attempt. But the AI Agent Analytics dashboard (OOB) already shows blocked runs, errors and an inferred CSAT of 3.5. | PG07, PG09, PG12, PG13 (17, 56-58, 60-63) |
+| L5 | **Governance exists but is not switched on.** AI Control Tower manages 0 of 334 AI systems and none of the 3 MCP servers, including the iCenter "Test MCP" with 21 tools. The guardian runs on every call (+426 ms) but has flagged 0 injections since July; its OOB dashboard is the place to show the block. The AI Value Dashboard widgets show "Error". The AI Agent Analytics dashboard (OOB) already shows blocked runs, errors and an inferred CSAT of 3.5. | PG07, PG09, PG12, PG13 (17, 56-58, 60-63, 65, 68) |
 | L6 | **Autonomy already works in operations.** An event became an alert, the autonomous agent completed 2 plans with no human, and the AI note arrived in 2 minutes. The on-demand insight even reused this morning's AI resolution. | OP01, OP03 (45-47) |
 
 ```mermaid
@@ -53,9 +53,10 @@ Use these entry points exactly; they passed today.
 | 7 | Operations | Alert in SOW, AI insights card | Autonomous analysis and insight (OP01, OP03) |
 | 8 | Team lead | Panel: "How many incidents were opened last month by priority…" | Chart from a question (KA12, KA15) |
 | 9 | Sponsor, CISO | Platform Analytics, AI Agent Analytics, Security tab | Blocked runs, errors, inferred CSAT (PG12) |
+| 10 | Employee or analyst | Panel: "Find catalog item for a user who needs a second monitor" | Wrong door to the right item (SD09) |
 
-Avoid in a live demo: any panel request starting with "generate" or "write", change agents,
-problem investigation, KB summaries by number, and list questions in the panel.
+Avoid in a live demo: any panel request that asks to generate, write, recommend, create or set up something; change agents;
+problem investigation; KB summaries by number; "Analyze related incidents"; list questions in the panel.
 
 ## Sprint 0, "make it real" (2 to 13 November, merged into P0)
 
@@ -66,10 +67,10 @@ because it changes configuration. Effort: S = hours, M = 1 to 3 days, L = a week
 
 | ID | Task | Proof | Effort | Approval |
 |---|---|---|---|---|
-| R1 | Keep the LEAP agent out of the panel's general routing: give its workflow a narrow description, or limit it to a LEAP role (Global AIT copy if the original can't change) | SD07, SD10 and change plans route to their own agents | S | Yes |
+| R1 | Keep the LEAP agent out of the panel's general routing: LEAP isn't configured, so deactivate its workflow or limit it to a LEAP role (Global AIT copy if the original can't change) | SD07, SD10, SD15, SD28 and change plans route to their own agents | S | Yes |
 | R2 | Set the panel's suggested prompts per workspace to the exact workflow names that work (Recommend a resolution, Explain SLA, Identify escalation signals, Wrap up and resolve) | A new user starts from a chip, not free text | S | Yes |
 | R3 | Record context: test the panel launched from the record header, and the summarize, KB and email buttons on cards. Document which entry points pass record context | SD01 and KA07 run on the open record | M | No |
-| R4 | Panel defects: the Approve button starts a new plan, and the notification link goes to `/record/undefined`. Raise them with ServiceNow support; meanwhile the demo script says "type to confirm" | Support case numbers | S | No |
+| R4 | Panel defects: the Approve button starts a new plan; the notification link goes to `/record/undefined`; "Analyze related incidents" loops on the skill picker. Raise them with ServiceNow support; meanwhile the demo script says "type to confirm" | Support case numbers | S | No |
 
 ### Personas and access (L2)
 
@@ -107,12 +108,14 @@ because it changes configuration. Effort: S = hours, M = 1 to 3 days, L = a week
 | R19 | Guardian at BLOCK for prompt injection, with a visible log; the demo shows the block, not "don't understand" | PG09 re-run shows the block and its log | S | Yes |
 | R20 | Weekly AI review on the AI Agent Analytics dashboard (blocked runs, errors, inferred CSAT, consumption); feedback on (P1-6) | First review held | S | No |
 | R21 | Housekeeping job: close stuck execution plans and panel interactions left Work in Progress (47 plans, 49 chats) | Counts back to 0 each week | S | Yes |
+| R22 | Collect the indicators behind "Insights and Opportunities for Incident" and the AI Value Dashboard, including historic data | Both dashboards show 6 months; AI Value without errors | M | Yes |
+| R23 | AI Agent Advisor: pause the monthly run until R11 gives 500 or more closed incidents with real issue and root cause, then run it once | One successful run with clusters and recommendations | S | Yes |
 
 ## What changes in the roadmap
 
 | Item | Change | Why |
 |---|---|---|
-| P0 | Add R1 to R21 (Sprint 0). P0-3 (guardians) becomes R19; P0-5 (data) is detailed in R9 to R12 | L1 to L5 |
+| P0 | Add R1 to R23 (Sprint 0). P0-3 (guardians) becomes R19; P0-5 (data) is detailed in R9 to R12 | L1 to L5 |
 | P1-2 chat summarization and reply | Move to P4 or drop: there is no live-agent queue (131 chats, all Virtual Agent) | SD30 |
 | P2-1 copilot agents | Depends on R1, R2, R5. Investigate problems and Analyze task trends also need R11 | SD12, KA14, problem tests |
 | P2-4 change agents | Depends on R1, R5, R8, R9. Three of five failed today for routing or data | Change tests |
@@ -133,7 +136,7 @@ gantt
   Personas and access R5-R8        :s2, 2026-11-02, 5d
   Data R9-R12                      :s3, 2026-11-04, 8d
   Hand-offs R13-R16                :s4, 2026-11-06, 6d
-  Governance R17-R21               :s5, 2026-11-09, 5d
+  Governance R17-R23               :s5, 2026-11-09, 5d
   Retest every T capability        :milestone, m1, 2026-11-13, 0d
   section Then
   P1 Assist                        :p1, 2026-11-16, 2026-12-04
@@ -153,10 +156,10 @@ gantt
 
 ## Still to test (no approval needed)
 
-23 class T and D capabilities have no live result yet:
-- Service desk: SD09, SD15, SD23, SD24, SD28, SD31, SD32.
-- Operations: OP02, OP05, OP06, OP10, OP11, OP18.
-- Knowledge and analytics: KA13, KA17, KA20, KA21, KA22.
-- Platform: PG03, PG04, PG05, PG06, PG15.
+14 class T and D capabilities have no live result yet:
+- Service desk: SD23, SD24, SD31.
+- Operations: OP02, OP05, OP06, OP10.
+- Knowledge and analytics: KA20, KA21, KA22.
+- Platform: PG03, PG04, PG05, PG06.
 
 They don't change the lessons above. They add entry points to the demo and use cases to the backlog.

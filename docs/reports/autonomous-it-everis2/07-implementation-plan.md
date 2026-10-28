@@ -15,7 +15,7 @@
 
 ### P0 Foundation and governance (2 to 13 Nov)
 
-Sprint 0 "make it real" (R1 to R21) is part of P0. It comes from the live capability tests: see
+Sprint 0 "make it real" (R1 to R23) is part of P0. It comes from the live capability tests: see
 [capabilities/60-real-plan.md](capabilities/60-real-plan.md).
 
 | ID | Task | Stream | Use case |

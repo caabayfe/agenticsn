@@ -83,6 +83,17 @@ Test records to clean up:
 - [62](62-pg-agent-analytics-overview.jpg): pg agent analytics overview
 - [63](63-pg-agent-analytics-consumption-zero.jpg): pg agent analytics consumption zero
 - [64](64-sd-email-composer-footer.jpg): sd email composer footer
+- [65](65-pg-guardian-prompt-injection-dashboard.jpg): pg guardian prompt injection dashboard
+- [66](66-sd-insights-dashboard-no-data.jpg): sd insights dashboard no data
+- [67](67-ka-dashboard-insights-panel-empty.jpg): ka dashboard insights panel empty
+- [68](68-pg-ai-value-dashboard-errors.jpg): pg ai value dashboard errors
+- [69](69-op-related-incidents-start.jpg): op related incidents start
+- [70](70-op-related-incidents-loop.jpg): op related incidents loop
+- [71](71-op-leap-not-configured.jpg): op leap not configured
+- [72](72-pg-automation-center-no-data.jpg): pg automation center no data
+- [73](73-sd-routing-recommendation-leap-empty.jpg): sd routing recommendation leap empty
+- [74](74-sd-notification-agent-leap.jpg): sd notification agent leap
+- [75](75-sd-wrong-door-catalog-item.jpg): sd wrong door catalog item
 
 ## Log
 
@@ -260,3 +271,32 @@ AI Agent Analytics Overview: average inferred CSAT for AI agents last 7 days 3.5
 ## SD27/SD29 email composer - pass (P1-1), discoverability gap
 Correction of a first reading: on INC0025306 I saw no AI action in the composer. On INC0025194 the Otto icon appears INSIDE the email body only when the body has focus, as in P1-1 where it drafted and sent an email on INC0010018 (P1-1 evidence 01, 04). The footer "..." holds only Discard draft / Open draft in a tab. So the skill works; the entry point is a small icon visible only on focus. Training and a visible button are the tweak. Nothing sent today.
 Side observation: INC0025306 (caller "Event Management", machine-generated text) carries a "Negative" sentiment badge - sentiment runs on event-created incidents where it means nothing; exclude by caller or contact type.
+
+## PG09 follow-up: guardian dashboard exists (OOB)
+par_dashboard lists "Now Assist Guardian - Prompt Injection", "Now Assist Guardian - Offensiveness", "AI Security and Privacy - ServiceNow Otto Guardian - Prompt Injection" and others. "Now Assist Guardian - Prompt Injection": guardrail-added latency 426 ms (avg Jul 1 - Oct 26, spiky), 0% flagged, 0 occurrences. So the guardian runs on every call and is measured; data stops at Oct 26, so today's probe is not in it yet (daily collection). Re-check tomorrow: if our probe is still 0, the guardian did not detect a textbook injection. Correction: the guardian is visible through this dashboard, not "no trace".
+
+## SD32 / KA13 / KA17 Insights and Opportunities for Incident - blocked (data collection)
+Platform Analytics "Insights and Opportunities for Incident": Incident volume, SLA status, sentiment trend, incident trends all "No data available" for last 6 months although ~1,400 incidents were opened Sep-Oct alone. The indicators are not collected (PA jobs / indicator sources not run). Dashboard "Insights" side panel (KA17 AI insights on a dashboard): "No insights to display - KPIs within expected ranges or no data". Fix: run the data collection jobs for the Insights indicators (and historic collection).
+
+## PG12 AI Value Dashboard - fail (widgets error)
+Platform Analytics "Value Dashboard": Total AI User 322; Total Value (Hours), Total Skills Deployed and every Reading time widget show "Error - An unexpected issue occurred. Please check the configuration, system logs...". AI Value is not configured or backfilled (X7). The sponsor story ("what AI saved us", N11) cannot use it until fixed; AI Agent Analytics works meanwhile.
+
+## OP18 Analyze related incidents (panel skill) - fail (message loop)
+On INC0025306, new chat: "Analyze related incidents for INC0025306" -> "I will analyze related incidents" / "Using 'Analyze related incidents'" / Thinking, then the panel filled with "I'm afraid I didn't understand your last response." repeated. Backend: conversation topic "_empty_skill_picker_" got 70 messages, 59 of them the same fallback line, within ~1 minute (10:27:28-10:28:37); it stopped by itself. Execution plan: Default VA Workflow, In progress. A suggested skill in the panel's own start menu loops on the skill picker: a defect to raise with ServiceNow, and a reason to keep it out of demos.
+
+## OP11 LEAP - blocked (not configured), yet its agent hijacks the panel
+/now/leap home: "Settings are not configured!". No automation opportunities. The LEAP agent that captures every "generate ..." request in the panel (SD07, SD10, change plans) belongs to an app that was never set up. Strongest argument for R1.
+
+## PG15 AI Agent Advisor / Automation Explorer (agent miner) - fail (every run failed)
+sn_agent_miner_executions: 9 runs (monthly on 5 Aug, 3 Sep, 2 Oct; configs incident, interaction, sn_customerservice_case), ALL status Failed. Output tables empty: clusters 0, recommended automations 0, agent previews 0, agent matches 0; inputs exist (dataset 1,023 rows, existing automations indexed 5,178). These are the 359 "POV" LLM calls in usage (V3): AI spend with zero output. Automation Center workspace: "No data available" for active automations and executions.
+Fix: find the failure reason (execution record or syslog), or switch the job off until the use-case factory (F4, N12) is planned.
+Failure reason (latest incident run, 2 Oct): stage "POV Extraction" Failed: "Insufficient active dataset records for execution... Expected at least 500, but got 35"; later stages (cluster, resolution steps, agent match, tool match) NotStarted. Config: up to 5,000 resolved/closed incidents from the last 365 days, POV fields issue + root_cause mandatory. So after extracting points of view with the LLM, only 35 closed incidents had a usable issue AND root cause. The cause is data quality: closed incidents without real resolution notes. This is the same root as L3 and a hard prerequisite for the use-case factory (F4).
+
+## SD15 routing recommendation (admin setup agent) - fail (LEAP misroute #6)
+Panel: "Recommend assignment rules to route SAP incidents to the right group. Only recommend, do not create anything." -> "I will generate recommendations..." -> "Checked on remaining steps" -> "All done!" with no content. Execution plan: usecase "LEAP agent" (Artifact creation agent), Completed, ReAct thought "proceed with the required standalone artifact-related assistance step". No assignment rule or decision created (checked). 6 of 6 generate/recommend/optimize requests now went to LEAP.
+
+## SD28 notification agent (admin) - fail (LEAP misroute #7)
+Panel: "Set up a notification that emails the SAP support group when a priority 1 SAP incident is opened. Show me the draft first and do not activate it." -> "I will create the notification draft and keep it inactive" -> "Started AI Agent Artifact creation agent" -> "Please enter the Automation Opportunity number (e.g. AOPP123456)". Nothing created. 7 of 7 generate / recommend / create / set-up requests went to LEAP. OP06 "Create alert automation" not re-run: same pattern expected and LEAP is unconfigured.
+
+## SD09 wrong door, find catalog item - pass (via Q&A)
+Panel: "Find catalog item for a user who opened an incident saying they need a second monitor for their desk" -> "The relevant catalog item is the 22-inch monitor request: LG 22" LCD ... Standard 22" Monitor" with a link to the item, plus context (defective monitor under warranty -> Dell or Hardware Support), cited. Answered by the Q&A path, not tied to an incident record; the record-bound "wrong door" action on the incident form was not tested.

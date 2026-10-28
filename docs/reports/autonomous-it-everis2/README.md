@@ -22,7 +22,7 @@ marked `MISSING` or `BUILD`. The facts come from a read-only mirror of the insta
 | [06-roadmap.md](06-roadmap.md) | Phases, dates and the demo story at the end of each phase |
 | [07-implementation-plan.md](07-implementation-plan.md) | Workstreams, tasks, enablement checklist and build conventions |
 | [use-cases/_template.md](use-cases/_template.md) | Template for adding a new use case |
-| [capabilities/60-real-plan.md](capabilities/60-real-plan.md) | **The plan from the live tests (28 Oct):** what works, what breaks, Sprint 0 tasks R1 to R21, roadmap changes |
+| [capabilities/60-real-plan.md](capabilities/60-real-plan.md) | **The plan from the live tests (28 Oct):** what works, what breaks, Sprint 0 tasks R1 to R23, roadmap changes |
 | [capabilities/](capabilities/) | AI capability assessment: overview, four domain dossiers, test plan with live results |
 | [evidence/](evidence/) | Screenshots and logs of the live tests (P1-1 and all capabilities) |
 

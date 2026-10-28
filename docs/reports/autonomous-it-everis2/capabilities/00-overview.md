@@ -13,10 +13,23 @@ switch on, for whom, with what business logic, and what tweaks make it really us
 - Live tests in the UI with evidence, in the [validation log](#live-validation-log) below. The
   dossiers are mirror analysis: anything marked "(inferred)" there is not yet confirmed on the instance.
 
+**Read first:** the plan built from the live tests is [60-real-plan.md](60-real-plan.md), and the status of every
+capability is in [50-test-plan.md](50-test-plan.md).
+
+**Corrections to the dossiers from the live tests:**
+- Employee Center already has the Otto AI chat with cited answers (`esc?id=ai_native_chat`). The knowledge
+  dossier said the portal AI answer was missing.
+- No AI agent trigger is active (V2).
+- The POV calls come from the AI Agent Advisor, not from clustering or LEAP (V3).
+- "Generate my work plan" usage was a blocked `system` trigger (V7).
+- Guardians leave no visible trace in log mode (PG09).
+- The SOW email composer has the Otto draft, but its icon shows only when the email body has focus (SD29).
+
 ## The headline
 
 The instance is **switched on, but not used**. 255 skills are active; **48 made at least one AI call in
-180 days**, and 11 agentic workflows ran at least once. The AI that does run is mostly plumbing:
+180 days**, and 11 agentic workflows ran at least once (but 78 of the 80 "Generate my work plan" runs were a
+`system` trigger blocked by access, see V7). The AI that does run is mostly plumbing:
 - agent building by colleagues;
 - the autonomous alert agent;
 - monthly clustering jobs nobody reads;
@@ -105,23 +118,30 @@ Discovery (inactive ITOM licence plugins); SLO agents (Service Reliability Manag
 
 ## Live validation log
 
-Tests run in the UI on everis2 as `svc_fcaamano`, evidence in [../evidence/capabilities-2026-10-28/](../evidence/capabilities-2026-10-28/).
-Provider and model come from `sys_generative_ai_log`.
+Tests ran in the UI on everis2 on 28 October as `svc_fcaamano`. Every capability's status is in
+[50-test-plan.md](50-test-plan.md), the raw log and screenshots are in
+[../evidence/capabilities-2026-10-28/](../evidence/capabilities-2026-10-28/), and the plan built from them is in
+[60-real-plan.md](60-real-plan.md). The provider and model come from `sys_generative_ai_log`.
 
 | # | Capability | Test | Result | Provider and model | Notes |
 |---|---|---|---|---|---|
 | V1 | P1-1 skills (9) | See [P1-1 report](../evidence/p1-1-2026-10-28/README.md) | Pass | Azure OpenAI; Claude Haiku for 2 | Done |
-| V2 | Trigger states (6) | Live query of `sn_aia_trigger_configuration` | Pending | – | Mirror says all inactive; one dossier says one is live |
-| V3 | Source of the 359 POV calls | AI log grouped by day and skill | Pending | – | Clustering jobs or LEAP |
-| V4 | Investigate and recommend incident resolution | SAP test incident, Otto panel | Pending | | |
-| V5 | Generate resolution plan, incident assist | Same incident | Pending | | |
-| V6 | Triage and categorize (on demand) | Same incident | Pending | | |
-| V7 | Generate my work plan | Otto panel | Pending | | |
-| V8 | Charts from a question | Otto panel | Pending | | |
-| V9 | Analyze task trends | Otto panel | Pending | | |
-| V10 | Voice input mic | Panel | Pending | | Expected hidden |
-| V11 | Portal search answer and VA Q&A | Employee Center | Pending | | |
-| V12 | Request Status Agent, Create Incident agent | VA | Pending | | |
-| V13 | Change agents (create from a sentence, plans, CI suggestion) | Change | Pending | | |
-| V14 | Investigate problems | Problem | Pending | | |
-| V15 | Test MCP server authentication | Registry record | Pending | | Governance |
+| V2 | Trigger states (6) | Live query of `sn_aia_trigger_configuration` | All 6 inactive | – | The dossier claim of one live trigger was wrong |
+| V3 | Source of the 359 POV calls | AI log by day and user | AI Agent Advisor | – | All by `agent-miner-svc-account`, monthly (317 on 5 Aug) |
+| V4 | Investigate and recommend incident resolution | SAP test incident, panel | Pass (2nd try) | gpt-5.4; Bedrock `claude_large` for one step | 1st try terminated |
+| V5 | Resolution plan, incident assist | Same incident | Pass | gpt-5.4 | – |
+| V6 | Triage and categorize (on demand) | Same incident | Partial | gpt-5.4 | Diagnosis right, no field written; writing needs the trigger |
+| V7 | Generate my work plan | Panel | Partial | – | Works on request; the daily trigger as `system` was blocked 78 times |
+| V8 | Charts from a question | Panel | Pass | – | Matches the stats API |
+| V9 | Analyze task trends | Panel | Blocked (data) | – | "No clustered data" |
+| V10 | Voice input mic | Panel | Not run | – | Needs activation (class A) |
+| V11 | Portal search answer and VA Q&A | Employee Center | Pass | – | Otto AI chat is live on `/esc`; the demo KB is a US university's |
+| V12 | Request Status Agent, Create Incident agent | Employee Center | Pass / partial | – | The chat doesn't carry into the incident form |
+| V13 | Change agents | Change | 1 partial, 3 fail, 1 blocked | – | LEAP misroute, no CIs, inactive std change override |
+| V14 | Investigate problems | Problem | Fail | – | Wrong workflow (incident agent); the summary card passes |
+| V15 | Test MCP server | Registry and AI Control Tower | Governance gap | – | Active, 21 tools, unmanaged, no execution log |
+| V16 | Wrap-up and resolve | Test incident | Partial | gpt-5.4 | Resolves; KB create fails; Approve button bug |
+| V17 | Autonomous alert agent | Test event to alert | Pass | gpt-5-mini, gpt-5.4 | 2 plans, no human, note in 2 min |
+| V18 | AI Control Tower | Workspace | 0 of 334 managed | – | Never set up |
+| V19 | AI Agent Analytics | Dashboard | Pass | – | 81 blocked runs, inferred CSAT 3.5 |
+| V20 | Integration blockers | Live queries | 8 proven | – | No MID, HLA core, SRM, Discovery, telephony, chat queue |

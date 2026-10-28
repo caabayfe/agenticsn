@@ -331,7 +331,7 @@ strategy repo and the P1-1 evidence. Nothing was read from the live instance. An
   - AI Gateway (`com.glide.aict.ai_gateway_enabled = false`, `sn_awh_config.awh_enabled` empty,
     skill "AI Gateway MCP Tools Scan" active).
 - **State on everis2:** "Test MCP" (`global/sn_mcp_server_registry`) was created 2026-06-23 by
-  `icenter.innov@nttdata.com`. It has 21 tools, including **create_incident, resolve_incident,
+  `an iCenter team account`. It has 21 tools, including **create_incident, resolve_incident,
   create_change, resolve_change, put_change_on_hold** and continue_playbook_execution. Its
   description says "No se necesitan credenciales adicionales". `sn_mcp_server.sys_restricted_mcp_category_access
   = true`. MCP servers need no AICT approval (see above).

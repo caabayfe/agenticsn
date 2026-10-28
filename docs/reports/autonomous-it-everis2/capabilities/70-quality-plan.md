@@ -116,7 +116,9 @@ in [evidence/quality-2026-10-28](../evidence/quality-2026-10-28/).
 2. **Routing sends everything to Network,** and the DEMO.PI groups had **no members** (the test user
    was added to DEMO.PI.Identity tonight). This breaks Q03, Q04 and Q10.
 3. **Client content is missing:** no MFA article, VPN articles are placeholder drafts, the published
-   VPN article is US university content. This breaks Q04, Q07 and the "similar articles" in Q03.
+   VPN article is US university content. This breaks Q04, Q07 and the "similar articles" in Q03. On top
+   of that, the IT knowledge base is readable only by ACME employees, so a normal employee can read
+   one article in the whole instance (found on the night of 28 October).
 4. **Thin operational data:** one change on a CI in 120 days, alerts without CIs, no SLA breakdown
    rows in 30 days. This limits Q01, Q05 and Q06.
 5. **OOB workflows not switched on:** Explain SLA (Q01).
@@ -258,6 +260,11 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 - **Tests:** 10 questions in Spanish and English with keys; 2 questions with no article (the answer
   says so and offers a ticket); a check that the shared secret never appears.
 - **Acceptance:** right article cited in 10 of 10; correct "I don't know" in 2 of 2.
+- **Progress (night of 28 October):** about 11 of 12 on three questions (VPN, MFA, and a printer
+  question with no article), in Spanish, as a Spanish persona. Fixed by three client articles, plus a
+  finding: **normal users can't read the IT knowledge base** (it is limited to ACME employees). The
+  articles now sit in the open "Knowledge" base. Evidence:
+  [q07-fix-runs.md](../evidence/quality-2026-10-28/q07-fix-runs.md).
 
 ### Q08 Request software (step 2, SD16)
 

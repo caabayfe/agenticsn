@@ -26,10 +26,14 @@ P1-1 evidence is in [../evidence/p1-1-2026-10-28/](../evidence/p1-1-2026-10-28/)
 
 ## Results at a glance
 
+**"pass" means it ran and gave a correct answer, not that the answer is good enough for a client.**
+The quality of the demo steps is measured separately, against answer keys, in
+[70-quality-plan.md](70-quality-plan.md). The first quality check downgraded SD13.
+
 | Status | Count | Meaning for the plan |
 |---|---|---|
-| pass | 23 | Ready to show, most of them after small UX tweaks |
-| partial | 17 | Valuable, but routing, data or a hidden precondition gets in the way |
+| pass | 22 | Ready to show, most of them after small UX tweaks |
+| partial | 18 | Valuable, but routing, data or a hidden precondition gets in the way |
 | fail | 12 | 4 went to the LEAP agent, 4 the panel misread (insisted on a task, wrong record, "problem on my side", "don't understand"), 1 skill-picker loop (OP18), 1 agent miner without usable data (PG15), 1 broken extraction setup (KA20), 1 noise auto-close not active (OP02) |
 | blocked | 22 | 12 integration, client or licence (proven live), 2 access (roles), 6 data or setup (no collected indicators, no clusters, no CI binding, LEAP not configured), 2 generation features not activated |
 | not run | 16 | 13 need activation (owner approval), 1 needs SMTP, 1 a credential decision (web search), 1 a second user |
@@ -40,8 +44,8 @@ has run; the 16 left need an activation, an integration or a second user.
 
 ```mermaid
 pie showData title 93 capabilities, 28 Oct 2026
-  "pass" : 23
-  "partial" : 17
+  "pass" : 22
+  "partial" : 18
   "fail" : 12
   "blocked" : 22
   "not run" : 16
@@ -64,7 +68,7 @@ pie showData title 93 capabilities, 28 Oct 2026
 | SD10 | Work Allocator | T | fail | Routed to the LEAP agent | 13 |
 | SD11 | Generate my work plan | T | partial | Works on request ("No assigned tasks" for the test user). The daily trigger runs as `system` and was blocked 78 times | 05, 60, 61 |
 | SD12 | Proactive escalation signals | T | partial | Natural language misroutes; the exact name works, but "SLA due: UNKNOWN" is wrong | 10-12 |
-| SD13 | Explain SLA | T | pass | Correct SLAs and planned breach | 04 |
+| SD13 | Explain SLA | T | partial | Correct SLA list, but answered by Incident assist: the Explain SLA workflow has never run (template, not activated). Evening check on INC0010147: "why did it breach" blamed reassignments that took 80 s; the real cause is 6 months in one group (wrong) | 04, Q01 baseline |
 | SD14 | Who is on call | D | pass | "David Dan, Primary" for Network | 14 |
 | SD15 | Routing and category setup agents | T | fail | "Recommend assignment rules" went to the LEAP agent, which finished with "All done!" and no content. Nothing created | 73 |
 | SD16 | Catalog Agent (Employee Center) | T | pass | Two Visio options; RITM0010057 submitted | 38, 39 |

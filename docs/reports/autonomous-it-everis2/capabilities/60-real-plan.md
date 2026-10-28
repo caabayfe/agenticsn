@@ -40,7 +40,10 @@ flowchart LR
 
 ## What we can show tomorrow (no change on the instance)
 
-Use these entry points exactly; they passed today.
+Use these entry points exactly; they passed today. **They passed as "it runs", not as "top quality".**
+The evening quality check found the SLA explanation (step 5) gives a confident wrong cause, so it is out.
+The grade of every step and the plan to take each one to top quality are in
+[70-quality-plan.md](70-quality-plan.md).
 
 | Step | Persona | Entry point | Capability |
 |---|---|---|---|
@@ -48,7 +51,7 @@ Use these entry points exactly; they passed today.
 | 2 | Employee | Same chat: "I need Microsoft Visio installed on my laptop" then Submit | Catalog Agent, RITM created (SD16) |
 | 3 | Employee | "What is the status of my requests?" | Request Status Agent (SD19) |
 | 4 | Analyst | SOW incident, Otto panel: "Recommend a resolution for INC…" | Plan as a work note (SD02, SD04) |
-| 5 | Analyst | Same incident: "Explain the SLA", "Who is on call for Network?" | SD13, SD14 |
+| 5 | Analyst | Same incident: "Who is on call for Network?" (not "Explain the SLA": see Q01) | SD14 |
 | 6 | Analyst | Incident In Progress: "Wrap up and resolve INC…", then type the confirmation (don't click Approve) | AI resolution (SD05) |
 | 7 | Operations | Alert in SOW, AI insights card | Autonomous analysis and insight (OP01, OP03) |
 | 8 | Team lead | Panel: "How many incidents were opened last month by priority…" | Chart from a question (KA12, KA15) |

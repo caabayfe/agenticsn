@@ -13,7 +13,7 @@ How the tests ran:
 
 Test records to clean up:
 - INC0025193, INC0025194 (resolved by the AI wrap-up), INC0025306 (from the alert);
-- CHG0030062, RITM0010057, Alert0010107 (open), KB0010015 (draft);
+- CHG0030062, RITM0010057, Alert0010107, Alert0010108 and Alert0010109 (open, from [AI-TEST] events), KB0010015 (draft);
 - IMS interactions created by the panel;
 - execution plans left In progress (Default VA, LEAP).
 
@@ -94,6 +94,17 @@ Test records to clean up:
 - [73](73-sd-routing-recommendation-leap-empty.jpg): sd routing recommendation leap empty
 - [74](74-sd-notification-agent-leap.jpg): sd notification agent leap
 - [75](75-sd-wrong-door-catalog-item.jpg): sd wrong door catalog item
+- [76](76-pg-group-question-no-records.jpg): pg group question no records
+- [77](77-pg-new-flow-no-now-assist.jpg): pg new flow no now assist
+- [78](78-pg-skill-kit-security-dialog.jpg): pg skill kit security dialog
+- [79](79-pg-skill-kit-controls-not-set.jpg): pg skill kit controls not set
+- [80](80-pg-data-kit-access-denied.jpg): pg data kit access denied
+- [81](81-ka-survey-analysis-not-understood.jpg): ka survey analysis not understood
+- [82](82-op-disk-warning-ai-insight.jpg): op disk warning ai insight
+
+Transcripts (screenshots after about 10:45 were not saved to disk by the browser tool):
+- [83](83-op06-alert-automation-transcript.md): OP06 alert automation proposal
+- [84](84-ka21-smart-documents-transcript.md): KA21 Smart Documents summary, Q&A and redaction preview
 
 ## Log
 
@@ -257,7 +268,7 @@ Panel: "Write a draft knowledge article explaining how users fix SAP pricing err
 - KA24 sentiment: plugin com.snc.sentiment_analysis inactive, but the gen-AI "Record Sentiment Analysis" skill is live (146 calls) and populates Sentiment / Sentiment Trend on incidents (seen on list, -139). Pass.
 
 ## PG07 AI Control Tower - pass (opens) / governance gap confirmed
-/now/ai-control-tower opened with the first-time welcome wizard (never set up before). Home: "Data and insights shown here are for Managed AI assets only", empty. Inventory: Managed AI systems = 0 ("No data"); Unmanaged AI systems = 334, all "To be determined" risk, e.g. LEAP Problem Creation Agent, Investigate problems, Identify escalation signals. Unmanaged MCP servers = 3: sn_mcp_server.default (Deployed), moveworks_default, test_mcp (managed by Icenter Innov). Nothing governed: no risk classification, no approvals. Closing the wizard with X changed nothing.
+/now/ai-control-tower opened with the first-time welcome wizard (never set up before). Home: "Data and insights shown here are for Managed AI assets only", empty. Inventory: Managed AI systems = 0 ("No data"); Unmanaged AI systems = 334, all "To be determined" risk, e.g. LEAP Problem Creation Agent, Investigate problems, Identify escalation signals. Unmanaged MCP servers = 3: sn_mcp_server.default (Deployed), moveworks_default, test_mcp (managed by an iCenter team account). Nothing governed: no risk classification, no approvals. Closing the wizard with X changed nothing.
 
 ## PG02 AI Agent Studio - pass (opens) / warnings
 /now/agent-studio: first-time welcome tour (never dismissed by anyone with "do not show"). Three banners: third-party API data routing (KB2596322); "New configuration requirements: user and data access now required for every AI agent and agentic workflow"; "Action required: 8 agents have no Access Control List (ACL) configured". Matches the mirror (8 overrides limit_to_roles with empty roles: Help Optimize Team Productivity, LEAP agent, Assess conflicts, Assess quality, Investigate problems, ...).
@@ -300,3 +311,52 @@ Panel: "Set up a notification that emails the SAP support group when a priority 
 
 ## SD09 wrong door, find catalog item - pass (via Q&A)
 Panel: "Find catalog item for a user who opened an incident saying they need a second monitor for their desk" -> "The relevant catalog item is the 22-inch monitor request: LG 22" LCD ... Standard 22" Monitor" with a link to the item, plus context (defective monitor under warranty -> Dell or Hardware Support), cited. Answered by the Q&A path, not tied to an incident record; the record-bound "wrong door" action on the incident form was not tested.
+
+## PG04 record question (setup-style lookup) - partial, and a data finding
+Panel: "What groups exist for SAP support and who are their members? Answer only..." -> "No matching records were found... I couldn't find matching records for SAP support groups and their members. Please rephrase with a more specific record type". API check: one group matches "SAP": DEMO.PI.SAP (active) with 0 members. So the agent missed the group itself, and the only SAP support group has nobody in it. This explains the 403 when assigning INC0025194 to a user, and why Work Allocator, work plan and on-call have nothing to use for SAP. Otto for Setup implementation agents (create groups, load data) were not run: they write configuration and need approval.
+
+## PG06 flow generation - not surfaced
+Workflow Studio > New > Flow opens the plain "Let's get the details for your flow" dialog (name, application, description, Build flow) with no "Build with Now Assist" option. Cancelled; no flow created (sys_hub_flow created in the last 15 min = 0). Studio banner announces "Conversational subflows and actions" (SD23) and "New version available" (Workflow Studio not on latest). Flow generation needs activation or the upgrade (class A).
+
+## PG03 AI Skill Kit - partial (opens; governance gap)
+/now/now-assist-skillkit: dialog "New: Add security controls for skills" (ACLs and role restrictions); banner "Action required: Some skills are missing ACLs and role restrictions". 29 custom skills; on page 1, 7 of 10 are Active with Security controls "Not set" (Proactive..., Identify w..., Image to t..., Generate m..., Task Class..., Form Autoc..., Generate R...). Kickoff guide 0/9 (never used). Evaluation / Auto Chat not run (needs a chosen skill and dataset).
+
+## PG05 AI Data Kit - blocked (access)
+/now/data-kit: "Security constraints prevent access to requested page" for the admin test user. Needs its own role (not part of admin). Synthetic demo data (N1) via AI Data Kit needs that role first.
+
+## KA22 survey analysis - fail (routing) and data gap
+Data: 572 assessment instances, none completed in the last 180 days; 1,022 text answers in the last 12 months. Panel: "Analyze the customer satisfaction survey responses from the last 12 months and summarize the main themes of complaints" -> "Hmm, I don't understand this request." + "Create a generic ticket". No survey agent reachable from the panel (only "Propose survey responses" exists as a workflow, kept off on purpose).
+
+## OP01 repeat, OP02 noise, OP05 grouping (second test, 10:41)
+Inserted 2 em_events at 10:41:54: (a) [AI-TEST] Disk /var/log at 81% on SAP WEB01, severity 4 Warning; (b) [AI-TEST] same VA01 symptom on SAP WEB02, severity 2 Major.
+- Alerts Alert0010108 (Warning) and Alert0010109 (Major) at 10:42:02; neither bound to a CI ("No CI found for binding").
+- OP01 again pass: 2 "Manage alerts autonomously" plans at 10:42:12; AI work notes at 10:43:35 and 10:43:37 (~90 s). Disk alert insight: "/var/log usage rising, 81%, could reach 90-95%... probable cause: logging or rotation issue" with troubleshooting steps. Good quality.
+- OP02 noise auto-close: the Warning alert was analysed but stayed Open (not closed as noise) within 2 minutes. Re-check later.
+- OP05 grouping: Alert0010109 (WEB02) not grouped with Alert0010107 (WEB01) although the symptom text is identical: group_source None, no parent. Grouping needs CI binding and a service (no CMDB relation) - data (R9).
+
+## SD24 image to task - partial (entry point present, upload not run)
+Employee Center Otto chat (/esc?id=ai_native_chat): the "+" menu offers "Add files & images" and "Include Web". The browser automation cannot drive the native file picker, so the upload and ticket creation were not run. Skill Kit lists a custom "Image to t..." skill (Active, security controls Not set). Manual step for the owner: attach an error screenshot and ask for a ticket.
+
+## OP02 re-check - fail (no noise auto-close configured)
+About 1 h after insert, Alert0010107/108/109 are all still Open, no parent, no CI, not updated since the AI work notes. No noise or auto-close setting found besides evt_mgmt.alert_auto_close_interval = 168 h (standard ageing, not AI). Noise auto-close needs the AIOps noise feature enabled (class A).
+
+## OP06 create alert automation - partial (routing pass, output is text only)
+On Alert0010108 in SOW, panel: "Create an alert automation for this alert type ... Show me the proposal first and do not activate anything." -> correct agent (execution plan usecase "Create alert automation", Completed; not LEAP). It asked "Which alert automation would you like to create?" with Alert Enrichment / Alert Response / Alert Grouping chips; chose Alert Response -> link "Respond to alerts" plus a structured proposal (trigger, conditions, actions, context, safeguards: dedupe, no repeat tickets, human approval) (84). No alert management rule created (0 in 15 min). Finding: from a record page, a creation request reached the right agent; the 7 LEAP misroutes were all from requests without a record context or on incident/change records. The output is a proposal plus a link to the builder, not a draft rule.
+Evidence note: screenshots after about 10:45 are not saved to disk by the browser tool; OP06 evidence is the transcript 83-op06-alert-automation-transcript.md. SD24 has no image evidence (menu observed: "Add files & images", "Include Web"; the SOW panel also shows a paperclip).
+
+## KA21 Smart Documents - pass (summary, Q&A, redaction preview)
+Document Viewer (/now/document/viewer/<attachment>) on "Wireless Access Description.pdf" (attached to a business service, 3 pages) has an "Ask Otto" button that opens the Smart Documents Agent with four options: Summarise, Generate FAQ, Answer questions, Redact.
+- Summary: accurate, structured (two access types, provisioning, 24/7/365 desk, guest access Internet-only and unencrypted, customer and provider responsibilities).
+- Q&A "two access types, cost, who to contact": guest vs subscribed regular access, "Cost is not specified", guest via the hosting staff member, subscribed via the service catalog. Plus a suggested follow-up question. (Cost claim not checked against pages 2-3.)
+- Redaction "hide organization names and dates, show me first": returned a selectable list with counts: 07/01/2012 (1), MN.IT Services (12), State of Minnesota (2), Minnesota (2), MN.IT (6), MN.IT Service Catalog (2), MN.IT Service Desk ... Not submitted, to keep the demo document unchanged.
+Discoverability gap: the viewer is reached only by URL or from an attachment preview; nothing in the portal or SOW points to it. Evidence: 84-ka21-smart-documents-transcript.md.
+
+## KA20 Content Understanding (document extraction) - fail (setup broken)
+/now/now-assist-docintel/usecases: "No usecase created". "Create an extraction use case" goes to .../usecase-create/null/params/skillRefId/null -> "The page you are looking for could not be found". The extraction skill is not set up (null skill id): needs the Document Intelligence skill activated in Now Assist Admin (class A). No use case created.
+
+## OP10 SRE readiness - blocked (no observability tools)
+The only SRE agent is "SRE Investigate AI Agent" (AI agents for Observability), which orchestrates tool agents for Dynatrace MCP, New Relic MCP, Kentik, SolarWinds, Splunk MCP, AWS, ThousandEyes, LogicMonitor. None of these is connected on everis2 (no MID, 3 MCP servers unmanaged). Not runnable without an observability source.
+(KA21 evidence file: 84-ka21-smart-documents-transcript.md)
+
+## SD23 conversational subflows and actions - not surfaced (blocked, class A)
+Workflow Studio > New offers Playbook, Flow, Subflow, Trigger, Spoke, Action, Decision table, "Help me decide". New > Subflow opens the plain "Let's get the details for your subflow" dialog (name, application, description, Build subflow) with no AI option. Cancelled, nothing created. Same as PG06: the generation features are announced in the Studio banner but not active; needs the Now Assist for Flow skills activated or the Workflow Studio upgrade (class A).

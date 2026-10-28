@@ -28,22 +28,23 @@ P1-1 evidence is in [../evidence/p1-1-2026-10-28/](../evidence/p1-1-2026-10-28/)
 
 | Status | Count | Meaning for the plan |
 |---|---|---|
-| pass | 22 | Ready to show, most of them after small UX tweaks |
-| partial | 13 | Valuable, but routing, data or a hidden precondition gets in the way |
-| fail | 9 | 7 are panel routing: 4 went to LEAP, 1 insisted on a task, 1 described the wrong record, 1 erred. Plus a skill-picker loop (OP18) and the agent miner, which lacks usable data (PG15) |
-| blocked | 14 | 8 integration or licence (proven live), 1 access (ACL), 5 data or setup (no collected indicators, no clusters, LEAP not configured) |
-| not run | 32 | 18 need activation (owner approval) or an integration; 14 can run now |
+| pass | 23 | Ready to show, most of them after small UX tweaks |
+| partial | 17 | Valuable, but routing, data or a hidden precondition gets in the way |
+| fail | 12 | 4 went to the LEAP agent, 4 the panel misread (insisted on a task, wrong record, "problem on my side", "don't understand"), 1 skill-picker loop (OP18), 1 agent miner without usable data (PG15), 1 broken extraction setup (KA20), 1 noise auto-close not active (OP02) |
+| blocked | 22 | 12 integration, client or licence (proven live), 2 access (roles), 6 data or setup (no collected indicators, no clusters, no CI binding, LEAP not configured), 2 generation features not activated |
+| not run | 16 | 13 need activation (owner approval), 1 needs SMTP, 1 a credential decision (web search), 1 a second user |
 | skipped | 3 | On purpose |
 
-61 of 93 capabilities have a live result. The testing continues; this table is the state at commit time.
+77 of 93 capabilities have a live result. Everything that could run without the owner's approval
+has run; the 16 left need an activation, an integration or a second user.
 
 ```mermaid
 pie showData title 93 capabilities, 28 Oct 2026
-  "pass" : 22
-  "partial" : 13
-  "fail" : 9
-  "blocked" : 14
-  "not run" : 32
+  "pass" : 23
+  "partial" : 17
+  "fail" : 12
+  "blocked" : 22
+  "not run" : 16
   "skipped" : 3
 ```
 
@@ -68,13 +69,13 @@ pie showData title 93 capabilities, 28 Oct 2026
 | SD15 | Routing and category setup agents | T | fail | "Recommend assignment rules" went to the LEAP agent, which finished with "All done!" and no content. Nothing created | 73 |
 | SD16 | Catalog Agent (Employee Center) | T | pass | Two Visio options; RITM0010057 submitted | 38, 39 |
 | SD17 | Catalog form slot fill | A | not run | Needs activation | – |
-| SD18 | Catalog item generation | I | not run | – | – |
+| SD18 | Catalog item generation | I | blocked | Catalog Builder AI is not installed (dossier check); drop it from the plan | – |
 | SD19 | Request Status Agent | T | pass | Lists the RITM and incidents with states | 40 |
 | SD20 | Approval assistance | A | not run | Needs activation | – |
 | SD21 | Create incident from chat | T | partial | Gives a tip and three create options, but every form opens empty: nothing from the chat carries over | 41-44 |
 | SD22 | Deflection answer, Now Assist Q&A | T | pass | Cited VPN answer in Otto chat (demo KB is a US university's) | 36, 37 |
-| SD23 | Conversational subflows and actions | T | not run | – | – |
-| SD24 | Image to task | T | not run | – | – |
+| SD23 | Conversational subflows and actions | T | blocked | Not surfaced: Workflow Studio New > Subflow shows the plain dialog with no AI option. Needs the flow generation skills or the Studio upgrade (class A) | – |
+| SD24 | Image to task | T | partial | The chat "+" menu offers "Add files & images" (and the SOW panel a paperclip); upload not run, as the automation cannot drive the file picker. Manual test for the owner | – |
 | SD25 | Requester ticket summary | A | not run | Needs activation | – |
 | SD26 | Intent to action (email) | A, I | not run | SMTP off (P1-1) | – |
 | SD27 | Email Generator | T | pass | Drafted and sent in P1-1 | P1-1 01, 04 |
@@ -89,15 +90,15 @@ pie showData title 93 capabilities, 28 Oct 2026
 | ID | Capability | Class | Status | Result | Evidence |
 |---|---|---|---|---|---|
 | OP01 | Manage alerts autonomously | T | pass | Test event to Alert0010107; 2 plans completed with no human; AI work note in 2 min | 45-47 |
-| OP02 | Alert noise auto-close | T | not run | The Major test alert was not a noise candidate | – |
+| OP02 | Alert noise auto-close | T | fail | The Warning test alert was analysed but stayed Open after 1 h; no AI noise setting active (only the 168 h ageing). Needs the AIOps noise feature (class A) | 82 |
 | OP03 | Alert Assist on demand | T | pass | Overview, cause, impact and 9 steps. It reused this morning's AI resolution | 46, 47 |
 | OP04 | Incident from alert with AI insight | T | partial | INC0025306 created, but as a plain copy: Inquiry, P4, no CI, no AI insight | 48 |
-| OP05 | Proactive alert grouping | D | not run | – | – |
-| OP06 | Create alert automation agent | T | not run | – | – |
+| OP05 | Proactive alert grouping | D | blocked | Same symptom on WEB01 and WEB02 not grouped: neither alert bound to a CI ("No CI found for binding"). Needs CI binding and service data (R9) | 82 |
+| OP06 | Create alert automation agent | T | partial | From the alert record it reached the right agent (not LEAP): asked the automation type, then a structured proposal (trigger, conditions, actions, safeguards) and a link to the builder. No draft rule created | 83 |
 | OP07 | AI Worker mode for alerts | A | not run | Needs approval | – |
 | OP08 | Alert remediation subflows | I | blocked | No MID Server (`ecc_agent` empty) | results log |
-| OP09 | SRE Investigate, observability vendors | I | not run | – | – |
-| OP10 | SRE readiness check | T | not run | – | – |
+| OP09 | SRE Investigate, observability vendors | I | blocked | "SRE Investigate AI Agent" needs observability tools (Dynatrace, New Relic, Splunk...); none connected | – |
+| OP10 | SRE readiness check | T | blocked | Only "SRE Investigate AI Agent" exists; it orchestrates Dynatrace, New Relic, Splunk and other observability tools, none connected | – |
 | OP11 | LEAP automation opportunities | T | blocked | LEAP home: "Settings are not configured!" Yet its agent takes the panel's generate requests | 71 |
 | OP12 | Error analysis and remediation | T | blocked | "You don't have the required access" (ACL, `itil`) | 49 |
 | OP13 | Pattern diagnostic (Discovery) | I | blocked | ITOM Discovery not active | results log |
@@ -129,10 +130,10 @@ pie showData title 93 capabilities, 28 Oct 2026
 | KA16 | Analytics query generation | T | pass | Same as KA12 | 15 |
 | KA17 | Dashboard summarization | T | blocked | The dashboard Insights panel says "No insights to display", because there is no collected data | 67 |
 | KA18 | AI filter, list questions | T | fail | Panel: "problem on my side". The classic list has no AI filter | 50, 51 |
-| KA19 | AI Lens | I | not run | A "Create with Lens" button is on the list | 51 |
-| KA20 | Document extraction | T | not run | – | – |
-| KA21 | Smart Documents | T | not run | – | – |
-| KA22 | Survey analysis agent | D | not run | – | – |
+| KA19 | AI Lens | I | blocked | The list shows "Create with Lens", but AI Lens runs from a desktop client that is not installed on the demo laptop | 51 |
+| KA20 | Document extraction | T | fail | Content Understanding opens with no use case; "Create an extraction use case" goes to a null skill id and "page not found". The extraction skill is not set up (class A) | – |
+| KA21 | Smart Documents | T | pass | Document Viewer "Ask Otto" opens the Smart Documents Agent: accurate summary, document Q&A with a follow-up, redaction preview with entity counts (not submitted). Reachable only by URL or attachment preview | 84 |
+| KA22 | Survey analysis agent | D | fail | Panel: "Hmm, I don't understand this request" plus a generic ticket offer. No survey agent reachable; no assessment completed in 180 days | 81 |
 | KA23 | Survey response suggestion | S | skipped | Keep off | – |
 | KA24 | Sentiment | T | pass | Sentiment and trend shown on lists and records. Also runs on event-made incidents, where it means nothing | 51, 64 |
 | KA25 | Dynamic translation | A | not run | Needs activation | – |
@@ -143,10 +144,10 @@ pie showData title 93 capabilities, 28 Oct 2026
 |---|---|---|---|---|---|
 | PG01 | Build Agent | S | skipped | Creates scoped apps | – |
 | PG02 | AI Agent Studio | T | partial | Opens on its first-time tour; banners: "8 agents have no ACL" and new access configuration required. Generation aids not tried | 59 |
-| PG03 | Skill Kit evaluation, Auto Chat | T | not run | – | – |
-| PG04 | Otto for Setup | T | not run | – | – |
-| PG05 | AI Data Kit | T | not run | – | – |
-| PG06 | Flow generation | T | not run | – | – |
+| PG03 | Skill Kit evaluation, Auto Chat | T | partial | Skill Kit opens: 29 custom skills, 7 of 10 on page 1 active with security controls "Not set"; banner asks for ACLs. Kickoff guide 0 of 9. Evaluation not run | 78, 79 |
+| PG04 | Otto for Setup | T | partial | Group question: "No matching records". The only SAP group, DEMO.PI.SAP, exists with 0 members, which also explains the assignment 403. Setup agents not run (they write configuration) | 76 |
+| PG05 | AI Data Kit | T | blocked | AI Data Kit: "Security constraints prevent access" for admin; needs its own role | 80 |
+| PG06 | Flow generation | T | blocked | Workflow Studio New > Flow shows the plain dialog, no "Build with Now Assist"; Studio not on the latest version (class A) | 77 |
 | PG07 | AI Control Tower | T | pass | Opens on its first-time wizard. 0 managed assets; 334 AI systems and 3 MCP servers unmanaged, with risk not set | 56-58 |
 | PG08 | AI security detectors | A | not run | Needs approval | – |
 | PG09 | Guardians | T | partial | The planner refused the injection and nothing leaked. The guardian runs on every call (+426 ms) and has an OOB dashboard: 0 flagged since July; today's data not loaded yet | 17, 65 |

@@ -3,7 +3,7 @@
 **Date:** 28 October 2026.
 
 **Basis:**
-- 61 capabilities tested live on everis2, with 75 screenshots and the AI logs;
+- 77 of 93 capabilities tested live on everis2, with 82 screenshots, 2 transcripts and the AI logs;
 - results are in [50-test-plan.md](50-test-plan.md), the raw log in the
   [evidence README](../evidence/capabilities-2026-10-28/README.md).
 
@@ -14,7 +14,7 @@ This plan replaces assumptions in the [roadmap](../06-roadmap.md) and the
 
 | # | Lesson | Evidence |
 |---|---|---|
-| L1 | **The skills work. The Otto panel's routing is the weak link.** Every skill reached from a record (summarize card, alert insight, wrap-up, SLA, recommendation) worked. Free-text requests in the panel failed in 7 of 7 generate, recommend, create and set-up cases: the LEAP agent took them and asked for an automation opportunity number. LEAP itself shows "Settings are not configured!". Record numbers were not looked up: KB0000008 was described as the wrong article. A plain list question ended in "problem on my side". The suggested skill "Analyze related incidents" looped 59 times. | SD07, SD10, SD15, SD28, KA02, KA07, KA18, OP11, OP18 (13, 28, 50, 54, 55, 70, 71, 73, 74) |
+| L1 | **The skills work. The Otto panel's routing is the weak link.** Every skill reached from a record (summarize card, alert insight, wrap-up, SLA, recommendation) worked. Free-text requests in the panel failed in 7 of 7 generate, recommend, create and set-up cases: the LEAP agent took them and asked for an automation opportunity number. LEAP itself shows "Settings are not configured!". Record numbers were not looked up: KB0000008 was described as the wrong article. A plain list question ended in "problem on my side". The suggested skill "Analyze related incidents" looped 59 times. A survey question got "I don't understand". The counter-case: on an alert record, "create an alert automation" reached its own agent and returned a proposal, so record context decides the route. | SD07, SD10, SD15, SD28, KA02, KA07, KA18, KA22, OP06, OP11, OP18 (13, 28, 50, 54, 55, 70, 71, 73, 74, 81, 83) |
 | L2 | **Admin is not a persona, and access fails silently.** Some agents ran for the admin test user, others were refused with "You don't have the required access". In two cases the real cause was an inactive workflow or an ACL. 8 agents have no ACL roles. The daily "Generate my work plan" trigger runs as `system` and was blocked 78 times, so the "80 runs" in usage were never real use. | OP12, std change, SD11, PG02, PG12 (18, 49, 59-61) |
 | L3 | **Weak data makes agents look wrong.** The alert didn't bind to a CI (`SAP WEB01` exists but isn't a host). Change CI suggestion found nothing. The KB comes from a US university (VPN shared secret, "8-HELP"). Incident numbers are duplicated, and some records are On Hold but inactive. Clustering is empty. All 9 AI Agent Advisor runs failed: only 35 of the 500 closed incidents it needs have a usable issue and root cause. That cost 359 LLM calls for no output. The Insights dashboards show no data because their indicators are not collected. | OP01, CI suggestion, KA06, KA08, KA14, PG15, SD32 (08, 20, 33, 52, 66, 72) |
 | L4 | **Hand-offs between AI steps break.** Chat to incident: forms open empty. Alert to incident: a plain copy without the AI insight. Wrap-up to KB: "Unable to create knowledge article". The Approve button in the panel starts a new plan. | SD21, OP04, SD05 (31, 35, 42-44, 48) |
@@ -54,9 +54,11 @@ Use these entry points exactly; they passed today.
 | 8 | Team lead | Panel: "How many incidents were opened last month by priority…" | Chart from a question (KA12, KA15) |
 | 9 | Sponsor, CISO | Platform Analytics, AI Agent Analytics, Security tab | Blocked runs, errors, inferred CSAT (PG12) |
 | 10 | Employee or analyst | Panel: "Find catalog item for a user who needs a second monitor" | Wrong door to the right item (SD09) |
+| 11 | Operations | Same alert, panel: "Create an alert automation for this alert type, show me the proposal first", then Alert Response | Automation proposal with safeguards (OP06) |
+| 12 | Any | Document Viewer on a PDF attachment, Ask Otto: summarise, ask a question, preview a redaction (don't submit) | Smart Documents (KA21) |
 
 Avoid in a live demo: any panel request that asks to generate, write, recommend, create or set up something; change agents;
-problem investigation; KB summaries by number; "Analyze related incidents"; list questions in the panel.
+problem investigation; KB summaries by number; "Analyze related incidents"; list questions and survey analysis in the panel.
 
 ## Sprint 0, "make it real" (2 to 13 November, merged into P0)
 
@@ -76,7 +78,7 @@ because it changes configuration. Effort: S = hours, M = 1 to 3 days, L = a week
 
 | ID | Task | Proof | Effort | Approval |
 |---|---|---|---|---|
-| R5 | Create 6 personas with real role sets and groups: L1 agent, L2 SAP resolver (member of DEMO.PI.SAP), change manager, operations engineer, MI manager, employee. Each gets a preferred language. Stop testing as admin | Every T test re-run per persona; no "required access" message | M | Yes |
+| R5 | Create 6 personas with real role sets and groups: L1 agent, L2 SAP resolver (member of DEMO.PI.SAP, which has 0 members today: the cause of the assignment 403 and of the empty SAP answers, PG04), change manager, operations engineer, MI manager, employee. Each gets a preferred language. Stop testing as admin | Every T test re-run per persona; no "required access" message | M | Yes |
 | R6 | Fill the empty access roles of the 8 agents flagged by Agent Studio (Help Optimize Team Productivity, LEAP, Assess conflicts, Assess quality, Investigate problems, …) | Agent Studio banner gone | S | Yes |
 | R7 | Work plan trigger: run as a persona with roles, or switch it off. A trigger never runs as `system` | Security tab: no new blocked runs | S | Yes |
 | R8 | Decide on "Create standard change request": its override has been inactive since 3 Aug (admin). Activate it in `AIT-P0-GOV-access` or remove it from the story | Std change created from a sentence | S | Yes |
@@ -103,7 +105,7 @@ because it changes configuration. Effort: S = hours, M = 1 to 3 days, L = a week
 
 | ID | Task | Proof | Effort | Approval |
 |---|---|---|---|---|
-| R17 | AI Control Tower: move the AIT agents, the used skills and the 3 MCP servers to Managed; set risk; turn approvals on for new agents | 0 unmanaged AIT assets | M | Yes |
+| R17 | AI Control Tower: move the AIT agents, the used skills and the 3 MCP servers to Managed; set risk; turn approvals on for new agents. In Skill Kit, set ACLs and roles on the 29 custom skills (7 of the first 10 are active with security controls "Not set", PG03) | 0 unmanaged AIT assets; Skill Kit banner gone | M | Yes |
 | R18 | Test MCP: ask iCenter for an owner and purpose; deactivate it until it is governed | Server inactive or managed with an owner | S | Yes |
 | R19 | Guardian at BLOCK for prompt injection, with a visible log; the demo shows the block, not "don't understand" | PG09 re-run shows the block and its log | S | Yes |
 | R20 | Weekly AI review on the AI Agent Analytics dashboard (blocked runs, errors, inferred CSAT, consumption); feedback on (P1-6) | First review held | S | No |
@@ -147,19 +149,21 @@ gantt
 
 1. Approve the configuration changes marked "Yes" above, in update sets `AIT-P0-<stream>-<name>`.
 2. Grant the test user, or the new personas, real roles (`itil`, `sn_change_write`, rota) and membership of
-   DEMO.PI.SAP. Otherwise the access results stay mixed.
-3. Approve the 14 class A activations for testing (MI email content, attachment summary, slot fill, approval
-   assistance, requester summary, knowledge gaps, duplicates and health, translation, security detectors,
-   Conversation Evaluator, voice mic, AI Worker mode), in `AIT-TEST-activations`, each with its revert step.
+   DEMO.PI.SAP. Otherwise the access results stay mixed. Add the AI Data Kit role for the builder persona
+   (PG05: admin is refused), needed for synthetic demo data.
+3. Approve the class A activations for testing, in `AIT-TEST-activations`, each with its revert step:
+   - the 13 never tested: MI email content, attachment summary, slot fill, approval assistance, requester
+     summary, knowledge gaps, duplicates and health, translation, security detectors, Conversation Evaluator,
+     voice mic, AI Worker mode;
+   - 4 found switched off today: flow and subflow generation (PG06, SD23), the document extraction skill
+     (KA20: "Create an extraction use case" opens a page not found), and alert noise auto-close (OP02).
 4. Test MCP: contact iCenter or deactivate.
 5. Clean up the test records listed in the [evidence README](../evidence/capabilities-2026-10-28/README.md).
 
-## Still to test (no approval needed)
+## Still to test
 
-14 class T and D capabilities have no live result yet:
-- Service desk: SD23, SD24, SD31.
-- Operations: OP02, OP05, OP06, OP10.
-- Knowledge and analytics: KA20, KA21, KA22.
-- Platform: PG03, PG04, PG05, PG06.
-
-They don't change the lessons above. They add entry points to the demo and use cases to the backlog.
+Everything that could run without the owner's approval has run. What is left:
+- SD24 image to ticket: the chat offers "Add files & images", but the browser automation can't drive the
+  file picker. A person attaches an error screenshot and asks for a ticket (5 minutes).
+- SD31 sidebar summarization: needs a second user in the conversation.
+- The 13 class A activations and 2 integrations or decisions (SMTP, web search credential), after decision 3.

@@ -35,6 +35,9 @@
 | P1-3 | Configure Now Assist multilingual service and VA language detection for 4 languages; activate Dynamic Translation for Agent Chat | VOICE | A6 |
 | P1-4 | Turn on dashboard summarization and analytics query generation on one ITSM dashboard | ITSM | B7 |
 | P1-5 | Write the P1 demo script and record it | DEL | – |
+| P1-6 | Turn on AI feedback and track accepted, edited and rejected outputs per skill ([G7](evidence/p1-1-2026-10-28/gaps.md#2-gaps-for-the-governed-ai-story)) | GOV | F5 |
+| P1-7 | Demo personas with preferred languages; demo scripts with explicit resolution work notes ([G1, G3](evidence/p1-1-2026-10-28/gaps.md#1-gaps-that-make-the-demo-look-weak)) | DEL | A6 |
+| P1-8 | Summary card on the RITM page, change risk explanation trigger, one-off sentiment run on demo incidents ([G4 to G6](evidence/p1-1-2026-10-28/gaps.md#1-gaps-that-make-the-demo-look-weak)) | ITSM | B6 |
 
 ### P2 Copilot (7 Dec to 15 Jan)
 

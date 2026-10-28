@@ -56,6 +56,7 @@ of git.
 
 ## Open points
 
+- Gaps and improvements: [gaps.md](gaps.md).
 - Decide whether activity response and KB generation should move to Azure OpenAI (Now Assist
   Admin, default definition per skill) or stay on Claude. This is task P0-4.
 - Run the same check as a user with only `itil`.

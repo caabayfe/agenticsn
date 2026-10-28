@@ -110,8 +110,9 @@ in [evidence/quality-2026-10-28](../evidence/quality-2026-10-28/).
 **Cross-cutting causes**, each one hurting several steps:
 
 1. **Every answer is in English.** The test user's language is English; Spanish records and questions
-   still get English answers. F1 (Spanish personas) is the first test of whether that is the user
-   setting or the model.
+   still get English answers. **Answered on the night of 28 October:** it's the user setting. A
+   persona whose language is Spanish got the whole Q01 answer in Spanish, so the demo must run as
+   Spanish personas (F1).
 2. **Routing sends everything to Network,** and the DEMO.PI groups had **no members** (the test user
    was added to DEMO.PI.Identity tonight). This breaks Q03, Q04 and Q10.
 3. **Client content is missing:** no MFA article, VPN articles are placeholder drafts, the published
@@ -167,9 +168,9 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
   minutes of the key; no invented cause on (d). A wrong cause on any run fails the step.
 - **Progress (night of 28 October):** fixes 1 to 3 are done: a Global copy "Explain SLA (AIT)" and
   8 more SLA definitions linked to the breakdown. It scores about 10 of 12 in English, with the right
-  cause on INC0010147, a correct "at risk" on INC0025306 and a correct breakdown on a new probe. Still
-  open: the answer comes back in English to a Spanish question; there's no silence data; a
-  breached sibling SLA isn't mentioned. Evidence:
+  cause on INC0010147, a correct "at risk" on INC0025306 and a correct breakdown on a new probe. As a
+  Spanish persona it scores about 11, fully in Spanish. Still open: there's no silence data; a
+  breached sibling SLA isn't mentioned; 5 runs per scenario. Evidence:
   [q01-fix-runs.md](../evidence/quality-2026-10-28/q01-fix-runs.md).
 
 ### Q02 Who is on call, and how to reach them (step 5, SD14)

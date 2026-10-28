@@ -118,7 +118,7 @@ Discovery (inactive ITOM licence plugins); SLO agents (Service Reliability Manag
 
 ## Live validation log
 
-Tests ran in the UI on everis2 on 28 October as `svc_fcaamano`. Every capability's status is in
+Tests ran in the UI on everis2 on 28 October as the test user. Every capability's status is in
 [50-test-plan.md](50-test-plan.md), the raw log and screenshots are in
 [../evidence/capabilities-2026-10-28/](../evidence/capabilities-2026-10-28/), and the plan built from them is in
 [60-real-plan.md](60-real-plan.md). The provider and model come from `sys_generative_ai_log`.

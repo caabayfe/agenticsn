@@ -18,7 +18,7 @@ Status values:
 - `not run`: no test yet.
 
 The tests ran on 28 October 2026 on everis2:
-- user: `svc_fcaamano`, who has admin but none of the `itil` or change roles;
+- user: the test user, who has admin but none of the `itil` or change roles;
 - surfaces: Service Operations Workspace (SOW), the Otto panel and Employee Center.
 
 Evidence (`NN` = screenshot) is in [../evidence/capabilities-2026-10-28/](../evidence/capabilities-2026-10-28/).

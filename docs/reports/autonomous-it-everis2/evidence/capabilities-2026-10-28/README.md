@@ -5,7 +5,7 @@ Raw log of every live test, written as the tests ran. The statuses are in
 [../../capabilities/60-real-plan.md](../../capabilities/60-real-plan.md).
 
 How the tests ran:
-- user `svc_fcaamano` (display name fer_githubcopilot): admin, without `itil` or the change roles;
+- the test user: admin, without `itil` or the change roles;
 - surfaces: Service Operations Workspace, the Otto panel, Employee Center (`/esc`), AI Control Tower, AI Agent Studio
   and Platform Analytics;
 - real actions: incidents created and resolved, a change, a catalog request and an event;
@@ -131,7 +131,7 @@ defaults category Inquiry, group Network (assignment rule), no CI or service.
 - SD02 investigate and recommend, 1st try: workflow "Investigate and recommend incident resolution" built a good
   plan but the run ended Terminated (a task cancelled) and the user saw "Sorry, there was a problem on my side".
   2nd try ("Recommend a resolution for INC0025194"): pass, ~60 s; 5-step SAP-specific plan written to work notes
-  as "AI, on behalf of svc_fcaamano [ServiceNow Otto generated]". Uses Bedrock claude_large for "Build task context
+  as "AI, on behalf of the test user [ServiceNow Otto generated]". Uses Bedrock claude_large for "Build task context
   from related tables" and Azure gpt-5.4 for planning. -> pass (intermittent failure). SD04 covered by the same run
   (resolution plan, catalog eligibility check skipped with low break/fix score).
 - SD13 Explain SLA: pass. "3 active SLAs, none breached; P3 response planned breach 12:00:35" (matches UI 3h51m).
@@ -171,7 +171,7 @@ Cause in the mirror: sn_aia_usecase_config_override 541e2eca... for this workflo
 UX finding: an inactive workflow is reported to the user as a missing access right.
 
 ## Test change CHG0030062 created (sys_id 49bfeecc335c1b10becbf499ed5c7b31)
-"[AI-TEST] Apply SAP pricing condition transport fix to SAP ERP production", normal, window 28 Oct 22:00-23:00, no CI. Created via REST as the browser session user (records show fer_githubcopilot as requester / updater; the panel greets svc_fcaamano). To be cleaned up.
+"[AI-TEST] Apply SAP pricing condition transport fix to SAP ERP production", normal, window 28 Oct 22:00-23:00, no CI. Created via REST as the browser session user (records show the test user as requester / updater; the panel greets the test user). To be cleaned up.
 
 ## Change: Suggest configuration items - fail (data)
 On CHG0030062: agent asked for class/location/environment; on "Proceed" -> "I couldn't identify any configuration items for this change... This conversation has ended."
@@ -191,7 +191,7 @@ The target workflow is active (override active true) and its description is prec
 "Propose a Standard Change Template" opens a plain std_change_proposal form prefilled from the change (STDCHG0001001, not saved). No AI. 
 
 ## Access check (all 48 workflows vs the test user)
-Test user svc_fcaamano (display name fer_githubcopilot) has admin but not itil / sn_change_write. Workflows limited to itil (Incident assist, Who is On Call) ran fine, so admin passes the role check: access is NOT the cause of the misroutes. "Create standard change request" fails because its override is inactive.
+The test user has admin but not itil / sn_change_write. Workflows limited to itil (Incident assist, Who is On Call) ran fine, so admin passes the role check: access is NOT the cause of the misroutes. "Create standard change request" fails because its override is inactive.
 Note for the plan: the demo personas must be real itil / change roles, not admin, to show the true experience (X5).
 
 ## Problem: Investigate problems - fail / partial

@@ -7,7 +7,7 @@ Context: Document Viewer (`/now/document/viewer/<attachment sys_id>`) on "Wirele
 Description.pdf", a 3-page service description attached to a business service. The viewer has an
 **Ask Otto** button; it opens the **Smart Documents Agent**.
 
-**Otto:** Hi fer_githubcopilot! How can I help you with this document today?
+**Otto:** Hi [test user]! How can I help you with this document today?
 [Summarise the document] [Generate Frequently Asked Questions] [Answer questions about the
 document] [Redact Document Content]
 

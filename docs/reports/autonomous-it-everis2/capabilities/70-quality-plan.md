@@ -87,9 +87,39 @@ foundations come before any step. They expand tasks already in Sprint 0
 
 Each step lists: today's score, the gap, the target answer, the fix, the tests and the acceptance.
 
-**Only Q01 has a measured baseline.** The other "about n/12" scores are estimates from the morning's
-runs, made without answer keys. Q01's estimate was "about 5/12, correct but shallow"; measured, it
-was 3/12 and wrong. The "Useful" grades in section 6 can fall the same way until Q0 measures them.
+**Q0 baseline, measured on 28 October (evening):** every step was run against an answer key built from
+the records first. No step reaches the bar (10 of 12); the average is 6.0. Evidence for each step is
+in [evidence/quality-2026-10-28](../evidence/quality-2026-10-28/).
+
+| Step | Score | What holds | What breaks it |
+|---|---|---|---|
+| Q01 SLA | **3** | Reads the SLA records | Wrong cause; the OOB Explain SLA workflow has never run |
+| Q02 On call | **7** | Right person from the rota, honest about the missing phone | No shift end, no next person, no action |
+| Q03 Recommend | **7** | Correct 8-step plan in 54 s | Cites none of the similar incidents it found; misses the wrong group (Network vs DEMO.PI.Identity) |
+| Q04 Wrap up | **8** | Accurate notes from the work note; resolves | Approve loops; no close code proposed; "Create article" fails: the KB generation skill config is inactive |
+| Q05 Alert insight | **8** | CI-bound cause, doesn't blame an unrelated change | No "full in about 2 h" estimate; generic steps |
+| Q06 Alert automation | **4** | Right use case | Nothing from the alert's fields; no replay; nothing built |
+| Q07 Knowledge (VPN) | **3** | Answers with a citation | Irrelevant IPv6 article; the client VPN articles are placeholder drafts |
+| Q08 Software (Visio) | **7** | Creates the request | Two options and no recommendation; the reason is lost; duplicate not flagged |
+| Q09 Request status | **6** | Lists the requests | No stage, due date or blocker |
+| Q10 Wrong door | **9** | Spots the request and the wrong group | No catalog item named, no conversion offered |
+| Q11 Analytics | **3** | Real data | Date filter built with OR (matches everything); refined chart renders empty; no numbers |
+| Q12 Smart Documents | **5** | 8 of 9 answers right on the golden PDF | Redaction failed twice; silent on an out-of-scope question |
+| Q13 Governance | **8** | Agent runs and blocked runs reconcile exactly with the tables | Value Dashboard widgets error; 65 stuck runs; test traffic only |
+
+**Cross-cutting causes**, each one hurting several steps:
+
+1. **Every answer is in English.** The test user's language is English; Spanish records and questions
+   still get English answers. F1 (Spanish personas) is the first test of whether that is the user
+   setting or the model.
+2. **Routing sends everything to Network,** and the DEMO.PI groups had **no members** (the test user
+   was added to DEMO.PI.Identity tonight). This breaks Q03, Q04 and Q10.
+3. **Client content is missing:** no MFA article, VPN articles are placeholder drafts, the published
+   VPN article is US university content. This breaks Q04, Q07 and the "similar articles" in Q03.
+4. **Thin operational data:** one change on a CI in 120 days, alerts without CIs, no SLA breakdown
+   rows in 30 days. This limits Q01, Q05 and Q06.
+5. **OOB workflows not switched on:** Explain SLA (Q01), KB generation in product (Q04).
+
 The **Verify** lines are facts to check on everis2 before the build starts. They can change the fix.
 
 ### Q01 Explain the SLA, and why it's at risk (step 5, SD13)
@@ -135,7 +165,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q02 Who is on call, and how to reach them (step 5, SD14)
 
-- **Today (about 6/12):** "Found 1 expert: David Dan, Primary, david.dan@example.com". A name from demo
+- **Baseline (measured, 7 of 12; morning estimate 6):** tonight the Network rota gave the right person and said honestly there is no phone, with no shift end or action. Morning: "Found 1 expert: David Dan, Primary, david.dan@example.com". A name from demo
   data, nothing else.
 - **Target answer:** who is on call now for the incident's group, until when, who is next, the
   escalation path and the contact method, with one action ("notify them" or "assign to them").
@@ -148,7 +178,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q03 Recommend a resolution (step 4, SD02, SD04)
 
-- **Today (about 8/12):** a 5-step plan specific to SAP, written as a work note in about 60 s. The
+- **Baseline (measured, 7 of 12):** tonight, on an MFA incident, a correct plan that cited none of the similar incidents it found and missed the wrong group. Morning: a 5-step plan specific to SAP, written as a work note in about 60 s. The
   first try ended with "problem on my side".
 - **Gap:** reliability, and grounding: with no similar resolved incidents, the plan is general
   knowledge, not the client's history.
@@ -165,8 +195,12 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q04 Wrap up and resolve (step 6, SD05)
 
-- **Today (partial):** it resolved the incident with good notes, but only from In Progress, the
-  Approve button starts a new plan, and "Create KB" fails with no reason.
+- **Baseline (measured, 8 of 12):** on INC0025307 (MFA, Spanish work note) the notes were accurate,
+  in English; Approve asked for feedback again; the close code was asked, not proposed; the similar
+  articles were about Outlook and VPN; "Create" failed. **Cause of the failure, found:** the tool only
+  writes when the Now Assist skill config "KB generation" is active in product, and on everis2 it is
+  `active = false`, `in_product_active = false`. Evidence:
+  [q04-wrap-up-baseline.md](../evidence/quality-2026-10-28/q04-wrap-up-baseline.md).
 - **Target answer:** resolution notes and close code from the work notes, a proposed article when the
   fix is reusable, and one approval that resolves the incident and creates the draft article.
 - **Fix:** the state precondition (document it, or extend it to On Hold); the Approve button defect
@@ -180,7 +214,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q05 Alert insight (step 7, OP01, OP03)
 
-- **Today (about 9/12):** probable cause, impact and 9 steps, autonomous within 2 minutes. But part of
+- **Baseline (measured, 8 of 12):** tonight, on a new disk event bound to a CI, no "full in about 2 h" estimate and generic steps. Morning: probable cause, impact and 9 steps, autonomous within 2 minutes. But part of
   it reused the resolution we had just written, and the alert had no CI.
 - **Target answer:** for a new failure, the insight correlates the CI, recent changes, related alerts
   and the service impact, and proposes a remediation linked to an article or playbook.
@@ -192,7 +226,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q06 Alert automation proposal (step 11, OP06)
 
-- **Today (partial):** right agent, structured proposal, but generic safeguards and nothing built.
+- **Baseline (measured, 4 of 12):** right agent, structured proposal, but generic safeguards and nothing built.
 - **Target answer:** a draft automation, inactive, with conditions taken from the alert (CI class,
   metric, threshold), actions using a real playbook, and a replay against past alerts ("would have
   matched 14 alerts last month").
@@ -204,7 +238,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q07 Answer from the knowledge base (step 1, SD22, KA09)
 
-- **Today (weak):** a cited answer, but from a US university's articles, with steps for Apple devices
+- **Baseline (measured, 3 of 12):** tonight an irrelevant IPv6 answer, in English. Morning: a cited answer, but from a US university's articles, with steps for Apple devices
   and an article that holds a shared secret.
 - **Target answer:** in the user's language, from the client's articles, with the steps for the user's
   own device (from their assigned laptop), a link to request access if they lack it, and an offer to
@@ -216,7 +250,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q08 Request software (step 2, SD16)
 
-- **Today (shallow):** two Visio options, and the chosen item has no questions, so nothing was filled in.
+- **Baseline (measured, 7 of 12):** two Visio options, and the chosen item has no questions, so nothing was filled in.
 - **Target answer:** the agent picks the one right item, fills its questions from the sentence
   (software, device from the user's assets, reason), says whether it needs approval, confirms, and
   submits.
@@ -227,7 +261,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q09 Status of my requests (step 3, SD19)
 
-- **Today (shallow):** a list of requests and states, the same as "My requests".
+- **Baseline (measured, 6 of 12):** a list of requests and states, the same as "My requests".
 - **Target answer:** for each open item, what it is waiting on, since when, the expected date, and what
   the user can do ("approval pending with your manager for 2 days; I can send a reminder").
 - **Fix:** F2 (requests with approvals and due dates); requester ticket summary (SD25, class A); a tool
@@ -238,7 +272,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q10 Wrong door: an incident that is really a request (step 10, SD09)
 
-- **Today (about 7/12):** the panel named the right catalog item, through search, not from the incident.
+- **Baseline (measured, 9 of 12):** on the incident it saw a request and the wrong group, but named no item. Morning: the panel named the right catalog item, through search, not from the incident.
 - **Target answer:** on the incident, the agent sees it is a request, offers the right item filled in
   from the incident, and closes the incident with a link to the new request.
 - **Fix:** test the incident-bound action; add slot filling (Q08).
@@ -247,7 +281,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q11 Analytics from a question (step 8, KA12, KA15)
 
-- **Today (about 7/12):** a correct chart, with no explanation.
+- **Baseline (measured, 3 of 12):** the date filter was built with OR, so the chart covered 2015 to 2026; the corrected chart rendered empty; no numbers. The morning chart looked correct only because nobody checked its filter.
 - **Target answer:** the chart plus two or three sentences: the trend, the comparison with the
   previous period, the outlier, and a drill-down link.
 - **Fix:** check whether the analytics skill can add a narrative; if not, a custom skill that reads the
@@ -257,7 +291,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q12 Smart Documents (step 12, KA21)
 
-- **Today (about 10/12):** an accurate summary, answer and redaction preview. Reachable only by URL.
+- **Baseline (measured, 5 of 12):** on a golden PDF, 8 of 9 answers right but redaction failed twice. Morning estimate 10: an accurate summary, answer and redaction preview. Reachable only by URL.
 - **Target answer:** the same, opened from an attachment on a record, on a client document in Spanish
   (an SAP runbook), with redaction that catches every planted personal detail.
 - **Fix:** the entry point from attachment previews in SOW and the portal; client documents.
@@ -268,7 +302,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 ### Q13 AI governance view (step 9, PG12)
 
-- **Today (partial):** AI Agent Analytics works; the AI Value Dashboard shows errors; the numbers come
+- **Baseline (measured, 8 of 12):** AI Agent Analytics works and reconciles; the AI Value Dashboard shows errors; the numbers come
   from test traffic.
 - **Target view:** one page with usage, value (deflection, time saved), quality (feedback, inferred
   CSAT), risk (guardian blocks, blocked runs) and cost, reconciled with the raw tables.
@@ -316,21 +350,23 @@ gantt
 
 ## 6. Tomorrow's demo, until the plan lands
 
-Before the demo, measure the three lead steps (4, 7, 12) against answer keys, as for Q01. Lead only
-with those that hold.
+Grades from the measured Q0 baseline (section 4), before any fix.
 
-| Step | Grade today | Use tomorrow |
+| Step | Measured | Use tomorrow |
 |---|---|---|
-| 4 Recommend a resolution | Useful | Lead with it; rehearse, as the first run can fail |
-| 7 Alert insight | Useful | Lead with it; say the CI binding is being fixed |
-| 12 Smart Documents | Useful | Lead with it |
-| 11 Alert automation proposal | Shallow | Show as "proposal only" |
-| 5 SLA | **Wrong** on "why did it breach" (Q01 baseline) | Leave out. Show the baseline as the reason for the QA method |
-| 5 On call | Shallow | Show briefly as a lookup |
-| 3 Request status, 2 software request, 10 wrong door, 8 chart | Shallow | One quick round: "AI does the routine lookups" |
-| 9 AI governance | Partial | Show to the sponsor and CISO, without the AI Value Dashboard |
-| 1 Knowledge answer | Weak | Leave out until F3 |
-| 6 Wrap up and resolve | Weak | Leave out unless rehearsed with the typed confirmation |
+| 10 Wrong door | 9 | Show it: right diagnosis; say the conversion comes next |
+| 7 Alert insight | 8 | Lead with it; say the estimate and the playbook come next |
+| 6 Wrap up and resolve | 8 | Show up to "resolved"; type "No changes" instead of Approve; skip "Create article" until fixed |
+| 9 AI governance | 8 | Show AI Agent Analytics (it reconciles); leave out the Value Dashboard |
+| 4 Recommend a resolution | 7 | Show it; say citations and routing are being fixed |
+| 5 On call | 7 | Show briefly as a lookup |
+| 2 Software request | 7 | One quick round with step 3 |
+| 3 Request status | 6 | One quick round |
+| 12 Smart Documents | 5 | Show the questions only, not redaction |
+| 11 Alert automation proposal | 4 | Show as "proposal only", or leave out |
+| 5 SLA | 3, **wrong** | Leave out. Show the baseline as the reason for the QA method |
+| 1 Knowledge answer | 3 | Leave out until F3 |
+| 8 Chart | 3, wrong filter | Leave out |
 
 ## 7. Decisions needed from the owner
 

@@ -224,6 +224,11 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
   work notes.
 - **Acceptance:** resolved incident with correct notes and a draft article, 5 of 5, with no workaround
   in the script.
+- **Progress (night of 28 October):** as the Spanish persona, about 9 of 12. The incident is resolved
+  with notes and code in Spanish. Two defects remain: one message starts two runs, so the prompts
+  mix and the panel stops updating until a reload; the article step hangs after "Fetch similar
+  knowledge articles". Evidence: retest section of
+  [q04-wrap-up-baseline.md](../evidence/quality-2026-10-28/q04-wrap-up-baseline.md).
 
 ### Q05 Alert insight (step 7, OP01, OP03)
 

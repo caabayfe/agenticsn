@@ -65,3 +65,35 @@ created KB0010015), not from the wrap-up chat.
 | Correct | Grounded | Insight | Actionable | Fit | Reliable | Total |
 |---|---|---|---|---|---|---|
 | 2: notes right, incident resolved | 2: from the work note | 1: no code proposed, irrelevant articles | 1: Approve loop, article fails | 1: English | 1: same defects as the morning run | **8 of 12** |
+
+## Retest as the Spanish persona (23:15-23:25, INC0025491)
+
+**Setup:** a new MFA incident, In Progress, in DEMO.PI.Identity, assigned to the Spanish persona
+(added to the group), with the Spanish work note. Three client articles now exist, among them
+KB0010020 on MFA with a new phone (see `q07-fix-runs.md`).
+
+**On assignment (Q03, automatic):** "Investigate and recommend" ran without being asked and wrote a
+6-step plan in Spanish as a work note, matching the fix. Its only source was "My Security Info" (a
+link), not the article number.
+
+**Wrap-up ("Cierra y resuelve esta incidencia"):**
+
+1. It asked, in Spanish, for permission to use the page context (Sí).
+2. **One message started two runs, 5 seconds apart.** Their prompts mixed in the panel: one listed
+   the resolution codes, the other asked to approve the notes. Choosing "Solution provided" in the
+   picker and typing "8" both got "N/A". The panel also stopped updating until the page was
+   reloaded.
+3. After a reload, "Approve" worked: **the incident is resolved, with the code "Solución
+   proporcionada" and these notes, in Spanish:** problem, cause ("El MFA seguía registrado en el
+   móvil antiguo tras el cambio de dispositivo") and the four steps from the work note. The
+   resolution SLA is paused.
+4. Handoff to the knowledge article agent: it called "Fetch similar knowledge articles", then the
+   panel stayed on "Processing new information" for over 3 minutes. No article step appeared.
+
+| Correct | Grounded | Insight | Actionable | Fit | Reliable | Total |
+|---|---|---|---|---|---|---|
+| 2: resolved, right notes and code | 2: from the work note | 1: code chosen by the user | 1: article step hangs | 2: Spanish | 1: duplicate runs, panel stops updating | **9 of 12** |
+
+**New finding for Q13:** every conversation this persona had tonight (Q01, Q07, Q03, Q04) is still
+an `in_progress` execution plan. Conversations nobody ends stay open, which likely explains most of
+the "65 stuck runs".

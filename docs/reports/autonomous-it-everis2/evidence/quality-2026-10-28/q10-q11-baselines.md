@@ -24,6 +24,14 @@ not an incident. The assignment rule sent it to Network. The catalog has the rig
 **Gap:** name the catalog item and offer the conversion (Create request from incident exists in SOW);
 answer in the user's language.
 
+**Retest as the Spanish persona (23:26):** "¿Esta incidencia es realmente una incidencia? ¿Qué debo
+hacer con ella?" Incident assist asked for permission to use the page context. Clicking "Sí" was
+taken as "No", and the panel stopped updating; typing the number worked. The answer was in Spanish
+and correct: "no parece ser una incidencia real", a request for a second monitor while the current
+one works, with no failure and no affected CI or service. The next step was to reclassify it as a
+catalog request and route it to the right team. It still names **no catalog item** and doesn't say
+the Network group is wrong. About **9 of 12** (fit 2, insight 1, reliable 1).
+
 ## Q11 Analytics: incidents last month by priority
 
 **Answer key** (stats API, `opened_at` by month):

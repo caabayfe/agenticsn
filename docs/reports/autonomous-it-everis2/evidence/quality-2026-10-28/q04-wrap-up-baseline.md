@@ -34,15 +34,31 @@ article), so the agent should propose one; one approval resolves the incident an
 8. **Create:** "Unable to create knowledge article". The tool output is
    `createKnowledgeArticleStatus: FAILED`, with no reason.
 
-## Root cause of the article failure (found tonight)
+## Cause of the article failure: narrowed, not yet fixed
 
-The tool "Create knowledge article" calls `sn_itsm_aia.IncidentWrapUpUtilSNC.createKnowledgeArticle`.
-It inserts the article only if `sn_km_gen_ai.KnowledgeGenAIUtils.isSkillActiveForInProduct` is true
-for the incident, and that reads the Now Assist skill configuration "KB generation" (4a115761...),
-which on everis2 is **active = false, in-product active = false** (roles itil,
-sn_service_desk_agent). The target knowledge base (`glide.knowman.task_kb`, "Knowledge") exists and
-is active. P1-1 created KB0010015 through the author path, which doesn't check this flag. **Fix:
-activate "KB generation" for incidents in Now Assist Admin** (a class A activation), then retest.
+The tool "Create knowledge article" calls `sn_itsm_aia.IncidentWrapUpUtilSNC.createKnowledgeArticle`,
+which (1) checks that the "KB generation" skill is active in product for the incident, (2) parses the
+draft, (3) inserts a draft `kb_knowledge` record with `GlideRecordSecure` into the knowledge base
+named by `glide.knowman.task_kb` ("Knowledge", active, version 3). It returns FAILED, with no reason,
+when the check or the insert fails.
+
+What the trace shows:
+
+- **The skill check passes.** A first reading of the config table (`active = false`) suggested it was
+  the cause; that was wrong. AI Admin Hub shows "KB generation" Active, in-product display on,
+  available when the incident is Resolved or Closed, which INC0025307 was. The log confirms the code
+  went past the check: at 22:22:06 it logged `_extractFieldFromJSON: failed to parse input ...
+  Returning raw input` (step 2, harmless) and then evaluated the `kb_knowledge` create ACL (step 3).
+- **The insert is refused only inside the agent.** The same insert, with the same fields, as the same
+  user, through REST, succeeded (KB0010018, an `[AI-TEST]` probe draft). Cross-scope create on
+  `kb_knowledge` is allowed.
+- Candidates left: the before-insert rule "Check User CanContribute To Kb" (user criteria evaluated
+  in the agent's scoped session), or a create ACL evaluated differently in that scope. Proving which
+  one needs a scoped script run or ServiceNow support; fixing either means changing OOB behaviour,
+  which needs the owner's approval.
+
+**For the demo:** generate the article from the form ("Generate KB article", the P1-1 path, which
+created KB0010015), not from the wrap-up chat.
 
 ## Score
 

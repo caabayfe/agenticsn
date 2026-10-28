@@ -96,7 +96,7 @@ in [evidence/quality-2026-10-28](../evidence/quality-2026-10-28/).
 | Q01 SLA | **3** | Reads the SLA records | Wrong cause; the OOB Explain SLA workflow has never run |
 | Q02 On call | **7** | Right person from the rota, honest about the missing phone | No shift end, no next person, no action |
 | Q03 Recommend | **7** | Correct 8-step plan in 54 s | Cites none of the similar incidents it found; misses the wrong group (Network vs DEMO.PI.Identity) |
-| Q04 Wrap up | **8** | Accurate notes from the work note; resolves | Approve loops; no close code proposed; "Create article" fails: the KB generation skill config is inactive |
+| Q04 Wrap up | **8** | Accurate notes from the work note; resolves | Approve loops; no close code proposed; "Create article" fails inside the agent (the same insert through REST works) |
 | Q05 Alert insight | **8** | CI-bound cause, doesn't blame an unrelated change | No "full in about 2 h" estimate; generic steps |
 | Q06 Alert automation | **4** | Right use case | Nothing from the alert's fields; no replay; nothing built |
 | Q07 Knowledge (VPN) | **3** | Answers with a citation | Irrelevant IPv6 article; the client VPN articles are placeholder drafts |
@@ -118,7 +118,7 @@ in [evidence/quality-2026-10-28](../evidence/quality-2026-10-28/).
    VPN article is US university content. This breaks Q04, Q07 and the "similar articles" in Q03.
 4. **Thin operational data:** one change on a CI in 120 days, alerts without CIs, no SLA breakdown
    rows in 30 days. This limits Q01, Q05 and Q06.
-5. **OOB workflows not switched on:** Explain SLA (Q01), KB generation in product (Q04).
+5. **OOB workflows not switched on:** Explain SLA (Q01).
 
 The **Verify** lines are facts to check on everis2 before the build starts. They can change the fix.
 
@@ -197,9 +197,10 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 
 - **Baseline (measured, 8 of 12):** on INC0025307 (MFA, Spanish work note) the notes were accurate,
   in English; Approve asked for feedback again; the close code was asked, not proposed; the similar
-  articles were about Outlook and VPN; "Create" failed. **Cause of the failure, found:** the tool only
-  writes when the Now Assist skill config "KB generation" is active in product, and on everis2 it is
-  `active = false`, `in_product_active = false`. Evidence:
+  articles were about Outlook and VPN; "Create" failed. **Cause, narrowed:** the skill check passes; the
+  draft insert is refused only inside the agent's scoped session (the same insert through REST, as
+  the same user, works). Likely the "can contribute" rule or a create ACL in that scope; needs a
+  scoped test or ServiceNow support. Workaround: the form's "Generate KB article". Evidence:
   [q04-wrap-up-baseline.md](../evidence/quality-2026-10-28/q04-wrap-up-baseline.md).
 - **Target answer:** resolution notes and close code from the work notes, a proposed article when the
   fix is reusable, and one approval that resolves the incident and creates the draft article.

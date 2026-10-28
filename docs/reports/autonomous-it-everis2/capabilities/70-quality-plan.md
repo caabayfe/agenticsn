@@ -136,7 +136,10 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
      0 executions ever. Every SLA question, this morning's SD13 included, is answered by the generic
      Incident assist, which reads the SLA records and guesses at causes.
   2. **The breakdown data stopped.** `sla_breakdown_by_assignment` has 79 rows in total and none from
-     the last 30 days, so new incidents have no time-per-group record for any agent to use.
+     the last 30 days, so new incidents have no time-per-group record for any agent to use. Measured
+     on the night of 28 October: only the P1 and P2 resolution SLAs were linked to the breakdown
+     definition, and none of those started in 120 days. The breakdown engine works once an SLA is
+     linked.
   3. **The panel can't reach the agent by name.** "Explain SLA" returned a search result.
 - **Target answer:** *"Resolution SLA breached on 1 May (P2, 8 h target). The 4 reassignments on 30
   April took 80 seconds and are not the cause. Database (Beth Anglin) has held it since 30 April at
@@ -162,6 +165,12 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
   SLA; an SLA the persona can't see.
 - **Acceptance:** names the cause in the key in 5 of 5 runs per scenario; time figures within 5
   minutes of the key; no invented cause on (d). A wrong cause on any run fails the step.
+- **Progress (night of 28 October):** fixes 1 to 3 are done: a Global copy "Explain SLA (AIT)" and
+  8 more SLA definitions linked to the breakdown. It scores about 10 of 12 in English, with the right
+  cause on INC0010147, a correct "at risk" on INC0025306 and a correct breakdown on a new probe. Still
+  open: the answer comes back in English to a Spanish question; there's no silence data; a
+  breached sibling SLA isn't mentioned. Evidence:
+  [q01-fix-runs.md](../evidence/quality-2026-10-28/q01-fix-runs.md).
 
 ### Q02 Who is on call, and how to reach them (step 5, SD14)
 

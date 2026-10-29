@@ -352,7 +352,7 @@ gantt
 | ID | Decision | Blocks |
 |---|---|---|
 | P2-1 | B4: keep the persona "Operador AIT (EM)" for the test, or name another Event Management user | W1.2. **Decided 29 Oct: keep it** |
-| P2-2 | Autonomy level per use case, and which pilots may write on demo records without approval (level 3) | W4.3, W4.4. Open: explained to the owner 29 Oct |
+| P2-2 | Autonomy level per use case, and which pilots may write on demo records without approval (level 3) | W4.3, W4.4. **Decided 29 Oct:** pilot 1 (SLA at risk) at level 3 and pilot 2 (wrong group) at level 2, both limited to the DEMO.PI groups so other tests on the instance are not touched; the builds keep their current levels (B1, B2 at 0; B8 at 1; B3, B4 at 2; B7 at 3). Demo data may be added as needed, every change in an `AIT-` update set with a revert step |
 | P2-3 | Phone voice: carrier and budget, or the microphone only | W5.4. **Decided 29 Oct: microphone only**; phone stays at the entitlements gate |
 | P2-4 | A second instance with Now Assist for the kit test | W7.4. **On hold 29 Oct:** the owner may propose a new instance in Brazil (zBoot) that also gets the accelerators |
 

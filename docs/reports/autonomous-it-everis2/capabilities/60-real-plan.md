@@ -1,6 +1,7 @@
 # The real plan: from tested capabilities to an autonomous IT demo
 
-**Date:** 28 October 2026.
+**Date:** 28 October 2026. **Status updated:** 29 October 2026, after two days of quality fixes
+([70-quality-plan.md](70-quality-plan.md)).
 
 **Basis:**
 - 77 of 93 capabilities tested live on everis2, with 82 screenshots, 2 transcripts and the AI logs;
@@ -38,135 +39,212 @@ flowchart LR
   Breaks -->|"Sprint 0: make it real"| Works
 ```
 
-## What we can show tomorrow (no change on the instance)
+## Status on 29 October
 
-Use these entry points exactly; they passed today. **They passed as "it runs", not as "top quality".**
-The evening quality check found the SLA explanation (step 5) gives a confident wrong cause, so it is out.
-The grade of every step and the plan to take each one to top quality are in
-[70-quality-plan.md](70-quality-plan.md).
+Two days of quality work on the 13 demo steps ran under the owner's approval for data, configuration
+and activations. Each step was measured against an answer key, fixed, and retested. The method and
+the scores are in [70-quality-plan.md](70-quality-plan.md). The evidence and revert steps are in
+[evidence/quality-2026-10-28](../evidence/quality-2026-10-28/). The demo runs from
+[08-demo-script.md](../08-demo-script.md).
 
-| Step | Persona | Entry point | Capability |
-|---|---|---|---|
-| 1 | Employee | Employee Center search: "How do I connect to the VPN from home?" | Cited answer (SD22, KA09) |
-| 2 | Employee | Same chat: "I need Microsoft Visio installed on my laptop" then Submit | Catalog Agent, RITM created (SD16) |
-| 3 | Employee | "What is the status of my requests?" | Request Status Agent (SD19) |
-| 4 | Analyst | SOW incident, Otto panel: "Recommend a resolution for INC…" | Plan as a work note (SD02, SD04) |
-| 5 | Analyst | Same incident: "Who is on call for Network?" (not "Explain the SLA": see Q01) | SD14 |
-| 6 | Analyst | Incident In Progress: "Wrap up and resolve INC…", then type the confirmation (don't click Approve) | AI resolution (SD05) |
-| 7 | Operations | Alert in SOW, AI insights card | Autonomous analysis and insight (OP01, OP03) |
-| 8 | Team lead | Panel: "How many incidents were opened last month by priority…" | Chart from a question (KA12, KA15) |
-| 9 | Sponsor, CISO | Platform Analytics, AI Agent Analytics, Security tab | Blocked runs, errors, inferred CSAT (PG12) |
-| 10 | Employee or analyst | Panel: "Find catalog item for a user who needs a second monitor" | Wrong door to the right item (SD09) |
-| 11 | Operations | Same alert, panel: "Create an alert automation for this alert type, show me the proposal first", then Alert Response | Automation proposal with safeguards (OP06) |
-| 12 | Any | Document Viewer on a PDF attachment, Ask Otto: summarise, ask a question, preview a redaction (don't submit) | Smart Documents (KA21) |
+**Average: 6.0 to about 9.4 of 12.** Top quality is 10 or more, in 5 of 5 runs, in both languages.
+No step has passed the full gate yet: every score below comes from one or two runs.
 
-Avoid in a live demo: any panel request that asks to generate, write, recommend, create or set up something; change agents;
-problem investigation; KB summaries by number; "Analyze related incidents"; list questions and survey analysis in the panel.
+| Step | Before | Now | What changed | What's left |
+|---|---|---|---|---|
+| Q01 SLA | 3 | **11** | Global copy "Explain SLA (AIT)", 8 SLA definitions linked to the breakdown, Spanish persona | No silence data; a breached sibling SLA isn't mentioned |
+| Q02 On call | 7 | **9** | SAP rota, 3 fictitious SAP users, persona role `oc_read` | No shift end; can't assign or page |
+| Q03 Recommend | 7 | not rescored | Runs automatically on assignment, in Spanish, as the persona | Doesn't cite similar incidents; routing to Network |
+| Q04 Wrap up | 8 | **9** | Spanish persona, the persona in the group | Article step hangs; duplicate runs |
+| Q05 Alert insight | 8 | **10** | SAP CIs with owner and group, a kernel change, alerts grouped | English notes; no time-to-full; dependency direction |
+| Q06 Alert automation | 4 | **10** | Ask for a grouping automation, the only kind the agent builds | Response automations are only a link; no replay |
+| Q07 Knowledge | 3 | **11** | 3 Spanish articles in the open "Knowledge" KB | 30 articles (R10); 7 more questions |
+| Q08 Software | 7 | **10** | Two variables (reason, laptop), the persona's laptops | English description (protected item); duplicate not spotted |
+| Q09 Status | 6 | **9 / 5** | Approval, overdue and on-hold data | Per ticket 9; the overview reads state only |
+| Q10 Wrong door | 9 | **9** | Spanish persona | No catalog item named, no conversion |
+| Q11 Analytics | 3 | **9** | Persona role `now.assist.creator.analytics`, tested wording | No numbers or narrative; wording-sensitive |
+| Q12 Smart Documents | 5 | 5 | Not retested | Redaction failed; English; silent off-document |
+| Q13 Governance | 8 | 8 | Root cause found; one asset Managed | Value needs Managed assets (R17, R22) |
 
-## Sprint 0, "make it real" (2 to 13 November, merged into P0)
+**What the two days taught us**, in addition to L1 to L6:
 
-Each task names its fix, the test that proves it, and whether it needs the owner's approval
-because it changes configuration. Effort: S = hours, M = 1 to 3 days, L = a week.
+| # | Lesson | Steps |
+|---|---|---|
+| L7 | **The user's language decides the answer's language**, not the question or the instructions. Every demo runs as a Spanish persona; autonomous notes run as the system, in English. | Q01, Q05, all |
+| L8 | **Most poor answers were missing data, roles or content, not weak AI.** Q07 went from 3 to 11 with three articles and the right knowledge base; Q05 went from 8 to 10 with an owner and a change on the CI. | Q02, Q05, Q07, Q09 |
+| L9 | **Each agent can do less than its name says.** The alert automation agent builds only grouping rules, the status overview reads only the state, the on-call agent is read-only, and the chart agent draws but never states numbers. The demo asks for what they can do; the rest is a build. | Q02, Q06, Q09, Q11 |
+| L10 | **Missing roles fail silently or degrade the answer.** Without the analytics role, the panel answered with search links. Without `oc_read`, it said "could not be retrieved". | Q02, Q11 |
+| L11 | **The 22 October upgrade broke the old AI Value Dashboard.** It reads a removed table. The new value pipeline only computes for Managed assets, and none were. | Q13 |
+| L12 | **Conversations nobody ends stay "in progress".** 99 of the 106 open plans are our own test chats, not failures. | Q13 |
+
+## Sprint 0 status
+
+Status: **Done**, **Partial** (started, with what's left), **Open**. The task text is unchanged from
+28 October.
 
 ### Routing and entry points (L1)
 
-| ID | Task | Proof | Effort | Approval |
-|---|---|---|---|---|
-| R1 | Keep the LEAP agent out of the panel's general routing: LEAP isn't configured, so deactivate its workflow or limit it to a LEAP role (Global AIT copy if the original can't change) | SD07, SD10, SD15, SD28 and change plans route to their own agents | S | Yes |
-| R2 | Set the panel's suggested prompts per workspace to the exact workflow names that work (Recommend a resolution, Explain SLA, Identify escalation signals, Wrap up and resolve) | A new user starts from a chip, not free text | S | Yes |
-| R3 | Record context: test the panel launched from the record header, and the summarize, KB and email buttons on cards. Document which entry points pass record context | SD01 and KA07 run on the open record | M | No |
-| R4 | Panel defects: the Approve button starts a new plan; the notification link goes to `/record/undefined`; "Analyze related incidents" loops on the skill picker. Raise them with ServiceNow support; meanwhile the demo script says "type to confirm" | Support case numbers | S | No |
+| ID | Task | Status on 29 October |
+|---|---|---|
+| R1 | Keep the LEAP agent out of general routing | **Open.** Worked around: SLA questions route to the Global copy (Q01) |
+| R2 | Suggested prompts per workspace | **Open** |
+| R3 | Record context per entry point | **Partial.** Confirmed: the panel needs the record open, or the number in the question (Q02, Q10) |
+| R4 | Panel defects to support | **Open.** New ones to add: duplicate runs from one message (Q04), panel freezes on long runs (Q02), empty bubbles in the ESC chat (Q09) |
 
 ### Personas and access (L2)
 
-| ID | Task | Proof | Effort | Approval |
-|---|---|---|---|---|
-| R5 | Create 6 personas with real role sets and groups: L1 agent, L2 SAP resolver (member of DEMO.PI.SAP, which has 0 members today: the cause of the assignment 403 and of the empty SAP answers, PG04), change manager, operations engineer, MI manager, employee. Each gets a preferred language. Stop testing as admin | Every T test re-run per persona; no "required access" message | M | Yes |
-| R6 | Fill the empty access roles of the 8 agents flagged by Agent Studio (Help Optimize Team Productivity, LEAP, Assess conflicts, Assess quality, Investigate problems, …) | Agent Studio banner gone | S | Yes |
-| R7 | Work plan trigger: run as a persona with roles, or switch it off. A trigger never runs as `system` | Security tab: no new blocked runs | S | Yes |
-| R8 | Decide on "Create standard change request": its override has been inactive since 3 Aug (admin). Activate it in `AIT-P0-GOV-access` or remove it from the story | Std change created from a sentence | S | Yes |
+| ID | Task | Status on 29 October |
+|---|---|---|
+| R5 | 6 personas with real roles | **Partial.** One analyst persona, "Analista AIT (ES)": Spanish, itil, panel, Explain SLA, analytics, `oc_read`, in DEMO.PI.Identity, manager set. 3 SAP users exist for the rota. Still needed: an operations engineer with an Event Management role (Q05, Q06 run as admin today), a change manager, an MI manager, and an employee separate from the analyst |
+| R6 | ACL roles for the 8 agents | **Open** |
+| R7 | Work plan trigger not as `system` | **Open** |
+| R8 | Standard change decision | **Open** |
 
 ### Data (L3)
 
-| ID | Task | Proof | Effort | Approval |
-|---|---|---|---|---|
-| R9 | SAP ERP application service and CIs named the way people speak ("SAP ERP", "SAP WEB01" as a host), with support groups, so events bind and agents find CIs | Test event binds to a CI; CI suggestion finds SAP | M | Yes |
-| R10 | Replace the US-university KB with 30 articles in Spanish and English on the demo services (SAP, VPN, Outlook, laptops). Remove the article holding a shared secret | VPN, SAP and laptop answers cite our KB | M | Yes |
-| R11 | Clean the incident data: duplicate numbers, inactive On Hold records. Then load 6 months of incidents (P0-5) and run the clustering jobs | Global search gives the right P2 list; trends show clusters | M | Yes |
-| R12 | On-call rota for the SAP group; assigned work for the analyst personas | Work plan lists tasks; on-call answers for SAP | S | Yes |
+| ID | Task | Status on 29 October |
+|---|---|---|
+| R9 | SAP service and CIs with support groups | **Partial.** SAP AppSRV01, AppSRV02 and LoadBal01 have group DEMO.PI.SAP and an owner; events bind and route. CI naming and the rest of the SAP CIs are open |
+| R10 | 30 client articles; remove the shared secret | **Partial.** 3 Spanish articles (VPN, MFA, SAP V1 801) in the open KB; 27 to go. The IT KB is readable only by ACME employees: decide the KB model |
+| R11 | Clean incidents, load 6 months, clustering | **Open** |
+| R12 | SAP on-call rota; assigned work | **Done** for the rota (weekly; shift end not shown). Assigned work exists for the analyst persona only |
 
 ### Hand-offs (L4)
 
-| ID | Task | Proof | Effort | Approval |
-|---|---|---|---|---|
-| R13 | Employee Center: offer the Create Incident AI agent in the Otto chat instead of the empty record producer link | SD21: the incident keeps the chat summary | M | Yes |
-| R14 | Alert to incident: flow `AIT - Alert insight to incident` copies the AI overview, cause and steps into the new incident, with category and CI | OP04: the incident carries the insight | M | Yes |
-| R15 | Investigate "Unable to create knowledge article" from wrap-up (the KB tool path; P1-1 creation works from the form) | SD05: KB draft created | S | No |
-| R16 | Exclude event-created incidents (caller Event Management) from sentiment | No sentiment badge on event incidents | S | Yes |
+| ID | Task | Status on 29 October |
+|---|---|---|
+| R13 | Create Incident agent in the ESC chat | **Open** |
+| R14 | Alert to incident with the AI insight | **Open.** New finding: the OOB rule "Create Incident with AI Insight" is active but created no incident for 4 test alerts |
+| R15 | "Unable to create knowledge article" | **Partial.** Narrowed: the same insert works through REST and fails only inside the agent; as the persona the step now hangs. Workaround: generate the article from the form |
+| R16 | Sentiment off for event incidents | **Open** |
 
 ### Governance and measurement (L5)
 
-| ID | Task | Proof | Effort | Approval |
-|---|---|---|---|---|
-| R17 | AI Control Tower: move the AIT agents, the used skills and the 3 MCP servers to Managed; set risk; turn approvals on for new agents. In Skill Kit, set ACLs and roles on the 29 custom skills (7 of the first 10 are active with security controls "Not set", PG03) | 0 unmanaged AIT assets; Skill Kit banner gone | M | Yes |
-| R18 | Test MCP: ask iCenter for an owner and purpose; deactivate it until it is governed | Server inactive or managed with an owner | S | Yes |
-| R19 | Guardian at BLOCK for prompt injection, with a visible log; the demo shows the block, not "don't understand" | PG09 re-run shows the block and its log | S | Yes |
-| R20 | Weekly AI review on the AI Agent Analytics dashboard (blocked runs, errors, inferred CSAT, consumption); feedback on (P1-6) | First review held | S | No |
-| R21 | Housekeeping job: close stuck execution plans and panel interactions left Work in Progress (47 plans, 49 chats) | Counts back to 0 each week | S | Yes |
-| R22 | Collect the indicators behind "Insights and Opportunities for Incident" and the AI Value Dashboard, including historic data | Both dashboards show 6 months; AI Value without errors | M | Yes |
-| R23 | AI Agent Advisor: pause the monthly run until R11 gives 500 or more closed incidents with real issue and root cause, then run it once | One successful run with clusters and recommendations | S | Yes |
+| ID | Task | Status on 29 October |
+|---|---|---|
+| R17 | AI Control Tower: Managed assets | **Partial.** 1 of 336 moved to Managed as a probe (no approvals or tasks triggered); waiting for the value jobs before moving the demo skills |
+| R18 | Test MCP owner or deactivate | **Open** |
+| R19 | Guardian at BLOCK | **Open** |
+| R20 | Weekly AI review | **Open** |
+| R21 | Close stuck plans | **Open.** Sized: 106 in progress, 99 from our QA |
+| R22 | Indicators and AI Value | **Partial.** Root cause found (L11). Fix = R17, then use the AI Control Tower value view, not the old dashboard |
+| R23 | Pause AI Agent Advisor until R11 | **Open** |
+
+## Builds from the quality work
+
+Gaps that configuration can't close. Each is a Global build in an `AIT-` update set, with no scoped
+app: a copy of an OOB agent or a new script tool. Each needs the owner's approval before it starts.
+Effort: S = hours, M = 1 to 3 days.
+
+| ID | Build | Closes | Effort |
+|---|---|---|---|
+| B1 | **Analytics narrative:** a tool that counts per group per period (GlideAggregate) and returns the numbers and the biggest changes; the panel calls it after the chart | Q11: "which priority explains the difference" | M |
+| B2 | **Request overview:** a copy of the status agent with a tool adding approval state, due date, overdue and "waiting for you" | Q09 overview, from 5 to 10 | M |
+| B3 | **On-call with action:** shift end from the roster, and "assign to the person on call and leave a note" behind a confirmation | Q02, from 9 to 11 | M |
+| B4 | **Alert response proposal:** a tool that writes an inactive `em_alert_management_rule` from the alert's fields, with a replay count | Q06 response automations | M |
+| B5 | **Alert analysis copy:** instructions for time-to-full from a growth rate, dependency direction, quote the change number, name the owner; in Spanish if the owner decides | Q05, from 10 to 11 | S |
+| B6 | **Catalog item copy:** Spanish short description, a duplicate check against the user's open requests | Q08, from 10 to 11 | S |
+| B7 | **Alert to incident (= R14):** the incident carries the AI insight, CI and group | Hand-off L4 | M |
+| B8 | **Similar-incident citations:** the recommendation names 2 or 3 similar incidents | Q03 | S |
+
+## Implementation plan from here
+
+```mermaid
+gantt
+  title From quality fixes to Sprint 0
+  dateFormat YYYY-MM-DD
+  axisFormat %d %b
+  section Now
+  Gate the demo steps (5 runs, both languages)  :g1, 2026-10-29, 3d
+  Q12 and Q13 retests                           :g2, 2026-10-29, 3d
+  Demo rehearsal                                :milestone, m0, 2026-10-30, 0d
+  section Sprint 0
+  Personas and access R5-R8                     :s2, 2026-11-02, 4d
+  Routing R1-R4                                 :s1, 2026-11-02, 3d
+  Data R9-R12                                   :s3, 2026-11-04, 7d
+  Builds B5 B6 B8 (S)                           :b1, 2026-11-04, 3d
+  Builds B1 B2 B3 (M)                           :b2, 2026-11-06, 6d
+  Hand-offs R13-R16 and B4 B7                   :s4, 2026-11-06, 6d
+  Governance R17-R23                            :s5, 2026-11-09, 5d
+  Retest all 13 steps on the gate               :milestone, m1, 2026-11-13, 0d
+  section Then
+  P1 Assist                                     :p1, 2026-11-16, 2026-12-04
+  P2 Copilot                                    :p2, 2026-12-07, 2027-01-15
+```
+
+### Now to 1 November: make the demo steps pass the gate
+
+1. **Q13:** check the probe asset after the value jobs (07:36 and 10:11 UTC on 29 October). If value
+   appears, move the demo skills to Managed (R17); otherwise unmanage the probe and keep AI Agent
+   Analytics as the governance view.
+2. **Q12:** retest as the persona, with a PDF exported from a word processor; retest redaction.
+3. **Gate runs:** 5 runs per step for Q01, Q02, Q05, Q06, Q07, Q08, Q09 per ticket, Q10 and Q11, in
+   Spanish and English, scored on the 6 criteria. A step that falls below 10 in any run goes back to
+   its fix list.
+4. **Housekeeping:** end the QA chats (R21); switch the test user back to the Default update set.
+5. **Rehearse** [the demo script](../08-demo-script.md) end to end, including its preparation list.
+
+### Sprint 0, 2 to 13 November
+
+In this order, because each row depends on the one before:
+
+1. **Personas (R5) first.** Every later test runs as a persona, including an operations engineer so
+   Q05 and Q06 stop running as admin.
+2. **Routing (R1, R2)**, so free-text requests reach the right agent.
+3. **Data (R9 to R11)**: the SAP service model, 30 articles, 6 months of clean incidents. Most
+   remaining insight gaps depend on it (L8).
+4. **Small builds (B5, B6, B8)**, then the **medium builds (B1, B2, B3)**: they lift the steps that
+   are already at 9 or 10 to the top.
+5. **Hand-offs (R13 to R16, B4, B7).**
+6. **Governance (R17 to R23)**, so the 15 January gate has numbers: managed assets, blocked runs,
+   value.
+7. **Retest all 13 steps on the gate** on 13 November. The P1 work starts only on steps that pass.
 
 ## What changes in the roadmap
 
 | Item | Change | Why |
 |---|---|---|
-| P0 | Add R1 to R23 (Sprint 0). P0-3 (guardians) becomes R19; P0-5 (data) is detailed in R9 to R12 | L1 to L5 |
+| P0 | Add R1 to R23 (Sprint 0) and B1 to B8. P0-3 (guardians) becomes R19; P0-5 (data) is detailed in R9 to R12 | L1 to L12 |
 | P1-2 chat summarization and reply | Move to P4 or drop: there is no live-agent queue (131 chats, all Virtual Agent) | SD30 |
 | P2-1 copilot agents | Depends on R1, R2, R5. Investigate problems and Analyze task trends also need R11 | SD12, KA14, problem tests |
-| P2-4 change agents | Depends on R1, R5, R8, R9. Three of five failed today for routing or data | Change tests |
+| P2-4 change agents | Depends on R1, R5, R8, R9. Three of five failed for routing or data | Change tests |
 | P2-6 knowledge health | Depends on R10. Generating KB from a topic isn't reachable; KB from a task works | KA02, KA01 |
 | P3-1 triage on insert | The writing workflow runs only by trigger: test it on one group first, as a persona, with field-level approval | SD01, R7 |
-| P3-6 alerts | Already autonomous (L4) for analysis; add R14 and the noise board (N8) | OP01-OP04 |
+| P3-6 alerts | Analysis already autonomous and CI-aware (Q05); add B5, B7 and the noise board (N8) | OP01-OP04, Q05 |
 | P4-1 voice | Telephony is a placeholder (Twilio account `-1`). Needs a carrier decision at the entitlements gate | PG17 |
 | P4-5 to P4-7 ITOM | No MID Server, no HLA core, no SRM, no ITOM Discovery: decide at the entitlements gate or simulate | OP08, OP13-OP17 |
-| Governance gate (15 Jan) | Add measurable entry criteria: 0 unmanaged AIT assets, 0 blocked runs in a week, inferred CSAT ≥ 4 | PG07, PG12 |
-
-```mermaid
-gantt
-  title Revised start (Sprint 0 inside P0)
-  dateFormat YYYY-MM-DD
-  axisFormat %d %b
-  section Sprint 0
-  Routing and entry points R1-R4   :s1, 2026-11-02, 4d
-  Personas and access R5-R8        :s2, 2026-11-02, 5d
-  Data R9-R12                      :s3, 2026-11-04, 8d
-  Hand-offs R13-R16                :s4, 2026-11-06, 6d
-  Governance R17-R23               :s5, 2026-11-09, 5d
-  Retest every T capability        :milestone, m1, 2026-11-13, 0d
-  section Then
-  P1 Assist                        :p1, 2026-11-16, 2026-12-04
-  P2 Copilot                       :p2, 2026-12-07, 2027-01-15
-```
+| Governance gate (15 Jan) | Measurable entry criteria: 0 unmanaged AIT assets, 0 blocked runs in a week, inferred CSAT ≥ 4, AI value shown for the demo skills | PG07, PG12, Q13 |
 
 ## Decisions needed from the owner
 
-1. Approve the configuration changes marked "Yes" above, in update sets `AIT-P0-<stream>-<name>`.
-2. Grant the test user, or the new personas, real roles (`itil`, `sn_change_write`, rota) and membership of
-   DEMO.PI.SAP. Otherwise the access results stay mixed. Add the AI Data Kit role for the builder persona
-   (PG05: admin is refused), needed for synthetic demo data.
-3. Approve the class A activations for testing, in `AIT-TEST-activations`, each with its revert step:
-   - the 13 never tested: MI email content, attachment summary, slot fill, approval assistance, requester
-     summary, knowledge gaps, duplicates and health, translation, security detectors, Conversation Evaluator,
-     voice mic, AI Worker mode;
-   - 4 found switched off today: flow and subflow generation (PG06, SD23), the document extraction skill
-     (KA20: "Create an extraction use case" opens a page not found), and alert noise auto-close (OP02).
-4. Test MCP: contact iCenter or deactivate.
-5. Clean up the test records listed in the [evidence README](../evidence/capabilities-2026-10-28/README.md).
+**Done since 28 October:** data, configuration and activations for the quality plan (approved on the
+night of 28 October); roles for the analyst persona and the SAP users (decision 2, partly).
+
+**Open:**
+
+1. Approve the Sprint 0 configuration changes, in update sets `AIT-P0-<stream>-<name>`.
+2. Approve builds **B1 to B8** (or choose which), each a Global copy or tool in an `AIT-` update set.
+3. **R17:** move the demo skills to Managed in AI Control Tower if the probe shows value.
+4. **Language of autonomous notes** (alert insights run as the system, in English): change the
+   instructions in a copy (B5) or accept English for operations.
+5. **Knowledge base model:** client articles in the open "Knowledge" KB (used now), or a client KB
+   with its own user criteria.
+6. Approve the class A activations for testing, in `AIT-TEST-activations`, each with its revert step:
+   - the 13 never tested: MI email content, attachment summary, slot fill, approval assistance,
+     requester summary, knowledge gaps, duplicates and health, translation, security detectors,
+     Conversation Evaluator, voice mic, AI Worker mode;
+   - 4 found switched off: flow and subflow generation (PG06, SD23), the document extraction skill
+     (KA20), and alert noise auto-close (OP02).
+7. Test MCP: contact iCenter or deactivate (R18).
+8. Clean-up: the test records in the [evidence README](../evidence/capabilities-2026-10-28/README.md)
+   and the revert lists in [night-changes.md](../evidence/quality-2026-10-28/night-changes.md), once
+   the demo is done.
 
 ## Still to test
 
-Everything that could run without the owner's approval has run. What is left:
-- SD24 image to ticket: the chat offers "Add files & images", but the browser automation can't drive the
-  file picker. A person attaches an error screenshot and asks for a ticket (5 minutes).
+- Q12 as the persona; Q03 rescored on its answer key; gate runs for every step (above).
+- SD24 image to ticket: a person attaches an error screenshot in the chat and asks for a ticket (5
+  minutes; the browser automation can't drive the file picker).
 - SD31 sidebar summarization: needs a second user in the conversation.
-- The 13 class A activations and 2 integrations or decisions (SMTP, web search credential), after decision 3.
+- The 13 class A activations and 2 integrations or decisions (SMTP, web search credential), after
+  decision 6.

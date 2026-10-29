@@ -351,10 +351,10 @@ gantt
 
 | ID | Decision | Blocks |
 |---|---|---|
-| P2-1 | B4: keep the persona "Operador AIT (EM)" for the test, or name another Event Management user | W1.2 |
-| P2-2 | Autonomy level per use case, and which pilots may write on demo records without approval (level 3) | W4.3, W4.4 |
-| P2-3 | Phone voice: carrier and budget, or the microphone only | W5.4 |
-| P2-4 | A second instance with Now Assist for the kit test | W7.4 |
+| P2-1 | B4: keep the persona "Operador AIT (EM)" for the test, or name another Event Management user | W1.2. **Decided 29 Oct: keep it** |
+| P2-2 | Autonomy level per use case, and which pilots may write on demo records without approval (level 3) | W4.3, W4.4. Open: explained to the owner 29 Oct |
+| P2-3 | Phone voice: carrier and budget, or the microphone only | W5.4. **Decided 29 Oct: microphone only**; phone stays at the entitlements gate |
+| P2-4 | A second instance with Now Assist for the kit test | W7.4. **On hold 29 Oct:** the owner may propose a new instance in Brazil (zBoot) that also gets the accelerators |
 
 Decision 4 (language of autonomous notes) and decision 6 (class A activations, which include the
 microphone) above also block W1.4 and W5.1.

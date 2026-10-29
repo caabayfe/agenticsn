@@ -142,7 +142,7 @@ scripts in `../build/`). Effort: S = hours, M = 1 to 3 days.
 | B1 | **Analytics narrative:** Global workflow "Comparar periodos (AIT)" with a GlideAggregate tool: totals per period, the change, and the groups that explain it | Q11: "which priority explains the difference" | **Done, 11.** Exact in 3 of 3 runs. The chart phrase still goes to the OOB chart agent: ask the numbers in a new chat |
 | B2 | **Request overview:** a tool on the OOB status agent for approval, due date, overdue and "waiting for you" | Q09 overview, from 5 | **Done, 11 to 12.** Action, approver and days overdue right in Spanish and English questions |
 | B3 | **On-call with action:** shift end, handover and escalation line; "assign to the person on call and leave a note", supervised | Q02, from 9 | **Done, 11.** The user confirms twice before the assignment |
-| B4 | **Alert response proposal:** a tool that writes an inactive `em_alert_management_rule` from the alert's fields, with a replay count | Q06 response automations | Built; rule creation untested: needs a persona with evt_mgmt_admin |
+| B4 | **Alert response proposal:** a tool that writes an inactive `em_alert_management_rule` from the alert's fields, with a replay count | Q06 response automations | **Done, 11.** As the persona "Operador AIT (EM)": inactive rule with the Create Incident action and a right replay; a second run returns the existing rule |
 | B5 | **Alert analysis copy:** time to full, dependency direction, change number, owner, Spanish | Q05, from 10 | **Partly covered by B7** (change number and owner at hand-off). Time to full and Spanish still need a copy of the OOB agent (S) |
 | B6 | **Catalog item:** Spanish texts, and the user's open requests shown before submitting | Q08, from 10 | **Done, 11.** The duplicate shows in the summary; the chat card keeps the English item name |
 | B7 | **Alert to incident (= R14):** the incident gets the AI summary, CI, owner, recent changes by number and related alerts | Hand-off L4 | **Done, 11.** One note per incident, from a group or a member alert |
@@ -251,7 +251,7 @@ Extends "Now to 1 November" above.
 | ID | Task | Acceptance | Effort |
 |---|---|---|---|
 | W1.1 | 5-run gate for B1, B2, B3, B6, B7, B8 in Spanish and English, on their answer keys | 10 or more in 5 of 5 runs, per language | M |
-| W1.2 | **B4** as a persona with an Event Management role (decision P2-1): rule created inactive, Create Incident action linked, replay count right, a second run returns "already exists" | All four checks; score 10 or more | S |
+| W1.2 | **Done 29 Oct, 11.** **B4** as a persona with an Event Management role (decision P2-1): rule created inactive, Create Incident action linked, replay count right, a second run returns "already exists" | All four checks; score 10 or more | S |
 | W1.3 | **B7 and Q05** with fresh alert events, plus the OOB comparison for Q05 that was skipped | B7 note on 5 of 5 incidents; OOB score recorded | S |
 | W1.4 | **B5:** Global copy of the alert analysis agent with time to full, dependency direction and Spanish notes (depends on decision 4) | Q05 at 11 or more | S |
 | W1.5 | Rehearse the [demo script](../08-demo-script.md) with the builds | No step below 10 | S |

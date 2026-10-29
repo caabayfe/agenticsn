@@ -47,7 +47,7 @@ the scores are in [70-quality-plan.md](70-quality-plan.md). The evidence and rev
 [evidence/quality-2026-10-28](../evidence/quality-2026-10-28/). The demo runs from
 [08-demo-script.md](../08-demo-script.md).
 
-**Average: 6.0 to about 9.4 of 12.** Top quality is 10 or more, in 5 of 5 runs, in both languages.
+**Average: 6.0 to about 9.2 of 12** (12 rescored steps, Q09 per ticket). Top quality is 10 or more, in 5 of 5 runs, in both languages.
 No step has passed the full gate yet: every score below comes from one or two runs.
 
 | Step | Before | Now | What changed | What's left |

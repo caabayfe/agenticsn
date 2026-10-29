@@ -32,7 +32,9 @@ The six OOB trigger records on the instance are inactive examples. They run as `
   "stage is in progress" only, at 17 % of the SLA. Tested with `>=`, `>`, `BETWEEN` and dot-walks on
   the group: all dropped. Plain fields (`stage`, `sla`, `has_breached`) are kept.
 - **Fix: a warning SLA.** A second SLA definition with the same start and stop conditions, no target
-  and 75 % of the duration breaches exactly at 75 %; the trigger fires on its `has_breached=true`, once.
+  and 75 % of the duration breaches exactly at 75 %; the trigger fires when its `has_breached` changes to
+  true, with frequency "every update". Frequency "once" skipped records that had an earlier update (2 of
+  5 in round 2); "changes to true" ran 5 of 5 in round 3.
   The SLA start condition does the DEMO.PI filtering. (The percentage also moves only when SLA timers
   run: the 75 % timer of the real SLA wrote 74.58 %, another reason not to compare percentages.)
 

@@ -1,7 +1,7 @@
 # The real plan: from tested capabilities to an autonomous IT demo
 
 **Date:** 28 October 2026. **Status updated:** 29 October 2026, after two days of quality fixes
-([70-quality-plan.md](70-quality-plan.md)).
+([70-quality-plan.md](70-quality-plan.md)). **Phase 2 added:** 29 October (W1 to W7).
 
 **Basis:**
 - 77 of 93 capabilities tested live on everis2, with 82 screenshots, 2 transcripts and the AI logs;
@@ -202,6 +202,162 @@ In this order, because each row depends on the one before:
 6. **Governance (R17 to R23)**, so the 15 January gate has numbers: managed assets, blocked runs,
    value.
 7. **Retest all 13 steps on the gate** on 13 November. The P1 work starts only on steps that pass.
+
+## Phase 2: from answers to autonomous IT
+
+**Added 29 October**, after the comparison of the OOB agents with the builds
+([oob-vs-builds-2026-10-29.md](../evidence/quality-2026-10-28/oob-vs-builds-2026-10-29.md)). That run
+changes the story to tell a client:
+
+- **Data and configuration gave most of the gain.** With the overnight data, the OOB agents already
+  score about 9 of 12 on status, on-call, recommendation and catalog.
+- **Builds add the last specific fact**, which takes the answer from 9 to 11 or 12.
+- **Analytics is the exception:** the OOB gives no numbers (about 2 against 11).
+- **Everything so far starts with a person asking.** Autonomous IT needs agents that start from
+  events, at a stated autonomy level.
+
+Phase 2 has seven workstreams, W1 to W7. It runs alongside Sprint 0 and P1, and reuses their tasks
+where they overlap instead of repeating them. Effort: S = hours, M = 1 to 3 days, L = a week.
+
+```mermaid
+flowchart LR
+  W1["W1 Close the builds<br/>gate, B4, B5, B7"] --> W2["W2 Data readiness<br/>check per use case"]
+  W2 --> W3["W3 Analytics<br/>SLA drivers, backlog"]
+  W2 --> W4["W4 Otto acts<br/>event triggers,<br/>autonomy levels"]
+  W3 --> W4
+  W1 --> W5["W5 Voice<br/>mic first"]
+  W4 --> W6["W6 Value and<br/>governance"]
+  W5 --> W6
+  W6 --> W7["W7 Repeatable kit"]
+```
+
+### Autonomy levels
+
+Every use case gets one level, agreed with the owner, and moves up only after it passes the gate at
+its current level.
+
+| Level | Name | What the agent does | Example on everis2 |
+|---|---|---|---|
+| 0 | Answer | Answers a question; changes nothing | B1 analytics, B2 status |
+| 1 | Suggest | Writes a proposal a person applies | B8 plan with similar incidents |
+| 2 | Act with approval | Prepares the change; a person confirms or turns it on | B3 assignment (confirmed twice), B4 inactive rule |
+| 3 | Act and report | Acts on its own and leaves a visible note; a person can undo it | B7 alert to incident, the alert insight agent (L6) |
+| 4 | Act silently | Acts with no note | Not used in the demo |
+
+### W1. Close the build phase (30 October to 1 November)
+
+Extends "Now to 1 November" above.
+
+| ID | Task | Acceptance | Effort |
+|---|---|---|---|
+| W1.1 | 5-run gate for B1, B2, B3, B6, B7, B8 in Spanish and English, on their answer keys | 10 or more in 5 of 5 runs, per language | M |
+| W1.2 | **B4** as a persona with an Event Management role (decision P2-1): rule created inactive, Create Incident action linked, replay count right, a second run returns "already exists" | All four checks; score 10 or more | S |
+| W1.3 | **B7 and Q05** with fresh alert events, plus the OOB comparison for Q05 that was skipped | B7 note on 5 of 5 incidents; OOB score recorded | S |
+| W1.4 | **B5:** Global copy of the alert analysis agent with time to full, dependency direction and Spanish notes (depends on decision 4) | Q05 at 11 or more | S |
+| W1.5 | Rehearse the [demo script](../08-demo-script.md) with the builds | No step below 10 | S |
+
+### W2. Data readiness check (2 to 6 November)
+
+The client deliverable that follows from L8 and the OOB comparison: **what the data must contain for
+each use case to work**, and a measured score of an instance against it.
+
+| ID | Task | Acceptance | Effort |
+|---|---|---|---|
+| W2.1 | For each of the 13 demo steps, list the facts its answer depends on, from the answer keys and the night fixes. Examples: SLA definitions linked to the breakdown (Q01); a rota with shifts and users with phones (Q02); resolved incidents with resolution notes and KB links (Q03); CIs with owner, group and changes (Q05); articles in a KB the user can read, in their language (Q07); approvals and due dates on requests (Q09) | One row per fact, with the step it serves | S |
+| W2.2 | A read-only check per fact, with a threshold. Examples: share of closed incidents with resolution notes over 50 characters; share of alerts with a CI; share of incidents with a KB link; rota coverage per group; requests with an approver | Each check is one aggregate query, no record export | M |
+| W2.3 | Run the checks on everis2 and compare with the measured OOB scores | The check predicts the OOB score band (under 6, 6 to 9, 9 or more) for 10 of 13 steps | S |
+| W2.4 | Client page: the checklist, how to read it, and the everis2 example | Reviewed by the owner | S |
+
+The checks run as a script with REST reads, not inside snagentic: snagentic quarantines business
+records by design.
+
+### W3. Analytics (9 to 13 November)
+
+Extends B1, where the build adds the most. It answers the owner's first point about SLAs at group
+level: why the team breaches, not what the SLA record already shows.
+
+| ID | Task | Acceptance | Effort |
+|---|---|---|---|
+| W3.1 | Pick 4 manager questions and write their answer keys: why SLA breaches rose (by group, category, priority); backlog age per group; reopen rate; top recurring causes (by CI, category and close code) | 4 answer keys, each with a reference query | S |
+| W3.2 | Tool "Explain SLA breaches (AIT)": breached `task_sla` per period and group, with the drivers (reassignment count, time on hold, time to first assignment, no update for N hours) | Numbers match the reference query; drivers named in the answer | M |
+| W3.3 | Tools for backlog age and recurring causes, on the B1 workflow, with the same table allow-list and `canRead` check as B1 | Same | M |
+| W3.4 | Gate the 4 questions | 10 or more in 5 of 5, both languages | S |
+
+Depends on R11 (6 months of clean incidents) for drivers that mean something.
+
+### W4. Otto acts: event-driven agents (spike 4 November, pilots 16 to 27 November)
+
+| ID | Task | Acceptance | Effort |
+|---|---|---|---|
+| W4.1 | **Read-only spike:** which triggers on everis2 can start an agentic workflow (record create or update, schedule, flow action; the 6 `sn_aia_trigger_configuration` records are inactive); which user they run as (R7: `system` was blocked 78 times); which language the notes use (L7) | A one-page answer with the trigger to use and its run-as user | S |
+| W4.2 | Autonomy level per use case (table above), agreed with the owner | Decision P2-2 | S |
+| W4.3 | **Pilot 1, SLA at risk (level 3):** at 75% of a resolution SLA, a work note with the likely cause, the person on call (B3 tool) and the next step. Reuses "Explain SLA (AIT)" | Note within 5 minutes on 5 of 5 test incidents; score 10 or more | M |
+| W4.4 | **Pilot 2, wrong group (level 2):** on a new incident, the B8 group check proposes a reassignment with its evidence; a person approves. One group only, as in P3-1 | 5 of 5 right proposals; no change without approval | M |
+| W4.5 | Guardrails for every triggered agent: a run-as user with real roles, an off switch (the trigger and `sys_gen_ai_skill_config.active`), a daily run limit, a note prefix so its writing is traceable | Off switch tested; limit tested | S |
+
+B7 (alert to incident) is already level 3 and counts as the first event-driven case.
+
+### W5. Voice (16 to 20 November)
+
+Telephony stays at the entitlements gate (P4-1: no carrier). The panel microphone is the cheap
+path: `sn_voice_input` is active but hidden in product
+([40-platform-governance.md](40-platform-governance.md), section E).
+
+| ID | Task | Acceptance | Effort |
+|---|---|---|---|
+| W5.1 | Show the microphone in product for `itil` and requesters (class A activation V10, decision 6) | Mic visible for the persona in the panel and the employee chat | S |
+| W5.2 | Ask Q02 on-call, Q09 status and Q07 knowledge by voice in Spanish, on the same answer keys, plus one criterion: the transcription is right, including record numbers and SAP terms | 10 or more in 3 of 3 runs | S |
+| W5.3 | Dictate a work note on an incident | Note right with no manual correction | S |
+| W5.4 | Phone voice agents: the carrier decision and cost, for the entitlements gate | Decision P2-3 | – |
+
+### W6. Value and governance (with R17 to R23)
+
+| ID | Task | Acceptance | Effort |
+|---|---|---|---|
+| W6.1 | Value per use case: runs, success rate and minutes saved per run (an assumption agreed with the owner), from AI Agent Analytics and the generative AI logs | One table per week for the demo use cases | M |
+| W6.2 | Human-in-the-loop register: per workflow, its level, what needs approval, who approves and how to switch it off | All AIT workflows listed | S |
+| W6.3 | Weekly AI review (R20), using W6.1 and W6.2 | First review held | S |
+
+### W7. Repeatable kit (December)
+
+| ID | Task | Acceptance | Effort |
+|---|---|---|---|
+| W7.1 | List and export the `AIT-` update sets in install order; the scripts are already in `../build/` | Install order documented | S |
+| W7.2 | Demo data as scripts that can run twice, keyed by business keys: personas, SAP CIs, rota, articles, incidents | A second run changes nothing | M |
+| W7.3 | Install and revert checklist built from the revert rows of every build | Followed once end to end | S |
+| W7.4 | Install on a second instance with Now Assist (not a PDI: Otto can't be enabled there), then gate 3 steps | Decision P2-4 | M |
+
+### Phase 2 timeline
+
+```mermaid
+gantt
+  title Phase 2 alongside Sprint 0
+  dateFormat YYYY-MM-DD
+  axisFormat %d %b
+  section Phase 2
+  W1 Close the builds               :w1, 2026-10-30, 3d
+  W2 Data readiness                 :w2, 2026-11-02, 5d
+  W4.1 Trigger spike                :w41, 2026-11-04, 1d
+  W3 Analytics                      :w3, 2026-11-09, 5d
+  W4 Pilots                         :w4, 2026-11-16, 10d
+  W5 Voice                          :w5, 2026-11-16, 5d
+  W6 Value and governance           :w6, 2026-11-23, 5d
+  W7 Repeatable kit                 :w7, 2026-12-01, 8d
+  section Sprint 0
+  Sprint 0 R1-R23                   :s0, 2026-11-02, 10d
+```
+
+### Decisions for phase 2
+
+| ID | Decision | Blocks |
+|---|---|---|
+| P2-1 | B4: keep the persona "Operador AIT (EM)" for the test, or name another Event Management user | W1.2 |
+| P2-2 | Autonomy level per use case, and which pilots may write on demo records without approval (level 3) | W4.3, W4.4 |
+| P2-3 | Phone voice: carrier and budget, or the microphone only | W5.4 |
+| P2-4 | A second instance with Now Assist for the kit test | W7.4 |
+
+Decision 4 (language of autonomous notes) and decision 6 (class A activations, which include the
+microphone) above also block W1.4 and W5.1.
 
 ## What changes in the roadmap
 

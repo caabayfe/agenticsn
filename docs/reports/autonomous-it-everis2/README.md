@@ -23,7 +23,7 @@ marked `MISSING` or `BUILD`. The facts come from a read-only mirror of the insta
 | [07-implementation-plan.md](07-implementation-plan.md) | Workstreams, tasks, enablement checklist and build conventions |
 | [08-demo-script.md](08-demo-script.md) | 35-minute demo script: scenes, exact questions, what to expect and what to avoid |
 | [use-cases/_template.md](use-cases/_template.md) | Template for adding a new use case |
-| [capabilities/60-real-plan.md](capabilities/60-real-plan.md) | **The plan from the live tests (28 Oct):** what works, what breaks, Sprint 0 tasks R1 to R23, roadmap changes |
+| [capabilities/60-real-plan.md](capabilities/60-real-plan.md) | **The plan from the live tests (28 Oct):** what works, what breaks, Sprint 0 tasks R1 to R23, builds B1 to B8, phase 2 (W1 to W7: data readiness, analytics, event-driven agents, voice, value, kit), roadmap changes |
 | [capabilities/70-quality-plan.md](capabilities/70-quality-plan.md) | **Quality plan:** the bar, the QA method and the fix for each of the 12 demo steps, step by step |
 | [capabilities/](capabilities/) | AI capability assessment: overview, four domain dossiers, test plan with live results |
 | [evidence/](evidence/) | Screenshots and logs of the live tests (P1-1 and all capabilities) |

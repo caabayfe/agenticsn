@@ -114,7 +114,7 @@ Status: **Done**, **Partial** (started, with what's left), **Open**. The task te
 | ID | Task | Status on 29 October |
 |---|---|---|
 | R13 | Create Incident agent in the ESC chat | **Open** |
-| R14 | Alert to incident with the AI insight | **Open.** New finding: the OOB rule "Create Incident with AI Insight" is active but created no incident for 4 test alerts |
+| R14 | Alert to incident with the AI insight | **Done by B7** for incidents created from an alert ("Quick Incident"): the incident gets the AI summary, CI, owner, changes and related alerts. Still open: the OOB rule "Create Incident with AI Insight" is active but created no incident for 4 test alerts |
 | R15 | "Unable to create knowledge article" | **Partial.** Narrowed: the same insert works through REST and fails only inside the agent; as the persona the step now hangs. Workaround: generate the article from the form |
 | R16 | Sentiment off for event incidents | **Open** |
 
@@ -133,19 +133,22 @@ Status: **Done**, **Partial** (started, with what's left), **Open**. The task te
 ## Builds from the quality work
 
 Gaps that configuration can't close. Each is a Global build in an `AIT-` update set, with no scoped
-app: a copy of an OOB agent or a new script tool. Each needs the owner's approval before it starts.
-Effort: S = hours, M = 1 to 3 days.
+app: a new Global workflow and agent, a script tool on an OOB agent, or a business rule. Six were
+built and tested as the persona on 29 October (`../evidence/quality-2026-10-28/builds-2026-10-29.md`,
+scripts in `../build/`). Effort: S = hours, M = 1 to 3 days.
 
-| ID | Build | Closes | Effort |
+| ID | Build | Closes | Status 29 Oct |
 |---|---|---|---|
-| B1 | **Analytics narrative:** a tool that counts per group per period (GlideAggregate) and returns the numbers and the biggest changes; the panel calls it after the chart | Q11: "which priority explains the difference" | M |
-| B2 | **Request overview:** a copy of the status agent with a tool adding approval state, due date, overdue and "waiting for you" | Q09 overview, from 5 to 10 | M |
-| B3 | **On-call with action:** shift end from the roster, and "assign to the person on call and leave a note" behind a confirmation | Q02, from 9 to 11 | M |
-| B4 | **Alert response proposal:** a tool that writes an inactive `em_alert_management_rule` from the alert's fields, with a replay count | Q06 response automations | M |
-| B5 | **Alert analysis copy:** instructions for time-to-full from a growth rate, dependency direction, quote the change number, name the owner; in Spanish if the owner decides | Q05, from 10 to 11 | S |
-| B6 | **Catalog item copy:** Spanish short description, a duplicate check against the user's open requests | Q08, from 10 to 11 | S |
-| B7 | **Alert to incident (= R14):** the incident carries the AI insight, CI and group | Hand-off L4 | M |
-| B8 | **Similar-incident citations:** the recommendation names 2 or 3 similar incidents | Q03 | S |
+| B1 | **Analytics narrative:** Global workflow "Comparar periodos (AIT)" with a GlideAggregate tool: totals per period, the change, and the groups that explain it | Q11: "which priority explains the difference" | **Done, 11.** Exact in 3 of 3 runs. The chart phrase still goes to the OOB chart agent: ask the numbers in a new chat |
+| B2 | **Request overview:** a tool on the OOB status agent for approval, due date, overdue and "waiting for you" | Q09 overview, from 5 | **Done, 11 to 12.** Action, approver and days overdue right in Spanish and English questions |
+| B3 | **On-call with action:** shift end, handover and escalation line; "assign to the person on call and leave a note", supervised | Q02, from 9 | **Done, 11.** The user confirms twice before the assignment |
+| B4 | **Alert response proposal:** a tool that writes an inactive `em_alert_management_rule` from the alert's fields, with a replay count | Q06 response automations | Open (M) |
+| B5 | **Alert analysis copy:** time to full, dependency direction, change number, owner, Spanish | Q05, from 10 | **Partly covered by B7** (change number and owner at hand-off). Time to full and Spanish still need a copy of the OOB agent (S) |
+| B6 | **Catalog item:** Spanish texts, and the user's open requests shown before submitting | Q08, from 10 | **Done, 11.** The duplicate shows in the summary; the chat card keeps the English item name |
+| B7 | **Alert to incident (= R14):** the incident gets the AI summary, CI, owner, recent changes by number and related alerts | Hand-off L4 | **Done, 11.** One note per incident, from a group or a member alert |
+| B8 | **Similar-incident citations:** Global workflow "Plan con incidencias similares (AIT)"; each step cites the incidents it comes from, with the evidence count and a group check | Q03 | **Done, 11 to 12.** Recommends a group change only with 2 or more matches |
+
+Seen in every build: the answer follows the language of the user's profile, not of the question (L7).
 
 ## Implementation plan from here
 
@@ -162,9 +165,9 @@ gantt
   Personas and access R5-R8                     :s2, 2026-11-02, 4d
   Routing R1-R4                                 :s1, 2026-11-02, 3d
   Data R9-R12                                   :s3, 2026-11-04, 7d
-  Builds B5 B6 B8 (S)                           :b1, 2026-11-04, 3d
-  Builds B1 B2 B3 (M)                           :b2, 2026-11-06, 6d
-  Hand-offs R13-R16 and B4 B7                   :s4, 2026-11-06, 6d
+  Builds B1 B2 B3 B6 B7 B8 (done)               :done, b1, 2026-10-29, 1d
+  Builds B4 B5                                  :b2, 2026-11-04, 4d
+  Hand-offs R13-R16                             :s4, 2026-11-06, 6d
   Governance R17-R23                            :s5, 2026-11-09, 5d
   Retest all 13 steps on the gate               :milestone, m1, 2026-11-13, 0d
   section Then
@@ -193,9 +196,9 @@ In this order, because each row depends on the one before:
 2. **Routing (R1, R2)**, so free-text requests reach the right agent.
 3. **Data (R9 to R11)**: the SAP service model, 30 articles, 6 months of clean incidents. Most
    remaining insight gaps depend on it (L8).
-4. **Small builds (B5, B6, B8)**, then the **medium builds (B1, B2, B3)**: they lift the steps that
-   are already at 9 or 10 to the top.
-5. **Hand-offs (R13 to R16, B4, B7).**
+4. **Builds left: B4 and B5.** B1, B2, B3, B6, B7 and B8 were built and tested on 29 October;
+   they go through the 5-run gate with the other steps.
+5. **Hand-offs (R13, R15, R16 and the OOB alert rule of R14).**
 6. **Governance (R17 to R23)**, so the 15 January gate has numbers: managed assets, blocked runs,
    value.
 7. **Retest all 13 steps on the gate** on 13 November. The P1 work starts only on steps that pass.

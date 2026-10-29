@@ -20,6 +20,7 @@ flowchart LR
 |---|---|---|
 | Day before | Create a fresh MFA incident with a Spanish work note, In Progress, in DEMO.PI.Identity, assigned to the persona (as INC0025491). | Scene 2.4 resolves it, so each run needs a new one |
 | Day before | Create a fresh MFA incident from the persona with no assignment, routed to Network (as INC0025307). | Scene 2.2: assign it live and the recommendation appears |
+| Day before | Create a fresh MFA incident in DEMO.PI.M365, the wrong group (as INC0026051). | Scene 2.2b: the plan cites similar incidents and recommends Identity |
 | 90 min before | Create and close a change on SAP AppSRV01 (as CHG0030111). | Scene 3.1: the AI links the alerts to a recent change |
 | 30 min before | Send the three SAP events (payloads in `q05-fix-runs.md`, source AIT-Demo). | The alerts and their AI notes are ready when you reach scene 3.1 |
 | 15 min before | Open two tabs: Employee Center chat and Service Operations Workspace. Impersonate **Analista AIT (ES)**. | Answers follow the user's language; the persona is Spanish |
@@ -54,7 +55,7 @@ source. If the article didn't exist, it would say so: try the printer question."
 
 It answers that it has no instructions and offers a request and an incident.
 
-### 1.2 Request software (score about 10)
+### 1.2 Request software (score about 11)
 
 > Quiero pedir Microsoft Visio para mi portátil, lo necesito para dibujar los planos de red de la oficina
 
@@ -63,15 +64,18 @@ It answers that it has no instructions and offers a request and an incident.
 1. One recommendation, Visio.
 2. Iniciar solicitud: the reason is already filled in from the sentence.
 3. "¿En qué equipo lo instalamos?", with the user's two laptops as chips. Pick PC-AIT-ES-01.
-4. Enviar: a new RITM.
+4. The summary before sending shows "Solicitudes de Visio abiertas: RITM0010068 pendiente de
+   aprobación; RITM0010067 Cumplimiento" (build B6).
+5. Enviar: a new RITM, or stop here because she already has one.
 
-**Say:** "It didn't ask again for what she had already said, and it knows which laptops are hers."
+**Say:** "It didn't ask again for what she had already said, it knows which laptops are hers, and it
+shows that she already asked for Visio before she sends a duplicate."
 
 **Avoid:**
-- The item card shows an English description. Don't zoom in on it.
-- It doesn't spot that she already has a Visio request open. Don't mention duplicates.
+- The recommendation card keeps the English item name. Don't zoom in on it.
+- The platform adds "Read only, cannot change" in English under the open requests.
 
-### 1.3 Status of a request (score about 9)
+### 1.3 Status of my requests (score about 11)
 
 > ¿Qué pasa con mi solicitud RITM0010067? ¿Por qué tarda tanto?
 
@@ -81,10 +85,17 @@ history.
 **Say:** "The fulfiller wrote one customer-visible comment, and the AI turned it into an answer. That
 is the process change: write for the customer, and the assistant explains."
 
-**Avoid:**
-- "¿Cómo van mis solicitudes?" (the overview). It lists states only and says she has nothing to do,
-  which is wrong. Always ask about one ticket.
-- The action buttons are in English.
+Then, in a new chat, the overview (build B2):
+
+> ¿Cómo van mis solicitudes e incidencias?
+
+**Expect:** her 5 tickets, then the key points: INC0025715 needs her answer (VPN client version, and
+whether it also drops on cable); RITM0010068 waits for Bow Ruggeri's approval; RITM0010067 is 2 days
+late.
+
+**Say:** "One question, and she knows what is on her side, who is blocking the rest, and what is late."
+
+**Avoid:** the action buttons are in English.
 
 ## Act 2: the service desk agent (10 min)
 
@@ -113,6 +124,24 @@ a work note "Investigate and recommend" appears with a plan in Spanish.
 
 **Say:** "Nobody asked. Assigning the ticket was enough. The plan matches how this was fixed nine
 times this year."
+
+### 2.2b Recommend with evidence, and the right group (score about 12)
+
+Before assigning the fresh MFA incident that was routed to the wrong group (as INC0026051 in
+DEMO.PI.M365), new chat:
+
+> Dame un plan de resolución con evidencias para esta incidencia a partir de incidencias similares ya resueltas, y dime si está en el grupo correcto.
+
+Answer "use the open incident" if it asks. **Expect** (build B8, about 40 s):
+- 4 or 5 steps, each ending with the incidents it comes from, for example "[INC0011988, INC0010743]";
+- "el arreglo funcionó en 6 incidencias similares, resueltas entre el 14 y el 28 de octubre";
+- "se recomienda reasignar a DEMO.PI.Identity": Identity resolved all 6, M365 none.
+
+**Say:** "Every step can be checked: click the incident it cites. And it tells the agent that the
+ticket is in the wrong queue, with the evidence."
+
+**Avoid:** an incident with only one similar case: it then says the evidence is not enough to change
+the group, which is right but less striking.
 
 ### 2.3 Why did the SLA breach? (score about 11)
 
@@ -165,27 +194,41 @@ Open the alert group (as Alert0010114) and show:
 2. All three were routed to DEMO.PI.SAP from the CI's support group.
 3. On the primary alert, the **AI insights**. The probable cause is "regression ... from the recent SAP
    kernel upgrade 7.89 PL 200", with the next step "roll back to the prior kernel".
+4. On the group's alert form, **Quick Incident**. The new incident already has CI SAP AppSRV01, group DEMO.PI.SAP
+   and one work note (build B7): the owner Elena Soto, **CHG0030111** by number, the three alerts, and
+   the AI summary.
 
 **Say:** "Nobody wrote a rule for this. The AI read the alert, the CI and the change calendar, and
-found the change from one hour earlier. That is the first question every incident bridge asks."
+found the change from one hour earlier. That is the first question every incident bridge asks. And
+when we open the incident, the analysis travels with it."
 
 **Avoid:**
 - The notes are in English, because they run as the system.
 - On the load balancer alert it guesses the wrong path. Show the primary alert.
+- Quick Incident only once per alert: create it in the rehearsal on other alerts, not on the demo ones.
 
-### 3.2 Who is on call (score about 9)
+### 3.2 Who is on call, and hand it over (score about 11)
 
 **Where:** back to the persona. Open INC0025716 (SAP V1 801), new chat:
 
 > ¿Quién está de guardia ahora en el grupo de esta incidencia, hasta cuándo, quién es el siguiente si no responde, y cómo le contacto?
 
-**Expect:** Marta Ruiz now, Elena Soto next, phone numbers. About 70 seconds; reload if it freezes.
+**Expect** (build B3, about 45 s; say "Sí" to use the page context): Marta Ruiz on call until
+1 November 23:59, then Jordi Puig; if she doesn't answer, Elena Soto; phones and emails.
 
-**Say:** "At night, this saves the call to the person who knows the rota."
+Then, in a new chat:
+
+> Asigna esta incidencia a la persona de guardia y deja una nota de trabajo: revisar primero el transporte de condiciones de precios
+
+**Expect:** two confirmations (answer "Sí" both times), then the incident is assigned to Marta, In
+Progress, with the note written by the persona.
+
+**Say:** "At night, this saves the call to the person who knows the rota, and the hand-over is one
+sentence. The AI asks before it changes anything."
 
 **Avoid:**
-- "Hasta cuándo": it doesn't know the shift end.
-- Asking it to assign: it is read-only and says so honestly.
+- Naming someone outside the group: it refuses, correctly, but it breaks the flow.
+- After the demo, reset the incident (unassigned, New).
 
 ### 3.3 Ask the runbook (score about 9 on content)
 
@@ -224,7 +267,7 @@ test and activate."
 
 ## Act 4: management (7 min)
 
-### 4.1 A chart from a question (score about 9)
+### 4.1 A chart from a question, then the numbers (score about 11)
 
 **Where:** Service Operations Workspace, persona, **new chat**:
 
@@ -232,8 +275,13 @@ test and activate."
 
 **Expect:** a stacked column chart, August against September.
 
-**Say the numbers yourself:** "895 in September, 6 % more than August, almost all in P4 (+38) and P3
-(+10)." The chart has no text summary.
+The chart has no text summary. Then, in a **new chat** (build B1):
+
+> ¿Cuántas incidencias se registraron en agosto y en septiembre de 2026, y qué prioridad explica la diferencia entre los dos meses?
+
+**Expect:** 843 and 895, +52 (+6.2 %); P4 explains 73 % of the rise (+38), then P3 (+10).
+
+**Say:** "The chart shows it; the second answer explains it, with exact numbers."
 
 **Avoid:**
 - The words "abiertas" (read as "still open") and "barras" (draws an empty chart).
@@ -280,7 +328,6 @@ on screen: the numbers in the chart, the request overview, and actions from the 
 
 | Step | Reason |
 |---|---|
-| Request overview ("¿Cómo van mis solicitudes?") | Says the user has nothing to do when they do |
 | Knowledge article from the wrap-up | Hangs inside the agent |
 | Smart Documents redaction | Failed on the test PDF |
 | AI Value | No managed assets; being fixed (`q13-fix-runs.md`) |

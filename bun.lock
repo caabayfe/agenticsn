@@ -26,7 +26,7 @@
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.0",
         "@napi-rs/keyring": "^2.1.2",
-        "@rollup/wasm-node": "4.62.2",
+        "@rollup/wasm-node": "4.65.0",
         "@servicenow/sdk": "4.13.6",
         "@servicenow/sdk-api": "4.13.6",
         "@servicenow/sdk-build-core": "4.13.6",
@@ -219,6 +219,8 @@
 
     "@napi-rs/keyring-win32-x64-msvc": ["@napi-rs/keyring-win32-x64-msvc@2.1.2", "", { "os": "win32", "cpu": "x64" }, "sha512-yQtFdfuwqM0ezKlYO6r2n44in2LGzd4MC679Ddhvojip3t1hn+q/4I+gJU+cIJQVd5FAZSKNrK4tGfew3UTpAQ=="],
 
+    "@napi-rs/lzma-linux-x64-gnu": ["@napi-rs/lzma-linux-x64-gnu@1.5.1", "", { "os": "linux", "cpu": "x64" }, "sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ=="],
+
     "@noble/hashes": ["@noble/hashes@2.4.0", "", {}, "sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA=="],
 
     "@nodable/entities": ["@nodable/entities@3.1.0", "", {}, "sha512-LsS/DjHr+uDM647Gru/cA8+J3a3HfhttwCKLyuoyN7yXTFCxKBtSgMQBvrW9yNPa2/zDRUNuGPaH5QUFoa4arQ=="],
@@ -325,7 +327,7 @@
 
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.62.2", "", { "os": "win32", "cpu": "x64" }, "sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA=="],
 
-    "@rollup/wasm-node": ["@rollup/wasm-node@4.62.2", "", { "dependencies": { "@types/estree": "1.0.9" }, "optionalDependencies": { "fsevents": "~2.3.2" }, "bin": { "rollup": "dist/bin/rollup" } }, "sha512-LseVv64SSO6S7eyc+LFGUnH36NMMFbtKN28vTUHFinRVzFKH4cVQ/BB22JfXM9Ei5l7x46AIQp+n2QzzJ9kxHg=="],
+    "@rollup/wasm-node": ["@rollup/wasm-node@4.65.0", "", { "dependencies": { "@types/estree": "1.0.9" }, "optionalDependencies": { "@napi-rs/lzma-linux-x64-gnu": "1.5.1", "fsevents": "~2.3.2" }, "bin": { "rollup": "dist/bin/rollup" } }, "sha512-mq/KckZff56GjZvSu8Ubmcg+k87fxQK59oOwpxmnLyn3+8FQmhqhI012kvxzOTLnanCCyzepNRS5gK87T2tYAg=="],
 
     "@servicenow/glide": ["@servicenow/glide@27.0.5", "", {}, "sha512-j+bOmUJ0UYtZ5pVnTPZApqdFIQDb17Eos9vVW/UkEUTbujUu3VFvqmvH3TGiHDdLTtWPupspLb0dO0q+YkNEsg=="],
 

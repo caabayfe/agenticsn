@@ -289,9 +289,9 @@ Depends on R11 (6 months of clean incidents) for drivers that mean something.
 
 | ID | Task | Acceptance | Effort |
 |---|---|---|---|
-| W4.1 | **Read-only spike:** which triggers on everis2 can start an agentic workflow (record create or update, schedule, flow action; the 6 `sn_aia_trigger_configuration` records are inactive); which user they run as (R7: `system` was blocked 78 times); which language the notes use (L7) | A one-page answer with the trigger to use and its run-as user | S |
+| W4.1 | **Done 29 Oct** ([spike](../evidence/quality-2026-10-28/w4-1-trigger-spike.md)): an AI agent trigger on the agent, run as a real `itil` user by script, tools in autonomous mode, frequency checked after saving; Flow Designer drops decimal and dot-walk conditions, so SLA risk uses a warning SLA at 75 %. **Read-only spike:** which triggers on everis2 can start an agentic workflow (record create or update, schedule, flow action; the 6 `sn_aia_trigger_configuration` records are inactive); which user they run as (R7: `system` was blocked 78 times); which language the notes use (L7) | A one-page answer with the trigger to use and its run-as user | S |
 | W4.2 | Autonomy level per use case (table above), agreed with the owner | Decision P2-2 | S |
-| W4.3 | **Pilot 1, SLA at risk (level 3):** at 75% of a resolution SLA, a work note with the likely cause, the person on call (B3 tool) and the next step. Reuses "Explain SLA (AIT)" | Note within 5 minutes on 5 of 5 test incidents; score 10 or more | M |
+| W4.3 | **Built 29 Oct, gate not passed yet** ([runs](../evidence/quality-2026-10-28/w4-3-pilot1-runs.md)): notes arrive within 30 s on 3 of 5; the trigger missed 2 records and the new cause rules were lost in a Studio save. Round 3 waits for the instance to be back on the Global application. **Pilot 1, SLA at risk (level 3):** at 75% of a resolution SLA, a work note with the likely cause, the person on call (B3 tool) and the next step. Reuses "Explain SLA (AIT)" | Note within 5 minutes on 5 of 5 test incidents; score 10 or more | M |
 | W4.4 | **Pilot 2, wrong group (level 2):** on a new incident, the B8 group check proposes a reassignment with its evidence; a person approves. One group only, as in P3-1 | 5 of 5 right proposals; no change without approval | M |
 | W4.5 | Guardrails for every triggered agent: a run-as user with real roles, an off switch (the trigger and `sys_gen_ai_skill_config.active`), a daily run limit, a note prefix so its writing is traceable | Off switch tested; limit tested | S |
 
@@ -305,7 +305,7 @@ path: `sn_voice_input` is active but hidden in product
 
 | ID | Task | Acceptance | Effort |
 |---|---|---|---|
-| W5.1 | Show the microphone in product for `itil` and requesters (class A activation V10, decision 6) | Mic visible for the persona in the panel and the employee chat | S |
+| W5.1 | **Done 29 Oct:** voice input switched on in the Otto panel and the Otto for Virtual Agent deployments (set `AIT-P2-W5-voice-mic`); the mic shows for the persona in the SOW panel, the employee chat and the portal search. Show the microphone in product for `itil` and requesters (class A activation V10, decision 6) | Mic visible for the persona in the panel and the employee chat | S |
 | W5.2 | Ask Q02 on-call, Q09 status and Q07 knowledge by voice in Spanish, on the same answer keys, plus one criterion: the transcription is right, including record numbers and SAP terms | 10 or more in 3 of 3 runs | S |
 | W5.3 | Dictate a work note on an incident | Note right with no manual correction | S |
 | W5.4 | Phone voice agents: the carrier decision and cost, for the entitlements gate | Decision P2-3 | – |

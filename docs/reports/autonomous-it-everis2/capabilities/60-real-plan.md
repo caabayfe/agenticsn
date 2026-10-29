@@ -1,6 +1,6 @@
 # The real plan: from tested capabilities to an autonomous IT demo
 
-**Date:** 28 October 2026. **Status updated:** 29 October 2026, after two days of quality fixes
+**Date:** 28 October 2026. **Status updated:** 29 October 2026 evening, after two days of quality fixes and the 5-run gate
 ([70-quality-plan.md](70-quality-plan.md)). **Phase 2 added:** 29 October (W1 to W7).
 
 **Basis:**
@@ -196,8 +196,8 @@ In this order, because each row depends on the one before:
 2. **Routing (R1, R2)**, so free-text requests reach the right agent.
 3. **Data (R9 to R11)**: the SAP service model, 30 articles, 6 months of clean incidents. Most
    remaining insight gaps depend on it (L8).
-4. **Builds left: B4 and B5.** B1, B2, B3, B6, B7 and B8 were built and tested on 29 October;
-   they go through the 5-run gate with the other steps.
+4. **Build left: B5.** B1 to B4 and B6 to B8 were built on 29 October, and B1, B2, B3, B6, B7 and
+   B8 passed the 5-run gate the same day.
 5. **Hand-offs (R13, R15, R16 and the OOB alert rule of R14).**
 6. **Governance (R17 to R23)**, so the 15 January gate has numbers: managed assets, blocked runs,
    value.
@@ -250,9 +250,9 @@ Extends "Now to 1 November" above.
 
 | ID | Task | Acceptance | Effort |
 |---|---|---|---|
-| W1.1 | 5-run gate for B1, B2, B3, B6, B7, B8 in Spanish and English, on their answer keys | 10 or more in 5 of 5 runs, per language | M |
+| W1.1 | **Done 29 Oct, all pass** ([gate](../evidence/quality-2026-10-28/gate-2026-10-29.md)). 5-run gate for B1, B2, B3, B6, B7, B8 in Spanish and English, on their answer keys. Two defects fixed during the gate: B2 counted tickets opened for others, B8 answered "N/A" in 2 of 5 runs. B3 needs the incident number in the question | 10 or more in 5 of 5 runs, per language | M |
 | W1.2 | **Done 29 Oct, 11.** **B4** as a persona with an Event Management role (decision P2-1): rule created inactive, Create Incident action linked, replay count right, a second run returns "already exists" | All four checks; score 10 or more | S |
-| W1.3 | **B7 and Q05** with fresh alert events, plus the OOB comparison for Q05 that was skipped | B7 note on 5 of 5 incidents; OOB score recorded | S |
+| W1.3 | **B7 done 29 Oct, 5 of 5.** **B7 and Q05** with fresh alert events, plus the OOB comparison for Q05 that was skipped. Without B7 the incident gets the alert text and no note. Still open: the 5-run Q05 analysis gate, which waits for B5 | B7 note on 5 of 5 incidents; OOB score recorded | S |
 | W1.4 | **B5:** Global copy of the alert analysis agent with time to full, dependency direction and Spanish notes (depends on decision 4) | Q05 at 11 or more | S |
 | W1.5 | Rehearse the [demo script](../08-demo-script.md) with the builds | No step below 10 | S |
 

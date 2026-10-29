@@ -38,9 +38,10 @@
         return Math.ceil((toGdt.getNumericValue() - fromGdt.getNumericValue()) / 86400000);
     }
 
-    // Incidents opened by or for the user
+    // "My tickets" are the ones the user is the caller of or requested for. Tickets an
+    // agent logged on behalf of someone else belong to that person, not to the agent.
     var inc = new GlideRecordSecure('incident');
-    inc.addEncodedQuery('active=true^caller_id=' + me + '^ORopened_by=' + me);
+    inc.addEncodedQuery('active=true^caller_id=' + me);
     inc.orderByDesc('sys_updated_on');
     inc.setLimit(20);
     inc.query();
@@ -77,9 +78,8 @@
         tickets.push(t);
     }
 
-    // Requested items opened by or for the user
     var ritm = new GlideRecordSecure('sc_req_item');
-    ritm.addEncodedQuery('active=true^requested_for=' + me + '^ORopened_by=' + me);
+    ritm.addEncodedQuery('active=true^requested_for=' + me);
     ritm.orderByDesc('sys_updated_on');
     ritm.setLimit(20);
     ritm.query();

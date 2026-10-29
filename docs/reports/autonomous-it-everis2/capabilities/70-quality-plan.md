@@ -187,6 +187,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 - **Tests:** group with a schedule, now and at a shift change; group without one (the right answer
   says so and names the group manager); a question in Spanish.
 - **Acceptance:** the right person for the time in 5 of 5 runs; the action works.
+- **Progress (29 October):** about 9 of 12 as the persona: SAP rota built, persona given `oc_read`; right person, backup and phone; no shift end; can't assign. See `q02-fix-runs.md`.
 
 ### Q03 Recommend a resolution (step 4, SD02, SD04)
 
@@ -241,6 +242,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 - **Tests:** three new events (disk, application error after a change, network) on bound CIs, none
   seeded by our own notes; the answer key lists the cause each one should find.
 - **Acceptance:** names the change or CI cause in the key in 5 of 5; insight within 2 minutes.
+- **Progress (29 October):** about 10 of 12: SAP CIs given an owner and group, a closed kernel change, three events. Alerts bound, routed, grouped; the AI names the kernel change as probable cause and proposes a rollback. See `q05-fix-runs.md`.
 
 ### Q06 Alert automation proposal (step 11, OP06)
 
@@ -253,6 +255,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 - **Verify:** what the "Respond to alerts" link opens, and whether a draft can be created from the agent.
 - **Acceptance:** a draft rule whose conditions match the alert in 5 of 5, or the step is presented
   honestly as proposal only.
+- **Progress (29 October):** the agent can only build grouping automations. Asked for one, it built it inactive and exact: about 10 of 12. Response automations remain a link. See `q06-fix-runs.md`.
 
 ### Q07 Answer from the knowledge base (step 1, SD22, KA09)
 
@@ -281,6 +284,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
   filling (SD17, class A activation).
 - **Tests:** 5 wordings in both languages; a user with two laptops (the agent asks which one).
 - **Acceptance:** the request's questions filled correctly in 5 of 5.
+- **Progress (29 October):** about 10 of 12: one recommendation, reason prefilled, asks which laptop. Open: English short description (protected item), duplicate not spotted. See `q08-q09-fix-runs.md`.
 
 ### Q09 Status of my requests (step 3, SD19)
 
@@ -292,6 +296,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 - **Verify:** which fields the Request Status agent reads.
 - **Tests:** a request waiting for approval, one in fulfilment, one overdue, one closed.
 - **Acceptance:** the right blocker and date for each, 5 of 5.
+- **Progress (29 October):** per ticket about 9 of 12, overview about 5 (state only, misses approval and due date). Demo asks per ticket. See `q08-q09-fix-runs.md`.
 
 ### Q10 Wrong door: an incident that is really a request (step 10, SD09)
 
@@ -311,6 +316,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
   query result and writes it. F2 gives six months of data worth commenting on.
 - **Tests:** 10 questions with answer keys from the statistics API.
 - **Acceptance:** numbers match the key in 10 of 10; the narrative names the real outlier.
+- **Progress (29 October):** with the analytics role the filter is correct (AND). Wording decides the chart: run 3's wording gives the right stacked column chart (about 9 of 12); no numbers or narrative. See `q11-fix-runs.md`.
 
 ### Q12 Smart Documents (step 12, KA21)
 
@@ -332,6 +338,7 @@ The **Verify** lines are facts to check on everis2 before the build starts. They
 - **Fix:** indicator collection (R22), the AI Value Dashboard errors, feedback on (R20), and real QA
   traffic from this plan, so the numbers mean something.
 - **Acceptance:** every number on the page reconciles with its source table.
+- **Progress (29 October):** root cause found: the old Value Dashboard reads a table removed by the 22 October upgrade, and the new value pipeline only computes for Managed AI assets (0 of 336). One probe asset moved to Managed; check after the value jobs run. See `q13-fix-runs.md`.
 
 ## 5. Order of work
 

@@ -53,8 +53,8 @@ breach.
 |---|---|
 | Record | `sn_aia_trigger_configuration` 9ebfd22433989f10becbf499ed5c7b58, "AIT SLA at risk on DEMO.PI incidents" |
 | Table and event | `task_sla`, updated |
-| Condition | `sla=<warning SLA definition>^has_breached=true^stage=in_progress` |
-| Frequency | Once (`trigger_strategy=once`) |
+| Condition | `sla=<warning SLA definition>^has_breachedCHANGESTOtrue^stage=in_progress` |
+| Frequency | Every update (`trigger_strategy=every`); "changes to true" happens once per SLA. "Once" skipped records that had an earlier update |
 | Run as | Script returning the persona Analista AIT (ES) (`itil`, Spanish) |
 | Objective | "The warning SLA of incident ${task.number} has breached: its resolution SLA is at 75 % of its time. Get the SLA risk facts with the incident number ${task.number}, find the likely cause and write the autonomous note." |
 

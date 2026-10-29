@@ -1,10 +1,9 @@
-# W4.3 pilot 1, SLA at risk: build and first runs (29 October 2026)
+# W4.3 pilot 1, SLA at risk: build, runs and guardrails (29 October 2026)
 
 Acceptance (`60-real-plan.md`): a note within 5 minutes on 5 of 5 test incidents, score 10 or more out
-of 12, only on DEMO.PI groups. Status: **not passed yet**. The agent writes useful notes within 30
-seconds, but the trigger and the instructions needed fixes, and the last fix waits for the instance to
-be back on the Global application (see "Blocked" below).
-
+of 12, only on DEMO.PI groups. Status: **passed in round 3** (5 of 5, notes within 27 to 31 seconds,
+scores 11 to 12), after three rounds of fixes. Guardrails (W4.5): DEMO.PI only, one note per SLA and
+the daily cap and the off switch all pass.
 Agent, tools and trigger: [`build/p1-agent-and-trigger.md`](../../build/p1-agent-and-trigger.md).
 Trigger findings: [`w4-1-trigger-spike.md`](w4-1-trigger-spike.md).
 
@@ -66,16 +65,47 @@ instructions of the agent's version record, which still had the old text. The ne
 reassignment), and their trigger never started. R1 also had a reassignment and did start, so the rule
 is not clear. Next test: the condition "has_breached changes to true" with frequency "every update".
 
-## Blocked
+## Unblocking and the last fixes
 
-At 21:06 UTC the same admin user started working in the **LuxLab** application (Now Assist skill
-settings in the Default set of LuxLab), from another session. With LuxLab as the current application,
-Global records are read-only: the agent update returns 403 and the Studio shows "Solo lectura". Switching
-the application back would disrupt that session, so the last two fixes wait:
+At 21:06 UTC another session of the same admin user switched the current application to **LuxLab**.
+With LuxLab current, Global records were read-only (the agent update returned 403, the Studio showed
+"Solo lectura"). The owner approved switching back at about 21:50, and the application went back to
+Global with the set `AIT-P2-W4-sla-at-risk`.
 
-1. Write the instructions again through the Studio, so the version record holds them too.
-2. Change the trigger condition to "has_breached changes to true", then round 3 with five new
-   incidents and the guardrail tests (W4.5).
+Fixes before round 3:
+
+1. Instructions written again on the agent, on its version record and in the version snapshot, so a
+   Studio save can't bring the old text back.
+2. Trigger condition `sla=<warning SLA>^has_breached CHANGESTO true^stage=in_progress`, frequency
+   "every update". The flow keeps `CHANGESTO`, and "changes to true" happens once per SLA.
+
+## Round 3: INC0026079 to INC0026083
+
+The warning SLAs breached at 22:02:20 to 22:02:24 UTC. All five runs started, completed, and wrote
+their note.
+
+| Case | Incident | Note at | Score | Notes |
+|---|---|---|---|---|
+| R1 | INC0026079 | +31 s | 12 | "nadie lo tiene asignado; hubo traspaso, pasó 3 min en DEMO.PI.Workplace antes de llegar a DEMO.PI.SAP donde lleva 6 min; además lleva 6 min sin actualización"; on-call with until-when and escalation; "asignarlo ahora a Marta Ruiz y llamarla" |
+| R2 | INC0026080 | +29 s | 11 | "silencio; lleva 9 min sin ninguna actualización"; full on-call and escalation. Lost point: the next step calls the on-call person, not the assignee Jordi Puig |
+| R3 | INC0026081 | +30 s | 12 | "el trabajo está en curso pero va lento; no hubo traspasos y la última actualización fue hace 2 min"; call Marta Ruiz (assignee and on call), escalate to Elena Soto |
+| R4 | INC0026082 | +27 s | 11 | Hand-off "pasó 3 min en DEMO.PI.M365 antes de llegar a DEMO.PI.SAP, donde lleva 5 min" plus 5 min without news. Lost point: the SLA name lost "(12 min)" |
+| R5 | INC0026083 | +29 s | 11 | Nobody assigned and 9 min without an update; "el grupo no tiene guardia definida; pedir apoyo al service desk". Lost point: "assign it to a person of DEMO.PI.Network", a group with no members |
+
+No field names, Spanish only, 4 to 5 lines each. The run as the persona shows in the notes' author.
+
+## Guardrails (W4.5)
+
+Tested in the AI Agent Studio playground (the same agent, tools in autonomous mode) and with the
+trigger.
+
+| Guardrail | Test | Result |
+|---|---|---|
+| DEMO.PI only | Agent asked to write on INC0000058 (group Analysts) | **Pass.** The facts and on-call tools ran; the note tool answered "INC0000058 is not in a DEMO.PI group: the pilot does not write on it." Nothing written |
+| One note per SLA | Agent asked again on INC0026079, which had its note | **Pass.** "This SLA already has its autonomous note on INC0026079." Still one note |
+| Daily cap | Cap lowered from 20 to 15 (15 notes that day), agent asked on INC0026084 | **Pass.** "Daily limit of 15 autonomous notes reached." Cap restored to 20 |
+| Off switch | Trigger deactivated at 22:04 (its flow went inactive), INC0026084 created on DEMO.PI.SAP | **Pass.** Its warning SLA breached at 22:13:06 UTC: no flow run, no plan, no note. Trigger switched on again at 22:14; its flow went back to published with the same condition |
+| Duplicate trigger runs | Round 0: six runs on one SLA | **Pass.** One note; the other runs were refused |
 
 ## Data and revert
 
@@ -87,5 +117,5 @@ the application back would disrupt that session, so the last two fixes wait:
 | Trigger "AIT SLA at risk on DEMO.PI incidents" and its generated flow | AIT-P2-W4-sla-at-risk | Deactivate the trigger (the flow goes with it) |
 | SLA definitions "[AIT-TEST] DEMO.PI resolución (12 min)" and "[AIT-TEST] DEMO.PI aviso 75 % (9 min)", breakdown link | AIT-P2-W4-sla-at-risk | Deactivate both definitions |
 | Test incidents INC0026068 to INC0026073 | Data | Resolved |
-| Test incidents INC0026074 to INC0026078 | Data | Resolve after round 3 |
+| Test incidents INC0026074 to INC0026084 | Data | Resolved |
 | B7 rerun: alerts Alert0010116 to Alert0010119, INC0026055 to INC0026057 | Data | Close the alerts, resolve the incidents |

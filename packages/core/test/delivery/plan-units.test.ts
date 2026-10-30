@@ -123,6 +123,52 @@ describe("plan on built units (ADR-0031, ADR-0033)", () => {
     expect(plan.problems).toEqual([]);
   });
 
+  // pdi2, 2026-10-30: a module in the MIM scope stopped restating MIM's own group property. The
+  // record's package is the project's scope, but its first version came with the store app.
+  it("releases a removed definition of a record shipped into the project's own scope", async () => {
+    for (const sourceTable of ["sys_store_app", "sys_plugins", "sys_upgrade_history"]) {
+      const { deps, builds, project, tables } = unitSetup();
+      builds.set(project.path, []);
+      const [row] = tables["sys_script_include"] ?? [];
+      tables["sys_script_include"] = [{ ...row, sys_package: SCOPE_ID }];
+      tables["sys_update_version"] = [
+        { sys_id: "v1", name: SI_UNIT, source_table: sourceTable },
+        { sys_id: "v2", name: SI_UNIT, source_table: "sys_update_set" },
+      ];
+      const { plan } = await computeUnitPlan(deps, QUERY);
+      expect(plan.units).toMatchObject([{ updateName: SI_UNIT, operation: "forget" }]);
+      expect(plan.problems).toEqual([]);
+    }
+  });
+
+  it("keeps refusing a removed definition in the project's scope whose versions all came from update sets", async () => {
+    const { deps, builds, project, tables } = unitSetup();
+    builds.set(project.path, []);
+    const [row] = tables["sys_script_include"] ?? [];
+    tables["sys_script_include"] = [{ ...row, sys_package: SCOPE_ID }];
+    tables["sys_update_version"] = [
+      { sys_id: "v1", name: SI_UNIT, source_table: "sys_update_set" },
+    ];
+    const { plan } = await computeUnitPlan(deps, QUERY);
+    expect(plan.problems).toMatchObject([{ updateName: SI_UNIT, kind: "removed" }]);
+  });
+
+  it("keeps refusing a removed definition in the project's scope when its versions cannot be read", async () => {
+    const { deps, builds, project, tables } = unitSetup();
+    builds.set(project.path, []);
+    const [row] = tables["sys_script_include"] ?? [];
+    tables["sys_script_include"] = [{ ...row, sys_package: SCOPE_ID }];
+    const reader = {
+      ...deps.reader,
+      query: async (...args: Parameters<typeof deps.reader.query>) => {
+        if (String(args[0].table) === "sys_update_version") throw new Error("no read access");
+        return deps.reader.query(...args);
+      },
+    };
+    const { plan } = await computeUnitPlan({ ...deps, reader }, QUERY);
+    expect(plan.problems).toMatchObject([{ updateName: SI_UNIT, kind: "removed" }]);
+  });
+
   it("keeps refusing a removed definition of a record the project made", async () => {
     for (const sysPackage of ["global", SCOPE_ID]) {
       const { deps, builds, project, tables } = unitSetup();

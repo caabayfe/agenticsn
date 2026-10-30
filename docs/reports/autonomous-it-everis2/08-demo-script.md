@@ -1,18 +1,49 @@
 # Demo script: Autonomous IT on everis2
 
-A 35-minute walkthrough of one working day at a client that runs SAP. Every scene uses a step that
+A 40-minute walkthrough of one working day at a client that runs SAP. Every scene uses a step that
 has been tested and scored against an answer key. Scores and evidence are in
 [evidence/quality-2026-10-28](evidence/quality-2026-10-28/).
 
 The questions are typed **exactly as written** (in Spanish): the wording was tested, and small changes
 can change the answer. The narration is a guide; say it in your own words.
 
+## Storyline
+
+**One sentence:** "In one working day at an SAP client, we climb the autonomy ladder: the AI first
+answers, then suggests, then acts when a person approves, and finally acts on its own and reports what
+it did."
+
+Each act is one rung higher than the last, so the audience sees the journey we propose to the client,
+not a list of features. Levels are those of the [real plan](capabilities/60-real-plan.md#autonomy-levels).
+
 ```mermaid
 flowchart LR
-  A["Act 1<br/>Employee<br/>(Employee Center)"] --> B["Act 2<br/>Service desk agent<br/>(SOW + Otto)"]
-  B --> C["Act 3<br/>Operations<br/>(SAP incident)"]
-  C --> D["Act 4<br/>Management<br/>(analytics + governance)"]
+  A["Act 1 · 8 min<br/>Employee<br/>level 0-2: answer, request"] --> B["Act 2 · 13 min<br/>Service desk<br/>level 1-3: suggest, wrap up,<br/>SLA agent acts alone"]
+  B --> C["Act 3 · 10 min<br/>Operations, SAP outage<br/>level 2-3: alerts to incident,<br/>on-call hand-over"]
+  C --> D["Act 4 · 7 min<br/>Management<br/>numbers and governance"]
 ```
+
+| Beat | Scene | Level | The message |
+|---|---|---|---|
+| Hook (1 min, start of Act 2) | Start the clock: open the `[AIT-P1]` incident (see Act 2) | – | "Remember this ticket. Nobody will touch it." |
+| The employee helps herself | 1.1 knowledge, 1.2 Visio, 1.3 status | 0 to 2 | Fewer tickets: answers with sources, requests without forms, status without calling |
+| The agent works faster | 2.1 wrong door, 2.2 and 2.2b plans with evidence, 2.3 SLA why, 2.4 wrap-up | 1 to 2 | Every suggestion cites its evidence; the person decides |
+| **The turn** | **2.5 the SLA nobody watched** | **3** | "The ticket from the start: the AI saw the risk, found the cause and told the team. Nobody asked." |
+| Operations at speed | 3.1 alerts with cause, 3.2 on-call and hand-over, 3.3 runbook, 3.4 rule in words | 2 to 3 | From alert to an owned incident with the probable cause, in minutes |
+| Management trusts it | 4.1 numbers, 4.2 governance | 0 | Exact numbers, and every agent run is measured and auditable |
+| Close (2 min) | The quality method and the next phase | – | Out of the box, Global update sets, no extra licence; tested, not promised |
+
+**Three lines to repeat:** "it cites its evidence", "it asks before it changes anything", and, from
+2.5 on, "where we allow it, it acts on its own and leaves a note we can check".
+
+**Be honest about what is not ready** (the audience will ask):
+
+- Voice: the microphone is on, but the Spanish voice tests (W5.2, W5.3) have not run. Show it only if
+  it passed the rehearsal.
+- Pilot 2 (the agent proposes the right group, and a person approves) is the next build. Scene 2.2b
+  shows the analysis it will use.
+- Autonomous notes follow the language of the user they run as (Spanish here); the rule for clients is
+  decision 4, still open.
 
 ## Before the demo (allow 2 hours)
 
@@ -23,6 +54,7 @@ flowchart LR
 | Day before | Create a fresh MFA incident in DEMO.PI.M365, the wrong group (as INC0026051). | Scene 2.2b: the plan cites similar incidents and recommends Identity |
 | 90 min before | Create and close a change on SAP AppSRV01 (as CHG0030111). | Scene 3.1: the AI links the alerts to a recent change |
 | 30 min before | Send the three SAP events (payloads in `q05-fix-runs.md`, source AIT-Demo). | The alerts and their AI notes are ready when you reach scene 3.1 |
+| 1 hour before | Rehearse scene 2.5 once (it takes 10 minutes). Check that the trigger "AIT SLA at risk on DEMO.PI incidents" is active. | Proves the trigger and the agent work today; it uses 1 of the 20 notes a day |
 | 15 min before | Open two tabs: Employee Center chat and Service Operations Workspace. Impersonate **Analista AIT (ES)**. | Answers follow the user's language; the persona is Spanish |
 | 15 min before | In the Otto panel, start a **new chat** before each scene. | Old topics hold the chat |
 | 5 min before | Run scene 1.1 once. | Warms up the panel |
@@ -97,11 +129,22 @@ late.
 
 **Avoid:** the action buttons are in English.
 
-## Act 2: the service desk agent (10 min)
+## Act 2: the service desk agent (13 min)
 
 **Where:** Service Operations Workspace, Otto panel, as the persona.
 
 **Story:** "Now we are on the other side of the counter."
+
+**Start the clock now** (for scene 2.5, about 9 minutes from now). In the workspace, create an
+incident:
+
+- Short description: `[AIT-P1] SAP: los pedidos de venta no se guardan` (the `[AIT-P1]` prefix starts
+  the 12-minute demo SLA);
+- caller Analista AIT (ES), assignment group **DEMO.PI.Workplace**, nobody assigned.
+
+**About 3 minutes later** (during 2.1 or 2.2), move it to **DEMO.PI.SAP** and leave it unassigned.
+Don't add notes. This is case R1 of the pilot, which scored 12 of 12. Don't assign it to a person: that
+starts an unrelated OOB plan ("Help me resolve…").
 
 ### 2.1 The wrong door (score about 9)
 
@@ -180,6 +223,37 @@ better than what we usually write."
 - The "create article" step after resolving: it hangs. Stop the scene at "resolved".
 - If one message starts two runs and the panel stops updating, reload.
 
+### 2.5 The SLA nobody watched (level 3, score 11 to 12)
+
+Open the `[AIT-P1]` incident from the start of the act, about 9 to 11 minutes after you created it.
+Don't open the Otto panel.
+
+**Expect:** a work note by Analista AIT (ES) that starts with `[AIT auto · SLA en riesgo]`, written about
+30 seconds after the SLA reached 75 %. It has four parts:
+
+- **Riesgo:** the SLA, the percentage used and the minutes left;
+- **Causa probable:** nobody owns it, it spent 3 min in DEMO.PI.Workplace before reaching DEMO.PI.SAP,
+  and nobody has written for several minutes;
+- **Guardia:** Marta Ruiz until 1 November 23:59, her contact, and the escalation to Elena Soto;
+- **Siguiente paso:** "asignarlo ahora a Marta Ruiz y llamarla".
+
+**Say:** "Remember the ticket we opened at the start? Nobody touched it. The AI saw the SLA at 75 %,
+read the facts, not the SLA record, and told the team why it is late and who to call, with 3 minutes
+still on the clock. In production the warning comes at 75 % of 8 hours, so the team has 2 hours to
+act. This is level 3: it acts on its own, and every action leaves a note we can read and count."
+
+Then show the guardrails (from [w4-3-pilot1-runs.md](evidence/quality-2026-10-28/w4-3-pilot1-runs.md)):
+it writes only on the demo groups, once per SLA and at most 20 notes a day, and these rules live in
+code, not in the prompt. One switch, the trigger in AI Agent Studio, turns it off.
+
+**Natural bridge to 3.2:** the note names Marta as on call. Act 3 asks the same question in words and
+hands the incident over.
+
+**Avoid:**
+- Opening the incident before the note arrives and refreshing in front of the audience. If it isn't
+  there at minute 10, go to Act 3 and come back.
+- Saying that it fixes the incident: it only warns, with the cause. Fixing is the next level.
+
 ## Act 3: operations, an SAP incident (10 min)
 
 **Story:** "At 11:00, SAP sales orders start failing."
@@ -225,6 +299,10 @@ Progress, with the note written by the persona.
 
 **Say:** "At night, this saves the call to the person who knows the rota, and the hand-over is one
 sentence. The AI asks before it changes anything."
+
+**Optional, by voice:** ask the first question with the microphone in the Otto panel. Show this only if
+it worked in the rehearsal: the Spanish voice tests (W5.2) have not run yet. If the transcription gets
+the words wrong, type the question and move on.
 
 **Avoid:**
 - Naming someone outside the group: it refuses, correctly, but it breaks the flow.
@@ -312,8 +390,11 @@ extra licence. The quality method is the point:
 - six criteria;
 - a retest after every fix.
 
-In two days the average went from 6 to about 10 of 12. The next phase builds the gaps you saw named
-on screen: the numbers in the chart, the request overview, and actions from the on-call answer."
+In two days the average went from 6 to about 10 of 12. The first agent that acts on its own, the SLA
+warning, passed 5 of 5 tests with scores of 11 and 12, and all of its guardrails held.
+
+The next steps climb the same ladder: the agent proposes the right group and a person approves (pilot
+2), voice in Spanish, and more level 3 use cases once each one passes its gate."
 
 ## Fallbacks
 
@@ -323,6 +404,7 @@ on screen: the numbers in the chart, the request overview, and actions from the 
 | The panel never answers | Reload, start a new chat, and retype the question once; then move on |
 | The answer comes out in English | You are not impersonating the persona. Check the user menu |
 | The SAP alerts have no AI notes | They take about 100 s after the event. Send the events earlier |
+| The autonomous note (2.5) hasn't arrived by minute 11 | Show the note on INC0026079 (round 3, score 12) and the run table in `w4-3-pilot1-runs.md`. Check later that the trigger is active and the short description starts with `[AIT-P1]` |
 
 ## Scenes left out, and why
 
@@ -331,3 +413,5 @@ on screen: the numbers in the chart, the request overview, and actions from the 
 | Knowledge article from the wrap-up | Hangs inside the agent |
 | Smart Documents redaction | Failed on the test PDF |
 | AI Value | No managed assets; being fixed (`q13-fix-runs.md`) |
+| Pilot 2, wrong group with approval | Not built yet (W4.4) |
+| Voice, as a scene of its own | Microphone on, Spanish tests not run (W5.2, W5.3) |

@@ -15,6 +15,9 @@
 
 ### P0 Foundation and governance (2 to 13 Nov)
 
+Sprint 0 "make it real" (R1 to R23) is part of P0. It comes from the live capability tests: see
+[capabilities/60-real-plan.md](capabilities/60-real-plan.md).
+
 | ID | Task | Stream | Use case |
 |---|---|---|---|
 | P0-1 | Remove other customers' leftovers (IMI branding, `x_edpro_incman`), fix the broken UserKit business rule and the duplicate AIA client script | GOV | – |

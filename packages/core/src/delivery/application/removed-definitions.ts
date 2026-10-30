@@ -11,7 +11,9 @@ import { deletionFor, type PlannedUnit, recordOf, type UnitProblem } from "../do
 // activation can remove one without a trace) is forgotten: push drops its ledger entry and loads
 // nothing (ADR-0033 as amended, 2026-10-22). So is a record a plugin ships, which the source
 // stopped restating: deleting it would remove the platform's own record, so the branch releases
-// it and the instance keeps it as it is (ADR-0038 section 8, amended 2026-10-25).
+// it and the instance keeps it as it is (ADR-0038 section 8, amended 2026-10-25). A project in
+// a plugin's scope shares that scope's package with the plugin's own records, so there a record
+// counts as shipped when one of its versions came with a store app, a plugin or an upgrade.
 
 type Held = "absent" | "shipped" | "own" | "unknown";
 
@@ -21,6 +23,7 @@ async function held(
   reader: InstanceReader,
   project: SourceProject,
   record: { table: string; sysId: string },
+  updateName: string,
   signal: AbortSignal,
 ): Promise<Held> {
   const rows = await reader
@@ -39,9 +42,33 @@ async function held(
   const [row] = rows;
   if (row === undefined) return "absent";
   const sysPackage = row["sys_package"] ?? "";
-  return sysPackage === "" || sysPackage === "global" || sysPackage === project.scopeId
-    ? "own"
-    : "shipped";
+  if (sysPackage === "" || sysPackage === "global") return "own";
+  if (sysPackage !== project.scopeId) return "shipped";
+  return shippedVersion(reader, updateName, signal);
+}
+
+// The version sources the platform records when it installs a record, not when someone saves one.
+const SHIPPED_SOURCES = ["sys_store_app", "sys_plugins", "sys_upgrade_history"];
+
+// A record in the project's own scope: shipped when a version of it came from one of those.
+async function shippedVersion(
+  reader: InstanceReader,
+  updateName: string,
+  signal: AbortSignal,
+): Promise<Held> {
+  const versions = await reader
+    .query(
+      {
+        table: TableName.parse("sys_update_version"),
+        query: `name=${updateName}^source_tableIN${SHIPPED_SOURCES.join(",")}`,
+        fields: ["sys_id"],
+        limit: 1,
+      },
+      signal,
+    )
+    .catch(() => null);
+  if (versions === null) return "unknown";
+  return versions.length > 0 ? "shipped" : "own";
 }
 
 function refusal(project: SourceProject, name: string): UnitProblem {
@@ -97,7 +124,7 @@ export async function removedDefinitions(
   for (const [name, entry] of entries) {
     if (built.has(name) || deleting.has(name)) continue;
     const record = recordOf(name);
-    const where = record === null ? "unknown" : await held(reader, project, record, signal);
+    const where = record === null ? "unknown" : await held(reader, project, record, name, signal);
     if (record !== null && (where === "absent" || where === "shipped")) {
       forgotten.push(forget(project, name, record, entry));
     } else problems.push(refusal(project, name));

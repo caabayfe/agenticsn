@@ -221,6 +221,13 @@ so we can have the right support from ServiceNow".
   package (`sys_package` neither `global` nor the project's scope), the plan releases it: push
   drops the ledger entry and changes nothing on the instance. A removed definition of a record
   the project made still needs a `Now.del` or a restore (ADR-0031 item 7).
+
+  Proposed amendment, 2026-10-30 (pdi2): a project in a plugin's scope (major-incident in
+  `sn_major_inc_mgmt`) shares that scope's package with the plugin's records, so the package
+  alone took MIM's own group property for the project's and the install stopped. In the
+  project's own scope, a record is also shipped when one of its versions came with a store app,
+  a plugin or an upgrade (`sys_update_version.source_table` `sys_store_app`, `sys_plugins` or
+  `sys_upgrade_history`). When the versions cannot be read, the plan keeps refusing.
 - **Shipped records only.** A module may reference an out-of-box record shipped by a plugin
   (the same sys_id on every instance); the plan checks it exists.
 - **Platform fields it reads.** Proposed amendment, 2026-10-20 (pack gap G13; the product

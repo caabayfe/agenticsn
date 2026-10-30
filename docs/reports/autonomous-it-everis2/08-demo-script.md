@@ -47,6 +47,10 @@ flowchart LR
 
 ## Before the demo (allow 2 hours)
 
+**Short way:** the day before, run the Fix Script **"AIT demo 1 - prepare (day before)"**. It does the
+first five rows below and prints the records to open, in order. See [09-demo-route.md](09-demo-route.md).
+The table is the manual way, and what the script does.
+
 | When | What | Why |
 |---|---|---|
 | Day before | Create a fresh MFA incident with a Spanish work note, In Progress, in DEMO.PI.Identity, assigned to the persona (as INC0025491). | Scene 2.4 resolves it, so each run needs a new one |

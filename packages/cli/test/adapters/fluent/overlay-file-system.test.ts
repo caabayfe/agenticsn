@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, parse, sep } from "node:path";
 import { OverlayFileSystem } from "../../../src/adapters/fluent/overlay-file-system";
 
 const files = new Map([
@@ -103,10 +103,26 @@ describe("overlay file system", () => {
       () => fs.realpathSync(config),
       () => fs.readFileSync(config),
       () => fs.readdirSync(outside),
-      () => fs.readdirSync(join(root, ".."), { withFileTypes: true }),
+      () => fs.readdirSync(join(outside, "..", "victim"), { withFileTypes: true }),
     ]) {
       expect(call).toThrow(expect.objectContaining({ code: "ENOENT" }));
     }
+    expect(fs.readdirSync(join(root, ".."))).toEqual(["project"]);
+  });
+
+  // On Windows the SDK's glob (4.14, tinyglobby) starts its crawl above the project, at the drive's
+  // root or a parent folder; seeing nothing there, the build found no source and built no records.
+  it("lists only the next folder towards the project in each folder above it", () => {
+    const { fs, root } = confined();
+    const steps = root.slice(parse(root).root.length).split(sep);
+    let folder = parse(root).root;
+    for (const step of steps) {
+      expect(fs.readdirSync(folder)).toEqual([step]);
+      const [entry] = fs.readdirSync(folder, { withFileTypes: true });
+      expect([entry?.name, entry?.isDirectory()]).toEqual([step, true]);
+      folder = join(folder, step);
+    }
+    expect(fs.readdirSync(folder)).toEqual([]);
   });
 
   it("refuses to remove, write, rename or copy outside the project", () => {

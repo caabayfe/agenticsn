@@ -6,7 +6,13 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!tests/fixtures", "!**/*.md", "!tools/spikes/**/*.js"]
+    "includes": [
+      "**",
+      "!tests/fixtures",
+      "!**/*.md",
+      "!tools/spikes/**/*.js",
+      "!docs/reports/**/*.js"
+    ]
   },
   "formatter": {
     "enabled": true,

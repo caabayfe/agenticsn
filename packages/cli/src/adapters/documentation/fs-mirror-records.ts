@@ -114,7 +114,11 @@ export class FsMirrorRecords implements MirrorRecords {
       return [];
     }
     const listings: MirrorListing[] = [];
-    for await (const path of new Bun.Glob(`*/${table}/*.yaml`).scan({ cwd: this.metadata })) {
+    // Glob order follows the file system (sorted on macOS, not on Linux); sort for a stable result.
+    const paths = await Array.fromAsync(
+      new Bun.Glob(`*/${table}/*.yaml`).scan({ cwd: this.metadata }),
+    );
+    for (const path of paths.sort()) {
       signal.throwIfAborted();
       const leaf = path.slice(path.lastIndexOf("/") + 1);
       const sysId = RECORD_FILE.exec(leaf)?.[1];

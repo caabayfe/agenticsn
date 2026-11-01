@@ -266,7 +266,9 @@
     say('Act 1, the employee (Employee Center chat, as Analista AIT (ES))');
     check(kbOk, '1.1 KB0010019 VPN article is published');
     check(r67Ok && r68Ok, '1.2 Visio: RITM0010067 open and RITM0010068 waiting for approval');
-    check(state('INC0025715') == 'On Hold', '1.3 INC0025715 VPN is on hold (needs her answer)');
+    var vpn = incident('INC0025715');
+    // Compare the value, not the label: the labels follow the session language.
+    check(!!vpn && vpn.getValue('state') == '3', '1.3 INC0025715 VPN is on hold (needs her answer)');
     say('        1.3 the persona has ' + mineCount + ' open incidents and requests (expected 4: INC0025715, INC0025716, RITM0010067, RITM0010068)');
     say('');
     say('Act 2, the service desk (SOW, Otto panel, as Analista AIT (ES))');

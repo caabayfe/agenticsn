@@ -33,10 +33,27 @@ presenter's sheet. Runs as the persona Analista AIT (ES) by impersonation, unles
 - KB0010019 and KB0010020 have the test account as author. Not visible in the scenes; change it if
   someone opens the article form.
 
-## Blocker
+## Fix Script 1, end-to-end run (17:48 instance time)
 
-From 16:16 instance time, the admin's current application was "ITSM Spoke", set by another session
-on the same account. In that scope, Global records can't be saved (REST 403 "ACL Exception Update
-Failed"). Switching back to Global lasted under a minute before the other session switched it again.
-Waiting on: saving Fix Script 1 on the instance, installing B9, moving assets to Managed, and the end-
-to-end run of Fix Script 1.
+Saved on the instance (same SHA-256 as `build/demo-1-prepare-fix-script.js` at 3058407), recorded in
+update set `AIT-P2-demo-prep`, run from the form with "Proceed":
+
+| Line | Result |
+|---|---|
+| Retired, closed | 3 old copies, 4 old demo alerts |
+| 2.1 | INC0026093, the new monitor copy, caller Abel Tuter |
+| 2.2, 2.2b, 2.4, 2.5 | INC0026090, INC0026091, INC0026092, INC0026094 |
+| 2.5 and 3.2 on call | OK: Marta Ruiz (Soporte SAP), rotation from 2026-10-26, 2 weeks |
+| 3.4 automations | OK: 0 |
+| 1.3 | CHECK, a script bug: it compared the state label with "On Hold", and the labels came out in Spanish in this session. Fixed to compare the value (commit 5736290); not yet saved on the instance |
+
+Not yet verified: the autonomous note on INC0026094 (due about 17:58) and the persona as author of the
+wrap-up note on INC0026092. The browser session expired right after the run.
+
+## Application scope
+
+From 16:16 instance time, the admin's stored current application was "ITSM Spoke", set by another
+session on the same account. In that scope Global records can't be saved (REST 403 "ACL Exception
+Update Failed"). Switching to Global through the application picker applies to this session only,
+leaves the stored preference unchanged, and is undone by impersonation and by a later update-set
+switch, so the order is: update set first, then application, then save.

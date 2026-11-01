@@ -3,7 +3,7 @@
 // output committed next to it (`expected/`, built on macOS with Node).
 //   bun fixtures.ts --binary <embed binary> --fixtures <dir> --target <name>
 //     [--startup <snagentic binary>,<snagentic with SDK binary>] [--keep <dir for failed builds>]
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { annotate, argument, resolveBinary, timedRun } from "../../../scripts/process-timing";
@@ -13,7 +13,9 @@ import { normalizedRecords } from "./normalize";
 const binary = resolveBinary(resolve(argument("binary")));
 const fixtures = resolve(argument("fixtures"));
 const target = argument("target");
-const work = mkdtempSync(join(tmpdir(), "s13-fixtures-"));
+// The long name: Windows' temporary folder can be an 8.3 short name (RUNNER~1), which SDK 4.14's
+// glob, crawling from the drive's root through the real file system, never matches.
+const work = realpathSync.native(mkdtempSync(join(tmpdir(), "s13-fixtures-")));
 
 function differences(expected: Map<string, string>, actual: Map<string, string>): string[] {
   const keys = new Set([...expected.keys(), ...actual.keys()]);

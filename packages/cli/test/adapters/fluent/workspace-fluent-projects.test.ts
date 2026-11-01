@@ -29,7 +29,7 @@ describe("workspace Fluent projects", () => {
     const { root, projects } = await workspace();
     expect(await projects.changedSince("HEAD")).toEqual([]);
     writeFileSync(join(root, PROJECT, "src/fluent/extra.now.ts"), "export {}\n");
-    expect(await projects.changedSince("HEAD")).toEqual([{ path: PROJECT, declaredSdk: "4.13.6" }]);
+    expect(await projects.changedSince("HEAD")).toEqual([{ path: PROJECT, declaredSdk: "4.14.0" }]);
   });
 
   it("knows only folders under source/ with a now.config.json as projects", async () => {
@@ -40,7 +40,7 @@ describe("workspace Fluent projects", () => {
         "source/x_none/a.ts",
         "x/y",
       ]),
-    ).toEqual([{ path: PROJECT, declaredSdk: "4.13.6" }]);
+    ).toEqual([{ path: PROJECT, declaredSdk: "4.14.0" }]);
   });
 
   it(
@@ -183,14 +183,14 @@ describe("workspace Fluent projects", () => {
     const keys = join(root, PROJECT, KEYS_FILE);
     writeFileSync(keys, `${readFileSync(keys, "utf8")}// mine\n`);
     const staged = new WorkspaceFluentProjects(root, loadInProcessRuntime, { staged: true });
-    const project = { path: PROJECT, declaredSdk: "4.13.6" };
+    const project = { path: PROJECT, declaredSdk: "4.14.0" };
     await expect(staged.writeKeys(project, "new")).rejects.toThrow(FluentKeysUnstagedError);
     expect(readFileSync(keys, "utf8")).toEndWith("// mine\n");
   });
 
   it("names the SDK version it builds with, the worker's as the in-process one", async () => {
     const { root, projects } = await workspace();
-    expect(await projects.sdkVersion()).toBe("4.13.6");
-    expect(await new WorkspaceFluentProjects(root, loadFluentRuntime).sdkVersion()).toBe("4.13.6");
+    expect(await projects.sdkVersion()).toBe("4.14.0");
+    expect(await new WorkspaceFluentProjects(root, loadFluentRuntime).sdkVersion()).toBe("4.14.0");
   });
 });

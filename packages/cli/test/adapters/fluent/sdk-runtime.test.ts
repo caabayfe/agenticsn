@@ -16,7 +16,7 @@ const BUILD_TIMEOUT = 60_000;
 
 describe("embedded Fluent build", () => {
   it("names the SDK version it builds with", async () => {
-    expect((await loadInProcessRuntime()).sdkVersion).toBe("4.13.6");
+    expect((await loadInProcessRuntime()).sdkVersion).toBe("4.14.0");
   });
 
   for (const fixture of ["s11-flows", "server-modules", "kitchen-sink"]) {

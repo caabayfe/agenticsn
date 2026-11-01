@@ -10,16 +10,14 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
   "version": 1,
-  "serialNumber": "urn:uuid:994ee2d1-e7a9-4459-9ad9-c3feb8b23b2f",
   "metadata": {
-    "timestamp": "2026-10-14T04:47:42.065Z",
     "tools": {
       "components": [
         {
           "type": "library",
           "name": "sdk-build-plugins",
           "group": "@servicenow",
-          "version": "4.13.6",
+          "version": "4.14.0",
           "author": "ServiceNow"
         }
       ]

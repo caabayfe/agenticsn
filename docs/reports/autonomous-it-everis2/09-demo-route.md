@@ -75,6 +75,37 @@ flowchart LR
 **Shorter demo (20 minutes):** 1.1, 1.3, 2.2b, 2.3, **2.5**, 3.1, 3.2. It keeps one scene per rung of the
 ladder and the autonomous note as the turn.
 
+## Presenter's sheet: use case, user, what to type, what to expect
+
+Start a **new chat** for each row. Type "Sí" or "No" instead of clicking the confirmation buttons. If
+the panel stays on "Processing", reload the page; the answer is usually already there. The numbers are
+those of the 30 October run; use the ones the Fix Script prints.
+
+| # | Use case | Where / record | User | Type this | Expected outcome |
+|---|---|---|---|---|---|
+| 1.1 | Answer from the knowledge base | Employee Center chat | Analista AIT (ES) | `No puedo conectarme a la VPN desde casa con mi portátil Windows, ¿qué hago?` | Five steps from KB0010019 in Spanish, each with a source link, then "Crear un nuevo incidente" |
+| 1.2 | Request software | Employee Center chat | Analista AIT (ES) | `Quiero pedir Microsoft Visio para mi portátil, lo necesito para dibujar los planos de red de la oficina`, then pick PC-AIT-ES-01 | Visio recommended, the reason filled in from the sentence, her two laptops as chips, and the warning that RITM0010068 is already pending approval |
+| 1.3a | Status of one request | Employee Center chat | Analista AIT (ES) | `¿Qué pasa con mi solicitud RITM0010067? ¿Por qué tarda tanto?` | It waits for the vendor licence (from the fulfiller's comment), with the history |
+| 1.3b | Overview of my tickets | Employee Center chat, new chat | Analista AIT (ES) | `¿Cómo van mis solicitudes e incidencias?` | INC0025715 needs her answer (VPN client version, cable or not); RITM0010068 waits for Bow Ruggeri's approval; RITM0010067 is 2 days late |
+| 2.1 | The wrong door | SOW, INC0025308 | Analista AIT (ES) | `¿Esta incidencia es realmente una incidencia? ¿Qué debo hacer con ella?` | "No parece ser una incidencia real": a monitor request; reclassify it as a catalog request |
+| 2.2 | Recommendation nobody asked for | SOW, MFA copy in Network (INC0026085) | Analista AIT (ES) | Nothing: assign it to DEMO.PI.Identity and to the persona | Within about a minute, a work note "Investigate and recommend" with a plan in Spanish |
+| 2.2b | Plan with evidence, right group | SOW, MFA copy in M365 (INC0026086) | Analista AIT (ES) | `Dame un plan de resolución con evidencias para esta incidencia a partir de incidencias similares ya resueltas, y dime si está en el grupo correcto.` | Steps that cite resolved incidents, and "reasignar a DEMO.PI.Identity" (6 similar incidents resolved there, 0 in M365) |
+| 2.3 | Why the SLA breached | SOW, INC0010147 | Analista AIT (ES) | `¿Por qué se ha incumplido el SLA de esta incidencia?` | P2 resolution SLA breached on 1 May; Database held it 48 days 16 hours, the other groups seconds ("no son la causa"); a timeline and a next action |
+| 2.4 | Wrap up and resolve | SOW, MFA copy In Progress (INC0026087) | Analista AIT (ES) | `Cierra y resuelve esta incidencia`, then `Sí` (if Approve loops: `Sin cambios, aplica estas notas`) | Spanish close notes from the analyst's note; Resolved with "Solución proporcionada" |
+| **2.5** | **The SLA nobody watched (level 3)** | SOW, `[AIT-P1]` incident (INC0026088) | Analista AIT (ES) | Nothing: open it | Note `[AIT auto · SLA en riesgo]` by the persona: SLA at 75 % and minutes left; cause (nobody owns it, no update for 9 min, 3 min lost in Workplace); on call Marta Ruiz, escalation Elena Soto; next step, assign it to Marta and call her |
+| 3.1 | Alerts that explain themselves | SOW, newest SAP alert group (Alert0010124) and CHG0030111 | admin | Nothing: open the group, the primary alert, then Quick Incident | Three alerts grouped and routed to DEMO.PI.SAP; AI cause "kernel 7.89 PL 200" from the change; the new incident has the CI, the group and the analysis |
+| 3.2a | Who is on call | SOW, INC0025716 | Analista AIT (ES) | `¿Quién está de guardia ahora en el grupo de esta incidencia, hasta cuándo, quién es el siguiente si no responde, y cómo le contacto?`, then `Sí` | Marta Ruiz until 1 November 23:59, then Jordi Puig; escalation Elena Soto; phones and emails |
+| 3.2b | Hand it over | SOW, INC0025716, new chat | Analista AIT (ES) | `Asigna esta incidencia a la persona de guardia y deja una nota de trabajo: revisar primero el transporte de condiciones de precios`, then `Sí` twice | Assigned to Marta Ruiz, In Progress, with the work note |
+| 3.3 | Ask the runbook | INC0025194, Runbook_SAP_SD-OPS-017_V1-801.pdf, Document Viewer, Ask Otto | Analista AIT (ES) | `¿Cuál es la causa más frecuente del error V1 801?`, then `¿Puedo reiniciar PRD para arreglarlo?` | The most common cause (80 %), then "never restart PRD without an emergency change" |
+| 3.4 | Make it automatic next time | SOW, a SAP alert of 3.1 | admin | `Create an alert grouping automation so that future alerts on the SAP PRD hosts (SAP AppSRV01, SAP AppSRV02, SAP LoadBal01, SAP WEB01 to WEB04) that happen within 30 minutes of each other are grouped into one, even when the CIs are not related. Show me the proposal first and keep it inactive.`, then `Yes, create it inactive` | The proposal (seven hosts, 30 minutes), then the automation created inactive ("View automation") |
+| 4.1a | A chart from a question | SOW chat, new chat | Analista AIT (ES) | `Compara en un gráfico de columnas apiladas las incidencias registradas en agosto y en septiembre de 2026, por mes y por prioridad` | A stacked column chart by month and priority |
+| 4.1b | The numbers behind it | SOW chat, new chat | Analista AIT (ES) | `¿Cuántas incidencias se registraron en agosto y en septiembre de 2026, y qué prioridad explica la diferencia entre los dos meses?` | 843 against 895; P4 explains 73 % of the difference |
+| 4.2 | Governance | Platform Analytics, AI Agent Analytics | admin | Nothing | Runs, blocked runs and errors per agent; every number matches the tables |
+
+Before 3.4, delete the automation "Group by SAP PRD hosts" (Event Management → Alert grouping
+automations), or the AI proposes a duplicate. For a live 2.5, run "AIT demo 2 - start SLA clock
+(live)" as admin at the start of Act 2 and open the incident it prints about 9.5 minutes later.
+
 ## Tested on 30 October 2026
 
 Run from the Fix Script form as admin at 10:31 (instance time), with "Proceed":

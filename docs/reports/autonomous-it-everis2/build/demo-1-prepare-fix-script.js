@@ -249,13 +249,16 @@
     var trigger = new GlideRecord('sn_aia_trigger_configuration');
     var triggerOk = trigger.get('9ebfd22433989f10becbf499ed5c7b58') && trigger.active == true;
     // Scene 3.4 creates the grouping automation "Group by SAP PRD hosts"; a previous one makes the AI
-    // propose a duplicate. Deleting it is left to a person (Alert grouping automations list).
+    // propose a duplicate. Its ACL refuses a plain delete, even for admin: ask the Alert Automation
+    // agent on a SAP alert to delete it (its own "Delete Alerts Grouping Automation" tool).
     var automations = new GlideRecord('sn_em_tbac_alert_clustering_definitions');
     var automationCount = 0;
+    var automationIds = [];
     if (automations.isValid()) {
         automations.addQuery('name', 'CONTAINS', 'SAP PRD');
         automations.query();
         automationCount = automations.getRowCount();
+        while (automations.next()) { automationIds.push(automations.getUniqueValue()); }
     }
 
     say('AIT demo prepared. Retired ' + retired + ' old copies, closed ' + closedAlerts + ' old demo alerts.');
@@ -281,7 +284,7 @@
     var who = onCallNow();
     check(who.indexOf('Marta Ruiz') == 0, '2.5 and 3.2 on call now in DEMO.PI.SAP: ' + who + ' (rotation from ' + monday.getLocalDate().getDisplayValue() + ', 2 weeks)');
     check(state('INC0025194') != 'missing', '3.3 INC0025194 runbook PDF: ' + state('INC0025194'));
-    check(automationCount == 0, '3.4 grouping automations named "SAP PRD": ' + automationCount + ' (delete the rehearsal one, or it proposes a duplicate)');
+    check(automationCount == 0, '3.4 grouping automations named "SAP PRD": ' + automationCount + ' (on a SAP alert, ask Otto: Delete the alert grouping automation with sys_id ' + automationIds.join(', ') + ')');
     say('');
     say('Act 4, management: analytics chat (persona) and AI Agent Analytics (admin). Nothing to prepare.');
     say('');

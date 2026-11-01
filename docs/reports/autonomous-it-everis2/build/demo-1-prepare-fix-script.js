@@ -4,7 +4,7 @@
 // It refreshes the records that a demo uses up, resets the ones a scene changes, and prints the demo
 // route: every record to open, in the order of the storyline, with a check of its state.
 // Demo data only: every record it creates is tagged [AIT-DEMO] or [AIT-P1], on DEMO.PI groups or the
-// SAP demo CIs. It changes no configuration.
+// SAP demo CIs. It changes no configuration; it realigns the start date of the demo SAP on-call rota.
 (function() {
     var TAG = '[AIT-DEMO]';
     var log = [];
@@ -85,11 +85,28 @@
     var wrongGroup = copyIncident('INC0026051', function(inc) {
         inc.assignment_group = group.m365;              // wrong group; B8 recommends Identity
     });
-    var wrapUp = copyIncident('INC0025491', function(inc, src) {
+    var wrapUp = copyIncident('INC0025491', function(inc) {
         inc.assignment_group = group.identity;
         inc.assigned_to = persona;
         inc.state = 2;
-        inc.work_notes = firstWorkNote(src);             // the Spanish note the wrap-up turns into close notes
+    });
+    // The Spanish note the wrap-up turns into close notes. Written as the persona, so the activity
+    // stream shows the analyst as its author, not the account that runs this script.
+    if (wrapUp) {
+        var note = firstWorkNote(incident('INC0025491'));
+        var imp = new GlideImpersonate();
+        var me = imp.impersonate(persona);
+        var asPersona = new GlideRecord('incident');
+        if (asPersona.get(wrapUp.getUniqueValue())) {
+            asPersona.work_notes = note;
+            asPersona.update();
+        }
+        imp.impersonate(me);
+    }
+    // Scene 2.1: a monitor request filed as an incident in the wrong group. A fresh copy each run,
+    // because the scene may convert it into a request.
+    var wrongDoor = copyIncident('INC0025308', function(inc, src) {
+        inc.assignment_group = src.getValue('assignment_group');
     });
 
     // 3. Reset the on-call incident of scene 3.2: unassigned and New in DEMO.PI.SAP.
@@ -99,6 +116,28 @@
         onCall.assigned_to = '';
         onCall.state = 1;
         onCall.update();
+    }
+
+    // 3b. On-call rota of scenes 2.5 and 3.2: Marta Ruiz is first in a 2-week rotation, so starting it on
+    // the Monday of this week keeps her on call for at least the next 7 days, whatever day the demo is.
+    var monday = new GlideDateTime();
+    monday.addDaysLocalTime(1 - monday.getDayOfWeekLocalTime());
+    var rosters = new GlideRecord('cmn_rota_roster');
+    rosters.addQuery('rota.group', group.sap);
+    rosters.addActiveQuery();
+    rosters.query();
+    while (rosters.next()) {
+        rosters.rotation_interval_count = 2;
+        rosters.setValue('rotation_start_date', monday.getLocalDate().getValue());
+        rosters.update();
+    }
+    function onCallNow() {
+        var res = new OnCallRotation().whoIsOnCall(group.sap, '', '', new GlideDateTime()) || [];
+        var list = [];
+        for (var i = 0; i < res.length; i++) { list.push(res[i]); }
+        list.sort(function(a, b) { return a.order - b.order; });
+        var u = new GlideRecord('sys_user');
+        return list.length && u.get(list[0].userId) ? u.getDisplayValue() : '(nobody)';
     }
 
     // 4. SAP outage of scene 3.1: close the previous demo alerts, move the kernel change to 80 minutes
@@ -228,7 +267,7 @@
     say('        1.3 the persona has ' + mineCount + ' open incidents and requests (expected 4: INC0025715, INC0025716, RITM0010067, RITM0010068)');
     say('');
     say('Act 2, the service desk (SOW, Otto panel, as Analista AIT (ES))');
-    check(state('INC0025308') != 'missing', '2.1 INC0025308 second monitor (a request in disguise): ' + state('INC0025308'));
+    check(!!wrongDoor, '2.1 ' + num(wrongDoor) + ' second monitor (a request in disguise): ask with the number in the question');
     check(!!recommend, '2.2 ' + num(recommend) + ' MFA in DEMO.PI.Network: assign it to DEMO.PI.Identity and the persona');
     check(!!wrongGroup, '2.2b ' + num(wrongGroup) + ' MFA in DEMO.PI.M365: ask for the plan with evidence');
     check(breach.hasNext(), '2.3 INC0010147 has a breached SLA');
@@ -239,6 +278,8 @@
     check(changeOk, '3.1 CHG0030111 kernel change moved to 80 minutes before the events');
     check(sent.length == 3, '3.1 events sent: ' + sent.join('; ') + '. Open the newest alert group on SAP AppSRV01');
     check(!!onCall, '3.2 INC0025716 SAP V1 801 reset: unassigned, New, DEMO.PI.SAP');
+    var who = onCallNow();
+    check(who.indexOf('Marta Ruiz') == 0, '2.5 and 3.2 on call now in DEMO.PI.SAP: ' + who + ' (rotation from ' + monday.getLocalDate().getDisplayValue() + ', 2 weeks)');
     check(state('INC0025194') != 'missing', '3.3 INC0025194 runbook PDF: ' + state('INC0025194'));
     check(automationCount == 0, '3.4 grouping automations named "SAP PRD": ' + automationCount + ' (delete the rehearsal one, or it proposes a duplicate)');
     say('');

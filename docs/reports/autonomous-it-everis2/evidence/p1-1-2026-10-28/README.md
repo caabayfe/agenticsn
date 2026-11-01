@@ -11,13 +11,13 @@ Bedrock and Anthropic). Changing that is a configuration decision (see [Open poi
 ## How it was tested
 
 - Instance: everis2 (`everisspainsludemo2.service-now.com`), Service Operations Workspace, Chrome.
-- User: `svc_fcaamano` (admin). Real analysts get the skills through `itil`.
+- User: the test user (admin). Real analysts get the skills through `itil`.
 - Test record: **INC0025193** `[P1-1 TEST] Outlook no sincroniza el correo desde esta mañana`,
   created for this test (caller Mandy Mcdonnell, Spanish description, comment and work note).
 - Actions were real: comment posted, email sent, incident resolved, KB draft created.
 - Outbound mail is off (`glide.email.smtp.active=false`): the emails are in `sys_email` as
   `send-ready` and never left the instance. The caller's address is `@example.com`.
-- Provider evidence: `sys_generative_ai_log`, every call by `svc_fcaamano` from 07:38 to 07:49 (UTC).
+- Provider evidence: `sys_generative_ai_log`, every call by the test user from 07:38 to 07:49 (UTC).
 
 ## Results
 

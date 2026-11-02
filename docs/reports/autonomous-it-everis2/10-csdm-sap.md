@@ -203,6 +203,16 @@ Rules found while testing:
   "Triage" action in the panel to triage again. The out-of-box "on create" trigger is no
   alternative: it only fires for priority 3 to 5.
 
+- **Triage test, 2 November 21:10** (7 incidents, cancelled afterwards): one triage run per
+  incident, always as ITSM Worker AI Agent, also on the incident created already assigned; three
+  updates afterwards started no new triage run (assignment does start the separate "Investigate
+  and recommend incident resolution" trigger). Employee reports on SAP orders and billing got
+  service "Gestión de pedidos", offering "Pedidos de venta - España" and CI "SAP S/4HANA PRD" in
+  3 of 4 cases, and were linked to the existing major incident INC0025716 (scene 3.2), not to the
+  P1 from the alerts, which is not a major incident. The incident from the alert group kept B7's
+  CI and service and got category Software. Self-service incidents arrive in group Network from an
+  existing assignment rule, before triage; triage does not route.
+
 ## Decisions
 
 | # | Decision | Outcome |

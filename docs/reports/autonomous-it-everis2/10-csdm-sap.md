@@ -138,23 +138,32 @@ Scripts themselves go into it.
 Then rehearse 3.1b and 3.1c once and record their answer keys in the quality plan, as for the
 other scenes.
 
-## Not verified yet
+## Load results (2 November 2026)
 
-These were not checked against the live data, because the browser had no session:
+All scripts ran on everis2 as Scripts - Background, in this order: groups, CSDM 1, AIT demo 1,
+CSDM 3, CSDM 2. The check passes:
 
-1. **The SAP demo hosts exist under these names**, and each host's class is not yet known. The
-   build prints a `CHECK` line for any missing host.
-2. **The impact graph fills for a hand-built service.** This is the key risk. The Event
-   Management impact engine builds `em_impact_graph` from the service map, and the Alert Crawler
-   copies it to `sn_em_ai_alert_services`. Step 2 checks both. If they stay empty, the fallback
-   is to open the map once and save it, which recalculates it.
-3. **The choice labels**: "Production", "QA" (or "Test"), "1 - most critical", "3 - less
-   critical", "Business Service", "Technical Service", and "OK" for service severity. The scripts
-   look them up by label and print a `CHECK` line when one is missing.
-4. **The impact team can be started from the panel.** Its trigger is off, which is expected,
-   because it runs on request.
-5. **The two callers exist** (`abel.tuter`, `adela.cervantsz`).
-6. **The QAS event binds to SAP QASSRV01.** It names the host as its node, like the PRD events.
+- SAP S/4HANA PRD has severity Critical once the alerts arrive, and 51 impact graph rows. It is
+  linked to SAP S/4HANA, both business offerings and SAP Basis - Producción, and not to the
+  non-production offering.
+- SAP S/4HANA QAS has 17 impact graph rows and only SAP S/4HANA and SAP Basis - No productivo
+  above it.
+- The Alert Crawler lists SAP S/4HANA PRD on the **group alert** (Alert0010135), the parent of the
+  SAP alerts, and SAP S/4HANA QAS on the QAS alert (Alert0010136). The check accepts either the
+  alert or its group.
+- Two employee incidents on "Pedidos de venta - España", 4 and 7 minutes after the PRD alert
+  (INC0026105, INC0026106). CHG0030111 lists SAP S/4HANA PRD.
+- Each service map holds more CIs than its manual members (PRD 23, QAS 7), because the map also
+  stores its entry points.
+
+Found on the way:
+
+- The instance refuses a business application without an application category (business rule
+  "Check if Application Category is empty"). The build sets one and type COTS.
+- There is no QA environment choice; QAS records are Test.
+- Fix Scripts and background scripts run at ES3 level: `short` is reserved.
+
+Still to do: rehearse 3.1b and 3.1c in the Now Assist panel and record their answer keys.
 
 ## Decisions
 

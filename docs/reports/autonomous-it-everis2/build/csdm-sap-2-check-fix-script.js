@@ -66,8 +66,12 @@
             check(false, 'no open ' + source + ' alert: run the demo prep scripts first');
             return null;
         }
-        var listed = count('sn_em_ai_alert_services', 'alert=' + alert.getUniqueValue() + '^business_service=' + svcId);
-        check(listed > 0, alert.getValue('number') + ' (' + alert.cmdb_ci.getDisplayValue() + ') lists the service as impacted');
+        // The Alert Crawler writes the rows on the group alert when the alert is grouped; the demo
+        // opens the group, so either one counts.
+        var ids = [alert.getUniqueValue()].concat(alert.getValue('parent') ? [alert.getValue('parent')] : []);
+        var listed = count('sn_em_ai_alert_services', 'alertIN' + ids.join(',') + '^business_service=' + svcId);
+        check(listed > 0, alert.getValue('number') + ' (' + alert.cmdb_ci.getDisplayValue() + ')' +
+            (ids.length > 1 ? ' or its group ' + alert.parent.getDisplayValue() : '') + ' lists the service as impacted');
         return alert;
     }
 

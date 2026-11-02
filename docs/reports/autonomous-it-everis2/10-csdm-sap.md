@@ -219,6 +219,26 @@ Rules found while testing:
   CI and service and got category Software. Self-service incidents arrive in group Network from an
   existing assignment rule, before triage; triage does not route.
 
+## Demo day, 3 November: what is on the instance
+
+Prepared on 2 November between 22:25 and 23:50 CET; "AIT CSDM SAP 2 - check" passed every item.
+
+| Scene | Record | What to show |
+|---|---|---|
+| 3.1 SAP outage | Group **Alert0010164** on SAP AppSRV01 (Alert0010161-163) | AI summary and investigation (kernel change CHG0030111), impacted PRD and its offerings; no incident yet |
+| 3.1b user impact | **INC0026124**, **INC0026125** (+4 and +7 min) | Triage filled service PRD, offering "Pedidos de venta - España", CI PRD, and linked both to INC0025716 |
+| 3.1c same symptom on QAS | **Alert0010176** on SAP QASSRV01, not grouped | Only "SAP Basis - No productivo" is hit: no business impact |
+| HANA root cause | Group **Alert0010175** on SAP HANADB01 (Alert0010170-174, WEB02 included) | Root CI at the bottom of the map, AI summary, PRD only; Quick Incident gives a P1 with B7's note |
+| Act 2 | INC0026117-121 | As in the demo route |
+
+Notes for the presenter: the HANA investigation lists the AppSRV01 kernel change first and the
+firewall change second; the firewall change explains the backint timeout. Triage runs once per
+incident; use the panel's "Triage" action to run it again. Re-running any scene needs the gaps
+above (over 40 minutes between outages, in event time).
+
+Cleaned the same evening: 33 active `[AIT-P1]`/`[AIT-DEMO]` copies from earlier preparation runs
+(29 October to 2 November) closed or cancelled with business rules off.
+
 ## Decisions
 
 | # | Decision | Outcome |

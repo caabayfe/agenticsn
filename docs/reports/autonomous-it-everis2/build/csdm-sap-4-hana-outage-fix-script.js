@@ -33,8 +33,9 @@
     // alert of scene 3.1c goes too: the grouping automation "Group alerts with CI relationships" (30
     // minutes) reaches QAS through the business application, which consumes both services, and would
     // put it in this PRD group. "AIT CSDM SAP 3" sends it again.
+    var OURS = [SOURCE, 'AIT-Demo-QAS'];
     var old = new GlideRecord('em_alert');
-    old.addQuery('source', 'IN', SOURCE + ',AIT-Demo-QAS');
+    old.addQuery('source', 'IN', OURS.join(','));
     old.addQuery('state', '!=', 'Closed');
     old.query();
     var closed = 0;
@@ -45,24 +46,52 @@
         old.update();
         closed++;
     }
+    // A group that also holds another scene's alerts stays open; ours leave it, so it shows that
+    // scene only.
     var groups = new GlideRecord('em_alert');
     groups.addQuery('sys_id', 'IN', parents.join(','));
     groups.addQuery('state', '!=', 'Closed');
     groups.query();
     while (groups.next()) {
-        groups.state = 'Closed';
-        groups.update();
-        closed++;
+        var others = new GlideRecord('em_alert');
+        others.addQuery('parent', groups.getUniqueValue());
+        others.addQuery('source', 'NOT IN', OURS.join(','));
+        others.addQuery('state', '!=', 'Closed');
+        others.setLimit(1);
+        others.query();
+        if (!others.hasNext()) {
+            groups.state = 'Closed';
+            groups.update();
+            closed++;
+            continue;
+        }
+        var ours = new GlideRecord('em_alert');
+        ours.addQuery('parent', groups.getUniqueValue());
+        ours.addQuery('source', 'IN', OURS.join(','));
+        ours.query();
+        while (ours.next()) {
+            ours.parent = '';
+            ours.update();
+        }
     }
 
-    // Scene 3.1's outage on the same service, less than 30 minutes old, would join this group as well.
+    // Scene 3.1's outage on the same service would join this group. The grouping window (30 minutes)
+    // counts event time, and these events are dated up to 9 minutes back, so scene 3.1's events must
+    // be over 40 minutes old. Stop rather than mix the two stories.
     var recent = new GlideRecord('em_alert');
     recent.addQuery('source', 'AIT-Demo');
     recent.addQuery('state', '!=', 'Closed');
-    recent.addQuery('sys_created_on', '>=', minutesFromNow(-31));
+    recent.addQuery('last_remote_time', '>=', minutesFromNow(-41));
     recent.setLimit(1);
     recent.query();
-    check(!recent.hasNext(), 'no scene 3.1 alerts from the last 30 minutes (they would join this group)');
+    if (recent.next()) {
+        check(false, 'scene 3.1 alert ' + recent.getValue('number') + ' is under 41 minutes old (event time); ' +
+            'it would join this group. Run again later. Nothing sent.');
+        gs.info(log.join('\n'));
+        gs.print(log.join('\n'));
+        return;
+    }
+    say('  OK    no scene 3.1 alerts under 41 minutes old (event time)');
 
     // 2. The change the investigation should find, moved to 3 hours ago on every run.
     var host = byName('cmdb_ci', 'name', 'SAP HANADB01');

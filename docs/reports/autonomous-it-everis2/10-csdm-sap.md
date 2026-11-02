@@ -185,10 +185,16 @@ Rules found while testing:
 - **Keep PRD and QAS alerts 30 minutes apart.** The grouping automation follows CI relationships
   through the business application, which consumes both services, so a QAS alert within 30 minutes
   of a PRD outage joins its group (and the AI summary then mentions QAS). The HANA script closes
-  the QAS demo alert first; on demo day, send the QAS event (script 3) at least 30 minutes after
-  "AIT demo 1", or run 3.1c before 3.1. The alternative, changing the out-of-box automation, needs
+  the QAS demo alert first; send the QAS event (script 3) at least 30 minutes, in event time,
+  after both "AIT demo 1" and the HANA script, or run 3.1c before 3.1. The alternative, changing the out-of-box automation, needs
   the owner's decision.
-- **Keep the two PRD outages 30 minutes apart**, for the same reason; the HANA script warns.
+- **Keep the two PRD outages over 40 minutes apart, in event time.** The 30-minute window counts
+  the events' own time, not when the alerts were created, and the HANA events are dated up to 9
+  minutes back. On 2 November the HANA script ran 33 minutes after scene 3.1, its events landed 25
+  minutes after scene 3.1's, and four of them joined scene 3.1's group. The script now stops,
+  sending nothing, while a scene 3.1 alert is under 41 minutes old in event time. When it closes
+  its old alerts, it takes them out of a group that also holds other scenes' alerts, instead of
+  closing that group.
 - **B7 now reads the group's own AI analysis.** Before, it took the first critical member's notes,
   which on SAP AppSRV01 still blamed the kernel change of scene 3.1. It also fills the service and
   raises the impact from the service criticality.

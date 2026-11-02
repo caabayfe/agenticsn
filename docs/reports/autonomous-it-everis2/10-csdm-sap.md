@@ -129,6 +129,7 @@ Scripts themselves go into it.
 
 | Step | When | Script | Result |
 |---|---|---|---|
+| 0 | Once | [AIT demo groups and on-call](build/demo-groups-on-call-fix-script.js) | 14 fictitious Spanish users, some in two groups. Each DEMO.PI group gets 3 to 5 members, a manager, and a "24x7" rota: Primary rotates weekly through the engineers, Secondary is the manager. A group that already has a rota keeps it. The script ends by asking the on-call engine who is on call in each group |
 | 1 | Once | [AIT CSDM SAP 1 - build](build/csdm-sap-1-build-fix-script.js) | The model above. It finds records by business key, creates the missing ones and fills only empty fields. Safe to run again |
 | 2 | Before each demo, after step 3 | [AIT CSDM SAP 2 - check](build/csdm-sap-2-check-fix-script.js) | Read-only. One `OK` or `CHECK` line per link the agents follow, for PRD and QAS |
 | 3 | Each demo, right after "AIT demo 1 - prepare" | [AIT CSDM SAP 3 - demo prep](build/csdm-sap-3-demo-prep-fix-script.js) | The QAS event, and two employee incidents on "Pedidos de venta - España", timed 4 and 7 minutes after the new PRD alert |

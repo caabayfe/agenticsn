@@ -84,6 +84,9 @@
     var sapGroup = byName('sys_user_group', 'name', 'DEMO.PI.SAP');
     check(!!sapGroup, 'group DEMO.PI.SAP exists (support, managing and change group of every SAP record)');
     var owner = byName('sys_user', 'user_name', 'abel.tuter');
+    // The CIs take the owner of the SAP servers already on the instance, so the incident note names a person.
+    var sapServer = new GlideRecord('cmdb_ci');
+    var ciOwner = sapServer.get('name', 'SAP AppSRV01') ? (sapServer.getValue('owned_by') || '') : '';
     var operational = choice('cmdb_ci', 'operational_status', ['Operational']);
     var installed = choice('cmdb_ci', 'install_status', ['Installed']);
     var groups = { support_group: sapGroup, managed_by_group: sapGroup, change_control: sapGroup, operational_status: operational };
@@ -139,7 +142,7 @@
     // Builds one environment: hosts, SAP software, topology and the application service.
     function buildEnvironment(env) {
         var fields = merge(groups, {
-            environment: choice('cmdb_ci', 'environment', env.environment), install_status: installed
+            environment: choice('cmdb_ci', 'environment', env.environment), install_status: installed, owned_by: ciOwner
         });
         var hosts = {};
         for (var i = 0; i < env.reusedHosts.length; i++) {

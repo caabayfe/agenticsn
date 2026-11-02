@@ -165,6 +165,39 @@ Found on the way:
 
 Still to do: rehearse 3.1b and 3.1c in the Now Assist panel and record their answer keys.
 
+## Second outage: HANA log volume (root cause demo)
+
+[AIT CSDM SAP 4 - HANA outage](build/csdm-sap-4-hana-outage-fix-script.js) sends five SAP PRD
+events, root cause first: HANA log volume 97 % and failing log backups on SAP HANADB01, then update
+work processes stopped on the central instance, slow dialog on D10 and HTTP 503 on WEB02. It also
+moves change CHG0030146 ("Firewall: restrict outbound traffic from the SAP PRD network", on SAP
+HANADB01, DEMO.PI.Network) to 3 hours ago.
+
+Tested on 2 November: the grouping automation "Group alerts with CI relationships" puts the five
+alerts in one group whose CI is **SAP HANADB01** and whose primary alert is the HANA one. The AI
+writes the group description and an analysis that names the log volume and the failing backups.
+Quick Incident on the group then gives an incident with CI SAP HANADB01, service SAP S/4HANA PRD,
+impact 1 and priority 1, and a B7 note with the service and its offerings, CHG0030146, the alerts
+and the group's analysis.
+
+Rules found while testing:
+
+- **Keep PRD and QAS alerts 30 minutes apart.** The grouping automation follows CI relationships
+  through the business application, which consumes both services, so a QAS alert within 30 minutes
+  of a PRD outage joins its group (and the AI summary then mentions QAS). The HANA script closes
+  the QAS demo alert first; on demo day, send the QAS event (script 3) at least 30 minutes after
+  "AIT demo 1", or run 3.1c before 3.1. The alternative, changing the out-of-box automation, needs
+  the owner's decision.
+- **Keep the two PRD outages 30 minutes apart**, for the same reason; the HANA script warns.
+- **B7 now reads the group's own AI analysis.** Before, it took the first critical member's notes,
+  which on SAP AppSRV01 still blamed the kernel change of scene 3.1. It also fills the service and
+  raises the impact from the service criticality.
+- **The triage agent's trigger** (added on 2 November, "Triage and categorize ITSM incidents", on
+  create or update, run as the assignee) fails on an incident created from an alert, because it has
+  no assignee yet. Once someone is assigned it runs, but every update starts it again: 7 runs in 3
+  minutes on the test incident, with the category switching between Software and Database. It did
+  not fill the service or the offering.
+
 ## Decisions
 
 | # | Decision | Outcome |

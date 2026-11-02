@@ -77,12 +77,14 @@ function rootsOf(folders: readonly string[]): readonly string[] {
 // temporary folder.
 export class OverlayFileSystem implements FileSystem {
   readonly #base: string;
+  readonly #project: string;
   readonly #roots: readonly string[];
   readonly #files: TypeFiles;
   readonly #directories: Map<string, Set<string>>;
 
   constructor(rootDir: string, files: TypeFiles, scratch?: string) {
     this.#base = `${resolve(rootDir, "node_modules")}${sep}`;
+    this.#project = resolve(rootDir);
     this.#roots = rootsOf(scratch === undefined ? [rootDir] : [rootDir, scratch]);
     this.#files = files;
     this.#directories = indexDirectories(files);
@@ -91,6 +93,17 @@ export class OverlayFileSystem implements FileSystem {
   #inside(path: string): boolean {
     const full = fold(resolve(path));
     return this.#roots.some((root) => full === root || full.startsWith(`${root}${sep}`));
+  }
+
+  // The folder after `path` on the way to the project, when `path` is above it. On Windows the
+  // SDK's glob (4.14, tinyglobby) starts its crawl at the drive's root or a parent folder; each
+  // folder above the project shows only the next one, so the crawl reaches the project and sees
+  // nothing else.
+  #towardsProject(path: string): string | null {
+    const full = resolve(path);
+    const prefix = full.endsWith(sep) ? full : `${full}${sep}`;
+    if (!fold(this.#project).startsWith(fold(prefix))) return null;
+    return this.#project.slice(prefix.length).split(sep)[0] ?? null;
   }
 
   #readable(path: string): void {
@@ -170,6 +183,8 @@ export class OverlayFileSystem implements FileSystem {
   readdirSync(path: string, options: { withFileTypes: true }): FileSystem.Entry[];
   readdirSync(path: string, options?: { withFileTypes: boolean }): string[] | FileSystem.Entry[];
   readdirSync(path: string, options?: { withFileTypes: boolean }): string[] | FileSystem.Entry[] {
+    const next = this.#towardsProject(path);
+    if (next !== null) return options?.withFileTypes ? [entryOf(next, "directory")] : [next];
     this.#readable(path);
     const key = this.#embedded(path);
     if (key === null) {

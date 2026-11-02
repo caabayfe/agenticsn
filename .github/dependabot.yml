@@ -16,6 +16,9 @@ updates:
       # TypeScript stays on 6.x until dependency-cruiser supports 7 (AGENTS.md toolchain note).
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
+      # The binary embeds Rollup's WebAssembly build of the version the SDK uses; it moves with
+      # the SDK, and the build fails when they differ (scripts/build-patches.ts).
+      - dependency-name: "@rollup/wasm-node"
   - package-ecosystem: github-actions
     directory: /
     schedule:

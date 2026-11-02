@@ -6,7 +6,9 @@ import { dirname, join, relative, sep } from "node:path";
 // could load code from the project, as its Prettier config loader did (spec 012, #145). When an SDK
 // upgrade changes this list, review each change, then update the recording.
 //
-// Reviewed for 4.13.6 (2026-10-23):
+// Reviewed for 4.13.6 (2026-10-23) and again for 4.14.0 (2026-11-01): the list is unchanged, and
+// of its files only util/resolve-aiux-sdk.js changed (it adds a capability list and still resolves
+// from the SDK's location).
 // - prettier/config-loader.js: the project's Prettier config; refused before the SDK runs
 //   (project-refusals.ts), and the worker holds no credential.
 // - external-plugins/loader.js: the SDK's own bundled plugins, from its install folder.

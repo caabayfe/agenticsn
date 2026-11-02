@@ -49,6 +49,27 @@ function rollupWasm(applied: Set<string>, wasmNode: string): BunPlugin {
   };
 }
 
+const versionAt = (folder: string): unknown =>
+  JSON.parse(readFileSync(join(folder, "package.json"), "utf8")).version;
+
+// A package's folder as Node finds it from `folder` (the SDK's packages are its dependencies).
+const packageFrom = (folder: string, name: string): string =>
+  dirname(createRequire(join(folder, "package.json")).resolve(`${name}/package.json`));
+
+// The WebAssembly build must be the Rollup the SDK uses (sdk-api -> sdk-repack -> rollup):
+// Dependabot moves @rollup/wasm-node on its own, so a different version fails the build here.
+function sameRollup(cliPackage: string, wasmNode: string): void {
+  const chain = ["@servicenow/sdk-api", "@servicenow/sdk-repack", "rollup"];
+  const rollup = chain.reduce(packageFrom, cliPackage);
+  const [wanted, embedded] = [versionAt(rollup), versionAt(wasmNode)];
+  if (wanted !== embedded) {
+    throw new PatchError(
+      "rollup-wasm",
+      `@rollup/wasm-node is ${embedded}; the SDK uses rollup ${wanted}`,
+    );
+  }
+}
+
 // The SDK loads its flow, playbook, AI agent and Now Assist plugins with a dynamic require from
 // disk; its own browser bundles use static requires (virtual-loader-template.js). Same here.
 const EXTERNAL_PLUGINS: Readonly<Record<string, string>> = {
@@ -129,6 +150,7 @@ export function sdkBundlePatches(cliPackage: string): {
   const applied = new Set<string>();
   const fromCli = createRequire(join(cliPackage, "package.json"));
   const wasmNode = dirname(fromCli.resolve("@rollup/wasm-node/package.json"));
+  sameRollup(cliPackage, wasmNode);
   return {
     plugins: [
       rollupWasm(applied, wasmNode),

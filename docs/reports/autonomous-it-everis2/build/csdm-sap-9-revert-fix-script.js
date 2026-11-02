@@ -12,8 +12,8 @@
     var ids = [];
     var ci = new GlideRecord('cmdb_ci');
     ci.addQuery('short_description', 'STARTSWITH', TAG);
-    ci.addQuery('name', 'IN', ['SAP HANADB01', 'PRD ASCS01', 'PRD D00 AppSRV01', 'PRD D10 AppSRV02', 'HDB PRD', 'SAP S/4HANA PRD',
-        'SAP QASSRV01', 'QAS ASCS01', 'QAS D00 QASSRV01', 'HDQ QAS', 'SAP S/4HANA QAS',
+    ci.addQuery('name', 'IN', ['SAP HANADB01', 'PRD DVEBMGS00 AppSRV01', 'PRD D10 AppSRV02', 'HDB PRD', 'SAP S/4HANA PRD',
+        'SAP QASSRV01', 'QAS DVEBMGS00 QASSRV01', 'HDQ QAS', 'SAP S/4HANA QAS',
         'SAP S/4HANA', 'Gestión de pedidos', 'SAP Basis'].join(','));
     ci.query();
     while (ci.next()) { ids.push(ci.getUniqueValue()); say('  CI ' + ci.getValue('name') + ' (' + ci.getValue('sys_class_name') + ')'); }

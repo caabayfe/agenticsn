@@ -19,7 +19,10 @@
     // Choice values are read from the instance by label (the first label that exists wins), so a
     // renamed or missing choice shows as a CHECK line instead of a silent wrong value.
     function choice(table, element, labels) {
-        var tables = new GlideTableHierarchy(table).getTables();
+        // Global scope has TableUtils, not GlideTableHierarchy; it returns a Java list.
+        var list = new TableUtils(table).getTables();
+        var tables = [];
+        for (var t = 0; t < list.size(); t++) { tables.push('' + list.get(t)); }
         for (var i = 0; i < labels.length; i++) {
             var c = new GlideRecord('sys_choice');
             c.addQuery('name', 'IN', tables.join(','));
@@ -93,7 +96,8 @@
         environment: ['Production'], usedFor: ['Production'], criticality: ['1 - most critical'],
         reusedHosts: ['SAP LoadBal01', 'SAP WEB01', 'SAP WEB02', 'SAP WEB03', 'SAP WEB04', 'SAP AppSRV01', 'SAP AppSRV02'],
         newHosts: [{ name: 'SAP HANADB01', text: 'HANA database host of SAP S/4HANA PRD' }],
-        ascsHost: 'SAP AppSRV01', dialogs: [{ host: 'SAP AppSRV01', nr: '00' }, { host: 'SAP AppSRV02', nr: '10' }],
+        // The central instance matches the PRD events, which name /usr/sap/PRD/DVEBMGS00 on SAP AppSRV01.
+        instances: [{ host: 'SAP AppSRV01', name: 'DVEBMGS00', nr: '00', central: true }, { host: 'SAP AppSRV02', name: 'D10', nr: '10' }],
         hana: { sid: 'HDB', host: 'SAP HANADB01', pid: 30003 },
         loadBalancer: 'SAP LoadBal01', webs: ['SAP WEB01', 'SAP WEB02', 'SAP WEB03', 'SAP WEB04'],
         techOffering: { name: 'SAP Basis - Producción', text: '24x7 operation of the SAP production systems' }
@@ -102,8 +106,8 @@
         text: 'SAP S/4HANA quality system: transport and release tests before production',
         environment: ['QA', 'Test'], usedFor: ['QA', 'Test'], criticality: ['3 - less critical'],
         reusedHosts: [],
-        newHosts: [{ name: 'SAP QASSRV01', text: 'All-in-one host of SAP S/4HANA QAS (ASCS, dialog instance, HANA)' }],
-        ascsHost: 'SAP QASSRV01', dialogs: [{ host: 'SAP QASSRV01', nr: '00' }],
+        newHosts: [{ name: 'SAP QASSRV01', text: 'All-in-one host of SAP S/4HANA QAS (central instance and HANA)' }],
+        instances: [{ host: 'SAP QASSRV01', name: 'DVEBMGS00', nr: '00', central: true }],
         hana: { sid: 'HDQ', host: 'SAP QASSRV01', pid: 30013 },
         loadBalancer: '', webs: [],
         techOffering: { name: 'SAP Basis - No productivo', text: 'Office-hours operation of the SAP quality and development systems' }
@@ -154,31 +158,33 @@
             check(!!made.id, env.sid + ' host ' + env.newHosts[n].name + (made.created ? ' created' : ' exists'));
         }
 
-        var ascs = hosts[env.ascsHost] ? sapApp('cmdb_ci_appl_sap_ascs',
-            { name: env.sid + ' ASCS01', sid: env.sid, instance_name: 'ASCS01', instance_number: '01' },
-            env.ascsHost, ciClass(hosts[env.ascsHost]), fields) : '';
+        // The central instance (DVEBMGS: dialog, update, enqueue, message server) and any further dialog
+        // instances, each on its host.
+        var central = '';
         var dialogs = [];
-        for (var d = 0; d < env.dialogs.length; d++) {
-            var host = env.dialogs[d].host;
-            if (!hosts[host]) { continue; }
-            var di = sapApp('cmdb_ci_appl_sap_di',
-                { name: env.sid + ' D' + env.dialogs[d].nr + ' ' + host.replace('SAP ', ''), sid: env.sid, instance_name: 'D' + env.dialogs[d].nr, instance_number: env.dialogs[d].nr },
-                host, ciClass(hosts[host]), fields);
-            if (di) { dialogs.push(di); }
+        for (var d = 0; d < env.instances.length; d++) {
+            var inst = env.instances[d];
+            if (!hosts[inst.host]) { continue; }
+            var id = sapApp(inst.central ? 'cmdb_ci_appl_sap_ci' : 'cmdb_ci_appl_sap_di',
+                { name: env.sid + ' ' + inst.name + ' ' + inst.host.replace('SAP ', ''), sid: env.sid, instance_name: inst.name, instance_number: inst.nr },
+                inst.host, ciClass(hosts[inst.host]), fields);
+            if (!id) { continue; }
+            if (inst.central) { central = id; }
+            dialogs.push(id);
         }
         // The HANA identification rule needs a pid; a fixed one keeps the record stable across runs.
         var hana = hosts[env.hana.host] ? sapApp('cmdb_ci_appl_sap_hana_db',
             { name: env.hana.sid + ' ' + env.sid, sid: env.hana.sid, instance: '00', pid: env.hana.pid },
             env.hana.host, ciClass(hosts[env.hana.host]), fields) : '';
 
-        // The technical topology, top-down as users reach it: load balancer, web dispatchers, dialog
-        // instances, then the message server (ASCS) and the database they need.
+        // The technical topology, top-down as users reach it: load balancer, web servers, SAP instances,
+        // then the central instance's message server and the database they need.
         for (var w = 0; w < env.webs.length; w++) {
             relate(hosts[env.loadBalancer], 'Depends on::Used by', hosts[env.webs[w]]);
             for (var x = 0; x < dialogs.length; x++) { relate(hosts[env.webs[w]], 'Depends on::Used by', dialogs[x]); }
         }
         for (var y = 0; y < dialogs.length; y++) {
-            relate(dialogs[y], 'Depends on::Used by', ascs);
+            if (dialogs[y] != central) { relate(dialogs[y], 'Depends on::Used by', central); }
             relate(dialogs[y], 'Depends on::Used by', hana);
         }
 
@@ -186,7 +192,7 @@
         // whose members are manual entry points. The impact engine and the Alert Crawler read its members.
         var members = [];
         for (var hn in hosts) { if (hosts[hn]) { members.push(hosts[hn]); } }
-        members = members.concat(dialogs, [ascs, hana]).filter(function(id) { return !!id; });
+        members = members.concat(dialogs, [hana]).filter(function(id) { return !!id; });
         var basics = merge(groups, {
             name: env.service, environment: fields.environment, used_for: choice('cmdb_ci_service', 'used_for', env.usedFor),
             busines_criticality: choice('cmdb_ci_service', 'busines_criticality', env.criticality),
@@ -245,12 +251,21 @@
     var top = merge(groups, { owned_by: owner, busines_criticality: prd.criticality, used_for: prd.usedFor });
     say('CSDM layers:');
 
-    // The business application: one product, consumed by both installations.
+    // The business application: one product, consumed by both installations. everis2 refuses a
+    // business application without an application category (business rule "Check if Application
+    // Category is empty"); the other SAP applications there use Finance, Sales and Sourcing.
+    var category = '';
+    var categories = ['Enterprise Resource Planning', 'ERP', 'Finance'];
+    for (var c = 0; c < categories.length && !category; c++) { category = byName('apm_application_category', 'name', categories[c]); }
+    check(!!category, 'application category for SAP S/4HANA found');
     var bizApp = ensure('cmdb_ci_business_app', { name: 'SAP S/4HANA' }, merge(groups, {
         short_description: TAG + ' ERP for order to cash, procure to pay and finance',
-        business_criticality: choice('cmdb_ci_business_app', 'business_criticality', ['1 - most critical']),
+        application_category: category,
+        application_type: choice('cmdb_ci_business_app', 'application_type', ['COTS']),
+        business_criticality: choice('cmdb_ci_business_app', 'business_criticality', ['High', 'Alto']),
         it_application_owner: owner, owned_by: owner, vendor: byName('core_company', 'name', 'SAP')
     }));
+    check(!!bizApp.id, 'business application SAP S/4HANA ' + (bizApp.created ? 'created' : 'exists'));
     relate(bizApp.id, 'Consumes::Consumed by', built.PRD.id);
     relate(bizApp.id, 'Consumes::Consumed by', built.QAS.id);
 
@@ -274,14 +289,14 @@
     // The technology layer: the SAP Basis team runs both, with one offering per kind of environment.
     var techSvc = ensure('cmdb_ci_service_technical', { name: 'SAP Basis' }, merge(top, {
         short_description: TAG + ' Run, patch and monitor the SAP landscape (kernel, transports, HANA)',
-        service_classification: choice('cmdb_ci_service_technical', 'service_classification', ['Technical Service'])
+        service_classification: choice('cmdb_ci_service_technical', 'service_classification', ['Technology Management Service', 'Technical Service'])
     }));
     for (var t = 0; t < ENVS.length; t++) {
         var env = built[ENVS[t].sid];
         var techOff = ensure('service_offering', { name: ENVS[t].techOffering.name, parent: techSvc.id }, merge(groups, {
             short_description: TAG + ' ' + ENVS[t].techOffering.text, owned_by: owner,
             busines_criticality: env.criticality, used_for: env.usedFor,
-            service_classification: choice('service_offering', 'service_classification', ['Technical Service'])
+            service_classification: choice('service_offering', 'service_classification', ['Technology Management Service', 'Technical Service'])
         }));
         relate(techOff.id, 'Contains::Contained by', env.id);
     }
@@ -291,7 +306,12 @@
     var chg = new GlideRecord('change_request');
     if (chg.get('number', 'CHG0030111')) {
         var aff = ensure('task_cmdb_ci_service', { task: chg.getUniqueValue(), cmdb_ci_service: built.PRD.id }, {});
-        if (chg.getValue('business_service') === null) { chg.setValue('business_service', built.PRD.id); chg.update(); }
+        if (chg.getValue('business_service') === null) {
+            // The change is closed: no notifications or state rules for a data correction.
+            chg.setWorkflow(false);
+            chg.setValue('business_service', built.PRD.id);
+            chg.update();
+        }
         check(true, 'CHG0030111 affects SAP S/4HANA PRD' + (aff.created ? ' (added)' : ''));
     } else {
         check(false, 'CHG0030111 not found: scene 3.1 cites it');

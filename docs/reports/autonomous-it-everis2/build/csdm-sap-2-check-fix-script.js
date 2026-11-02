@@ -73,7 +73,7 @@
 
     var bizOfferings = ['Pedidos de venta - España', 'Facturación - España'];
     var prdAlert = checkService('SAP S/4HANA PRD', 'SAP AppSRV01', 'AIT-Demo', {
-        members: 12, parents: ['SAP S/4HANA', 'SAP Basis - Producción'].concat(bizOfferings), notParents: ['SAP Basis - No productivo']
+        members: 11, parents: ['SAP S/4HANA', 'SAP Basis - Producción'].concat(bizOfferings), notParents: ['SAP Basis - No productivo']
     });
     if (prdAlert) {
         var since = prdAlert.getValue('initial_remote_time') || prdAlert.getValue('sys_created_on');
@@ -86,7 +86,7 @@
         'CHG0030111 lists SAP S/4HANA PRD as an affected service');
     say('');
     checkService('SAP S/4HANA QAS', 'SAP QASSRV01', 'AIT-Demo-QAS', {
-        members: 4, parents: ['SAP S/4HANA', 'SAP Basis - No productivo'], notParents: bizOfferings.concat(['SAP Basis - Producción'])
+        members: 3, parents: ['SAP S/4HANA', 'SAP Basis - No productivo'], notParents: bizOfferings.concat(['SAP Basis - Producción'])
     });
 
     say('');

@@ -49,38 +49,37 @@ flowchart TB
   TO1 -- "Contains" --> PRD
   TO2 -- "Contains" --> QAS
   PRD["Application service<br/><b>SAP S/4HANA PRD</b><br/>criticality 1, Production"]
-  QAS["Application service<br/><b>SAP S/4HANA QAS</b><br/>criticality 3, QA"]
+  QAS["Application service<br/><b>SAP S/4HANA QAS</b><br/>criticality 3, Test"]
   PRD -. "service map" .-> LB
   QAS -. "service map" .-> Q
-  subgraph MAPP["Members of SAP S/4HANA PRD (12 CIs)"]
+  subgraph MAPP["Members of SAP S/4HANA PRD (11 CIs)"]
     LB["SAP LoadBal01"] --> W["SAP WEB01-04"]
-    W --> D0["PRD D00<br/>on SAP AppSRV01"]
+    W --> CI["PRD DVEBMGS00<br/>central instance<br/>on SAP AppSRV01"]
     W --> D1["PRD D10<br/>on SAP AppSRV02"]
-    D0 --> ASCS["PRD ASCS01<br/>on SAP AppSRV01"]
-    D1 --> ASCS
-    D0 --> HDB["HDB PRD<br/>on SAP HANADB01"]
+    D1 --> CI
+    CI --> HDB["HDB PRD<br/>on SAP HANADB01"]
     D1 --> HDB
   end
-  subgraph MAPQ["Members of SAP S/4HANA QAS (4 CIs)"]
-    Q["SAP QASSRV01"] --- QD["QAS D00"] --> QA["QAS ASCS01"]
-    QD --> QH["HDQ QAS"]
+  subgraph MAPQ["Members of SAP S/4HANA QAS (3 CIs)"]
+    Q["SAP QASSRV01"] --- QC["QAS DVEBMGS00"] --> QH["HDQ QAS"]
   end
   CHG["CHG0030111<br/>kernel 7.89 PL 200"] -. "affected service" .-> PRD
 ```
 
 | Layer | Record | Class | Linked by |
 |---|---|---|---|
-| Business application | SAP S/4HANA | `cmdb_ci_business_app` | *Consumes::Consumed by* → both application services |
+| Business application | SAP S/4HANA (category and type COTS are required by the instance) | `cmdb_ci_business_app` | *Consumes::Consumed by* → both application services |
 | Business service | Gestión de pedidos | `cmdb_ci_service_business` | Parent of its offerings |
 | Business offerings | Pedidos de venta - España, Facturación - España | `service_offering` | *Depends on::Used by* → **PRD only** |
 | Technology management service | SAP Basis | `cmdb_ci_service_technical` | Parent of its offerings |
 | Technology offerings | SAP Basis - Producción, SAP Basis - No productivo | `service_offering` | *Contains::Contained by* → PRD, QAS respectively |
 | Application services | SAP S/4HANA PRD, SAP S/4HANA QAS | `cmdb_ci_service_discovered`, created by the CSDM helper with manual members | Their members make the service maps |
-| SAP software | PRD ASCS01, PRD D00, PRD D10, HDB PRD; QAS ASCS01, QAS D00, HDQ QAS | `cmdb_ci_appl_sap_ascs`, `_di`, `_hana_db` | *Runs on::Runs* their host (through the IRE) |
+| SAP software | PRD DVEBMGS00 AppSRV01, PRD D10 AppSRV02, HDB PRD; QAS DVEBMGS00 QASSRV01, HDQ QAS | `cmdb_ci_appl_sap_ci` (central instance, the name the PRD events use), `_di`, `_hana_db` | *Runs on::Runs* their host (through the IRE) |
 | Hosts | PRD: SAP LoadBal01, SAP WEB01-04, SAP AppSRV01-02 (reused), SAP HANADB01 (new). QAS: SAP QASSRV01 (new) | as on the instance; new ones `cmdb_ci_linux_server` | *Depends on::Used by*, top-down |
 
 Every record has the support, managing and change group **DEMO.PI.SAP** and an owner. PRD records
-are Production with criticality 1; QAS records are QA with criticality 3.
+are Production with criticality 1; QAS records are Test (everis2 has no QA environment choice) with
+criticality 3.
 
 The relationship types are not a choice. They are the ones ServiceNow's own CSDM helper
 (`CSDMAppServiceHelper`) creates, and the only ones the impact agent follows:
@@ -124,12 +123,13 @@ work.
 ## How to load it
 
 All scripts run in Global scope as admin (System Definition → Fix Scripts → New, paste, Run Fix
-Script). Use update set `AIT-CSDM-SAP`; the CIs are data, so it captures nothing, but the Fix
+Script, or paste them into Scripts - Background). The instance runs them at ES3 level: no
+reserved words such as `short` as property names. Use update set `AIT-CSDM-SAP`; the CIs are data, so it captures nothing, but the Fix
 Scripts themselves go into it.
 
 | Step | When | Script | Result |
 |---|---|---|---|
-| 0 | Once | [AIT demo groups and on-call](build/demo-groups-on-call-fix-script.js) | 14 fictitious Spanish users, some in two groups. Each DEMO.PI group gets 3 to 5 members, a manager, and a "24x7" rota: Primary rotates weekly through the engineers, Secondary is the manager. A group that already has a rota keeps it. The script ends by asking the on-call engine who is on call in each group |
+| 0 | Once | [AIT demo groups and on-call](build/demo-groups-on-call-fix-script.js) | 22 fictitious Spanish users (`@example.com`, no password, role itil), some in two groups. Each of the 8 DEMO.PI groups gets 3 to 5 members, a manager, and a "24x7" rota: Primary rotates weekly through the engineers, Secondary is the manager. A group that already has a rota keeps it. The script ends by asking the on-call engine who is on call in each group |
 | 1 | Once | [AIT CSDM SAP 1 - build](build/csdm-sap-1-build-fix-script.js) | The model above. It finds records by business key, creates the missing ones and fills only empty fields. Safe to run again |
 | 2 | Before each demo, after step 3 | [AIT CSDM SAP 2 - check](build/csdm-sap-2-check-fix-script.js) | Read-only. One `OK` or `CHECK` line per link the agents follow, for PRD and QAS |
 | 3 | Each demo, right after "AIT demo 1 - prepare" | [AIT CSDM SAP 3 - demo prep](build/csdm-sap-3-demo-prep-fix-script.js) | The QAS event, and two employee incidents on "Pedidos de venta - España", timed 4 and 7 minutes after the new PRD alert |

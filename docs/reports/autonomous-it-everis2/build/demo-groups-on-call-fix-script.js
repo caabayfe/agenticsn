@@ -1,7 +1,7 @@
 // Fix Script "AIT demo groups and on-call", Global scope, update set AIT-DEMO-groups.
 // Gives every DEMO.PI group real people and an on-call rota, so routing, assignment, "who is on
 // call" and escalation work in every scene, not only in SAP:
-// - fictitious Spanish users (no password, role itil, @example.com, +34 600 100 3xx), some of them in
+// - 22 fictitious Spanish users (no password, role itil, @example.com, +34 600 100 3xx), some of them in
 //   two groups, as in a real service desk;
 // - a manager per group (only where the group has none);
 // - a "<group> 24x7" rota (Europe/Madrid, all day): Primary rotates weekly from this Monday through
@@ -33,7 +33,7 @@
         return { id: gr.insert(), created: true };
     }
 
-    // The people. Shared members (Daniel, Sara, Carlos) make "who else can take this" realistic.
+    // The people. Shared members (Daniel, Sara, Carlos, Inés, Rubén) make "who else can take this" realistic.
     var PEOPLE = {
         'lucia.navarro': ['Lucía', 'Navarro', 'Responsable Identidad', '301'],
         'pablo.ortega': ['Pablo', 'Ortega', 'Soporte Identidad', '302'],
@@ -48,15 +48,26 @@
         'teresa.iglesias': ['Teresa', 'Iglesias', 'Responsable Puesto de trabajo', '331'],
         'alvaro.prieto': ['Álvaro', 'Prieto', 'Soporte Puesto de trabajo', '332'],
         'carmen.vidal': ['Carmen', 'Vidal', 'Soporte Puesto de trabajo', '333'],
-        'carlos.vega': ['Carlos', 'Vega', 'Soporte SAP Basis y Redes', '341']
+        'carlos.vega': ['Carlos', 'Vega', 'Soporte SAP Basis y Redes', '341'],
+        'marcos.leon': ['Marcos', 'León', 'Responsable Aplicaciones', '351'],
+        'ines.herrera': ['Inés', 'Herrera', 'Soporte Aplicaciones y ServiceNow', '352'],
+        'oscar.medina': ['Óscar', 'Medina', 'Soporte Aplicaciones', '353'],
+        'beatriz.santos': ['Beatriz', 'Santos', 'Responsable Seguridad', '361'],
+        'ruben.cortes': ['Rubén', 'Cortés', 'Soporte Seguridad e Identidad', '362'],
+        'laura.pena': ['Laura', 'Peña', 'Soporte Seguridad', '363'],
+        'diego.fuentes': ['Diego', 'Fuentes', 'Responsable ServiceNow', '371'],
+        'paula.reyes': ['Paula', 'Reyes', 'Soporte ServiceNow', '372']
     };
     // Per group: manager, then the engineers in their Primary order. Existing members stay.
     var GROUPS = [
-        { name: 'DEMO.PI.Identity', manager: 'lucia.navarro', engineers: ['pablo.ortega', 'sara.gil', 'daniel.romero'] },
+        { name: 'DEMO.PI.Identity', manager: 'lucia.navarro', engineers: ['pablo.ortega', 'sara.gil', 'daniel.romero', 'ruben.cortes'] },
         { name: 'DEMO.PI.M365', manager: 'raul.castro', engineers: ['irene.molina', 'hugo.serrano', 'sara.gil'] },
         { name: 'DEMO.PI.Network', manager: 'ana.delgado', engineers: ['daniel.romero', 'javier.rubio', 'nuria.cano', 'carlos.vega'] },
         { name: 'DEMO.PI.Workplace', manager: 'teresa.iglesias', engineers: ['alvaro.prieto', 'carmen.vidal'] },
-        { name: 'DEMO.PI.SAP', manager: '', engineers: ['carlos.vega'] }
+        { name: 'DEMO.PI.SAP', manager: '', engineers: ['carlos.vega'] },
+        { name: 'DEMO.PI.Applications', manager: 'marcos.leon', engineers: ['ines.herrera', 'oscar.medina'] },
+        { name: 'DEMO.PI.Security', manager: 'beatriz.santos', engineers: ['ruben.cortes', 'laura.pena'] },
+        { name: 'DEMO.PI.ServiceNow', manager: 'diego.fuentes', engineers: ['paula.reyes', 'ines.herrera'] }
     ];
 
     var itil = byName('sys_user_role', 'name', 'itil');

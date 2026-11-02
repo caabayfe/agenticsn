@@ -24,7 +24,7 @@
     var offering = byName('service_offering', 'name', 'Pedidos de venta - España');
     check(!!prdId && !!qasHost && !!offering, 'the SAP model exists (run "AIT CSDM SAP 1 - build" first)');
 
-    // 1. The QAS event: the same dialog work process exhaustion as the PRD outage, on the quality host.
+    // 1. The QAS event: the same work process restarts as the PRD outage, on the quality host.
     var oldQas = new GlideRecord('em_alert');
     oldQas.addQuery('source', QAS_SOURCE);
     oldQas.addQuery('state', '!=', 'Closed');
@@ -39,14 +39,14 @@
         var ev = new GlideRecord('em_event');
         ev.initialize();
         ev.source = QAS_SOURCE;
-        ev.event_class = 'SAP Solution Manager';
+        // Same type and metric as the PRD event on SAP AppSRV01, so only the CMDB tells them apart.
         ev.node = 'SAP QASSRV01';
-        ev.type = 'SAP Work Process';
-        ev.resource = 'QAS D00';
-        ev.metric_name = 'Dialog work processes in use';
+        ev.type = 'Application';
+        ev.resource = 'QAS dispatcher';
+        ev.metric_name = 'sap_wp_restarts';
         ev.severity = 2;
-        ev.description = 'QAS D00: 100 % of dialog work processes in use for 10 minutes; update requests (V1) waiting.';
-        ev.message_key = 'AIT-Demo-QAS|SAP QASSRV01|QAS D00#demo' + new GlideDateTime().getNumericValue();
+        ev.description = 'QAS dispatcher: dialog work processes restarted 6 times in 10 minutes; update requests (V1) waiting.';
+        ev.message_key = 'AIT-Demo-QAS|SAP QASSRV01|QAS dispatcher#demo' + new GlideDateTime().getNumericValue();
         ev.time_of_event = new GlideDateTime();
         check(!!ev.insert(), 'QAS event sent on SAP QASSRV01 (closed ' + closed + ' old QAS alerts); its alert appears in about 1 minute');
     }
@@ -75,9 +75,9 @@
     } else {
         var start = new GlideDateTime(alert.getValue('initial_remote_time') || alert.getValue('sys_created_on'));
         var reports = [
-            { user: 'abel.tuter', minutes: 4, short: 'No puedo guardar pedidos de venta en SAP',
+            { user: 'abel.tuter', minutes: 4, summary: 'No puedo guardar pedidos de venta en SAP',
               text: 'Al guardar el pedido en VA01 se queda pensando y sale "error de actualización V1". Llevo tres clientes esperando.' },
-            { user: 'adela.cervantsz', minutes: 7, short: 'SAP muy lento al crear pedidos y facturas',
+            { user: 'adela.cervantsz', minutes: 7, summary: 'SAP muy lento al crear pedidos y facturas',
               text: 'Desde hace unos minutos SAP tarda más de un minuto en cada pantalla y la factura no se genera.' }
         ];
         var made = [];
@@ -90,7 +90,7 @@
             var inc = new GlideRecord('incident');
             inc.initialize();
             inc.caller_id = caller;
-            inc.short_description = r.short;
+            inc.short_description = r.summary;
             inc.description = r.text + '\n\n' + TAG;
             inc.business_service = prdId;
             inc.service_offering = offering;

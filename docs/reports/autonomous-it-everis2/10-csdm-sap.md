@@ -192,11 +192,16 @@ Rules found while testing:
 - **B7 now reads the group's own AI analysis.** Before, it took the first critical member's notes,
   which on SAP AppSRV01 still blamed the kernel change of scene 3.1. It also fills the service and
   raises the impact from the service criticality.
-- **The triage agent's trigger** (added on 2 November, "Triage and categorize ITSM incidents", on
-  create or update, run as the assignee) fails on an incident created from an alert, because it has
-  no assignee yet. Once someone is assigned it runs, but every update starts it again: 7 runs in 3
-  minutes on the test incident, with the category switching between Software and Database. It did
-  not fill the service or the offering.
+- **The triage agent's trigger** ("triage", `sn_aia_trigger_configuration` 975a0275…, added on 2
+  November for "Triage and categorize ITSM incidents", on create or update) ran as the assignee
+  with strategy "Only if not currently running". An incident created from an alert has no
+  assignee, so every run failed; once someone was assigned, each update started a new run (7 in 3
+  minutes, category switching between Software and Database). Changed on the owner's request:
+  run as the AI user *ITSM Worker AI Agent* (`itsm.aia.worker`), strategy **Once**. Retested on
+  INC0026109: one run, completed, category Database, no repeat. Revert: `run_as=assigned_to`,
+  `run_as_user` empty, `trigger_strategy=always`. Because it runs once per incident, use the
+  "Triage" action in the panel to triage again. The out-of-box "on create" trigger is no
+  alternative: it only fires for priority 3 to 5.
 
 ## Decisions
 

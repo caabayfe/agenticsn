@@ -54,8 +54,12 @@ export async function follow(
 ): Promise<ActivationProgress> {
   const started = deps.now().getTime();
   let current = first;
+  // The installer can sit at one percentage for minutes: the same line once, not every poll.
+  let reported = "";
   while (current.status === "pending" || current.status === "running") {
-    run.report(current);
+    const now = `${current.status} ${current.percent}`;
+    if (now !== reported) run.report(current);
+    reported = now;
     if (deps.now().getTime() - started >= run.limits.maxWaitMs) {
       const minutes = Math.round(run.limits.maxWaitMs / 60_000);
       throw run.unknown(`still ${current.status} after ${minutes} min`, current.progressId);

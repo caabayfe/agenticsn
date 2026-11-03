@@ -34,6 +34,8 @@ An accelerator install installs the store applications its modules need, with th
   the instance's progress id, and the next run reads that progress first: finished, it goes on;
   still running, it stops again without asking; failed, it stops with the instance's reason and
   the run after that asks again. Component steps already done are not asked again (spec 011, I3 c).
+- `apps install` and `plugins activate` print a progress line only when the status or percentage
+  moves: a store install that sat at 99 % printed the same line 27 times on everis2.
 
 ## [2.16.1] - 2026-11-03
 

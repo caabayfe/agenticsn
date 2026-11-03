@@ -3,7 +3,7 @@ import { createProfile, InstanceName, TableName } from "@snagentic/core";
 import type { HttpRequest, Transport } from "../../../src/adapters/servicenow/http-types";
 import { RequestScheduler } from "../../../src/adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "../../../src/adapters/servicenow/servicenow-client";
-import { fakeClock, response } from "./scheduler-fakes";
+import { fakeClock, HIBERNATING_PAGE, response } from "./scheduler-fakes";
 
 const SECRET = "Jv!k0F1kC*Ch";
 const LIVE = new AbortController().signal;
@@ -168,6 +168,23 @@ describe("ServiceNowClient", () => {
     await expect(client.query(QUERY, LIVE)).rejects.toMatchObject({ code: "instance-error" });
   });
 
+  it("says the instance is hibernating, and how to wake it", async () => {
+    const { client } = clientWith(async () => response(200, HIBERNATING_PAGE));
+    const error = await client.query(QUERY, LIVE).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({
+      code: "instance-hibernating",
+      hint: expect.stringContaining("developer.servicenow.com"),
+    });
+    expect(String(error)).toContain("https://dev312411.service-now.com");
+  });
+
+  it("reports another HTML page as unexpected, not as hibernating", async () => {
+    const { client } = clientWith(async () =>
+      response(200, "<html><title>Log in | ServiceNow</title></html>"),
+    );
+    await expect(client.query(QUERY, LIVE)).rejects.toMatchObject({ code: "instance-error" });
+  });
+
   it("reads a field the instance answers as null as empty", async () => {
     // A newer PDI answered sn_ace_app_config.bundle (compressed) as null for one record.
     const { client } = clientWith(async () =>
@@ -241,6 +258,14 @@ describe("ServiceNowClient.fingerprint", () => {
       });
     },
   );
+
+  it("says the instance is hibernating when its statistics are asked for", async () => {
+    // How a pull met a hibernating PDI: the first request is the change feed's fingerprint.
+    const { client } = clientWith(async () => response(200, HIBERNATING_PAGE));
+    await expect(client.fingerprint(TABLE, LIVE)).rejects.toMatchObject({
+      code: "instance-hibernating",
+    });
+  });
 
   it("reports a refused write as refused, with what to do instead of a read hint", async () => {
     const { client } = clientWith(async () =>

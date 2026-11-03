@@ -34,3 +34,15 @@ export function fakeClock(): SchedulerClock & { slept: number[] } {
 }
 
 export const GET: HttpRequest = { method: "GET", url: "https://x/api/now/table/t", headers: {} };
+
+// The head of the page a hibernating developer instance answers every request with (status 200),
+// as dev402741 sent it on 2026-11-02.
+export const HIBERNATING_PAGE = `<html>
+    <head>
+        <meta HTTP-EQUIV="refresh" content="5;https://developer.servicenow.com/dev.do#!/home?wu=true">
+        <title>
+            Instance Hibernating page
+        </title>
+    </head>
+    <body>Your instance is hibernating</body>
+</html>`;

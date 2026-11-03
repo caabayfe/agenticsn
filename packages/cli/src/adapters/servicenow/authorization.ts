@@ -2,6 +2,7 @@ import {
   AuthenticationFailedError,
   type ConnectionStats,
   InstanceError,
+  InstanceHibernatingError,
   type InstanceProfile,
   type OAuthClientCredentials,
   SnagenticError,
@@ -12,6 +13,7 @@ import {
   type SchedulerClock,
   SYSTEM_CLOCK,
 } from "./http-types";
+import { isHibernationPage } from "./responses";
 
 // What the client sends through: the request scheduler, with credentials added.
 export interface RequestSender {
@@ -148,6 +150,9 @@ class OAuthSender implements RequestSender {
         : new AuthenticationFailedError(this.profile.name);
     }
     const token = response.status === 200 ? parseToken(text, this.clock.now()) : null;
+    if (token === null && isHibernationPage(text)) {
+      throw new InstanceHibernatingError(this.profile.url);
+    }
     if (token === null) {
       const transaction = response.headers.get("x-transaction-id") ?? "unknown";
       throw new InstanceError(

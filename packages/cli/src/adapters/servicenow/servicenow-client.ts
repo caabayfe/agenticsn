@@ -15,12 +15,14 @@ import {
   SdkRouteRefusedError,
   type ServerCost,
   type ServerCostReader,
+  type StoreAppInstaller,
   type TableFingerprint,
   TableName,
   type TableQuery,
   type TableStatistics,
 } from "@snagentic/core";
 import { authorize, type RequestSender } from "./authorization";
+import { CicdAppInstaller } from "./cicd-app-installer";
 import { CicdPluginActivator } from "./cicd-plugin-activator";
 import { type ApiBody, ApiFluentInstaller } from "./fluent-installer";
 import type { HttpResponse } from "./http-types";
@@ -47,6 +49,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
   private readonly userAgent: string;
   // Plugin activation through the CI/CD API, over this connection.
   readonly plugins: PluginActivator = new CicdPluginActivator(this);
+  readonly apps: StoreAppInstaller = new CicdAppInstaller(this);
   // Table API writes, for push to development instances.
   readonly writer: InstanceWriter = new TableApiWriter(this);
   // Fluent builds loaded and published through the ServiceNow IDE's endpoints (ADR-0028).

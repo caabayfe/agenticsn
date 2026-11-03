@@ -89,6 +89,14 @@ async function setup() {
             throw new Error("not used");
           },
         },
+        apps: {
+          install: async () => {
+            throw new Error("not used");
+          },
+          progress: async () => {
+            throw new Error("not used");
+          },
+        },
         stats: () => ({
           requests: 3,
           retries: 0,

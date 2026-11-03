@@ -1,8 +1,10 @@
+import type { ActivationProgress } from "../plugins/index";
 import type { OpenSet } from "./domain/earlier-sets";
 import type { ListFact, ListState } from "./domain/ensure";
 import type { FormFieldFact, SectionState } from "./domain/ensure-form";
 import type { InstallRecord } from "./domain/install-plan";
 import type { MaterializedFile } from "./domain/materialize";
+import type { AvailableApp } from "./domain/preflight";
 import type { RowProblem } from "./domain/row-problems";
 import type { Template } from "./domain/templates";
 import type { PreviousAdd } from "./domain/upgrade";
@@ -82,6 +84,16 @@ export interface ImportSetWriter {
 export interface InstallSteps {
   // Activates an installed, inactive plugin and waits for the platform's installer to finish.
   activatePlugin(id: string, signal: AbortSignal): Promise<{ readonly seconds: number }>;
+  // Installs a store application at this version, with its own demo data when asked (ADR-0048),
+  // and waits for the platform's installer.
+  installApp(
+    scope: string,
+    version: string,
+    demoData: boolean,
+    signal: AbortSignal,
+  ): Promise<{ readonly seconds: number }>;
+  // The instance's progress for a component change an earlier run lost (spec 011, I3 c).
+  progress(progressId: string, signal: AbortSignal): Promise<ActivationProgress>;
   // pull, then integrate: the mirror (and its component inventory) catches up with the instance.
   refresh(signal: AbortSignal): Promise<void>;
   // Sets system properties a development instance needs, apart from every promoted update set
@@ -198,6 +210,13 @@ export interface InstallJournal {
 // The instance's update sets in progress, read live (ADR-0018).
 export interface OpenUpdateSets {
   open(signal: AbortSignal): Promise<readonly OpenSet[]>;
+}
+
+// The store applications the instance's store offers, read live when an install is planned
+// (spec 011, I3): the mirror's inventory holds only what is installed, and mirroring the whole
+// store (thousands of rows) on every pull would cost the instance for a few scopes a pack needs.
+export interface StoreCatalog {
+  available(scopes: readonly string[], signal: AbortSignal): Promise<readonly AvailableApp[]>;
 }
 
 // The instance's tables as the mirror holds them, read without calling the instance (ADR-0026):

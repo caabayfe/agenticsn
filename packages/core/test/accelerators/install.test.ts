@@ -109,6 +109,7 @@ const deps = (
     inventory: inventory(states),
     workspace: workspace(extra.mirror, [], extra.reports),
     updateSets: { open: async () => extra.open ?? [] },
+    catalog: { available: async () => [] },
     templates,
     // The fixture declares no platform fields: the mirror's schema is never asked.
     schema: { ready: async () => true, fieldsOf: async () => [], refresh: () => {} },
@@ -384,6 +385,13 @@ describe("deciding what the install does with each component", () => {
       "an inactive store application: activate it in Application Manager (spike S-F)",
     ]);
     expect(decided({ state: "inactive" })[0]).toBe("activate");
+  });
+
+  it("installs a store application the store offers, at the version the plan names (spec 011, I3)", () => {
+    expect(decided({ kind: "app", state: "available", version: "3.3.3" })).toEqual([
+      "install",
+      "in the store, not installed: installed by the install at 3.3.3",
+    ]);
   });
 
   it("takes over a module's out-of-box records before planning its push", async () => {

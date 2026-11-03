@@ -64,6 +64,7 @@ export const CLAUDE_SETTINGS = {
       "Bash(snagentic take-over:*)",
       "mcp__snagentic__plugin_activate",
       "Bash(snagentic plugins activate:*)",
+      "Bash(snagentic apps install:*)",
       "Bash(snagentic accelerator install:*)",
       "Bash(snagentic accelerator load:*)",
       "Bash(snagentic instance remove:*)",

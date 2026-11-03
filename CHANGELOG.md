@@ -4,6 +4,39 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+An accelerator install installs the store applications its modules need, with their demo data on
+`--demo`.
+
+### Added
+
+- `apps install <instance> <scope> [--version] --confirm` installs a store application the
+  instance's store offers, through ServiceNow's CI/CD API (`sn_cicd/app_repo/install`), and follows
+  it to the end: the version named, or the store's latest. With `--demo-data` it also loads the
+  application's own demo data. It never upgrades and is never retried. Development instances only, CLI only (spec 011, I3).
+- The install plan reads the store's offer for the applications its modules need, live and only
+  for those scopes, and plans each one it can install as `install` at the store's latest version,
+  instead of skipping the module. The install runs them after the plugin activations, then pulls.
+  The plan document counts them and says the install cannot undo them.
+- The agent pack asks before an agent runs `apps install`.
+- `--demo` is the one demo switch (ADR-0048). With it, an install loads the pack's demo data,
+  includes the modules marked `demo: true` in the same profile, and installs the store applications
+  marked `demoData: true` with their own demo data, on development instances only. With `--data`,
+  it leaves all three out and lists the demo modules it left out. One profile serves a demo and a
+  customer install.
+- `apps install --demo-data` loads a store application's own demo data.
+- The install plan's terminal view lists the store applications it installs, with their version
+  and demo data, and the demo modules it leaves out.
+
+### Fixed
+
+- A resumed install never activates a plugin or installs a store application twice. When a run
+  loses the outcome of one (a lost response, or still running past its budget), the journal keeps
+  the instance's progress id, and the next run reads that progress first: finished, it goes on;
+  still running, it stops again without asking; failed, it stops with the instance's reason and
+  the run after that asks again. Component steps already done are not asked again (spec 011, I3 c).
+- `apps install` and `plugins activate` print a progress line only when the status or percentage
+  moves: a store install that sat at 99 % printed the same line 27 times on everis2.
+
 ## [2.16.1] - 2026-11-03
 
 Dependency fixes for the advisories reported since the SDK 4.14 upgrade.

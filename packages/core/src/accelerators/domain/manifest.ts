@@ -28,17 +28,36 @@ const text = (value: unknown) => (typeof value === "string" ? value.trim() : "")
 const list = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
 const texts = (value: unknown) => list(value).map(text).filter(Boolean);
 
-function component(value: unknown): Component | null {
+function component(value: unknown, say: (problem: string) => void): Component | null {
   const fields = fieldsOf(value);
   const id = text(fields?.["id"]);
   if (fields === null || id === "") return null;
   const minVersion = text(fields["minVersion"]);
+  const kind = fields["kind"] === "app" ? "app" : "plugin";
+  const demoData = fields["demoData"] === true;
+  if (demoData && kind === "plugin") say("demoData is for store applications only");
   return {
-    kind: fields["kind"] === "app" ? "app" : "plugin",
+    kind,
     id,
     minVersion: minVersion === "" ? null : minVersion,
     entitlement: fields["entitlement"] === "licensed" ? "licensed" : "free",
+    ...(demoData && kind === "app" ? { demoData: true as const } : {}),
   };
+}
+
+// A module installed without --demo must not need a demo module, which is then left out.
+function demoDependencyProblems(capabilities: readonly Capability[]): string[] {
+  const demo = new Set(capabilities.filter((c) => c.demo === true).map((c) => c.id));
+  return capabilities
+    .filter((c) => c.demo !== true)
+    .flatMap((c) =>
+      c.dependsOn
+        .filter((d) => demo.has(d))
+        .map(
+          (d) =>
+            `module ${c.id}: depends on ${d}, a demo module: without --demo it would be installed without it`,
+        ),
+    );
 }
 
 function columnsOf(value: unknown): DataColumn[] {
@@ -106,7 +125,9 @@ function capability(pack: string, id: string, value: unknown, problems: string[]
   const say = (problem: string) => problems.push(`module ${id}: ${problem}`);
   if (!ID.test(id)) say("its folder name must be lowercase letters, digits, - or _");
   const components = list(fields["components"]).map(
-    (p, i) => component(p) ?? say(`component ${i + 1} needs an id`),
+    (p, i) =>
+      component(p, (problem) => say(`component ${i + 1}: ${problem}`)) ??
+      say(`component ${i + 1} needs an id`),
   );
   const data = list(fields["data"]).map(
     (d, i) => entity(d) ?? say(`data ${i + 1} needs entity, table and key`),
@@ -121,6 +142,7 @@ function capability(pack: string, id: string, value: unknown, problems: string[]
     components: components.filter((c): c is Component => typeof c === "object"),
     data: data.filter((d): d is DataEntity => typeof d === "object"),
     fields: required.filter((f): f is RequiredField => f !== null),
+    ...(fields["demo"] === true ? { demo: true as const } : {}),
   };
 }
 
@@ -165,6 +187,7 @@ export function parseManifest(document: unknown): ManifestOutcome {
     .map(([id, value]) => capability(head.id, id, value, problems))
     .sort((a, b) => a.id.localeCompare(b.id));
   const profiles = profilesOf(fields["profiles"], new Set(entries.map(([id]) => id)), problems);
+  problems.push(...demoDependencyProblems(capabilities));
   if (problems.length > 0) return { ok: false, problems };
   const graph = graphProblems(capabilities);
   return graph.length > 0

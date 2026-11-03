@@ -23,6 +23,19 @@ describe("the install journal and lock (ADR-0038, item 2.5)", () => {
     expect(await journal.read()).toBeNull();
   });
 
+  it("keeps the progress of a component change whose outcome was lost (spec 011, I3 c)", async () => {
+    const journal = fresh();
+    const lost = {
+      step: "install sn_dex 5.3.2",
+      outcome: "stopped" as const,
+      detail: "the state of sn_dex's install is unknown: socket hang up",
+      seconds: 60,
+      progressId: "prog9",
+    };
+    await journal.write({ planId: "p", startedAt: "s", steps: [lost] });
+    expect((await journal.read())?.steps[0]).toEqual(lost);
+  });
+
   it("keeps fields a newer version wrote", async () => {
     const directory = join(mkdtempSync(join(tmpdir(), "install-")), "pdi");
     mkdirSync(directory, { recursive: true });

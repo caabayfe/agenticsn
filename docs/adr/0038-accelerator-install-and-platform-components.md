@@ -1,7 +1,9 @@
 # 0038. Accelerators install by plan; platform components install automatically on every instance
 
-- Status: Accepted (product owner, 2026-10-19; decisions of 2026-10-18). Spike S-E passed; the
-  store application installer (I3) still waits for spike S-F of spec 011. Section 6 amended
+- Status: Accepted (product owner, 2026-10-19; decisions of 2026-10-18). Spikes S-E and S-F
+  passed; the store application installer (I3) is built (2026-11-03). Section 4's "demo data is
+  never loaded" amended by 0048: with `--demo`, on development, the components a pack marks
+  `demoData: true` install with their demo data. Section 6 amended
   (upgrades complete the pack's earlier update sets), accepted 2026-10-22. Item 8 amended by 0042
   (layouts a module does not own are ensure rules, found by table and view). Components
   amended 2026-10-24 by the product owner: a module whose component cannot be installed is

@@ -20,6 +20,13 @@ export interface InstallView {
   readonly problems: readonly string[];
   readonly modules: readonly string[];
   readonly activates: readonly { readonly id: string; readonly modules: readonly string[] }[];
+  readonly installs: readonly {
+    readonly id: string;
+    readonly version: string;
+    readonly demoData: boolean;
+    readonly modules: readonly string[];
+  }[];
+  readonly demoOnly: readonly string[];
   readonly missingFields: readonly MissingFieldView[];
   // Warnings other than missing fields.
   readonly notes: readonly string[];
@@ -88,6 +95,17 @@ export function renderPlan(view: InstallView): string {
     ...section(
       `Activates (${view.activates.length})`,
       view.activates.map((c) => `  ${c.id}   for ${c.modules.join(", ")}`),
+    ),
+    ...section(
+      `Installs (${view.installs.length})`,
+      view.installs.map(
+        (c) =>
+          `  ${c.id} ${c.version}${c.demoData ? " with its demo data" : ""}   for ${c.modules.join(", ")}`,
+      ),
+    ),
+    ...section(
+      `Demo modules left out (${view.demoOnly.length}): install them with --demo`,
+      view.demoOnly.length === 0 ? [] : wrapped(view.demoOnly, "  ", ", "),
     ),
     ...section("Settings", [
       "  ATF test execution: turned on where it is off, in an update set set to ignore (ADR-0047)",

@@ -3,6 +3,7 @@ import { type InstallSteps, type InstanceName, LEDGER_FILE } from "@snagentic/co
 import type { z } from "zod";
 import { acceleratorAdd } from "./accelerator-add";
 import { acceleratorLoad } from "./accelerator-load";
+import { appsInstall } from "./apps-install";
 import { fluentKeys } from "./fluent-keys";
 import { integrate } from "./integrate";
 import { planPush } from "./plan-push";
@@ -54,6 +55,27 @@ export const callerFor =
 // install changing its own records: such a plan is made again with those collisions allowed.
 const ownedBy = (own: readonly string[], set: string) =>
   own.some((label) => set === `snagentic: ${label}` || set.startsWith(`snagentic: ${label} [`));
+
+// The platform components, then the pull that brings in what they installed.
+function componentSteps(
+  call: CallUseCase,
+  instance: string,
+): Pick<InstallSteps, "activatePlugin" | "installApp" | "refresh"> {
+  return {
+    async activatePlugin(id) {
+      const out = await call(pluginsActivate, { instance, id, confirm: true });
+      return { seconds: out.seconds };
+    },
+    async installApp(scope, version, demoData) {
+      const out = await call(appsInstall, { instance, scope, version, demoData, confirm: true });
+      return { seconds: out.seconds };
+    },
+    async refresh() {
+      await call(pull, { instance });
+      await call(integrate, { instance });
+    },
+  };
+}
 
 // plan_push and push for one module's update set.
 function deliverySteps(
@@ -128,18 +150,14 @@ export function installSteps(
   context: UseCaseContext,
   where: { readonly root: string; readonly instance: InstanceName; readonly pack: string },
   call: CallUseCase,
-): Omit<InstallSteps, "completeUpdateSets" | "developmentSettings" | "layouts" | "sections"> {
+): Omit<
+  InstallSteps,
+  "completeUpdateSets" | "developmentSettings" | "layouts" | "progress" | "sections"
+> {
   const instance = String(where.instance);
   const delivery = () => context.delivery(where.root, where.instance);
   return {
-    async activatePlugin(id) {
-      const out = await call(pluginsActivate, { instance, id, confirm: true });
-      return { seconds: out.seconds };
-    },
-    async refresh() {
-      await call(pull, { instance });
-      await call(integrate, { instance });
-    },
+    ...componentSteps(call, instance),
     async add(modules) {
       const out = await call(acceleratorAdd, { pack: where.pack, instance, modules: [...modules] });
       return { copied: out.copied, conflicts: out.conflicts };

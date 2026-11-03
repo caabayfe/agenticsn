@@ -415,6 +415,24 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `apps install`
+
+```
+snagentic apps install <instance> <scope> [options]
+```
+
+Install a store application the instance's store offers on a development instance, with ServiceNow's CI/CD API, and follow it to the end: the version named, or the store's latest. With --demo-data it also loads the application's own demo data. Never upgrades, never retried. Cannot be undone by snagentic.
+
+Changes the instance: **yes, development instances only**. MCP tool: none.
+
+Options:
+
+- `--version <value>`: the version to install; the store's latest when absent
+- `--demo-data`: also load the application's demo data, which snagentic cannot remove
+- `--confirm`: confirm that this changes the instance
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `accelerator list`
 
 ```

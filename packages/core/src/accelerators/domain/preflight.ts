@@ -1,9 +1,13 @@
+import { olderThan } from "../../kernel/version-order";
 import type { Component, Manifest } from "./manifest-types";
+
+export { olderThan };
 
 // Whether a pack's modules can be installed on an instance, from the mirror's component
 // inventory alone (ADR-0026: check reads no instance). Pure.
 
-export type ComponentState = "active" | "inactive" | "missing" | "too-old";
+// available: a store application the instance lacks and the store offers (spec 011, I3).
+export type ComponentState = "active" | "inactive" | "available" | "missing" | "too-old";
 // Most serious first: a module takes the first that applies.
 export type CapabilityState = "not-entitled" | "needs-components" | "blocked" | "ready";
 
@@ -13,6 +17,16 @@ export interface InstalledComponent {
   readonly id: string;
   readonly active: boolean;
   readonly version: string;
+}
+
+// A store application the instance's store offers, read live when an install is planned: the
+// mirror's inventory holds only what is installed.
+export interface AvailableApp {
+  readonly scope: string;
+  // The store's latest version: the one an install gets.
+  readonly version: string;
+  // The store refuses to install it on this instance.
+  readonly blocked: boolean;
 }
 
 export interface ComponentCheck {
@@ -46,21 +60,16 @@ export interface PreflightReport {
   readonly capabilities: readonly CapabilityReport[];
 }
 
-const parts = (version: string) => version.split(/[.-]/).map((p) => Number.parseInt(p, 10) || 0);
-
-// a < b, comparing numeric segments (1.10.0 is newer than 1.9.4).
-export function olderThan(a: string, b: string): boolean {
-  const [x, y] = [parts(a), parts(b)];
-  for (let i = 0; i < Math.max(x.length, y.length); i++) {
-    const [p, q] = [x[i] ?? 0, y[i] ?? 0];
-    if (p !== q) return p < q;
-  }
-  return false;
-}
+const offers = (required: Component, offer: AvailableApp | undefined): offer is AvailableApp =>
+  required.kind === "app" &&
+  offer !== undefined &&
+  !offer.blocked &&
+  (required.minVersion === null || !olderThan(offer.version, required.minVersion));
 
 function checkComponent(
   required: Component,
   installed: InstalledComponent | undefined,
+  offer: AvailableApp | undefined,
 ): ComponentCheck {
   const base = {
     kind: required.kind,
@@ -68,7 +77,11 @@ function checkComponent(
     minVersion: required.minVersion,
     entitlement: required.entitlement,
   };
-  if (installed === undefined) return { ...base, state: "missing", version: null };
+  if (installed === undefined) {
+    return offers(required, offer)
+      ? { ...base, state: "available", version: offer.version }
+      : { ...base, state: "missing", version: null };
+  }
   const old = required.minVersion !== null && olderThan(installed.version, required.minVersion);
   const state = old ? "too-old" : installed.active ? "active" : "inactive";
   return { ...base, state, version: installed.version };
@@ -81,17 +94,23 @@ function ownState(components: readonly ComponentCheck[]): CapabilityState {
   return components.some((c) => c.state !== "active") ? "needs-components" : "ready";
 }
 
-// Active, or a plugin the install activates through the platform's installer.
+// Active, or what the install gets through the platform's installer: an inactive plugin it
+// activates, a store application the store offers.
 const activatedByInstall = (c: ComponentCheck) =>
-  c.state === "active" || (c.state === "inactive" && c.kind === "plugin");
+  c.state === "active" ||
+  c.state === "available" ||
+  (c.state === "inactive" && c.kind === "plugin");
 
 function nextSteps(components: readonly ComponentCheck[], instance: string): string[] {
-  const inactive = components.filter((c) => c.state === "inactive" && c.kind === "plugin");
-  if (inactive.length === 0) return [];
-  return [
-    ...inactive.map((c) => `snagentic plugins activate ${instance} ${c.id} --confirm`),
-    `snagentic pull ${instance}`,
-  ];
+  const commands = components.flatMap((c) => {
+    if (c.state === "inactive" && c.kind === "plugin") {
+      return [`snagentic plugins activate ${instance} ${c.id} --confirm`];
+    }
+    return c.state === "available"
+      ? [`snagentic apps install ${instance} ${c.id} --version ${c.version} --confirm`]
+      : [];
+  });
+  return commands.length === 0 ? [] : [...commands, `snagentic pull ${instance}`];
 }
 
 function packProblems(manifest: Manifest, snagentic: string): string[] {
@@ -117,6 +136,8 @@ export function preflight(input: {
   // Module ids, dependencies first (selectCapabilities).
   readonly selected: readonly string[];
   readonly components: readonly InstalledComponent[];
+  // Store applications the store offers; empty where it was not read (accelerator check).
+  readonly available?: readonly AvailableApp[];
   readonly snagentic: string;
   readonly instance: string;
   // The instance's platform family ("australia"), when known.
@@ -124,12 +145,15 @@ export function preflight(input: {
 }): PreflightReport {
   const keyOf = (c: { readonly kind: string; readonly id: string }) => `${c.kind}:${c.id}`;
   const installed = new Map(input.components.map((c) => [keyOf(c), c]));
+  const store = new Map((input.available ?? []).map((a) => [a.scope, a]));
   const states = new Map<string, CapabilityState>();
   const installable = new Map<string, boolean>();
   const capabilities = input.selected.flatMap((id) => {
     const capability = input.manifest.capabilities.find((c) => c.id === id);
     if (capability === undefined) return [];
-    const components = capability.components.map((r) => checkComponent(r, installed.get(keyOf(r))));
+    const components = capability.components.map((r) =>
+      checkComponent(r, installed.get(keyOf(r)), store.get(r.id)),
+    );
     const own = ownState(components);
     const waitsOn = capability.dependsOn.filter((d) => states.get(d) !== "ready");
     const state: CapabilityState = own === "ready" && waitsOn.length > 0 ? "blocked" : own;

@@ -149,6 +149,43 @@ describe("accelerator install (ADR-0038)", () => {
     ]);
   });
 
+  it("reads the outcome an earlier run lost from the instance's progress, not by asking again (spec 011, I3 c)", async () => {
+    const installed = await installing();
+    const input = { pack: "minimal", instance: "pdi", profile: "core", demo: true };
+    const { output: plan } = await executeUseCase(acceleratorInstall, input, installed.context);
+    const planId = (plan as { planId: string }).planId;
+    const lost = {
+      planId,
+      startedAt: "2026-11-03T10:00:00.000Z",
+      steps: [
+        {
+          step: "install sn_dex 5.3.2",
+          outcome: "stopped" as const,
+          detail: "the state of sn_dex's install is unknown: socket hang up",
+          seconds: 60,
+          progressId: "progress-lost",
+        },
+      ],
+    };
+    const context = {
+      ...installed.context,
+      workspaceFiles: fsWorkspaceFiles,
+      installJournal: () => ({ ...installed.context.installJournal(), read: async () => lost }),
+    };
+    const { output } = await executeUseCase(
+      acceleratorInstall,
+      { ...input, confirm: planId },
+      context,
+    );
+    const steps = (output as { steps: { step: string; detail: string }[] }).steps;
+    expect(
+      steps.find((s) => s.step === "install sn_dex 5.3.2" && s.detail.startsWith("finished")),
+    ).toMatchObject({
+      detail: "finished on the instance after the run lost it (progress progress-lost)",
+    });
+    expect(installed.instance.installs).toEqual([]);
+  });
+
   it("reads the layouts and form sections its modules add to from the instance, live (ADR-0042)", async () => {
     const SOW = "f5c0a49877413010dc2c885d9f5a999e";
     const installed = await installing({
@@ -257,6 +294,8 @@ describe("accelerator install (ADR-0038)", () => {
       "major-incident",
     ],
     activates: [{ id: "com.snc.pa.premium", modules: ["incident-analytics"] }],
+    installs: [],
+    demoOnly: [],
     missingFields: [
       {
         field: "incident.problem_id",
@@ -308,6 +347,30 @@ describe("accelerator install (ADR-0038)", () => {
       "    --confirm adc383e455869b0c",
     ]);
     expect(acceleratorInstall.exitCode(VIEW)).toBe(0);
+  });
+
+  it("shows the store applications it installs, with their demo data, and the demo modules it leaves out (spec 011 I3, ADR-0048)", () => {
+    const lines = acceleratorInstall
+      .render(
+        {
+          ...VIEW,
+          installs: [
+            { id: "sn_dex", version: "5.3.2", demoData: true, modules: ["zt-dex"] },
+            { id: "sn_ztsd", version: "3.3.3", demoData: false, modules: ["zt-l1-specialist"] },
+          ],
+          demoOnly: ["zt-dex-demo", "zt-demo-history"],
+        },
+        "text",
+      )
+      .split("\n");
+    const at = lines.indexOf("Installs (2)");
+    expect(lines.slice(at, at + 3)).toEqual([
+      "Installs (2)",
+      "  sn_dex 5.3.2 with its demo data   for zt-dex",
+      "  sn_ztsd 3.3.3   for zt-l1-specialist",
+    ]);
+    const left = lines.indexOf("Demo modules left out (2): install them with --demo");
+    expect(lines[left + 1]).toBe("  zt-dex-demo, zt-demo-history");
   });
 
   it("shows a blocked plan's problems and exits 1", () => {

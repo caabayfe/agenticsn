@@ -7,6 +7,14 @@ export {
   DEFAULT_LIMITS,
 } from "./application/activate-plugin";
 export {
+  installStoreApp,
+  type StoreInstallDependencies,
+  type StoreInstallOutcome,
+  type StoreInstallRequest,
+  type StoreOffer,
+  storeOffers,
+} from "./application/install-store-app";
+export {
   listPlugins,
   type Plugin,
   type PluginFilter,
@@ -15,13 +23,21 @@ export {
 } from "./application/list-plugins";
 export {
   ActivationStateUnknownError,
+  ComponentChangeFailedError,
+  ComponentChangeRunningError,
   ConfirmationRequiredError,
   PluginActivationFailedError,
   PluginNotFoundError,
+  StoreAppInstallFailedError,
+  StoreAppInstallStateUnknownError,
+  StoreAppNotOfferedError,
+  StoreAppOutdatedError,
+  UnknownOutcomeError,
 } from "./domain/errors";
 export type {
   ActivationProgress,
   ActivationStatus,
   InventoryReader,
   PluginActivator,
+  StoreAppInstaller,
 } from "./ports";

@@ -1,5 +1,11 @@
 import { isFormFieldFact, isListFact } from "./ensure";
-import { dataSection, deletionsSection, fieldsSection, table } from "./install-document-sections";
+import {
+  componentNotes,
+  dataSection,
+  deletionsSection,
+  fieldsSection,
+  table,
+} from "./install-document-sections";
 import type {
   InstallPlan,
   InstallRecord,
@@ -13,6 +19,7 @@ import type {
 const ACTION: Readonly<Record<PlannedComponent["action"], string>> = {
   none: "nothing (already active)",
   activate: "**activate**",
+  install: "**install**",
   blocked: "**blocked**",
 };
 
@@ -27,6 +34,8 @@ function selectionText(plan: InstallPlan): string {
 
 function summary(plan: InstallPlan): string[] {
   const activations = plan.components.filter((c) => c.action === "activate").length;
+  const installs = plan.components.filter((c) => c.action === "install").length;
+  const installed = installs === 0 ? "" : ` and ${installs} store application(s) installed`;
   const rows = plan.data.entities.reduce((n, e) => n + e.rows, 0);
   const files = plan.modules.reduce((n, m) => n + m.files.length, 0);
   const listed = plan.modules.some((m) => m.deletions.length > 0)
@@ -38,7 +47,7 @@ function summary(plan: InstallPlan): string[] {
     `- **Plan id:** \`${plan.planId}\``,
     `- **Instance:** ${plan.instance.name} (${plan.instance.kind})`,
     `- **Selection:** ${selectionText(plan)}: ${plan.modules.map((m) => m.id).join(", ")}`,
-    `- **Changes:** ${activations} component(s) activated; ${plan.modules.length} module(s) delivered from ${files} source file(s), each into its own update set; ${rows} ${plan.data.source === "demo" ? "fictional demo" : "customer"} data row(s) loaded`,
+    `- **Changes:** ${activations} component(s) activated${installed}; ${plan.modules.length} module(s) delivered from ${files} source file(s), each into its own update set; ${rows} ${plan.data.source === "demo" ? "fictional demo" : "customer"} data row(s) loaded`,
     "",
     `**It will not:** delete a record other than ${listed}the form element of a field a module no longer adds, change a record the plan does not list, write to a test or production instance, move, commit or cancel an update set, or complete an update set the plan does not list. Customizations are promoted with the platform's own update set process.`,
   ];
@@ -50,6 +59,7 @@ function components(plan: InstallPlan): string[] {
     "",
     "Installed through the platform's own installer, one at a time, waiting for each to finish. Activating a plugin usually cannot be undone; demo data is never loaded.",
     "",
+    ...componentNotes(plan),
     ...table(
       ["Component", "Kind", "Needed by", "On the instance", "The install will"],
       plan.components.map((c) => [
@@ -57,7 +67,7 @@ function components(plan: InstallPlan): string[] {
         c.kind,
         c.modules.join(", "),
         `${c.state}${c.version === null ? "" : ` ${c.version}`}`,
-        `${ACTION[c.action]}${c.action === "none" ? "" : `: ${c.reason}`}`,
+        `${c.demoData === true ? "**install with its demo data**" : ACTION[c.action]}${c.action === "none" ? "" : `: ${c.reason}`}`,
       ]),
     ),
     "",

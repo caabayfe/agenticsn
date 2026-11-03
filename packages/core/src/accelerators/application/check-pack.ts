@@ -4,7 +4,7 @@ import { InvalidPackError, PackNotFoundError } from "../domain/errors";
 import { parseManifest } from "../domain/manifest";
 import type { Manifest } from "../domain/manifest-types";
 import { packDocument } from "../domain/pack-layout";
-import { type PreflightReport, preflight } from "../domain/preflight";
+import { type AvailableApp, type PreflightReport, preflight } from "../domain/preflight";
 import type { PackSource } from "../ports";
 
 export interface PackSummary {
@@ -67,6 +67,8 @@ export const selectionOf = (query: Selection): Selection => ({
 export async function checkPack(
   deps: { readonly packs: PackSource; readonly inventory: InventoryReader },
   query: PackQuery,
+  // What the store offers, where it was read (an install's plan): check itself reads no instance.
+  available: readonly AvailableApp[] = [],
 ): Promise<PackCheck> {
   const manifest = await manifestOf(deps.packs, query.pack);
   const { capabilities: selected, unknown } = selectCapabilities(manifest, selectionOf(query));
@@ -96,6 +98,7 @@ export async function checkPack(
     manifest,
     selected,
     components,
+    available,
     snagentic: query.snagentic,
     instance: name,
   });

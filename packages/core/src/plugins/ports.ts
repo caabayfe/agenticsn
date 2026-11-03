@@ -23,3 +23,16 @@ export interface PluginActivator {
   activate(pluginId: string, signal: AbortSignal): Promise<ActivationProgress>;
   progress(progressId: string, signal: AbortSignal): Promise<ActivationProgress>;
 }
+
+// ServiceNow's CI/CD API for store applications (sn_cicd/app_repo, spec 011, I3). Starting an
+// install changes the instance; it is never retried, and asks for the application's demo data only
+// when told to (ADR-0048).
+export interface StoreAppInstaller {
+  install(
+    scope: string,
+    version: string,
+    demoData: boolean,
+    signal: AbortSignal,
+  ): Promise<ActivationProgress>;
+  progress(progressId: string, signal: AbortSignal): Promise<ActivationProgress>;
+}

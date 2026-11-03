@@ -9,6 +9,8 @@ export interface Component {
   // null: any version.
   readonly minVersion: string | null;
   readonly entitlement: "free" | "licensed";
+  // A store application whose own demo data loads with --demo, on development only (ADR-0048).
+  readonly demoData?: true;
 }
 
 // A template column's rules: a mandatory field, and a reference to another entity's key.
@@ -65,6 +67,8 @@ export interface Capability {
   readonly data: readonly DataEntity[];
   // Declared in module.yaml's `fields`; the data columns' fields are added when checked.
   readonly fields: readonly RequiredField[];
+  // A demo module: in the profiles, installed only with --demo (ADR-0048).
+  readonly demo?: true;
 }
 
 export interface Manifest {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { type Manifest, parseManifest, preflight } from "@snagentic/core";
+import { type AvailableApp, type Manifest, parseManifest, preflight } from "@snagentic/core";
 
 const manifest = (() => {
   const outcome = parseManifest({
@@ -33,6 +33,10 @@ const manifest = (() => {
         components: [
           { kind: "app", id: "sn_mobile_agent", minVersion: "3.0.0", entitlement: "free" },
         ],
+      },
+      specialist: {
+        label: "specialist",
+        components: [{ kind: "app", id: "sn_ztsd", minVersion: "3.0.0", entitlement: "licensed" }],
       },
     },
   });
@@ -148,6 +152,51 @@ describe("accelerator preflight (ADR-0026, ADR-0038)", () => {
     expect(check([installedApp("sn_mobile_agent", true)])?.state).toBe("ready");
     // A plugin with the application's scope as its id is not the application.
     expect(check([installed("sn_mobile_agent", true)])?.state).toBe("needs-components");
+  });
+
+  it("plans a store application the store offers and the instance lacks, at the store's latest version (spec 011, I3)", () => {
+    const check = (available: readonly AvailableApp[]) =>
+      run({ selected: ["mobile"], components: [], available }).capabilities[0];
+    expect(check([{ scope: "sn_mobile_agent", version: "3.4.1", blocked: false }])).toMatchObject({
+      state: "needs-components",
+      components: [{ kind: "app", state: "available", version: "3.4.1", minVersion: "3.0.0" }],
+      next: [
+        "snagentic apps install pdi2 sn_mobile_agent --version 3.4.1 --confirm",
+        "snagentic pull pdi2",
+      ],
+      installable: true,
+    });
+    // The store's version below the module's minimum, or an install the store blocks: missing.
+    expect(
+      check([{ scope: "sn_mobile_agent", version: "2.9.0", blocked: false }])?.components[0]?.state,
+    ).toBe("missing");
+    expect(
+      check([{ scope: "sn_mobile_agent", version: "3.4.1", blocked: true }])?.components[0]?.state,
+    ).toBe("missing");
+  });
+
+  it("treats a licensed application the store offers as entitled: the store offers only what the instance may install", () => {
+    const report = run({
+      selected: ["specialist"],
+      components: [],
+      available: [{ scope: "sn_ztsd", version: "3.3.3", blocked: false }],
+    });
+    expect(report.capabilities[0]).toMatchObject({ state: "needs-components", installable: true });
+    expect(run({ selected: ["specialist"], components: [] }).capabilities[0]?.state).toBe(
+      "not-entitled",
+    );
+  });
+
+  it("prefers the installed application over the store's offer", () => {
+    const report = run({
+      selected: ["mobile"],
+      components: [installedApp("sn_mobile_agent", true)],
+      available: [{ scope: "sn_mobile_agent", version: "3.4.1", blocked: false }],
+    });
+    expect(report.capabilities[0]?.components[0]).toMatchObject({
+      state: "active",
+      version: "3.1.0",
+    });
   });
 
   it("is blocked when a module it depends on is not ready", () => {

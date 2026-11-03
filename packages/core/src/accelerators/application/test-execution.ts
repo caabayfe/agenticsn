@@ -13,7 +13,11 @@ export async function turnOnTests(
   if (plan.instance.kind !== "development") return;
   if (record.current.steps.some((s) => s.step === name && s.outcome !== "stopped")) return;
   await step(deps, record, name, async () => {
-    const { changed, missing } = await deps.steps.developmentSettings(TEST_EXECUTION, signal);
+    const { changed, missing } = await deps.steps.developmentSettings(
+      TEST_EXECUTION,
+      signal,
+      "tests",
+    );
     const lacks = missing.length === 0 ? "" : `; the instance lacks ${missing.join(", ")}`;
     return {
       outcome: "done",
@@ -21,6 +25,33 @@ export async function turnOnTests(
         changed.length === 0
           ? `already on${lacks}`
           : `turned on ${changed.join(", ")}, in an update set set to ignore${lacks}`,
+    };
+  });
+}
+
+// The demo modules' loaders refuse until their properties are on: --demo turns them on once the
+// modules are delivered, as their own update sets ship them off (ADR-0049).
+export async function turnOnDemoModules(
+  deps: InstallRunDependencies,
+  plan: InstallPlan,
+  record: { current: InstallRecord },
+  signal: AbortSignal,
+) {
+  const name = "turn on the demo modules";
+  if (plan.instance.kind !== "development" || Object.keys(plan.demoSettings).length === 0) return;
+  await step(deps, record, name, async () => {
+    const { changed, missing } = await deps.steps.developmentSettings(
+      plan.demoSettings,
+      signal,
+      "demo",
+    );
+    if (missing.length > 0) throw new Error(`the instance lacks ${missing.join(", ")}`);
+    return {
+      outcome: "done",
+      detail:
+        changed.length === 0
+          ? "already on"
+          : `set ${changed.join(", ")}, in an update set set to ignore`,
     };
   });
 }

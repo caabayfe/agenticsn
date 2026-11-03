@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { applyDevelopmentSettings, type Row } from "@snagentic/core";
+import { applyDevelopmentSettings, DEMO_SETTINGS_SET, type Row } from "@snagentic/core";
 import { fakeInstance } from "../support/fake-instance";
 
 // Settings a development instance needs and test or production must never get (ADR-0047).
@@ -43,6 +43,14 @@ describe("development settings (ADR-0047)", () => {
     expect(set?.["state"]).toBe("ignore");
     const captured = tables["sys_update_xml"]?.filter((x) => x["name"] === "sys_properties_p0");
     expect(captured?.map((x) => x["update_set"])).toEqual([set?.["sys_id"]]);
+  });
+
+  it("writes the demo modules' settings in an update set of their own, set to ignore (ADR-0049)", async () => {
+    const { tables, session } = instance({ "nttdata.acc.demo_history.allowed": "false" });
+    const allowed = { "nttdata.acc.demo_history.allowed": "true" };
+    await applyDevelopmentSettings(session, "admin", allowed, DEMO_SETTINGS_SET);
+    const sets = (tables["sys_update_set"] ?? []).map((s) => [s["name"], s["state"]]);
+    expect(sets).toEqual([["snagentic: demo settings (development only)", "ignore"]]);
   });
 
   it("puts the user's current application and update set back", async () => {

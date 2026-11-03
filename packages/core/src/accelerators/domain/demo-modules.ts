@@ -20,8 +20,13 @@ export function demoChoice(input: {
   // Modules named with --modules.
   readonly named: readonly string[];
   readonly demo: boolean;
+  readonly development: boolean;
 }): DemoChoice {
-  if (input.demo) return { kept: input.selected, leftOut: [], problems: [] };
+  if (input.demo) {
+    // Demo content never reaches test or production, whoever plans it (ADR-0049, item 5).
+    const problems = input.development ? [] : ["--demo is for development instances only"];
+    return { kept: input.selected, leftOut: [], problems };
+  }
   const isDemo = new Set(
     input.manifest.capabilities.filter((c) => c.demo === true).map((c) => c.id),
   );
@@ -56,4 +61,19 @@ export function demoDataWarnings(
       (c) =>
         `${c.id} is already installed: its demo data loads only when it is installed, so --demo cannot add it`,
     );
+}
+
+// The settings the kept demo modules declare, set only with --demo on development (ADR-0049).
+export function demoSettings(
+  manifest: Manifest,
+  kept: readonly string[],
+  demo: boolean,
+): Readonly<Record<string, string>> {
+  if (!demo) return {};
+  return Object.fromEntries(
+    manifest.capabilities
+      .filter((c) => kept.includes(c.id))
+      .flatMap((c) => Object.entries(c.demoSettings ?? {}))
+      .sort(([a], [b]) => a.localeCompare(b)),
+  );
 }

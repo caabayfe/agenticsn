@@ -262,3 +262,80 @@ describe("--demo: demo modules and store applications' demo data (ADR-0048)", ()
     );
   });
 });
+
+// A demo module whose loader refuses until its property is on (ADR-0049).
+const SETTINGS_PACK: PackFixture = {
+  ...DEMO_PACK,
+  modules: {
+    ...DEMO_PACK.modules,
+    "dex-demo": {
+      label: "ZT: dex demo",
+      demo: true,
+      dependsOn: ["dex"],
+      components: [{ kind: "app", id: "sn_dex_demo_data" }],
+      demoSettings: { "nttdata.acc.dex_demo.allowed": "true" },
+    },
+  },
+};
+const settingsDeps = (extra: Parameters<typeof deps>[0] = {}) =>
+  demoDeps({ pack: SETTINGS_PACK, ...extra });
+
+describe("--demo turns on the demo modules it installs (ADR-0049)", () => {
+  it("plans the demo modules' settings with --demo, and none with --data", async () => {
+    const demo = await planInstall(settingsDeps(), QUERY);
+    expect(demo.demoSettings).toEqual({ "nttdata.acc.dex_demo.allowed": "true" });
+    const customer = await planInstall(settingsDeps(), CUSTOMER);
+    expect(customer.demoSettings).toEqual({});
+    expect(demo.planId).not.toBe((await planInstall(demoDeps(), QUERY)).planId);
+  });
+
+  it("refuses demo settings on a module that is not a demo module", async () => {
+    const pack: PackFixture = {
+      ...DEMO_PACK,
+      modules: {
+        ...DEMO_PACK.modules,
+        dex: {
+          label: "ZT: dex",
+          dependsOn: ["foundation"],
+          components: [{ kind: "app", id: "sn_dex", demoData: true }],
+          demoSettings: { "nttdata.acc.dex.allowed": "true" },
+        },
+      },
+    };
+    await expect(planInstall(demoDeps({ pack }), QUERY)).rejects.toThrow(
+      "module dex: demoSettings is for demo modules only",
+    );
+  });
+
+  it("refuses --demo on an instance that is not development, and plans no settings for it", async () => {
+    const plan = await planInstall(settingsDeps(), {
+      ...QUERY,
+      instance: { ...QUERY.instance, kind: "test" },
+    });
+    expect(plan.problems).toContain("--demo is for development instances only");
+    expect(plan.demoSettings).toEqual({});
+  });
+
+  it("sets them once the modules are delivered, so a module's own update set cannot turn them off", async () => {
+    const { steps, calls, demoSettings } = fakeSteps();
+    const plan = await planInstall(settingsDeps(), QUERY);
+    const result = await installPack(settingsDeps({ steps }), { ...QUERY, confirm: plan.planId });
+    expect(result.stopped).toBeNull();
+    expect(demoSettings).toEqual(["nttdata.acc.dex_demo.allowed"]);
+    const at = result.steps.findIndex((s) => s.step === "turn on the demo modules");
+    expect(at).toBeGreaterThan(result.steps.findIndex((s) => s.step === "module dex-demo"));
+    expect(result.steps[at]?.detail).toBe(
+      "set nttdata.acc.dex_demo.allowed, in an update set set to ignore",
+    );
+    expect(calls.indexOf("demo settings")).toBeGreaterThan(
+      calls.lastIndexOf("push p-ZT: dex demo"),
+    );
+  });
+
+  it("tells the admin which properties it turns on, and that they are never promoted", async () => {
+    const document = installPlanDocument(await planInstall(settingsDeps(), QUERY));
+    expect(document).toContain(
+      "**Demo modules turned on.** After the modules, the install sets `nttdata.acc.dex_demo.allowed` = `true`",
+    );
+  });
+});

@@ -4,6 +4,18 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- A demo module may declare `demoSettings` in `module.yaml`: the system properties that turn its
+  loaders on. With `--demo` on a development instance, the install sets them once the modules are
+  delivered, in an update set of its own, `snagentic: demo settings (development only)`, set to
+  *ignore*. The plan document lists them (ADR-0049).
+
+### Changed
+
+- A plan with `--demo` for an instance that is not development is a problem that stops it
+  (ADR-0049). The install was already registered for development instances only.
+
 ## [2.17.0] - 2026-11-03
 
 An accelerator install installs the store applications its modules need, with their demo data on

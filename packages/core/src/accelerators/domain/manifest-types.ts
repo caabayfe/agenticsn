@@ -69,6 +69,8 @@ export interface Capability {
   readonly fields: readonly RequiredField[];
   // A demo module: in the profiles, installed only with --demo (ADR-0048).
   readonly demo?: true;
+  // A demo module's system properties and values, set with --demo on development (ADR-0049).
+  readonly demoSettings?: Readonly<Record<string, string>>;
 }
 
 export interface Manifest {

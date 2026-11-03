@@ -660,3 +660,9 @@ Not done: the itsm pack's `demo-history` and `demo-scenarios` can move into its 
 `demo: true` (a pack change); the test and production component installer (I6) must honour item 5
 of ADR-0048 when it is built.
 
+
+**Amended by ADR-0049 (2026-11-03).** A demo module's `demoSettings` (the properties that turn
+its loaders on) are set with `--demo` on development, once the modules are delivered, in the
+ignored update set `snagentic: demo settings (development only)`. A `--demo` plan for any other
+kind of instance is a problem. The itsm pack uses it for `demo-history` and `demo-scenarios`
+(`nttdata.acc.demo_history.allowed`, `nttdata.acc.demo_scenarios.allowed`).

@@ -633,7 +633,7 @@ modules.
 | a | Demo data never requested | Met: `load_demo_data=false` on every request (adapter test) |
 | b | A component past its budget is reported, the run stops, a re-run resumes | Met, as for plugins: 45 minutes, then "unknown" with the progress id to check |
 | c | An unknown progress after a lost response is read, never re-requested | **Met, for plugins and store applications** (branch `feat/install-resume-progress`). A step that stops with its outcome unknown keeps the progress id in the journal (`progressId`). A re-run reads that progress before any component request, whatever the plan now says: finished, the step is done and the run goes on; pending or running, the run stops again with the same progress id and asks nothing; failed or canceled, it stops with the instance's reason and no progress id, so the next run requests it again. A component step the journal records as done is not requested again |
-| d | Live run | Not yet: no store application has been installed through it. First run planned on everis2 (zero-touch S0) |
+| d | Live run | **Met** on everis2, 2026-11-03: `apps install everis2 sn_voice_test_ui --confirm` installed Now Assist AIA Voice Test UI 1.0.14 in 316 s (progress `5ea3dc5a33109b10e4525e1ace5c7b6e`), without demo data. The pull after it (70.7 s, `1636c10f66`) shows only additions: 63 files in `sn_voice_test_ui` and the component scopes it ships (`sn_voice_ani`, `sn_now_keypad`, `sn_now_voice_btn`), plus four store-sync properties; nothing in the demo route's scopes changed (diff against tag `zt-voice-test-ui-before`). Found: the progress line repeated 27 times at 99 %; fixed, a line now prints only when the progress moves |
 
 ## 18. `--demo` as the one demo switch (ADR-0048, 2026-11-03)
 

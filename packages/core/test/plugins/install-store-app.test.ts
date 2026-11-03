@@ -164,6 +164,27 @@ describe("installStoreApp (spec 011, I3)", () => {
     expect(reports).toEqual([0, 50]);
   });
 
+  it("reports a progress only when it moves, not every poll (everis2, 2026-11-03)", async () => {
+    const polls = [
+      step("running", 99),
+      step("running", 99),
+      step("running", 99),
+      step("successful", 100),
+    ];
+    const { deps } = setup({}, [step("running", 50), ...polls]);
+    const reports: string[] = [];
+    await installStoreApp(
+      deps,
+      "pdi",
+      "sn_ztsd",
+      { version: null, demoData: false },
+      LIVE,
+      (p) => reports.push(`${p.status} ${p.percent}`),
+      LIMITS,
+    );
+    expect(reports).toEqual(["pending 0", "running 50", "running 99"]);
+  });
+
   it("installs the version named", async () => {
     const { deps, calls } = setup({}, [step("successful", 100)]);
     await installStoreApp(

@@ -174,6 +174,8 @@ export interface InstallSteps {
   writeFile(path: string, text: string): Promise<void>;
   // A workspace file's text, relative to the workspace root; null when there is none.
   readFile(path: string): Promise<string | null>;
+  // Removes a workspace file, relative to the workspace root; committing its path records it.
+  removeFile(path: string): Promise<void>;
   commit(paths: readonly string[], message: string): Promise<string>;
 }
 

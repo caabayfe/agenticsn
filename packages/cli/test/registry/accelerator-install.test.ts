@@ -50,6 +50,7 @@ async function installing(data: Parameters<typeof instanceWorkspace>[0] = {}) {
         write: async (path: string) => {
           written.push(path);
         },
+        remove: async () => {},
       },
     },
   };

@@ -142,6 +142,9 @@ export function fakeSteps(
       files.set(path, text);
     },
     readFile: async (path) => files.get(path) ?? null,
+    removeFile: async (path) => {
+      files.delete(path);
+    },
     commit: async (paths) => {
       calls.push(`commit ${paths.length}`);
       return "r1";

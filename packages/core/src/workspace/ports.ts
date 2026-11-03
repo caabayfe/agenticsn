@@ -16,4 +16,6 @@ export interface WorkspaceFiles {
   // The file's content, or null when there is none.
   read(path: string): Promise<string | null>;
   write(path: string, content: string, options?: { readonly executable?: boolean }): Promise<void>;
+  // Removes the file; nothing when there is none.
+  remove(path: string): Promise<void>;
 }

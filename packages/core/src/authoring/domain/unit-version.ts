@@ -4,7 +4,7 @@ import type { Fields } from "./unit";
 // The fields that say whether anyone saved a record since.
 export const VERSION_FIELDS = ["sys_id", "sys_mod_count", "sys_updated_on"] as const;
 
-const stamp = (fields: Fields) =>
+export const stamp = (fields: Fields) =>
   `${fields["sys_mod_count"] ?? ""}|${fields["sys_updated_on"] ?? ""}`;
 
 // A unit's version on the instance: its head's stamp, and its rows' (ADR-0033 item 3). Saving

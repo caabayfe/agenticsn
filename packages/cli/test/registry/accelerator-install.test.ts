@@ -136,9 +136,11 @@ describe("accelerator install (ADR-0038)", () => {
       { ...input, confirm: planId },
       context,
     );
-    expect((output as { steps: { step: string }[] }).steps[0]?.step).toBe(
+    // Test execution is already on, or absent, on this instance: that step writes nothing.
+    expect((output as { steps: { step: string }[] }).steps.map((s) => s.step).slice(0, 2)).toEqual([
+      "turn on ATF test execution",
       "complete earlier update sets",
-    );
+    ]);
     expect(instance.writes[0]).toBe("update sys_update_set state=complete");
     const states = (instance.tables["sys_update_set"] ?? []).map((r) => [r["name"], r["state"]]);
     expect(states).toEqual([
@@ -288,6 +290,9 @@ describe("accelerator install (ADR-0038)", () => {
       "",
       "Activates (1)",
       "  com.snc.pa.premium   for incident-analytics",
+      "",
+      "Settings",
+      "  ATF test execution: turned on where it is off, in an update set set to ignore (ADR-0047)",
       "",
       "Missing fields (1): the install goes on without them",
       "  incident.problem_id   (ships with com.snc.incident)",

@@ -57,6 +57,13 @@ export interface PlannedEntity {
 // A platform field a module reads, as the mirror shows it (plan gap G13).
 export type PlannedField = FieldCheck;
 
+// ATF test execution, which the packs' tests need: turned on by every install on a development
+// instance, never promoted (ADR-0047).
+export const TEST_EXECUTION: Readonly<Record<string, string>> = {
+  "sn_atf.runner.enabled": "true",
+  "sn_atf.schedule.enabled": "true",
+};
+
 export interface InstallPlan {
   readonly planId: string;
   readonly pack: string;

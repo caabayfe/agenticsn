@@ -30,6 +30,8 @@ export function fakeSteps(
 ) {
   const calls: string[] = [];
   const owned: string[] = [];
+  // Development settings asked for, apart from `calls` (ADR-0047).
+  const settings: string[] = [];
   const files = new Map<string, string>(Object.entries(options.workspace ?? {}));
   const steps: InstallSteps = {
     activatePlugin: async (id) => {
@@ -38,6 +40,10 @@ export function fakeSteps(
     },
     refresh: async () => {
       calls.push("refresh");
+    },
+    developmentSettings: async (values) => {
+      settings.push(...Object.keys(values));
+      return { changed: Object.keys(values), missing: [] };
     },
     add: async (modules) => {
       calls.push(`add ${modules.join("+")}`);
@@ -150,7 +156,7 @@ export function fakeSteps(
       return "r1";
     },
   };
-  return { steps, calls, files, owned };
+  return { steps, calls, files, owned, settings };
 }
 
 export function memoryJournal(start: InstallRecord | null = null, locked = false) {

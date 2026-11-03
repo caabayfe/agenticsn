@@ -4,6 +4,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.16.1] - 2026-11-03
+
+Dependency fixes for the advisories reported since the SDK 4.14 upgrade.
+
+### Security
+
+- `joi` 17.13.9 (GHSA-4528-x5fx-h6hg, high), inside the ServiceNow SDK, and `qs` 6.16.1
+  (GHSA-6pq8-jhm2-2vcw), inside the MCP server, replace the affected versions. The `glob` and
+  `minimatch` advisories have no compatible fix and are recorded with the reason they can't
+  reach snagentic, to be reviewed by 2027-02-01 (`docs/security/advisories.md`).
+
 ## [2.16.0] - 2026-11-03
 
 Builds with ServiceNow SDK 4.14, an install turns on ATF test execution on development

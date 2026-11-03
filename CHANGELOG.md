@@ -4,6 +4,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-11-03
+
+`--demo` turns on the demo modules it installs (ADR-0049).
+
 ### Added
 
 - A demo module may declare `demoSettings` in `module.yaml`: the system properties that turn its

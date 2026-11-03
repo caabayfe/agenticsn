@@ -7,6 +7,7 @@ import {
   type PluginActivator,
   type Row,
   type ServerCostReader,
+  type StoreAppInstaller,
   type TableFingerprint,
   type TableName,
   type TableQuery,
@@ -184,6 +185,8 @@ export function fakeInstance(
   const fingerprints: string[] = [];
   // Plugin activations started, by plugin id. Activations succeed at once unless told otherwise.
   const activations: string[] = [];
+  // Store application installs started, as "<scope> <version>". They succeed at once.
+  const installs: string[] = [];
   // Aggregate requests other than fingerprints, as their queries.
   const counted: string[] = [];
   const rowsOf = (table: string): Row[] =>
@@ -197,7 +200,11 @@ export function fakeInstance(
   const writer = memoryWriter(tables, writes);
   const reader: InstanceReader &
     TableStatistics &
-    ServerCostReader & { plugins: PluginActivator; writer: InstanceWriter } = {
+    ServerCostReader & {
+      plugins: PluginActivator;
+      apps: StoreAppInstaller;
+      writer: InstanceWriter;
+    } = {
     writer,
     query: async (query) => {
       queries.push(query);
@@ -259,6 +266,25 @@ export function fakeInstance(
       semaphoreWaitMs: 0,
     }),
     stats: () => STATS,
+    apps: {
+      install: async (scope: string, version: string, demoData: boolean) => {
+        installs.push(`${scope} ${version}${demoData ? " with demo data" : ""}`);
+        return {
+          progressId: `progress-${scope}`,
+          status: "running" as const,
+          percent: 0,
+          message: "",
+          error: "",
+        };
+      },
+      progress: async (progressId: string) => ({
+        progressId,
+        status: "successful" as const,
+        percent: 100,
+        message: "",
+        error: "",
+      }),
+    },
     plugins: {
       activate: async (pluginId: string) => {
         activations.push(pluginId);
@@ -279,5 +305,5 @@ export function fakeInstance(
       }),
     },
   };
-  return { reader, queries, fingerprints, counted, tables, activations, writes, writer };
+  return { reader, queries, fingerprints, counted, tables, activations, installs, writes, writer };
 }

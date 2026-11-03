@@ -46,3 +46,50 @@ export class ConfirmationRequiredError extends SnagenticError {
     );
   }
 }
+
+export class StoreAppNotOfferedError extends SnagenticError {
+  constructor(instance: string, scope: string) {
+    super(
+      "store-app-not-offered",
+      "precondition",
+      `${instance}'s store does not offer ${scope} for install`,
+      `check the scope and the instance's entitlement in Application Manager (snagentic plugins list ${instance} ${scope} shows what is installed)`,
+    );
+  }
+}
+
+export class StoreAppOutdatedError extends SnagenticError {
+  constructor(scope: string, installed: string, wanted: string) {
+    super(
+      "store-app-outdated",
+      "precondition",
+      `${scope} ${installed} is installed, older than ${wanted}`,
+      "upgrade it in Application Manager, where its upgrade notes are shown; snagentic installs, it does not upgrade",
+    );
+  }
+}
+
+export class StoreAppInstallFailedError extends SnagenticError {
+  constructor(scope: string, progressId: string, reason: string) {
+    super(
+      "store-app-install-failed",
+      "remote",
+      `installing ${scope} failed: ${reason || "no reason given"} (progress ${progressId})`,
+      "read the application's install log in Application Manager before trying again",
+    );
+  }
+}
+
+// The instance may or may not be installing the application: never assume either way, never retry.
+export class StoreAppInstallStateUnknownError extends SnagenticError {
+  constructor(scope: string, reason: string, progressId: string | null) {
+    super(
+      "store-app-install-state-unknown",
+      "remote",
+      `the state of ${scope}'s install is unknown: ${reason}`,
+      progressId === null
+        ? `check in Application Manager whether ${scope} is installing before trying again; it was not retried`
+        : `check progress ${progressId} on the instance (sys_execution_tracker) before trying again; it was not retried`,
+    );
+  }
+}

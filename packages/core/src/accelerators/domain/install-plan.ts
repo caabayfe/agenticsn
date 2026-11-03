@@ -17,6 +17,8 @@ export type ComponentAction =
   | "none"
   // An inactive plugin: activated through the platform's installer, waiting for it to finish.
   | "activate"
+  // A store application the store offers: installed at the plan's version (spec 011, I3).
+  | "install"
   // Nothing snagentic may do: the plan cannot run until it is resolved on the instance.
   | "blocked";
 
@@ -25,6 +27,8 @@ export interface PlannedComponent extends ComponentCheck {
   readonly modules: readonly string[];
   readonly action: ComponentAction;
   readonly reason: string;
+  // Installed with its own demo data (--demo on development, ADR-0048).
+  readonly demoData?: true;
 }
 
 export interface PlannedModule {
@@ -75,6 +79,8 @@ export interface InstallPlan {
   // Selected modules the install leaves out: they need a component it cannot install, or
   // depend on such a module (owner, 2026-10-24; spec 011, section 16).
   readonly skipped: readonly SkippedModule[];
+  // Demo modules the selection holds, left out without --demo (ADR-0048).
+  readonly demoOnly: readonly string[];
   readonly components: readonly PlannedComponent[];
   // The platform fields the modules read, each with its state on the instance.
   readonly fields: readonly PlannedField[];
@@ -105,6 +111,12 @@ function actionOf(check: ComponentCheck): { action: ComponentAction; reason: str
     return {
       action: "blocked",
       reason: `${check.version} is older than ${check.minVersion}: upgrade it on the instance`,
+    };
+  }
+  if (check.state === "available") {
+    return {
+      action: "install",
+      reason: `in the store, not installed: installed by the install at ${check.version ?? ""}`,
     };
   }
   if (check.state === "missing") {
@@ -175,11 +187,14 @@ export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
     modules: plan.modules.map((m) => ({ id: m.id, label: m.label, files: [...m.files] })),
     // Absent when empty, so plans that skip nothing keep the ids they had.
     ...(plan.skipped.length === 0 ? {} : { skipped: plan.skipped.map((m) => m.id) }),
+    // Absent when empty, so plans without demo modules keep the ids they had.
+    ...(plan.demoOnly.length === 0 ? {} : { demoOnly: [...plan.demoOnly] }),
     components: plan.components.map((c) => ({
       key: `${c.kind}:${c.id}`,
       state: c.state,
       version: c.version,
       action: c.action,
+      ...(c.demoData === true ? { demoData: true } : {}),
     })),
     fields: plan.fields.map((f) => `${f.module} ${f.table}.${f.field} ${f.state}`),
     // Absent when empty, so plans without earlier sets keep the ids they had.

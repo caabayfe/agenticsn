@@ -1,11 +1,13 @@
 import { sha256Hex } from "../../kernel/sha256";
 import { selectCapabilities } from "../domain/capability-graph";
 import type { DataDomain } from "../domain/data-domain";
+import { demoChoice, demoDataWarnings, loadsDemoData } from "../domain/demo-modules";
 import { earlierSets, recordedSets } from "../domain/earlier-sets";
 import {
   blockingProblems,
   type InstallPlan,
   installPlanId,
+  type PlannedComponent,
   type PlannedModule,
   plannedComponents,
   skippedModules,
@@ -143,7 +145,9 @@ async function plannedPlatform(
   facts: { readonly report: PreflightReport; readonly domain: DataDomain },
 ) {
   const components = plannedComponents(facts.report);
-  const activated = new Set(components.filter((c) => c.action === "activate").map((c) => c.id));
+  const activated = new Set(
+    components.filter((c) => c.action === "activate" || c.action === "install").map((c) => c.id),
+  );
   const required = await plannedFields(deps, manifest, selected, query.instance.name, {
     activated,
     domain: facts.domain,
@@ -151,36 +155,107 @@ async function plannedPlatform(
   return { components, required };
 }
 
-// The install plan (ADR-0038, item 2.1): reads the pack and the mirror, writes nothing.
-export async function planInstall(
+// The components that install with their own demo data, and the warnings for those that cannot:
+// --demo on a development instance, declared by a kept module (ADR-0048).
+function withDemoData(
+  manifest: Manifest,
+  selected: readonly string[],
+  components: readonly PlannedComponent[],
+  query: InstallQuery,
+) {
+  const demo = query.source.kind === "demo" && query.instance.kind === "development";
+  const declared = new Set(
+    manifest.capabilities
+      .filter((c) => selected.includes(c.id))
+      .flatMap((c) => c.components.filter((r) => r.demoData === true).map((r) => r.id)),
+  );
+  return {
+    components: components.map((c) =>
+      loadsDemoData(c, declared.has(c.id), demo) ? { ...c, demoData: true as const } : c,
+    ),
+    warnings: demoDataWarnings(
+      components.map((c) => ({ id: c.id, state: c.state, declared: declared.has(c.id) })),
+      demo,
+    ),
+  };
+}
+
+// What the store offers for the selected modules' applications, asked only when one needs any.
+async function offered(
+  deps: InstallPlanDependencies,
+  manifest: Manifest,
+  chosen: readonly string[],
+  signal: AbortSignal,
+) {
+  const scopes = manifest.capabilities
+    .filter((c) => chosen.includes(c.id))
+    .flatMap((c) => c.components.filter((r) => r.kind === "app").map((r) => r.id));
+  const unique = [...new Set(scopes)];
+  return unique.length === 0 ? [] : deps.catalog.available(unique, signal);
+}
+
+// The modules the plan keeps after the demo choice (ADR-0048), and the preflight of those only,
+// against the mirror and the store's offer for their applications.
+async function plannedSelection(
   deps: InstallPlanDependencies,
   query: InstallQuery,
-): Promise<InstallPlan> {
+  manifest: Manifest,
+) {
   const selection = selectionOf(query);
-  const check = await checkPack(deps, {
-    ...selection,
-    pack: query.pack,
-    instance: query.instance,
-    snagentic: query.snagentic,
+  const { capabilities: all } = selectCapabilities(manifest, selection);
+  const choice = demoChoice({
+    manifest,
+    selected: all,
+    named: query.modules ?? [],
+    demo: query.source.kind === "demo",
   });
-  const manifest = await manifestOf(deps.packs, query.pack);
-  const files = await deps.packs.files(query.pack);
-  const { capabilities: chosen } = selectCapabilities(manifest, selection);
-  const report = check.report ?? { problems: [], warnings: [], capabilities: [] };
-  const { skipped, selected, kept } = keptModules(report, chosen);
-  const built = plannedModules(manifest, selected, files, (t) => deps.packs.parse(t));
-  const planned = await plannedData(deps, query, manifest, selected);
-  const { components, required } = await plannedPlatform(deps, query, manifest, selected, {
-    report: kept,
-    domain: planned.data.domain,
-  });
-  const leftovers = await plannedLeftovers(deps, manifest, files);
-  const leftover = leftoverProblem(leftovers);
+  const chosen = choice.kept;
+  const check = await checkPack(
+    deps,
+    { ...selection, pack: query.pack, instance: query.instance, snagentic: query.snagentic },
+    await offered(deps, manifest, chosen, query.signal),
+  );
+  const checked = check.report ?? { problems: [], warnings: [], capabilities: [] };
+  const report = {
+    ...checked,
+    capabilities: checked.capabilities.filter((c) => chosen.includes(c.id)),
+  };
   const problems = [
     ...check.unknown.map((u) => `the pack has no ${u.startsWith("profile ") ? u : `module ${u}`}`),
     ...(check.report === null
       ? [`pull ${query.instance.name} first: the mirror has no component inventory`]
       : []),
+    ...choice.problems,
+  ];
+  return { selection, choice, chosen, report, problems };
+}
+
+// The install plan (ADR-0038, item 2.1): reads the pack, the mirror and the store's offer for
+// the applications it needs; writes nothing.
+export async function planInstall(
+  deps: InstallPlanDependencies,
+  query: InstallQuery,
+): Promise<InstallPlan> {
+  const manifest = await manifestOf(deps.packs, query.pack);
+  const files = await deps.packs.files(query.pack);
+  const { selection, choice, chosen, report, ...picked } = await plannedSelection(
+    deps,
+    query,
+    manifest,
+  );
+  const { skipped, selected, kept } = keptModules(report, chosen);
+  const built = plannedModules(manifest, selected, files, (t) => deps.packs.parse(t));
+  const planned = await plannedData(deps, query, manifest, selected);
+  const platform = await plannedPlatform(deps, query, manifest, selected, {
+    report: kept,
+    domain: planned.data.domain,
+  });
+  const { required } = platform;
+  const demo = withDemoData(manifest, selected, platform.components, query);
+  const leftovers = await plannedLeftovers(deps, manifest, files);
+  const leftover = leftoverProblem(leftovers);
+  const problems = [
+    ...picked.problems,
     ...blockingProblems(report, { kept: selected.length, skipped: skipped.length }),
     ...required.problems,
     ...built.problems,
@@ -194,13 +269,14 @@ export async function planInstall(
     selection,
     modules: built.modules,
     skipped,
-    components,
+    demoOnly: choice.leftOut,
+    components: demo.components,
     fields: required.fields,
     earlierSets: await plannedEarlierSets(deps, manifest, query.signal),
     data: planned.data,
     leftovers,
     problems,
-    warnings: [...report.warnings, ...required.warnings],
+    warnings: [...report.warnings, ...required.warnings, ...demo.warnings],
     basis: {
       mirrorCommit: (await deps.workspace.mirrorCommit()) ?? "",
       content: contentOf(files, selected),

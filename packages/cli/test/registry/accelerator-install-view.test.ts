@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { fieldIssues } from "@snagentic/core";
-import { activations, missingFields, notesOf } from "../../src/registry/accelerator-install-view";
+import {
+  activations,
+  installations,
+  missingFields,
+  notesOf,
+} from "../../src/registry/accelerator-install-view";
 
 // The text output groups missing platform fields by field: pdi3 lacks incident.problem_id, which
 // two modules read (2026-10-24).
@@ -61,5 +66,30 @@ describe("missing fields in the install's text output", () => {
     expect(
       activations([component("com.snc.pa.premium", "activate"), component("com.snc.pa", "none")]),
     ).toEqual([{ id: "com.snc.pa.premium", modules: ["incident-analytics"] }]);
+  });
+
+  it("names the store applications it installs, with their version and demo data", () => {
+    const app = (id: string, action: "install" | "none", demoData?: true) => ({
+      kind: "app" as const,
+      id,
+      state: "available" as const,
+      version: "1.0.0",
+      minVersion: null,
+      entitlement: "free" as const,
+      modules: ["m"],
+      action,
+      reason: "",
+      ...(demoData === undefined ? {} : { demoData }),
+    });
+    expect(
+      installations([
+        app("sn_dex", "install", true),
+        app("sn_ztsd", "install"),
+        app("sn_x", "none"),
+      ]),
+    ).toEqual([
+      { id: "sn_dex", version: "1.0.0", demoData: true, modules: ["m"] },
+      { id: "sn_ztsd", version: "1.0.0", demoData: false, modules: ["m"] },
+    ]);
   });
 });

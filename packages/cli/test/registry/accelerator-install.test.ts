@@ -257,6 +257,8 @@ describe("accelerator install (ADR-0038)", () => {
       "major-incident",
     ],
     activates: [{ id: "com.snc.pa.premium", modules: ["incident-analytics"] }],
+    installs: [],
+    demoOnly: [],
     missingFields: [
       {
         field: "incident.problem_id",
@@ -308,6 +310,30 @@ describe("accelerator install (ADR-0038)", () => {
       "    --confirm adc383e455869b0c",
     ]);
     expect(acceleratorInstall.exitCode(VIEW)).toBe(0);
+  });
+
+  it("shows the store applications it installs, with their demo data, and the demo modules it leaves out (spec 011 I3, ADR-0048)", () => {
+    const lines = acceleratorInstall
+      .render(
+        {
+          ...VIEW,
+          installs: [
+            { id: "sn_dex", version: "5.3.2", demoData: true, modules: ["zt-dex"] },
+            { id: "sn_ztsd", version: "3.3.3", demoData: false, modules: ["zt-l1-specialist"] },
+          ],
+          demoOnly: ["zt-dex-demo", "zt-demo-history"],
+        },
+        "text",
+      )
+      .split("\n");
+    const at = lines.indexOf("Installs (2)");
+    expect(lines.slice(at, at + 3)).toEqual([
+      "Installs (2)",
+      "  sn_dex 5.3.2 with its demo data   for zt-dex",
+      "  sn_ztsd 3.3.3   for zt-l1-specialist",
+    ]);
+    const left = lines.indexOf("Demo modules left out (2): install them with --demo");
+    expect(lines[left + 1]).toBe("  zt-dex-demo, zt-demo-history");
   });
 
   it("shows a blocked plan's problems and exits 1", () => {

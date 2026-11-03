@@ -2,7 +2,8 @@ import type { InstallPlan, InstallRecord } from "../domain/install-plan";
 import { type InstallRunDependencies, step } from "./install-step";
 import { recheckFields } from "./recheck-fields";
 
-// Plugins the plan activates, then a pull, then the fields that waited for them (spec 011, §15).
+// Plugins the plan activates and store applications it installs, then a pull, then the fields that
+// waited for them (spec 011, §15 and I3).
 export async function components(
   deps: InstallRunDependencies,
   plan: InstallPlan,
@@ -16,7 +17,17 @@ export async function components(
       return { outcome: "done", detail: `active after ${seconds} s` };
     });
   }
-  if (activations.length > 0) {
+  const installs = plan.components.filter((c) => c.action === "install");
+  for (const c of installs) {
+    const version = c.version ?? "";
+    const demoData = c.demoData === true;
+    const name = `install ${c.id} ${version}${demoData ? " with demo data" : ""}`;
+    await step(deps, record, name, async () => {
+      const { seconds } = await deps.steps.installApp(c.id, version, demoData, signal);
+      return { outcome: "done", detail: `installed after ${seconds} s` };
+    });
+  }
+  if (activations.length + installs.length > 0) {
     await step(deps, record, "pull and integrate", async () => {
       await deps.steps.refresh(signal);
       return { outcome: "done", detail: "the mirror holds the new components" };

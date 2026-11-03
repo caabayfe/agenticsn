@@ -88,6 +88,39 @@ describe("accelerator manifest (ADR-0026, ADR-0038)", () => {
     ]);
   });
 
+  it("reads a demo module, and a store application that brings its demo data (ADR-0048)", () => {
+    const manifest = parsed(
+      withModules({
+        dex: { components: [{ kind: "app", id: "sn_dex", demoData: true }] },
+        "dex-demo": { demo: true, dependsOn: ["dex"] },
+      }),
+    );
+    expect(manifest.capabilities[0]?.components[0]).toEqual({
+      kind: "app",
+      id: "sn_dex",
+      minVersion: null,
+      entitlement: "free",
+      demoData: true,
+    });
+    expect(manifest.capabilities[0]?.demo).toBeUndefined();
+    expect(manifest.capabilities[1]?.demo).toBe(true);
+  });
+
+  it("refuses demo data on a plugin, and a module that depends on a demo module (ADR-0048)", () => {
+    expect(
+      problems(
+        withModules({
+          base: { components: [{ kind: "plugin", id: "com.snc.x", demoData: true }] },
+          story: { demo: true },
+          real: { dependsOn: ["story"] },
+        }),
+      ),
+    ).toEqual([
+      "module base: component 1: demoData is for store applications only",
+      "module real: depends on story, a demo module: without --demo it would be installed without it",
+    ]);
+  });
+
   it("names a module without a label after its pack", () => {
     expect(parsed(withModules({ base: {} })).capabilities[0]?.label).toBe("itsm/base");
   });

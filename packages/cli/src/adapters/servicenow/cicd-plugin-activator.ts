@@ -35,7 +35,7 @@ const CicdResult = z.object({
   percent_complete: z.union([z.number(), z.string()]).optional(),
 });
 
-function progressOf(result: unknown, what: string, knownId?: string): ActivationProgress {
+export function progressOf(result: unknown, what: string, knownId?: string): ActivationProgress {
   const parsed = CicdResult.safeParse(result ?? {});
   const answer = parsed.success ? parsed.data : {};
   const progressId = answer.links?.progress?.id ?? knownId ?? "";

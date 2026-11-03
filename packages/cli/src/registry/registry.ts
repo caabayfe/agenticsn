@@ -7,6 +7,7 @@ import { acceleratorValidateData } from "./accelerator-validate-data";
 import { adopt } from "./adopt";
 import { advise } from "./advise";
 import { agentInstall } from "./agent-install";
+import { appsInstall } from "./apps-install";
 import { authLogin } from "./auth-login";
 import { authLogout } from "./auth-logout";
 import { check } from "./check";
@@ -73,6 +74,7 @@ export const USE_CASES: readonly UseCase[] = [
   updateSetsTool,
   pluginsList,
   pluginsActivate,
+  appsInstall,
   acceleratorList,
   acceleratorCheck,
   acceleratorAdd,

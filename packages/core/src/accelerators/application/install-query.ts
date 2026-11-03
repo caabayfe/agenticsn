@@ -6,6 +6,7 @@ import type {
   PackSource,
   PackWorkspace,
   SchemaReader,
+  StoreCatalog,
 } from "../ports";
 import type { DataSource } from "./validate-data";
 
@@ -29,4 +30,6 @@ export interface InstallPlanDependencies {
   readonly schema: SchemaReader;
   // The instance's update sets in progress, read live: the pack's earlier ones are completed.
   readonly updateSets: OpenUpdateSets;
+  // The store applications the instance lacks and its store offers, read live (spec 011, I3).
+  readonly catalog: StoreCatalog;
 }

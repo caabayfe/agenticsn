@@ -75,6 +75,7 @@ const deps = (domains: readonly Record<string, string>[] | null, company: boolea
   workspace,
   templates,
   updateSets: { open: async () => [] },
+  catalog: { available: async () => [] },
   schema: schema(company),
 });
 const QUERY = {

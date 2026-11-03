@@ -9,6 +9,7 @@ import {
   openUpdateSets,
   readLayouts,
   readSections,
+  storeOffers,
   VERSION,
 } from "@snagentic/core";
 import { z } from "zod";
@@ -99,6 +100,8 @@ export const acceleratorInstall = defineUseCase({
           open: (signal) =>
             openUpdateSets({ pager, statistics: reader, now: context.clock }, signal),
         },
+        // The store's offer for the pack's applications, read live (spec 011, I3).
+        catalog: { available: (scopes, signal) => storeOffers(pager, scopes, signal) },
         steps: {
           ...installSteps(
             context,

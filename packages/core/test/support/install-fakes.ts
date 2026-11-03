@@ -38,6 +38,10 @@ export function fakeSteps(
       calls.push(`activate ${id}`);
       return { seconds: 3 };
     },
+    installApp: async (scope, version, demoData) => {
+      calls.push(`install ${scope} ${version}${demoData ? " with demo data" : ""}`);
+      return { seconds: 4 };
+    },
     refresh: async () => {
       calls.push("refresh");
     },

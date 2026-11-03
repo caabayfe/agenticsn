@@ -12,7 +12,7 @@ const Module = z.object({
       z.object({
         kind: z.enum(["plugin", "app"]),
         id: z.string(),
-        state: z.enum(["active", "inactive", "missing", "too-old"]),
+        state: z.enum(["active", "inactive", "available", "missing", "too-old"]),
         version: z.string().nullable(),
         minVersion: z.string().nullable(),
         entitlement: z.enum(["free", "licensed"]),

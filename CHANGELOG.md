@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-11-03
+
 An accelerator install installs the store applications its modules need, with their demo data on
 `--demo`.
 

@@ -114,6 +114,27 @@ describe("compareUnit (ADR-0033 item 2)", () => {
     expect(compareUnit(revocationList(["number"]), listCopy(["number"]))).toEqual([]);
   });
 
+  // pdi3, 2026-11-03: a list loaded with a view the build invented points at no view, and reads
+  // an empty view name, as the default view does.
+  it("tells a list on a view that does not exist from one on the default view", () => {
+    const dangling = copy({
+      sys_id: "e".repeat(32),
+      name: "x_2222332_acc_rev_revocation",
+      view: "3e8897c5ec6f42419f61ddafee0ee733",
+      "view.name": "",
+      sys_domain: "global",
+    });
+    const differences = compareUnit(revocationList([]), dangling);
+    expect(differences).toContainEqual({
+      kind: "field",
+      table: "sys_ui_list",
+      row: "",
+      field: "view",
+      built: "Default view",
+      instance: "3e8897c5ec6f42419f61ddafee0ee733",
+    });
+  });
+
   it("compares a named view by name, whatever placeholder the build wrote", () => {
     const built = unit(
       "sys_ui_list_x_t_mobile",

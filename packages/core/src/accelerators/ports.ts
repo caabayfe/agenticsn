@@ -134,6 +134,9 @@ export interface InstallSteps {
     readonly units: number;
     readonly notApplied: number;
     readonly notCaptured: number;
+    // The update names of loaded units the update set did not record, the platform's refusals
+    // aside: what to look for on the instance.
+    readonly uncaptured: readonly string[];
     readonly updateSets: readonly string[];
     // Each unit not applied as built, with what the instance holds otherwise.
     readonly mismatched: readonly string[];
@@ -177,6 +180,8 @@ export interface InstallSteps {
   writeFile(path: string, text: string): Promise<void>;
   // A workspace file's text, relative to the workspace root; null when there is none.
   readFile(path: string): Promise<string | null>;
+  // Removes a workspace file, relative to the workspace root; committing its path records it.
+  removeFile(path: string): Promise<void>;
   commit(paths: readonly string[], message: string): Promise<string>;
 }
 

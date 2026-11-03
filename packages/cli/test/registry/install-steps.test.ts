@@ -21,18 +21,26 @@ const ANSWERS: Readonly<Record<string, unknown>> = {
   },
   push: {
     units: [
-      { applied: true, refused: null, mismatches: [] },
-      { applied: false, refused: "permission denied", mismatches: [] },
+      { updateName: "sys_x_1", captured: true, applied: true, refused: null, mismatches: [] },
       {
+        updateName: "pa_indicators_m1",
+        captured: false,
+        applied: false,
+        refused: "permission denied",
+        mismatches: [],
+      },
+      {
+        updateName: "sc_cat_item_p1",
         table: "sc_cat_item",
         name: "Peripherals",
+        captured: false,
         applied: false,
         refused: null,
         mismatches: ['sc_cat_item.version: built "1", instance "3"', "x"],
       },
     ],
     notApplied: 0,
-    notCaptured: 1,
+    notCaptured: 2,
     updateSets: [{ name: "snagentic: L" }],
     refused: [
       { table: "pa_indicators", reason: "permission denied", records: ["ACC MTTR"], action: "a" },
@@ -77,6 +85,7 @@ function fakes() {
       write: async (path, text) => {
         written.push([path, text]);
       },
+      remove: async () => {},
     },
   };
   const steps = installSteps(
@@ -133,7 +142,9 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
     expect(await steps.push("p1", "L", signal)).toEqual({
       units: 3,
       notApplied: 0,
-      notCaptured: 1,
+      notCaptured: 2,
+      // The refused record is explained by its refusal; only the other is named.
+      uncaptured: ["sc_cat_item_p1"],
       updateSets: ["snagentic: L"],
       mismatched: ['sc_cat_item Peripherals: sc_cat_item.version: built "1", instance "3"; x'],
       refused: [

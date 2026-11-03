@@ -61,6 +61,9 @@ function memoryFiles(initial: Record<string, string> = {}) {
         executables.push(path);
       }
     },
+    remove: async (path) => {
+      files.delete(path);
+    },
   };
   return { port, files, writes, executables };
 }

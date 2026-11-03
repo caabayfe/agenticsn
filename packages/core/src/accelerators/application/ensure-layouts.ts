@@ -2,9 +2,7 @@ import type { InstanceReader } from "../../connection/ports";
 import { TableName } from "../../kernel/table-name";
 import { KeysetPager } from "../../sync/application/keyset-pager";
 import {
-  type EnsureContainer,
   type EnsureFact,
-  ensureContainerSource,
   ensureSource,
   isFormFieldFact,
   isListFact,
@@ -81,7 +79,7 @@ export async function readLayouts(
 
 type EnsureSteps = Pick<
   InstallSteps,
-  "layouts" | "sections" | "project" | "writeFile" | "readFile" | "commit"
+  "layouts" | "sections" | "project" | "writeFile" | "readFile" | "removeFile" | "commit"
 >;
 
 // The layouts and forms the modules add to (ADR-0042): related lists, then form fields.
@@ -100,12 +98,14 @@ export async function ensureLayouts(
   };
 }
 
+type ListSteps = Pick<InstallSteps, "layouts" | "writeFile" | "readFile" | "removeFile" | "commit">;
+
 // The related lists the modules add to: each fact read live after the components, so a plugin
 // that replaced a layout is found by table and view; the lists to add become a generated Fluent
-// file per module, committed, and each container they add to is taken over like an adopted
-// record (a container the client customized stops for review).
+// file per module, committed. The container is never in the build: SDK 4.14 would write it with
+// the build's entries as one update that replaces the whole layout (ADR-0046).
 async function ensureLists(
-  deps: { readonly steps: Pick<InstallSteps, "layouts" | "writeFile" | "commit"> },
+  deps: { readonly steps: ListSteps },
   pack: string,
   facts: readonly ListFact[],
   signal: AbortSignal,
@@ -117,7 +117,6 @@ async function ensureLists(
     return state === undefined ? [] : [{ fact, state }];
   });
   const written: string[] = [];
-  const containers = new Map<string, EnsureContainer>();
   for (const module of [...new Set(facts.map((f) => f.capability))]) {
     const source = ensureSource(
       pack,
@@ -128,22 +127,29 @@ async function ensureLists(
     const path = `source/global/src/fluent/ensure-${module}.now.ts`;
     await deps.steps.writeFile(path, source.text);
     written.push(path);
-    for (const container of source.containers) containers.set(container.sysId, container);
   }
-  for (const container of containers.values()) {
-    const path = `source/global/src/fluent/ensure-list-${container.sysId}.now.ts`;
-    await deps.steps.writeFile(path, ensureContainerSource(container));
-    written.push(path);
+  const removed = await removeContainerFiles(deps, states);
+  if (written.length + removed.length > 0) {
+    await deps.steps.commit(
+      [...written, ...removed],
+      "chore(snagentic): the layouts the accelerator adds to",
+    );
   }
-  if (written.length > 0) {
-    await deps.steps.commit(written, "chore(snagentic): the layouts the accelerator adds to");
+  return { adoptions: [], written };
+}
+
+// The container files snagentic 2.15 and earlier generated beside the entries, for the layouts
+// these facts resolved to.
+async function removeContainerFiles(
+  deps: { readonly steps: Pick<ListSteps, "readFile" | "removeFile"> },
+  states: readonly ListState[],
+): Promise<string[]> {
+  const removed: string[] = [];
+  for (const container of new Set(states.flatMap((s) => s.container ?? []))) {
+    const path = `source/global/src/fluent/ensure-list-${container}.now.ts`;
+    if ((await deps.steps.readFile(path)) === null) continue;
+    await deps.steps.removeFile(path);
+    removed.push(path);
   }
-  const adoptions = [...containers.keys()].map((sysId) => ({
-    capability: "ensure",
-    table: "sys_ui_related_list",
-    sysId,
-    note: "related lists the modules add to",
-    whenAbsent: "stop" as const,
-  }));
-  return { adoptions, written };
+  return removed;
 }

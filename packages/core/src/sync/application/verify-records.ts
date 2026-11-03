@@ -1,6 +1,6 @@
+import { InstanceError } from "../../index-errors";
 import { TableName } from "../../kernel/table-name";
 import type { Catalog } from "../../metadata/domain/catalog";
-import { classesToPull } from "../domain/pull-scope";
 import type { RecordChanges } from "../domain/record-changes";
 import {
   childPrefixes,
@@ -10,8 +10,8 @@ import {
   hiddenKey,
   hiddenUnder,
   isHexPrefixed,
+  MAX_PREFIX,
   mergeHidden,
-  mirroredRecord,
   SPREAD_LIMIT,
   type VerifyStep,
   verifyStep,
@@ -20,6 +20,7 @@ import { type AppliedChanges, applyWithCatalog } from "./apply-with-catalog";
 import { forEachConcurrently } from "./concurrently";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import type { PullProgress } from "./pull-dependencies";
+import { exclusion, instanceByScope, mirroredByScope } from "./verify-inventory";
 
 const SYS_METADATA = TableName.parse("sys_metadata");
 
@@ -34,6 +35,15 @@ export interface RecordVerification {
   readonly unverifiable: number;
   // Listed on the instance but not storable in the mirror (unreadable class, invalid sys_id).
   readonly unmirrorable: number;
+  // Parts the instance fails to list (a row whose read ACL throws fails every page it is in),
+  // narrowed to the deepest prefix verification goes to and left unverified.
+  readonly unlisted: readonly UnlistedPart[];
+}
+
+export interface UnlistedPart {
+  readonly scope: string;
+  readonly prefix: string;
+  readonly records: number;
 }
 
 // One mirrored scope folder can hold records of several scope sys_ids ("" and global).
@@ -57,6 +67,7 @@ interface Walk {
   readonly listedHidden: Record<string, number>;
   // Records missing from the mirror -> the part whose listing found them.
   readonly missingParts: Map<string, string>;
+  readonly unlisted: UnlistedPart[];
   readonly report: {
     countRequests: number;
     listedRows: number;
@@ -71,7 +82,12 @@ function partQuery(walk: Walk, scopeId: string, prefix: string): string {
   return [scope, ids, walk.excluded].filter(Boolean).join("^");
 }
 
-async function listPart(walk: Walk, part: Part): Promise<void> {
+// The instance answers some listings with a server error whatever the page size: a row whose
+// read ACL throws (pdi3 and pdi4, scope sn_kmf: HTTP 500 ClassCastException).
+const isListingFault = (error: unknown) =>
+  error instanceof InstanceError && /HTTP 5\d\d/.test(error.message);
+
+async function listRows(walk: Walk, part: Part) {
   const instance = new Map<string, string>();
   const scopes = new Map<string, string>();
   for (const scopeId of part.scopeIds) {
@@ -87,6 +103,29 @@ async function listPart(walk: Walk, part: Part): Promise<void> {
       scopes.set(row["sys_id"] ?? "", scopeId);
     }
   }
+  return { instance, scopes };
+}
+
+// A part the instance fails to list is narrowed by prefix, so the rest of it is still verified;
+// at the deepest prefix it is left unverified and remembered as hidden, so it is not listed again.
+function leaveUnlisted(walk: Walk, part: Part): void {
+  walk.unlisted.push({ scope: part.scope, prefix: part.prefix, records: part.instanceCount });
+  walk.listedHidden[hiddenKey(part.scope, part.prefix)] = Math.max(
+    0,
+    part.instanceCount - part.mirrored.length,
+  );
+}
+
+async function listPart(walk: Walk, part: Part): Promise<void> {
+  let listed: Awaited<ReturnType<typeof listRows>>;
+  try {
+    listed = await listRows(walk, part);
+  } catch (error) {
+    if (!isListingFault(error)) throw error;
+    if (part.prefix.length < MAX_PREFIX) return splitPart(walk, part);
+    return leaveUnlisted(walk, part);
+  }
+  const { instance, scopes } = listed;
   walk.report.listedRows += instance.size;
   const hiddenRows = Math.max(0, part.instanceCount - instance.size);
   walk.report.hiddenRows += hiddenRows;
@@ -148,49 +187,6 @@ async function walkPart(walk: Walk, part: Part): Promise<void> {
   }
 }
 
-async function mirroredByScope(deps: IncrementalDependencies): Promise<Map<string, string[]>> {
-  const byScope = new Map<string, string[]>();
-  for await (const base of deps.records.bases(deps.metadataRoot)) {
-    const record = mirroredRecord(base);
-    if (record !== null) {
-      const ids = byScope.get(record.scope) ?? [];
-      ids.push(record.sysId);
-      byScope.set(record.scope, ids);
-    }
-  }
-  return byScope;
-}
-
-async function instanceByScope(
-  deps: IncrementalDependencies,
-  catalog: Catalog,
-  excluded: string,
-  signal: AbortSignal,
-): Promise<Map<string, { scopeIds: string[]; count: number }>> {
-  const counts = await deps.statistics.countBy(SYS_METADATA, "sys_scope", signal, excluded);
-  const byScope = new Map<string, { scopeIds: string[]; count: number }>();
-  for (const [scopeId, count] of counts) {
-    const scope = String(catalog.scopeNamespace(scopeId));
-    const entry = byScope.get(scope) ?? { scopeIds: [], count: 0 };
-    entry.scopeIds.push(scopeId);
-    entry.count += count;
-    byScope.set(scope, entry);
-  }
-  return byScope;
-}
-
-// Classes a pull never mirrors are left out of every count and listing.
-function exclusion(catalog: Catalog, unreadable: readonly string[]): string {
-  const pulled = new Set(classesToPull(catalog));
-  const excluded = [
-    ...catalog.metadataClasses().filter((table) => !pulled.has(table)),
-    ...unreadable,
-  ];
-  return excluded.length === 0
-    ? ""
-    : `sys_class_nameNOT IN${[...new Set(excluded)].sort().join(",")}`;
-}
-
 // pull --verify, records: one grouped count per scope, then sys_id-prefix counts and listings
 // only where the instance and the mirror disagree (ADR-0016, verification appendix).
 export async function verifyRecords(
@@ -218,6 +214,7 @@ export async function verifyRecords(
     hidden: previous.hidden,
     listedHidden: {},
     missingParts: new Map(),
+    unlisted: [],
     report: { countRequests: 1, listedRows: 0, hiddenRows: 0, unverifiable: 0 },
   };
   const scopes = [...new Set([...instance.keys(), ...mirrored.keys()])].sort();
@@ -242,7 +239,12 @@ export async function verifyRecords(
       createdBetween: 0,
       deletedBetween: 0,
     },
-    verification: { scopes: parts.length, scopesDiffering: differing.length, ...walk.report },
+    verification: {
+      scopes: parts.length,
+      scopesDiffering: differing.length,
+      unlisted: walk.unlisted,
+      ...walk.report,
+    },
     listedHidden: walk.listedHidden,
     missingParts: walk.missingParts,
   };

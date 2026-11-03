@@ -83,6 +83,9 @@ export const PullOutput = z.object({
           hiddenRows: z.number(),
           unverifiable: z.number(),
           unmirrorable: z.number(),
+          unlisted: z
+            .array(z.object({ scope: z.string(), prefix: z.string(), records: z.number() }))
+            .readonly(),
           recovered: z.number(),
           removed: z.number(),
         })
@@ -240,6 +243,10 @@ function verificationLines(changes: NonNullable<PullOutput["incremental"]>): str
   return [
     `  verified: ${v.scopes} scopes by count, ${v.scopesDiffering} differing; ${v.countRequests} count requests, ${v.listedRows} ids listed`,
     `  repaired: ${v.recovered} records recovered, ${v.removed} removed${v.hiddenRows > 0 ? `; ${v.hiddenRows} records counted but hidden from this user` : ""}${v.unmirrorable > 0 ? `; ${v.unmirrorable} records cannot be mirrored (unreadable class or invalid sys_id)` : ""}${v.unverifiable > 0 ? `; ${v.unverifiable} legacy ids could not be checked` : ""}`,
+    ...v.unlisted.map(
+      (part) =>
+        `  warning: the instance fails to list ${part.scope} ids starting ${part.prefix} (server error, typically a record whose read ACL throws); its ${part.records} records were not verified`,
+    ),
   ];
 }
 

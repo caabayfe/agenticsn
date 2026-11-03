@@ -634,6 +634,19 @@ describe("running an install (ADR-0038, item 2)", () => {
     expect(result.steps.find((s) => s.step === "module foundation")?.outcome).toBe("skipped");
   });
 
+  // pdi3, 2026-11-02: two related lists were applied but recorded under other names, and the
+  // install said only "2 not captured".
+  it("names the records a module's update set did not capture", async () => {
+    const names = ["sys_ui_list_problem_a_null", "sys_ui_list_incident_b_null"];
+    const { steps } = fakeSteps({ notCaptured: { incident: names } });
+    const plan = await planInstall(deps(READY), QUERY);
+    const stopped = await installPack(deps(READY, { steps }), { ...QUERY, confirm: plan.planId });
+    expect(stopped.stopped?.step).toBe("module incident");
+    expect(stopped.stopped?.detail).toBe(
+      "2 not captured, 0 not applied as built; not in the update set under these names: sys_ui_list_problem_a_null, sys_ui_list_incident_b_null",
+    );
+  });
+
   it("stops at a module not applied as built, keeps the journal, and resumes with the approved id", async () => {
     const first = fakeSteps({ notApplied: { incident: 1 } });
     const { journal, state } = memoryJournal();
@@ -918,7 +931,7 @@ describe("layouts a module adds to (ADR-0042)", () => {
     );
   });
 
-  it("reads the layout when the module is delivered, writes and commits its entries, and takes the container over", async () => {
+  it("reads the layout when the module is delivered, then writes and commits its entries alone", async () => {
     const layout: ListState = {
       container: CONTAINER,
       view: "Default view",
@@ -931,22 +944,31 @@ describe("layouts a module adds to (ADR-0042)", () => {
     expect(generated).toContain(
       `data: { list_id: '${CONTAINER}', related_list: 'incident_task.incident', position: 8 }`,
     );
-    expect(files.get(`source/global/src/fluent/ensure-list-${CONTAINER}.now.ts`)).toContain(
-      `$id: '${CONTAINER}'`,
-    );
-    expect(generated).not.toContain(`$id: '${CONTAINER}'`);
+    // A container in the build would load whole and remove the layout's other lists (ADR-0046).
+    expect([...files.keys()].some((p) => p.includes("ensure-list-"))).toBe(false);
     // The generated files' records get their keys too (SN-MNT-010), so keys come after them.
     const at = calls.indexOf("layouts 1");
-    expect(calls.slice(at, at + 5)).toEqual([
+    expect(calls.slice(at, at + 4)).toEqual([
       "layouts 1",
-      "commit 2",
-      "keys 3",
-      "take-over 1",
+      "commit 1",
+      "keys 2",
       "plan ITSM: incident 0.1.0",
     ]);
   });
 
-  it("adds nothing when the list is already there, and stops on a container the client customized", async () => {
+  // An install by snagentic 2.15 or earlier restated the container in its own file.
+  it("removes a container file an earlier install generated, in the same commit", async () => {
+    const layout: ListState = { container: CONTAINER, view: "Default view", entries: [] };
+    const stale = `source/global/src/fluent/ensure-list-${CONTAINER}.now.ts`;
+    const { steps, calls, files } = fakeSteps({ layout, workspace: { [stale]: "Record({})" } });
+    const plan = await planInstall(ensureDeps(steps), QUERY);
+    await installPack(ensureDeps(steps), { ...QUERY, confirm: plan.planId });
+    expect(files.has(stale)).toBe(false);
+    const at = calls.indexOf("layouts 1");
+    expect(calls.slice(at, at + 3)).toEqual(["layouts 1", "commit 2", "keys 2"]);
+  });
+
+  it("adds nothing when the list is already there", async () => {
     const already: ListState = {
       container: CONTAINER,
       view: "Default view",
@@ -956,16 +978,6 @@ describe("layouts a module adds to (ADR-0042)", () => {
     const plan = await planInstall(ensureDeps(quiet.steps), QUERY);
     await installPack(ensureDeps(quiet.steps), { ...QUERY, confirm: plan.planId });
     expect([...quiet.files.keys()].some((p) => p.includes("ensure-"))).toBe(false);
-
-    const missing: ListState = { container: CONTAINER, view: "Default view", entries: [] };
-    const customized = fakeSteps({ layout: missing, customized: [CONTAINER] });
-    const result = await installPack(ensureDeps(customized.steps), {
-      ...QUERY,
-      confirm: plan.planId,
-    });
-    expect(result.stopped?.detail).toContain(
-      `customized on the instance: sys_ui_related_list ${CONTAINER}`,
-    );
   });
 
   it("checks each list again after the install, after the pull", async () => {

@@ -13,6 +13,7 @@ export {
   AccessDeniedError,
   AuthenticationFailedError,
   InstanceError,
+  InstanceHibernatingError,
   InstanceUnreachableError,
   RequestBudgetExhaustedError,
 } from "./connection/domain/errors";

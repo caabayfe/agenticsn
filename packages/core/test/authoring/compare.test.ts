@@ -114,6 +114,27 @@ describe("compareUnit (ADR-0033 item 2)", () => {
     expect(compareUnit(revocationList(["number"]), listCopy(["number"]))).toEqual([]);
   });
 
+  // pdi3, 2026-11-03: a list loaded with a view the build invented points at no view, and reads
+  // an empty view name, as the default view does.
+  it("tells a list on a view that does not exist from one on the default view", () => {
+    const dangling = copy({
+      sys_id: "e".repeat(32),
+      name: "x_2222332_acc_rev_revocation",
+      view: "3e8897c5ec6f42419f61ddafee0ee733",
+      "view.name": "",
+      sys_domain: "global",
+    });
+    const differences = compareUnit(revocationList([]), dangling);
+    expect(differences).toContainEqual({
+      kind: "field",
+      table: "sys_ui_list",
+      row: "",
+      field: "view",
+      built: "Default view",
+      instance: "3e8897c5ec6f42419f61ddafee0ee733",
+    });
+  });
+
   it("compares a named view by name, whatever placeholder the build wrote", () => {
     const built = unit(
       "sys_ui_list_x_t_mobile",
@@ -130,6 +151,57 @@ describe("compareUnit (ADR-0033 item 2)", () => {
       "view.name": "Mobile",
     });
     expect(compareUnit(built, instance)).toEqual([]);
+  });
+
+  // SDK 4.14 loads a related list whole (ADR-0046, pdi3 2026-11-03): an entry the build leaves out
+  // is removed by the load, so the plan shows it.
+  it("compares a related list's entries whole, in position order", () => {
+    const LIST = "cf9c6e17877300100e3dd61e36cb0b42";
+    const entry = (sysId: string, list: string, position: string) =>
+      record("sys_ui_related_list_entry", sysId, {
+        sys_id: sysId,
+        list_id: LIST,
+        related_list: list,
+        position,
+      });
+    const built = unit(
+      "sys_ui_related_problem_null",
+      record(
+        "sys_ui_related_list",
+        LIST,
+        { sys_id: LIST, name: "problem", view: "Default view", sys_domain: "global" },
+        { view: "NULL" },
+      ),
+      [entry("e1", "task_sla.task", "0"), entry("e2", "problem_task.problem", "1")],
+    );
+    const held = (lists: readonly string[]) =>
+      copy(
+        {
+          sys_id: LIST,
+          name: "problem",
+          view: "Default view",
+          "view.name": "",
+          sys_domain: "global",
+        },
+        lists.map((list, position) => ({
+          sys_id: `x${position}`,
+          list_id: LIST,
+          related_list: list,
+          position: String(position),
+        })),
+      );
+    expect(compareUnit(built, held(["task_sla.task", "problem_task.problem"]))).toEqual([]);
+    expect(
+      compareUnit(built, held(["task_sla.task", "problem_task.problem", "task_ci.task"])),
+    ).toEqual([
+      {
+        kind: "rows",
+        table: "sys_ui_related_list_entry",
+        built: ["task_sla.task", "problem_task.problem"],
+        instance: ["task_sla.task", "problem_task.problem", "task_ci.task"],
+      },
+    ]);
+    expect(compareUnit(built, held(["problem_task.problem", "task_sla.task"]))).toHaveLength(1);
   });
 
   it("compares a form's sections by caption: a load matches a taken-over form's sections so", () => {

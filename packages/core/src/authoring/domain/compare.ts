@@ -73,6 +73,21 @@ function keyedDifferences(
 }
 
 // One field's difference, if any.
+function danglingDefault(
+  record: UnitRecord,
+  field: string,
+  instance: Fields,
+  row: string,
+): Difference | null {
+  const built = record.fields[field] ?? "";
+  const held = instance[field] ?? "";
+  const defaultNamed =
+    record.referenceNames[field] === "NULL" && isNamedReference(record.table, field);
+  return defaultNamed && built !== "" && held !== "" && held !== built
+    ? { kind: "field", table: record.table, row, field, built, instance: held }
+    : null;
+}
+
 function fieldDifference(
   record: UnitRecord,
   field: string,
@@ -89,6 +104,10 @@ function fieldDifference(
   // A reference compared by name that holds the instance's own sys_id is the same reference,
   // even when the name can't be read (a role hidden from this user); a placeholder never is.
   if (instanceField !== field && record.fields[field] === instance[field]) return [];
+  // The default view is named NULL, the empty name; a reference to a view that doesn't exist
+  // reads an empty name too, so only the default view's own sys_id agrees (pdi3, 2026-11-03).
+  const dangling = danglingDefault(record, field, instance, row);
+  if (dangling !== null) return [dangling];
   const same =
     record.table === "sys_dictionary" && field === "attributes"
       ? sameAttributes(built, actual)

@@ -53,6 +53,18 @@ const SPECS: Readonly<Record<string, UnitSpec>> = {
     },
     comparable: true,
   },
+  // SDK 4.14 writes a related list with its entries as one update, which the platform loads
+  // whole: an entry the build leaves out is removed (ADR-0046).
+  sys_ui_related_list: {
+    coalesce: ["name", "view", "sys_domain"],
+    children: {
+      table: "sys_ui_related_list_entry",
+      link: { list_id: "sys_id" },
+      key: ["related_list"],
+      ordered: true,
+    },
+    comparable: true,
+  },
   sys_ui_section: {
     coalesce: ["name", "view", "caption", "sys_domain"],
     children: {
@@ -94,6 +106,16 @@ const SPECS: Readonly<Record<string, UnitSpec>> = {
 
 export function unitSpec(table: string): UnitSpec {
   return SPECS[table] ?? RECORD;
+}
+
+// The table of a unit named by its keys (sys_dictionary_<table>_<element>): the longest table
+// the platform coalesces on that the name starts with. Null for any other name.
+export function keyedTableOf(updateName: string): string | null {
+  const tables = Object.entries(SPECS)
+    .filter(([table, spec]) => spec.coalesce !== undefined && updateName.startsWith(`${table}_`))
+    .map(([table]) => table)
+    .sort((a, b) => b.length - a.length);
+  return tables[0] ?? null;
 }
 
 // The query fields and values that find the head when its sys_id differs, or null when the head

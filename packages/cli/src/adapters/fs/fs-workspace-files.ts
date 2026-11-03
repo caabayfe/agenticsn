@@ -1,4 +1,4 @@
-import { chmod, readFile } from "node:fs/promises";
+import { chmod, readFile, rm } from "node:fs/promises";
 import type { WorkspaceFiles } from "@snagentic/core";
 import { writeTextFile } from "./write-text-file";
 
@@ -18,5 +18,8 @@ export const fsWorkspaceFiles: WorkspaceFiles = {
     if (options?.executable === true) {
       await chmod(path, 0o755);
     }
+  },
+  remove: async (path) => {
+    await rm(path, { force: true });
   },
 };

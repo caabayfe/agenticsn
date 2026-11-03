@@ -11,6 +11,18 @@ export class InstanceUnreachableError extends SnagenticError {
   }
 }
 
+// A developer instance asleep answers every request with its hibernation page (status 200).
+export class InstanceHibernatingError extends SnagenticError {
+  constructor(url: string) {
+    super(
+      "instance-hibernating",
+      "remote",
+      `${url} is hibernating`,
+      "wake it: sign in at https://developer.servicenow.com and start the instance (it takes a few minutes), then run the command again",
+    );
+  }
+}
+
 export class RequestBudgetExhaustedError extends SnagenticError {
   constructor(budget: number) {
     super(

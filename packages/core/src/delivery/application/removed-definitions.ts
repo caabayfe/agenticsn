@@ -1,5 +1,7 @@
 import type { LedgerEntry } from "../../authoring/domain/ledger";
+import { carriedNames, namedLists } from "../../authoring/domain/renamed-units";
 import type { BuiltUnit } from "../../authoring/domain/unit";
+import { keyedTableOf } from "../../authoring/domain/unit-specs";
 import type { SourceProject } from "../../authoring/ports";
 import type { InstanceReader } from "../../connection/ports";
 import { TableName } from "../../kernel/table-name";
@@ -17,12 +19,28 @@ import { deletionFor, type PlannedUnit, recordOf, type UnitProblem } from "../do
 
 type Held = "absent" | "shipped" | "own" | "unknown";
 
+// How the instance finds a removed unit's record: by sys_id, or, for a unit named by its keys
+// (a dictionary entry, a label), by the update name the platform stores on every record.
+// A wiped PDI holds neither (pdi3, 2026-11-02).
+interface Lookup {
+  readonly table: string;
+  readonly sysId: string;
+  readonly query: string;
+}
+
+function lookupOf(updateName: string): Lookup | null {
+  const record = recordOf(updateName);
+  if (record !== null) return { ...record, query: `sys_id=${record.sysId}` };
+  const table = keyedTableOf(updateName);
+  return table === null ? null : { table, sysId: "", query: `sys_update_name=${updateName}` };
+}
+
 // Whether the instance holds the record, and whose it is: a plugin's package, or this project's
 // (its scope, or global for a project in the global scope).
 async function held(
   reader: InstanceReader,
   project: SourceProject,
-  record: { table: string; sysId: string },
+  record: Lookup,
   updateName: string,
   signal: AbortSignal,
 ): Promise<Held> {
@@ -30,7 +48,7 @@ async function held(
     .query(
       {
         table: TableName.parse(record.table),
-        query: `sys_id=${record.sysId}`,
+        query: record.query,
         fields: ["sys_id", "sys_package"],
         limit: 1,
       },
@@ -119,11 +137,17 @@ export async function removedDefinitions(
   deleting: ReadonlySet<string | null>,
 ): Promise<{ forgotten: PlannedUnit[]; problems: UnitProblem[] }> {
   const built = new Set(units.map((unit) => unit.updateName));
+  // Names the SDK no longer builds whose records are still built, or still needed (ADR-0046).
+  const renamed = new Set([...carriedNames(units), ...namedLists(units)]);
   const forgotten: PlannedUnit[] = [];
   const problems: UnitProblem[] = [];
   for (const [name, entry] of entries) {
     if (built.has(name) || deleting.has(name)) continue;
-    const record = recordOf(name);
+    const record = lookupOf(name);
+    if (record !== null && renamed.has(name)) {
+      forgotten.push(forget(project, name, record, entry));
+      continue;
+    }
     const where = record === null ? "unknown" : await held(reader, project, record, name, signal);
     if (record !== null && (where === "absent" || where === "shipped")) {
       forgotten.push(forget(project, name, record, entry));

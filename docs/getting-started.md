@@ -142,7 +142,7 @@ retried automatically: if its outcome is unclear, snagentic tells you what to ch
 ## 7. Deliver changes to a development instance
 
 Changes are written in **Fluent**, the ServiceNow SDK's TypeScript, one project per application
-scope under `source/<scope>/` (ADR-0031). snagentic ships the SDK (4.13.6) inside the binary: no
+scope under `source/<scope>/` (ADR-0031). snagentic ships the SDK (4.14.0) inside the binary: no
 Node, no `node_modules`, no telemetry. `init` creates `source/global`; a scope's project appears
 when you first adopt one of its records.
 

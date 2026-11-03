@@ -206,12 +206,18 @@ export function fakeInstance(
       }
       // ACLs hide rows from listings, not from aggregates; domain separation hides rows of other
       // domains unless the query asks for every domain (sysparm_query_no_domain).
+      // A `__broken` row fails every page it falls in, as a row whose read ACL throws does
+      // (pdi3 and pdi4, scope sn_kmf: HTTP 500 ClassCastException), whether or not it is hidden.
       const visible = rowsOf(query.table).filter(
         (row) =>
-          row["__hidden"] !== "true" &&
+          (row["__hidden"] !== "true" || row["__broken"] === "true") &&
           (row["__other_domain"] !== "true" || query.allDomains === true),
       );
-      return evaluate(visible, query.query, query.limit);
+      const page = evaluate(visible, query.query, query.limit);
+      if (page.some((row) => row["__broken"] === "true")) {
+        throw new InstanceError(`table ${query.table}: HTTP 500: ClassCastException`);
+      }
+      return page.filter((row) => row["__hidden"] !== "true");
     },
     fingerprint: async (table: TableName): Promise<TableFingerprint> => {
       fingerprints.push(table);

@@ -11,6 +11,8 @@ import type {
 export function fakeSteps(
   options: {
     notApplied?: Record<string, number>;
+    // Update names the platform did not record in the module's update set, by module.
+    notCaptured?: Record<string, string[]>;
     notTaken?: { reason: string; action: string; rows: string[] };
     refused?: Record<string, { table: string; reason: string; records: string[]; action: string }>;
     nothingFor?: string[];
@@ -78,10 +80,13 @@ export function fakeSteps(
         .filter(([m]) => label.includes(m))
         .map(([, group]) => group);
       const skipped = refused.reduce((n, g) => n + g.records.length, 0);
+      const uncaptured =
+        Object.entries(options.notCaptured ?? {}).find(([m]) => label.includes(m))?.[1] ?? [];
       return {
         units: 5,
         notApplied: notApplied + skipped,
-        notCaptured: skipped,
+        notCaptured: skipped + uncaptured.length,
+        uncaptured,
         updateSets: [`snagentic: ${label}`],
         mismatched: Array.from(
           { length: notApplied },
@@ -143,6 +148,9 @@ export function fakeSteps(
       files.set(path, text);
     },
     readFile: async (path) => files.get(path) ?? null,
+    removeFile: async (path) => {
+      files.delete(path);
+    },
     commit: async (paths) => {
       calls.push(`commit ${paths.length}`);
       return "r1";

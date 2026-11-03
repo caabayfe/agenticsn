@@ -5,6 +5,7 @@ import {
   type FluentInstaller,
   type ImportSetWriter,
   InstanceError,
+  InstanceHibernatingError,
   type InstanceProfile,
   type InstanceReader,
   type InstanceWriter,
@@ -24,34 +25,19 @@ import { CicdPluginActivator } from "./cicd-plugin-activator";
 import { type ApiBody, ApiFluentInstaller } from "./fluent-installer";
 import type { HttpResponse } from "./http-types";
 import { ImportSetApiWriter } from "./import-set-writer";
-import { ErrorBody, firstIssue, GroupedStats, Rows, StatsResult } from "./responses";
+import {
+  countOf,
+  errorMessage,
+  firstIssue,
+  GroupedStats,
+  isHibernationPage,
+  Rows,
+  StatsResult,
+} from "./responses";
 import { costOf, costParams } from "./server-cost";
 import { TableApiWriter } from "./table-api-writer";
 
 const MAX_PAGE_SIZE = 10_000;
-
-const text = (value: unknown) => (typeof value === "string" ? value : undefined);
-
-function errorMessage(body: string): string {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(body);
-  } catch {
-    return "no details";
-  }
-  const parsed = ErrorBody.safeParse(raw);
-  if (!parsed.success) {
-    return "no details";
-  }
-  const { error, result } = parsed.data;
-  const table = [text(error?.message), text(error?.detail)].filter(Boolean).join(": ");
-  return table || text(result?.error) || "no details";
-}
-
-function countOf(result: StatsResult): number | null {
-  const count = Number(result.stats?.count);
-  return Number.isInteger(count) && count >= 0 ? count : null;
-}
 
 // The only place that builds Table API and Aggregate API requests, so ADR-0016's rules hold
 // everywhere: explicit fields, raw values, no reference links, no row counts on listings.
@@ -284,8 +270,9 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
         ? Reflect.get(parsed, "result")
         : undefined;
     } catch {
-      // Hibernating instances answer with an HTML page.
-      throw this.unexpected(response, what);
+      throw isHibernationPage(body)
+        ? new InstanceHibernatingError(this.profile.url)
+        : this.unexpected(response, what);
     }
   }
 

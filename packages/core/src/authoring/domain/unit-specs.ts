@@ -53,6 +53,18 @@ const SPECS: Readonly<Record<string, UnitSpec>> = {
     },
     comparable: true,
   },
+  // SDK 4.14 writes a related list with its entries as one update, which the platform loads
+  // whole: an entry the build leaves out is removed (ADR-0046).
+  sys_ui_related_list: {
+    coalesce: ["name", "view", "sys_domain"],
+    children: {
+      table: "sys_ui_related_list_entry",
+      link: { list_id: "sys_id" },
+      key: ["related_list"],
+      ordered: true,
+    },
+    comparable: true,
+  },
   sys_ui_section: {
     coalesce: ["name", "view", "caption", "sys_domain"],
     children: {

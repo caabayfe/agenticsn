@@ -52,6 +52,33 @@ describe("builtUnitOf (ADR-0033 item 1)", () => {
     ]);
   });
 
+  // SDK 4.14 writes a related list and its entries as one update (ITSM pack, 2026-11-03).
+  it("reads a related list with its entries as one unit, named as the platform names it", () => {
+    const built = unit("sys_ui_related_incident_task_sow.xml");
+    expect(built.updateName).toBe("sys_ui_related_incident_task_sow");
+    expect(built.head).toMatchObject({
+      table: "sys_ui_related_list",
+      sysId: "7c7da84418e38030725f649983a9d960",
+    });
+    expect(built.head.fields).toMatchObject({ name: "incident_task", sys_domain: "global" });
+    expect(built.head.referenceNames["view"]).toBe("sow");
+    expect(
+      built.children.map((c) => [c.table, c.fields["position"], c.fields["related_list"]]),
+    ).toEqual([
+      ["sys_ui_related_list_entry", "0", "REL:c63ea2a0d5ba34405f0e198ba25d0d9e"],
+      ["sys_ui_related_list_entry", "1", "task.parent"],
+      ["sys_ui_related_list_entry", "2", "REL:d74470025eefe4089bcd3a9795c58538"],
+      ["sys_ui_related_list_entry", "3", "task_ci.task"],
+      ["sys_ui_related_list_entry", "4", "task_sla.task"],
+    ]);
+  });
+
+  it("reads a related list on the default view by the default view's name", () => {
+    const built = unit("sys_ui_related_problem_null.xml");
+    expect(built.head.referenceNames["view"]).toBe("NULL");
+    expect(built.children).toHaveLength(2);
+  });
+
   it("reads a section with its elements, column markers included", () => {
     const built = unit("sys_ui_section_6c5959ed32b6cecd7fcba3ab09bea2ca.xml");
     expect(built.head).toMatchObject({

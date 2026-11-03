@@ -1,6 +1,6 @@
 # 0046. Related lists load whole from SDK 4.14; modules add to shipped ones entry by entry
 
-- Status: Proposed (2026-11-03)
+- Status: Accepted (product owner, 2026-11-03)
 - Date: 2026-11-03
 - Requirements: G1, ASR-01, ASR-15
 - Amends: 0033 (item 1, units; item 5, removed definitions)

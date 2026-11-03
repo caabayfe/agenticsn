@@ -1,7 +1,10 @@
 import {
+  applyDevelopmentSettings,
   completeUpdateSets,
+  type FormFieldFact,
   InstanceName,
   installPack,
+  type ListFact,
   mirrorSchema,
   openUpdateSets,
   readLayouts,
@@ -24,6 +27,29 @@ const Step = z.object({
   detail: z.string(),
   seconds: z.number(),
 });
+
+// The install steps that read or write the instance directly, through the open connection.
+function connectedSteps(connection: Awaited<ReturnType<typeof connect>>) {
+  const { reader, profile } = connection;
+  return {
+    completeUpdateSets: (sets: readonly { readonly sysId: string }[], signal: AbortSignal) =>
+      completeUpdateSets(
+        reader.writer,
+        sets.map((s) => s.sysId),
+        signal,
+      ),
+    developmentSettings: (values: Readonly<Record<string, string>>, signal: AbortSignal) =>
+      applyDevelopmentSettings(
+        { reader, writer: reader.writer, signal },
+        profile.auth.username,
+        values,
+      ),
+    layouts: (facts: readonly ListFact[], signal: AbortSignal) =>
+      readLayouts(reader, facts, signal),
+    sections: (facts: readonly FormFieldFact[], signal: AbortSignal) =>
+      readSections(reader, facts, signal),
+  };
+}
 
 export const acceleratorInstall = defineUseCase({
   group: "accelerator",
@@ -79,14 +105,7 @@ export const acceleratorInstall = defineUseCase({
             { root, instance: name, pack: input.pack },
             callerFor(context, run),
           ),
-          completeUpdateSets: (sets, signal) =>
-            completeUpdateSets(
-              reader.writer,
-              sets.map((s) => s.sysId),
-              signal,
-            ),
-          layouts: (facts, signal) => readLayouts(reader, facts, signal),
-          sections: (facts, signal) => readSections(reader, facts, signal),
+          ...connectedSteps(connection),
         },
         journal: context.installJournal(root, name),
         now: context.clock,

@@ -61,6 +61,12 @@ function components(plan: InstallPlan): string[] {
       ]),
     ),
     "",
+    ...(plan.instance.kind === "development"
+      ? [
+          "**Test execution.** The install turns on ATF test execution (`sn_atf.runner.enabled`, `sn_atf.schedule.enabled`) where it is off, so the pack's tests run. The change goes into an update set of its own, `snagentic: ATF test execution (development only)`, set to *ignore*: it is never promoted to test or production (ADR-0047).",
+          "",
+        ]
+      : []),
     ...fieldsSection(plan.fields),
   ];
 }

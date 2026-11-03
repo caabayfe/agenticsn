@@ -1,6 +1,11 @@
 // Public API of the delivery context: plan and push to development update sets (spec 004).
 
 export {
+  type AppliedSettings,
+  applyDevelopmentSettings,
+  DEVELOPMENT_SETTINGS_SET,
+} from "./application/development-settings";
+export {
   computeUnitPlan,
   type HeldRecord,
   type ProjectLoad,

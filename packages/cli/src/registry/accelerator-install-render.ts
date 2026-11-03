@@ -89,6 +89,9 @@ export function renderPlan(view: InstallView): string {
       `Activates (${view.activates.length})`,
       view.activates.map((c) => `  ${c.id}   for ${c.modules.join(", ")}`),
     ),
+    ...section("Settings", [
+      "  ATF test execution: turned on where it is off, in an update set set to ignore (ADR-0047)",
+    ]),
     ...section(`Blocked (${view.problems.length})`, [
       ...others.flatMap((p) => text(p, "  - ").map((l, i) => (i === 0 ? l : `    ${l.slice(4)}`))),
       ...fieldLines(blocking),

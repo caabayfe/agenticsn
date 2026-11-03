@@ -51,6 +51,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0043](0043-upgrade-and-installers-verify-build-provenance.md) | `upgrade` and the installers verify where a release was built | Accepted |
 | [0044](0044-the-sdk-runs-in-a-worker-without-credentials.md) | The workspace is untrusted; the SDK runs in a worker that holds no credential | Accepted |
 | [0045](0045-configuration-is-restored-by-installing-its-fluent-source.md) | Configuration is restored by installing its Fluent source on a development instance | Proposed |
+| [0047](0047-installs-turn-on-test-execution-on-development.md) | An install turns on ATF test execution on a development instance, in an update set that is never promoted | Proposed |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

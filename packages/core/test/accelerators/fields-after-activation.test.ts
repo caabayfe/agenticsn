@@ -213,6 +213,7 @@ describe("checking those fields once the plugin is active", () => {
       [`activate ${MIM}`, "done"],
       ["pull and integrate", "done"],
       ["check fields", "done"],
+      ["turn on ATF test execution", "done"],
       ["module major-incident", "done"],
       ["data", "done"],
       ["pull and integrate", "done"],

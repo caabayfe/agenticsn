@@ -552,6 +552,7 @@ describe("running an install (ADR-0038, item 2)", () => {
     expect(result.steps.map((s) => [s.step, s.outcome])).toEqual([
       ["activate com.snc.cmdb.csdm", "done"],
       ["pull and integrate", "done"],
+      ["turn on ATF test execution", "done"],
       ["module foundation", "done"],
       ["module incident", "done"],
       ["data", "done"],
@@ -578,6 +579,7 @@ describe("running an install (ADR-0038, item 2)", () => {
     expect(events.filter((e) => e.kind === "start").map((e) => [e.step, e.place])).toEqual([
       ["activate com.snc.cmdb.csdm", null],
       ["pull and integrate", null],
+      ["turn on ATF test execution", null],
       ["module foundation", { first: 1, last: 1, total: 2 }],
       ["module incident", { first: 2, last: 2, total: 2 }],
       ["data", null],
@@ -588,6 +590,26 @@ describe("running an install (ADR-0038, item 2)", () => {
       step: "pull and integrate",
       outcome: "done",
     });
+  });
+
+  it("turns on ATF test execution after the components, and not again when a stopped run resumes (ADR-0047)", async () => {
+    const { journal } = memoryJournal();
+    const plan = await planInstall(deps(READY), QUERY);
+    const first = fakeSteps({ notApplied: { incident: 1 } });
+    const stopped = await installPack(deps(READY, { steps: first.steps, journal }), {
+      ...QUERY,
+      confirm: plan.planId,
+    });
+    expect(first.settings).toEqual(["sn_atf.runner.enabled", "sn_atf.schedule.enabled"]);
+    expect(stopped.steps.find((s) => s.step === "turn on ATF test execution")?.detail).toBe(
+      "turned on sn_atf.runner.enabled, sn_atf.schedule.enabled, in an update set set to ignore",
+    );
+    const second = fakeSteps();
+    await installPack(deps(READY, { steps: second.steps, journal }), {
+      ...QUERY,
+      confirm: plan.planId,
+    });
+    expect(second.settings).toEqual([]);
   });
 
   it("counts the modules an earlier run finished when it resumes", async () => {
@@ -829,7 +851,7 @@ describe("an upgrade over the pack's earlier update sets still in progress", () 
     const complete = "complete snagentic: itsm 0.1.0 upgrade, snagentic: itsm 0.3.0 upgrade";
     expect(calls.filter((c) => c.startsWith("complete"))).toEqual([complete]);
     expect(calls.indexOf(complete)).toBeLessThan(calls.findIndex((c) => c.startsWith("plan ")));
-    expect(result.steps[0]).toMatchObject({
+    expect(result.steps[1]).toMatchObject({
       step: "complete earlier update sets",
       outcome: "done",
       detail:

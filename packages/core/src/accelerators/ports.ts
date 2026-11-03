@@ -84,6 +84,12 @@ export interface InstallSteps {
   activatePlugin(id: string, signal: AbortSignal): Promise<{ readonly seconds: number }>;
   // pull, then integrate: the mirror (and its component inventory) catches up with the instance.
   refresh(signal: AbortSignal): Promise<void>;
+  // Sets system properties a development instance needs, apart from every promoted update set
+  // (ADR-0047): those it changed, and those the instance lacks.
+  developmentSettings(
+    values: Readonly<Record<string, string>>,
+    signal: AbortSignal,
+  ): Promise<{ readonly changed: readonly string[]; readonly missing: readonly string[] }>;
   // accelerator add for these modules: the workspace files it wrote, and those the merge left in
   // conflict.
   add(

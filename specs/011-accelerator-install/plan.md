@@ -302,7 +302,8 @@ Found on the way, for the next steps:
 | I4 install plan and plan id | Done |
 | I5 orchestrator, journal, lock (development) | Done |
 | I7 anchors and the demo data exception | Done, except the finding for metadata that references a non-anchor record |
-| I2, I3, I6, I8, I9 | Open (I6 waits for ADR-0038's acceptance; I3 for S-F; I2 for S-E) |
+| I3 store application installer | Done (2026-11-03, section 17) |
+| I2, I6, I8, I9 | Open (I6 waits for ADR-0038's acceptance; I2 for S-E) |
 
 ## 11. Second slice: incident-relations and incident-task (2026-10-18)
 
@@ -598,4 +599,64 @@ module". ADR-0038 amended.
 | # | Item | State |
 |---|---|---|
 | I17 | Skip modules whose components cannot be installed, with dependents; gate by record | Built (branch `feat/accelerator-skip-unready`) |
-| I3 | Store application installer | Unblocked by S-F (API as above); not built |
+| I3 | Store application installer | Built (2026-11-03, section 17) |
+
+## 17. Store applications (I3, 2026-11-03)
+
+**Why.** The zero-touch pack (`ntt-accelerators/packs/zero-touch`) needs store applications the
+instance lacks: `sn_ztsd`, `sn_voice_test_ui`, `sn_dex`. The plan called them "inactive store
+application: activate it in Application Manager" or "not on the instance", and skipped their
+modules.
+
+1. **The store's offer, read live at plan time.** The inventory holds only installed applications
+   (`sys_scope`). The plan reads `sys_remote_app` for the scopes the selected modules need, and
+   only those (`scopeIN`, three fields). Mirroring the whole store was rejected: 3,168 rows on
+   everis2, which would add load to every pull for a few scopes per pack (ASR-16).
+   `accelerator check` reads no instance (ADR-0026) and still shows them as missing.
+2. **A new component state, `available`:** not installed, offered at or above the module's minimum,
+   install not blocked by the store. A licensed application the store offers counts as entitled.
+   The plan's action is `install`, at the store's latest version, which is part of the plan id: a
+   new store version needs a new approval.
+3. **`apps install <instance> <scope> [--version] --confirm`** (CLI only, development only):
+   `POST /api/sn_cicd/app_repo/install?scope&version&load_demo_data=false`, followed through
+   `/api/sn_cicd/progress`, sharing the plugin activator's polling. It never upgrades (an older
+   installed version is refused: Application Manager shows the upgrade notes), never loads demo
+   data (ADR-0038; 0048 proposes the exception), and is never retried. The agent pack asks before
+   an agent runs it.
+4. **In the install:** after the plugin activations, one step per application
+   (`install <scope> <version>`), then the pull. Fields that wait for a component are checked after
+   it, as for plugins. The plan document counts the applications installed and says the install
+   cannot undo them.
+
+| # | Criterion (section 5, I3) | State |
+|---|---|---|
+| a | Demo data never requested | Met: `load_demo_data=false` on every request (adapter test) |
+| b | A component past its budget is reported, the run stops, a re-run resumes | Met, as for plugins: 45 minutes, then "unknown" with the progress id to check |
+| c | An unknown progress after a lost response is read, never re-requested | **Not met, for plugins either.** The progress id is in the stopped step's detail, not in the journal, and a re-run checks the instance (`sys_scope`) and may request the install again if the first is still running. Follow-up: keep the progress id in the journal and read it before any new request, for both kinds |
+| d | Live run | Not yet: no store application has been installed through it. First run planned on everis2 (zero-touch S0) |
+
+## 18. `--demo` as the one demo switch (ADR-0048, 2026-11-03)
+
+**Why.** The zero-touch pack's DEX story needs ServiceNow's demo data, which the platform loads only
+when `sn_dex` is installed. The owner asked for one profile per pack, with `--demo` deciding the
+demo approach: "if it says --demo it should go with the demo approach, otherwise it is just too
+many options".
+
+1. **Manifest.** `demoData: true` on a store application component (a plugin with it is a
+   problem); `demo: true` on a module. A module that is not a demo module may not depend on one.
+2. **Plan.** With `--demo`, demo modules are kept; with `--data`, they are left out and listed
+   (`demoOnly`), the store is not asked for their applications, and naming one with `--modules` is
+   a problem. A component the plan installs, declared `demoData: true` by a kept module, is
+   marked `demoData` when the install has `--demo` and the instance is development. An
+   application already installed gets a warning instead: its demo data cannot be added any more.
+   Both are part of the plan id (absent when empty, so other plans keep their ids).
+3. **Run.** The step is `install <scope> <version> with demo data`; the request carries
+   `load_demo_data=true`. `apps install --demo-data` does the same by hand.
+4. **Document and view.** The component row says *install with its demo data*, the document says
+   snagentic cannot remove it, and lists the demo modules left out. The terminal view gained
+   `Installs` (missing since section 17) and `Demo modules left out`.
+
+Not done: the itsm pack's `demo-history` and `demo-scenarios` can move into its profiles with
+`demo: true` (a pack change); the test and production component installer (I6) must honour item 5
+of ADR-0048 when it is built.
+

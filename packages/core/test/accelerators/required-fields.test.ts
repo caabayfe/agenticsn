@@ -152,6 +152,7 @@ const QUERY = {
   signal: new AbortController().signal,
 };
 const updateSets = { open: async () => [] };
+const catalog = { available: async () => [] };
 const plan = (reader: SchemaReader) =>
   planInstall(
     {
@@ -160,6 +161,7 @@ const plan = (reader: SchemaReader) =>
       workspace,
       templates,
       updateSets,
+      catalog,
       schema: reader,
     },
     QUERY,
@@ -203,6 +205,7 @@ describe("checking the fields in the install plan (G13)", () => {
         workspace,
         templates,
         updateSets,
+        catalog,
         schema: {
           ready: async () => {
             asked = true;

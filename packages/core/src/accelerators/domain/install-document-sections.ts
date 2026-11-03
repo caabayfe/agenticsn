@@ -103,3 +103,28 @@ export function deletionsSection(plan: InstallPlan): string[] {
     ...table(["Module", "Table", "sys_id"], rows),
   ];
 }
+
+// What the components section says about store applications: that installing one cannot be
+// undone, the demo data some bring (ADR-0048), and the demo modules left out without --demo.
+export function componentNotes(plan: InstallPlan): string[] {
+  return [
+    ...(plan.components.some((c) => c.action === "install")
+      ? [
+          "Installing a store application cannot be undone by the install: it also installs the dependencies the store names, and removing it is done in Application Manager, where it may take data with it.",
+          "",
+        ]
+      : []),
+    ...(plan.components.some((c) => c.demoData === true)
+      ? [
+          "**Demo data** (`--demo`, ADR-0048): the applications marked *install with its demo data* load the platform's own demo records. Demo data a store application loads cannot be removed by snagentic.",
+          "",
+        ]
+      : []),
+    ...(plan.demoOnly.length === 0
+      ? []
+      : [
+          `**Demo modules left out** (installed only with \`--demo\`): ${plan.demoOnly.join(", ")}`,
+          "",
+        ]),
+  ];
+}

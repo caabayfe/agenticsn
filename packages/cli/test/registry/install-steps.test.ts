@@ -7,6 +7,7 @@ import { FAKE_CONTEXT } from "../support/fakes";
 // What each use case answers, by name: only the fields the install reads.
 const ANSWERS: Readonly<Record<string, unknown>> = {
   activate: { seconds: 42 },
+  install: { seconds: 77 },
   pull: {},
   integrate: {},
   add: { copied: ["source/global/src/fluent/imports.now.ts"], conflicts: [] },
@@ -107,6 +108,22 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
       ["activate", { instance: "pdi", id: "com.snc.cmdb.csdm", confirm: true }],
       ["pull", { instance: "pdi" }],
       ["integrate", { instance: "pdi" }],
+    ]);
+  });
+
+  it("installs a store application at the plan's version, with the install's confirmation (spec 011, I3)", async () => {
+    const { steps, calls } = fakes();
+    expect(await steps.installApp("sn_ztsd", "3.3.3", false, signal)).toEqual({ seconds: 77 });
+    await steps.installApp("sn_dex", "5.3.2", true, signal);
+    expect(calls).toEqual([
+      [
+        "install",
+        { instance: "pdi", scope: "sn_ztsd", version: "3.3.3", demoData: false, confirm: true },
+      ],
+      [
+        "install",
+        { instance: "pdi", scope: "sn_dex", version: "5.3.2", demoData: true, confirm: true },
+      ],
     ]);
   });
 

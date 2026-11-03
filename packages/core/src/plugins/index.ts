@@ -7,6 +7,14 @@ export {
   DEFAULT_LIMITS,
 } from "./application/activate-plugin";
 export {
+  installStoreApp,
+  type StoreInstallDependencies,
+  type StoreInstallOutcome,
+  type StoreInstallRequest,
+  type StoreOffer,
+  storeOffers,
+} from "./application/install-store-app";
+export {
   listPlugins,
   type Plugin,
   type PluginFilter,
@@ -18,10 +26,15 @@ export {
   ConfirmationRequiredError,
   PluginActivationFailedError,
   PluginNotFoundError,
+  StoreAppInstallFailedError,
+  StoreAppInstallStateUnknownError,
+  StoreAppNotOfferedError,
+  StoreAppOutdatedError,
 } from "./domain/errors";
 export type {
   ActivationProgress,
   ActivationStatus,
   InventoryReader,
   PluginActivator,
+  StoreAppInstaller,
 } from "./ports";

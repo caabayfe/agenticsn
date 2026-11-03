@@ -53,6 +53,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0045](0045-configuration-is-restored-by-installing-its-fluent-source.md) | Configuration is restored by installing its Fluent source on a development instance | Proposed |
 | [0046](0046-related-lists-load-whole-from-sdk-4-14.md) | Related lists load whole from SDK 4.14; modules add to shipped ones entry by entry | Accepted |
 | [0047](0047-installs-turn-on-test-execution-on-development.md) | An install turns on ATF test execution on a development instance, in an update set that is never promoted | Accepted |
+| [0048](0048-store-application-demo-data-on-request.md) | `--demo` is the one demo switch: demo data, demo modules and store applications' demo data | Accepted |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

@@ -12,6 +12,23 @@ export const InstallViewOutput = {
     .array(z.object({ id: z.string(), modules: z.array(z.string()).readonly() }))
     .readonly()
     .describe("the inactive plugins the install activates, and the modules that need them"),
+  installs: z
+    .array(
+      z.object({
+        id: z.string(),
+        version: z.string(),
+        demoData: z.boolean(),
+        modules: z.array(z.string()).readonly(),
+      }),
+    )
+    .readonly()
+    .describe(
+      "the store applications the install installs, at which version, with their demo data",
+    ),
+  demoOnly: z
+    .array(z.string())
+    .readonly()
+    .describe("demo modules of the selection left out, because the install has no --demo"),
   missingFields: z
     .array(
       z.object({
@@ -54,6 +71,17 @@ export function missingFields(fields: InstallPlan["fields"]) {
 export const activations = (components: InstallPlan["components"]) =>
   components.filter((c) => c.action === "activate").map((c) => ({ id: c.id, modules: c.modules }));
 
+// The store applications the install installs, at the plan's version, with their demo data.
+export const installations = (components: InstallPlan["components"]) =>
+  components
+    .filter((c) => c.action === "install")
+    .map((c) => ({
+      id: c.id,
+      version: c.version ?? "",
+      demoData: c.demoData === true,
+      modules: c.modules,
+    }));
+
 // The warnings other than missing fields, which the output shows in their own section.
 export function notesOf(plan: Pick<InstallPlan, "fields" | "warnings">): string[] {
   const fieldWarnings = new Set(fieldIssues(plan.fields).warnings);
@@ -66,6 +94,8 @@ export function installView(plan: InstallPlan) {
     version: plan.version,
     instance: plan.instance.name,
     activates: activations(plan.components),
+    installs: installations(plan.components),
+    demoOnly: plan.demoOnly,
     missingFields: missingFields(plan.fields),
     notes: notesOf(plan),
   };

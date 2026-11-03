@@ -38,6 +38,7 @@ import type {
   SdkAccess,
   ServerCostReader,
   SiteOutput,
+  StoreAppInstaller,
   SyncStateStore,
   TableStatistics,
   ValidateDependencies,
@@ -73,6 +74,7 @@ export interface ConnectionFactory {
     TableStatistics &
     ServerCostReader & {
       readonly plugins: PluginActivator;
+      readonly apps: StoreAppInstaller;
       readonly writer: InstanceWriter;
       // fluent/load and flow publishing (ADR-0031); absent from connections that cannot push.
       readonly fluent?: FluentInstaller;

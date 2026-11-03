@@ -122,6 +122,7 @@ export {
   workspacePathOf,
 } from "./domain/pack-layout";
 export {
+  type AvailableApp,
   type CapabilityReport,
   type CapabilityState,
   type ComponentCheck,
@@ -155,4 +156,5 @@ export type {
   PackSource,
   PackWorkspace,
   SchemaReader,
+  StoreCatalog,
 } from "./ports";

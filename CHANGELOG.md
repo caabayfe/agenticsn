@@ -4,6 +4,37 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-11-03
+
+Builds with ServiceNow SDK 4.14, an install turns on ATF test execution on development
+instances, and a pull no longer stops on a record the instance fails to list.
+
+### Added
+
+- An accelerator install on a development instance turns on ATF test execution
+  (`sn_atf.runner.enabled`, `sn_atf.schedule.enabled`) where it is off, so the pack's tests can
+  run. The change is written in its own update set, `snagentic: ATF test execution (development
+  only)`, set to ignore, so promoting the modules never turns ATF on in test or production; the
+  user's current application and update set are put back. The install plan names the setting
+  (ADR-0047).
+
+### Changed
+
+- ServiceNow SDK 4.14.0. A related list and its entries are one unit, loaded whole: a list
+  declared in source is owned whole, ensure rules add entries to shipped lists without restating
+  them, and ledger entries under the 4.13 record names are carried over or forgotten (ADR-0046).
+
+### Fixed
+
+- A pull narrows a listing the instance fails on (HTTP 5xx, typically a record whose read ACL
+  throws) by sys_id prefix instead of stopping, and warns about the records it could not verify.
+- A hibernating developer instance is reported as `instance-hibernating`, with how to wake it.
+- The removed-definition check looks up dictionary entries and labels by their keyed names, and
+  releases a shipped record in the project's own scope (a plugin's records share its package).
+- An install that stops on records it did not capture names them.
+- A list layout on a view that does not exist is no longer taken for the default view.
+- The Fluent build finds the project's source on Windows with SDK 4.14.
+
 ## [2.15.1] - 2026-10-26
 
 A pull removes the records a push deleted, and the install plan lists the records it deletes.

@@ -17,9 +17,9 @@
     "docs": "bun scripts/command-reference.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.3",
+    "@biomejs/biome": "^2.6.4",
     "@types/bun": "^1.4.4",
-    "@types/estree": "^1.0.9",
+    "@types/estree": "^1.0.10",
     "dependency-cruiser": "^18.7.0",
     "eslint": "^10.13.0",
     "espree": "^11.2.0",

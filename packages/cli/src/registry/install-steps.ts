@@ -93,6 +93,9 @@ function deliverySteps(
         units: out.units.length,
         notApplied: out.notApplied,
         notCaptured: out.notCaptured,
+        uncaptured: out.units
+          .filter((u) => !u.captured && u.refused === null)
+          .map((u) => u.updateName),
         updateSets: out.updateSets.map((u) => u.name),
         mismatched: out.units
           .filter((u) => !u.applied && u.refused === null)

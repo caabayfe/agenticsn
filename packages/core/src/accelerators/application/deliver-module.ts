@@ -37,9 +37,17 @@ function undelivered(pushed: Awaited<ReturnType<InstallRunDependencies["steps"][
   const explained = pushed.refused.reduce((n, g) => n + g.records.length, 0);
   const captured = pushed.notCaptured - explained;
   const applied = pushed.notApplied - explained;
+  const names =
+    pushed.uncaptured.length > 0
+      ? [`not in the update set under these names: ${pushed.uncaptured.join(", ")}`]
+      : [];
   const rest =
     captured + applied > 0
-      ? [`${captured} not captured, ${applied} not applied as built`, ...pushed.mismatched]
+      ? [
+          `${captured} not captured, ${applied} not applied as built`,
+          ...names,
+          ...pushed.mismatched,
+        ]
       : [];
   return [...refused, ...rest].join("; ");
 }

@@ -120,6 +120,19 @@ function requiredField(value: unknown, say: (problem: string) => void): Required
   };
 }
 
+// A demo module's demoSettings: property names and their values as text (ADR-0049).
+function demoSettingsOf(fields: Fields, say: (problem: string) => void) {
+  const declared = fieldsOf(fields["demoSettings"]);
+  if (declared === null) return {};
+  if (fields["demo"] !== true) say("demoSettings is for demo modules only");
+  const settings: Record<string, string> = {};
+  for (const [name, value] of Object.entries(declared)) {
+    if (typeof value === "string" || typeof value === "boolean") settings[name] = String(value);
+    else say(`demoSettings ${name}: its value must be text`);
+  }
+  return Object.keys(settings).length === 0 ? {} : { demoSettings: settings };
+}
+
 function capability(pack: string, id: string, value: unknown, problems: string[]): Capability {
   const fields = fieldsOf(value) ?? {};
   const say = (problem: string) => problems.push(`module ${id}: ${problem}`);
@@ -143,6 +156,7 @@ function capability(pack: string, id: string, value: unknown, problems: string[]
     data: data.filter((d): d is DataEntity => typeof d === "object"),
     fields: required.filter((f): f is RequiredField => f !== null),
     ...(fields["demo"] === true ? { demo: true as const } : {}),
+    ...demoSettingsOf(fields, say),
   };
 }
 

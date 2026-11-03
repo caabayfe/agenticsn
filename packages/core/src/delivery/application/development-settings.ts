@@ -7,6 +7,15 @@ import { type InstanceSession, restorePreference, switchPreference, userSysId } 
 // they are, with the user's current application and update set put back.
 
 export const DEVELOPMENT_SETTINGS_SET = "snagentic: ATF test execution (development only)";
+// The demo modules' settings that --demo turns on (ADR-0049).
+export const DEMO_SETTINGS_SET = "snagentic: demo settings (development only)";
+
+const DESCRIPTIONS: Readonly<Record<string, string>> = {
+  [DEVELOPMENT_SETTINGS_SET]:
+    "Development-only settings snagentic turned on (ADR-0047). Set to ignore: never promote it.",
+  [DEMO_SETTINGS_SET]:
+    "Demo modules snagentic turned on with --demo (ADR-0049). Set to ignore: never promote it.",
+};
 
 export interface AppliedSettings {
   // The properties set, and those the instance does not have (their plugin is not active).
@@ -29,17 +38,17 @@ async function propertiesOf(session: InstanceSession, names: readonly string[]) 
 async function writeApart(
   session: InstanceSession,
   username: string,
+  name: string,
   write: () => Promise<void>,
 ): Promise<void> {
   const user = await userSysId(session, username);
   const set = await session.writer.insert(
     "sys_update_set",
     {
-      name: DEVELOPMENT_SETTINGS_SET,
+      name,
       application: GLOBAL,
       state: "in progress",
-      description:
-        "Development-only settings snagentic turned on (ADR-0047). Set to ignore: never promote it.",
+      description: DESCRIPTIONS[name] ?? "",
     },
     session.signal,
   );
@@ -64,6 +73,7 @@ export async function applyDevelopmentSettings(
   session: InstanceSession,
   username: string,
   values: Readonly<Record<string, string>>,
+  set: string = DEVELOPMENT_SETTINGS_SET,
 ): Promise<AppliedSettings> {
   const names = Object.keys(values).sort();
   const rows = await propertiesOf(session, names);
@@ -71,7 +81,7 @@ export async function applyDevelopmentSettings(
   const off = rows.filter((row) => row["value"] !== values[row["name"] ?? ""]);
   const missing = names.filter((name) => !found.has(name));
   if (off.length > 0) {
-    await writeApart(session, username, async () => {
+    await writeApart(session, username, set, async () => {
       for (const row of off) {
         const value = values[row["name"] ?? ""] ?? "";
         await session.writer.update(

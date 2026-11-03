@@ -81,6 +81,8 @@ export interface InstallPlan {
   readonly skipped: readonly SkippedModule[];
   // Demo modules the selection holds, left out without --demo (ADR-0048).
   readonly demoOnly: readonly string[];
+  // The kept demo modules' settings, set after the modules (ADR-0049); empty without --demo.
+  readonly demoSettings: Readonly<Record<string, string>>;
   readonly components: readonly PlannedComponent[];
   // The platform fields the modules read, each with its state on the instance.
   readonly fields: readonly PlannedField[];
@@ -189,6 +191,7 @@ export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
     ...(plan.skipped.length === 0 ? {} : { skipped: plan.skipped.map((m) => m.id) }),
     // Absent when empty, so plans without demo modules keep the ids they had.
     ...(plan.demoOnly.length === 0 ? {} : { demoOnly: [...plan.demoOnly] }),
+    ...(Object.keys(plan.demoSettings).length === 0 ? {} : { demoSettings: plan.demoSettings }),
     components: plan.components.map((c) => ({
       key: `${c.kind}:${c.id}`,
       state: c.state,

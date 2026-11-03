@@ -8,6 +8,7 @@
 - Date: 2026-11-03
 - Requirements: G1, ASR-08, ASR-15
 - Amends, when accepted: 0038, section 4 ("Demo data is never loaded")
+- Amended by: 0049 (`--demo` turns on the demo modules' properties, section 3)
 - Relates to: 0012 (only development instances are written), 0026 (the pack's own demo data,
   `--demo`), spec 011 (I3, the store application installer)
 

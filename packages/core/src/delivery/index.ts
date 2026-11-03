@@ -3,6 +3,7 @@
 export {
   type AppliedSettings,
   applyDevelopmentSettings,
+  DEMO_SETTINGS_SET,
   DEVELOPMENT_SETTINGS_SET,
 } from "./application/development-settings";
 export {

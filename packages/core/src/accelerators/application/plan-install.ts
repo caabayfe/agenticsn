@@ -1,7 +1,7 @@
 import { sha256Hex } from "../../kernel/sha256";
 import { selectCapabilities } from "../domain/capability-graph";
 import type { DataDomain } from "../domain/data-domain";
-import { demoChoice, demoDataWarnings, loadsDemoData } from "../domain/demo-modules";
+import { demoChoice, demoDataWarnings, demoSettings, loadsDemoData } from "../domain/demo-modules";
 import { earlierSets, recordedSets } from "../domain/earlier-sets";
 import {
   blockingProblems,
@@ -170,6 +170,7 @@ function withDemoData(
       .flatMap((c) => c.components.filter((r) => r.demoData === true).map((r) => r.id)),
   );
   return {
+    settings: demoSettings(manifest, selected, demo),
     components: components.map((c) =>
       loadsDemoData(c, declared.has(c.id), demo) ? { ...c, demoData: true as const } : c,
     ),
@@ -208,6 +209,7 @@ async function plannedSelection(
     selected: all,
     named: query.modules ?? [],
     demo: query.source.kind === "demo",
+    development: query.instance.kind === "development",
   });
   const chosen = choice.kept;
   const check = await checkPack(
@@ -270,6 +272,7 @@ export async function planInstall(
     modules: built.modules,
     skipped,
     demoOnly: choice.leftOut,
+    demoSettings: demo.settings,
     components: demo.components,
     fields: required.fields,
     earlierSets: await plannedEarlierSets(deps, manifest, query.signal),

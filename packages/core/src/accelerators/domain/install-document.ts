@@ -3,6 +3,7 @@ import {
   componentNotes,
   dataSection,
   deletionsSection,
+  demoSettingsNote,
   fieldsSection,
   table,
 } from "./install-document-sections";
@@ -88,6 +89,7 @@ function modules(plan: InstallPlan): string[] {
     "",
     "Each module is built from its Fluent source, validated, planned against the instance and pushed into the update set named below (one child per scope), then checked: every record must be captured and applied as built.",
     "",
+    ...demoSettingsNote(plan),
     ...table(
       ["Module", "Update set", "Source files", "Projects"],
       plan.modules.map((m) => [

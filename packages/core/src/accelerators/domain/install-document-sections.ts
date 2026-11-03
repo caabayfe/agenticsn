@@ -128,3 +128,14 @@ export function componentNotes(plan: InstallPlan): string[] {
         ]),
   ];
 }
+
+// The demo modules' properties --demo turns on, never promoted (ADR-0049).
+export function demoSettingsNote(plan: InstallPlan): string[] {
+  const settings = Object.entries(plan.demoSettings);
+  if (settings.length === 0) return [];
+  const named = settings.map(([name, value]) => `\`${name}\` = \`${value}\``).join(", ");
+  return [
+    `**Demo modules turned on.** After the modules, the install sets ${named}, so their loaders run. The change goes into an update set of its own, \`snagentic: demo settings (development only)\`, set to *ignore*: it is never promoted, and the modules' own update sets keep them off (ADR-0049).`,
+    "",
+  ];
+}

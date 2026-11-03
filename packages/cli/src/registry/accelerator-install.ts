@@ -1,6 +1,8 @@
 import {
   applyDevelopmentSettings,
   completeUpdateSets,
+  DEMO_SETTINGS_SET,
+  DEVELOPMENT_SETTINGS_SET,
   type FormFieldFact,
   InstanceName,
   installPack,
@@ -41,11 +43,16 @@ function connectedSteps(connection: Awaited<ReturnType<typeof connect>>) {
         sets.map((s) => s.sysId),
         signal,
       ),
-    developmentSettings: (values: Readonly<Record<string, string>>, signal: AbortSignal) =>
+    developmentSettings: (
+      values: Readonly<Record<string, string>>,
+      signal: AbortSignal,
+      purpose: "tests" | "demo",
+    ) =>
       applyDevelopmentSettings(
         { reader, writer: reader.writer, signal },
         profile.auth.username,
         values,
+        purpose === "demo" ? DEMO_SETTINGS_SET : DEVELOPMENT_SETTINGS_SET,
       ),
     // Plugin activations and store installs share the CI/CD progress resource.
     progress: (progressId: string, signal: AbortSignal) =>

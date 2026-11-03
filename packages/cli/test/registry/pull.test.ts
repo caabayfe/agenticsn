@@ -390,6 +390,7 @@ describe("pull and integrate", () => {
       hiddenRows: 67,
       unverifiable: 0,
       unmirrorable: 4,
+      unlisted: [{ scope: "sn_kmf", prefix: "83d7", records: 1 }],
       recovered: 1,
       removed: 2,
     };
@@ -402,6 +403,9 @@ describe("pull and integrate", () => {
     );
     expect(verified).toContain(
       "repaired: 1 records recovered, 2 removed; 67 records counted but hidden from this user",
+    );
+    expect(verified).toContain(
+      "warning: the instance fails to list sn_kmf ids starting 83d7 (server error, typically a record whose read ACL throws); its 1 records were not verified",
     );
   });
 });

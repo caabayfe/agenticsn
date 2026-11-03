@@ -123,4 +123,20 @@ describe("pull --verify", () => {
     const second = await incremental({ verify: true });
     expect(second.summary.verification).toMatchObject({ scopesDiffering: 0, listedRows: 0 });
   });
+
+  it("narrows a listing the instance fails on to the few records around it, and verifies the rest", async () => {
+    const broken = "83d7734bd34ff2df0980b0cb6f5899c6";
+    const { incremental, tables, files, state } = await pulledInstance();
+    tables["sys_script"]?.push({ ...rule(0), sys_id: broken, __hidden: "true", __broken: "true" });
+    tables["sys_script"]?.push(rule(9));
+    const first = await incremental({ verify: true });
+    expect(first.summary.verification).toMatchObject({ recovered: 1, removed: 0 });
+    expect(first.summary.verification?.unlisted).toEqual([
+      { scope: "global", prefix: "83d7", records: 1 },
+    ]);
+    expect(files.has(`global/sys_script/rule-9--${sid(9)}.yaml`)).toBe(true);
+    state.saved.state = first.summary.next;
+    const second = await incremental({ verify: true });
+    expect(second.summary.verification).toMatchObject({ scopesDiffering: 0, listedRows: 0 });
+  });
 });

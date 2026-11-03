@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { computeUnitPlan, deletionFor, unitDigest, unitPlanId } from "@snagentic/core";
+import {
+  computeUnitPlan,
+  deletionFor,
+  type LedgerEntry,
+  unitDigest,
+  unitPlanId,
+  withEntries,
+} from "@snagentic/core";
 import { governanceOf, unitOf } from "../support/fake-governance";
 import {
   QUERY,
@@ -178,6 +185,100 @@ describe("plan on built units (ADR-0031, ADR-0033)", () => {
       const { plan } = await computeUnitPlan(deps, QUERY);
       expect(plan.problems).toMatchObject([{ updateName: SI_UNIT, kind: "removed" }]);
     }
+  });
+
+  // pdi3, 2026-11-02: a PDI wiped after an earlier install. The workspace's ledger still held
+  // the retired table's dictionary entries and labels, named by their keys, not by a sys_id.
+  describe("a removed definition named by its keys", () => {
+    const FIELD = "sys_dictionary_x_app_task_u_status";
+    const LABEL = "sys_documentation_x_app_task_u_status_en";
+
+    function keyedSetup() {
+      const setup = unitSetup();
+      const { authoring, project, builds } = setup;
+      builds.set(project.path, []);
+      const entry: LedgerEntry = { build: "b".repeat(32), instance: VERSION, losses: [] };
+      const entries = new Map([
+        [SI_UNIT, entry],
+        [FIELD, entry],
+        [LABEL, entry],
+      ]);
+      authoring.ledgers.set(project.path, withEntries(new Map(), "dev", entries));
+      setup.tables["sys_script_include"] = [];
+      return setup;
+    }
+
+    const field = (extra: Record<string, string> = {}) => ({
+      sys_id: "c".repeat(32),
+      sys_class_name: "sys_dictionary",
+      sys_update_name: FIELD,
+      sys_package: "global",
+      name: "x_app_task",
+      element: "u_status",
+      ...extra,
+    });
+
+    it("forgets it when the instance no longer holds the record", async () => {
+      const { deps } = keyedSetup();
+      const { plan } = await computeUnitPlan(deps, QUERY);
+      expect(plan.problems).toEqual([]);
+      expect(plan.units).toMatchObject([
+        { updateName: SI_UNIT, operation: "forget" },
+        { updateName: FIELD, operation: "forget", table: "sys_dictionary" },
+        { updateName: LABEL, operation: "forget", table: "sys_documentation" },
+      ]);
+      expect(plan.ready).toBe(true);
+    });
+
+    it("finds the record by its update name, on the table the name starts with", async () => {
+      const { deps, fake } = keyedSetup();
+      await computeUnitPlan(deps, QUERY);
+      expect(fake.queries).toContainEqual(
+        expect.objectContaining({ table: "sys_dictionary", query: `sys_update_name=${FIELD}` }),
+      );
+    });
+
+    it("keeps refusing it while the instance still holds the record", async () => {
+      const { deps, tables } = keyedSetup();
+      tables["sys_dictionary"] = [field()];
+      const { plan } = await computeUnitPlan(deps, QUERY);
+      expect(plan.problems).toMatchObject([{ updateName: FIELD, kind: "removed" }]);
+      expect(plan.ready).toBe(false);
+    });
+
+    it("releases it when a plugin ships the record", async () => {
+      const { deps, tables } = keyedSetup();
+      tables["sys_dictionary"] = [field({ sys_package: "b".repeat(32) })];
+      const { plan } = await computeUnitPlan(deps, QUERY);
+      expect(plan.problems).toEqual([]);
+      expect(plan.units).toContainEqual(
+        expect.objectContaining({ updateName: FIELD, operation: "forget" }),
+      );
+    });
+
+    it("keeps refusing it when the instance cannot say whether it holds the record", async () => {
+      const { deps } = keyedSetup();
+      const reader = {
+        ...deps.reader,
+        query: async (...args: Parameters<typeof deps.reader.query>) => {
+          if (String(args[0].table) === "sys_dictionary") throw new Error("no read access");
+          return deps.reader.query(...args);
+        },
+      };
+      const { plan } = await computeUnitPlan({ ...deps, reader }, QUERY);
+      expect(plan.problems).toMatchObject([{ updateName: FIELD, kind: "removed" }]);
+    });
+
+    it("keeps refusing a removed unit whose table it cannot tell from the name", async () => {
+      const { deps, authoring, project } = keyedSetup();
+      const entry: LedgerEntry = { build: "b".repeat(32), instance: VERSION, losses: [] };
+      authoring.ledgers.set(
+        project.path,
+        withEntries(new Map(), "dev", new Map([["x_unknown_thing", entry]])),
+      );
+      const { plan } = await computeUnitPlan(deps, QUERY);
+      expect(plan.problems).toMatchObject([{ updateName: "x_unknown_thing", kind: "removed" }]);
+    });
   });
 
   it("names the Now.del that deletes a removed definition (B2)", async () => {

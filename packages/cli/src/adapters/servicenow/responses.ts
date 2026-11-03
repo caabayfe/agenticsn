@@ -40,3 +40,35 @@ export function firstIssue(error: z.ZodError): string {
   const issue = error.issues[0];
   return issue === undefined ? "unexpected content" : `${issue.path.join(".")}: ${issue.message}`;
 }
+
+// The page a hibernating developer instance answers with: its title, or its redirect to the
+// developer portal's wake-up link.
+export function isHibernationPage(body: string): boolean {
+  return (
+    /Instance Hibernating page/i.test(body) || /developer\.servicenow\.com[^"']*wu=true/.test(body)
+  );
+}
+
+const text = (value: unknown) => (typeof value === "string" ? value : undefined);
+
+// The instance's own words about a failed request, from either error body; never the raw body.
+export function errorMessage(body: string): string {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(body);
+  } catch {
+    return "no details";
+  }
+  const parsed = ErrorBody.safeParse(raw);
+  if (!parsed.success) {
+    return "no details";
+  }
+  const { error, result } = parsed.data;
+  const table = [text(error?.message), text(error?.detail)].filter(Boolean).join(": ");
+  return table || text(result?.error) || "no details";
+}
+
+export function countOf(result: StatsResult): number | null {
+  const count = Number(result.stats?.count);
+  return Number.isInteger(count) && count >= 0 ? count : null;
+}

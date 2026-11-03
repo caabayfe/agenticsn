@@ -612,6 +612,19 @@ describe("running an install (ADR-0038, item 2)", () => {
     expect(result.steps.find((s) => s.step === "module foundation")?.outcome).toBe("skipped");
   });
 
+  // pdi3, 2026-11-02: two related lists were applied but recorded under other names, and the
+  // install said only "2 not captured".
+  it("names the records a module's update set did not capture", async () => {
+    const names = ["sys_ui_list_problem_a_null", "sys_ui_list_incident_b_null"];
+    const { steps } = fakeSteps({ notCaptured: { incident: names } });
+    const plan = await planInstall(deps(READY), QUERY);
+    const stopped = await installPack(deps(READY, { steps }), { ...QUERY, confirm: plan.planId });
+    expect(stopped.stopped?.step).toBe("module incident");
+    expect(stopped.stopped?.detail).toBe(
+      "2 not captured, 0 not applied as built; not in the update set under these names: sys_ui_list_problem_a_null, sys_ui_list_incident_b_null",
+    );
+  });
+
   it("stops at a module not applied as built, keeps the journal, and resumes with the approved id", async () => {
     const first = fakeSteps({ notApplied: { incident: 1 } });
     const { journal, state } = memoryJournal();

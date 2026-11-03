@@ -4,7 +4,7 @@ import { authorize } from "../../../src/adapters/servicenow/authorization";
 import type { HttpRequest, HttpResponse } from "../../../src/adapters/servicenow/http-types";
 import { RequestScheduler } from "../../../src/adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "../../../src/adapters/servicenow/servicenow-client";
-import { fakeClock, response } from "./scheduler-fakes";
+import { fakeClock, HIBERNATING_PAGE, response } from "./scheduler-fakes";
 
 const SECRET = "c1i3nt-S3cret!";
 const LIVE = new AbortController().signal;
@@ -134,6 +134,14 @@ describe("OAuth client credentials (ADR-0021)", () => {
       code: "oauth-grant-unavailable",
       hint: expect.stringContaining("glide.oauth.inbound.client.credential.grant_type.enabled"),
     });
+  });
+
+  it("says the instance is hibernating when the token request meets the hibernation page", async () => {
+    const { scheduler } = instance({ tokenReply: () => response(200, HIBERNATING_PAGE) });
+    const sender = authorize(profile("0123abcd"), SECRET, scheduler);
+    const error = await sender.send(GET, LIVE).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: "instance-hibernating" });
+    expect(String(error)).not.toContain(SECRET);
   });
 
   it.each([

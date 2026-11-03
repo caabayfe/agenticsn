@@ -96,6 +96,16 @@ export function unitSpec(table: string): UnitSpec {
   return SPECS[table] ?? RECORD;
 }
 
+// The table of a unit named by its keys (sys_dictionary_<table>_<element>): the longest table
+// the platform coalesces on that the name starts with. Null for any other name.
+export function keyedTableOf(updateName: string): string | null {
+  const tables = Object.entries(SPECS)
+    .filter(([table, spec]) => spec.coalesce !== undefined && updateName.startsWith(`${table}_`))
+    .map(([table]) => table)
+    .sort((a, b) => b.length - a.length);
+  return tables[0] ?? null;
+}
+
 // The query fields and values that find the head when its sys_id differs, or null when the head
 // is found by sys_id only. A field the build left out is empty (a list with no parent); a view
 // is found by its name.

@@ -51,6 +51,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0043](0043-upgrade-and-installers-verify-build-provenance.md) | `upgrade` and the installers verify where a release was built | Accepted |
 | [0044](0044-the-sdk-runs-in-a-worker-without-credentials.md) | The workspace is untrusted; the SDK runs in a worker that holds no credential | Accepted |
 | [0045](0045-configuration-is-restored-by-installing-its-fluent-source.md) | Configuration is restored by installing its Fluent source on a development instance | Proposed |
+| [0046](0046-related-lists-load-whole-from-sdk-4-14.md) | Related lists load whole from SDK 4.14; modules add to shipped ones entry by entry | Proposed |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

@@ -1,3 +1,4 @@
+import type { ActivationProgress } from "../plugins/index";
 import type { OpenSet } from "./domain/earlier-sets";
 import type { ListFact, ListState } from "./domain/ensure";
 import type { FormFieldFact, SectionState } from "./domain/ensure-form";
@@ -91,6 +92,8 @@ export interface InstallSteps {
     demoData: boolean,
     signal: AbortSignal,
   ): Promise<{ readonly seconds: number }>;
+  // The instance's progress for a component change an earlier run lost (spec 011, I3 c).
+  progress(progressId: string, signal: AbortSignal): Promise<ActivationProgress>;
   // pull, then integrate: the mirror (and its component inventory) catches up with the instance.
   refresh(signal: AbortSignal): Promise<void>;
   // Sets system properties a development instance needs, apart from every promoted update set

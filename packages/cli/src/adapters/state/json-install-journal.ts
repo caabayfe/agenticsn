@@ -14,6 +14,7 @@ const InstallFile: z.ZodType<InstallRecord> = z.looseObject({
       outcome: z.enum(["done", "skipped", "stopped"]),
       detail: z.string(),
       seconds: z.number(),
+      progressId: z.string().exactOptional(),
     }),
   ),
 });

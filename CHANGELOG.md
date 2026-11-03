@@ -27,6 +27,14 @@ An accelerator install installs the store applications its modules need, with th
 - The install plan's terminal view lists the store applications it installs, with their version
   and demo data, and the demo modules it leaves out.
 
+### Fixed
+
+- A resumed install never activates a plugin or installs a store application twice. When a run
+  loses the outcome of one (a lost response, or still running past its budget), the journal keeps
+  the instance's progress id, and the next run reads that progress first: finished, it goes on;
+  still running, it stops again without asking; failed, it stops with the instance's reason and
+  the run after that asks again. Component steps already done are not asked again (spec 011, I3 c).
+
 ## [2.16.0] - 2026-11-03
 
 Builds with ServiceNow SDK 4.14, an install turns on ATF test execution on development

@@ -150,7 +150,10 @@ export function installSteps(
   context: UseCaseContext,
   where: { readonly root: string; readonly instance: InstanceName; readonly pack: string },
   call: CallUseCase,
-): Omit<InstallSteps, "completeUpdateSets" | "developmentSettings" | "layouts" | "sections"> {
+): Omit<
+  InstallSteps,
+  "completeUpdateSets" | "developmentSettings" | "layouts" | "progress" | "sections"
+> {
   const instance = String(where.instance);
   const delivery = () => context.delivery(where.root, where.instance);
   return {

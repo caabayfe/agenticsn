@@ -149,6 +149,43 @@ describe("accelerator install (ADR-0038)", () => {
     ]);
   });
 
+  it("reads the outcome an earlier run lost from the instance's progress, not by asking again (spec 011, I3 c)", async () => {
+    const installed = await installing();
+    const input = { pack: "minimal", instance: "pdi", profile: "core", demo: true };
+    const { output: plan } = await executeUseCase(acceleratorInstall, input, installed.context);
+    const planId = (plan as { planId: string }).planId;
+    const lost = {
+      planId,
+      startedAt: "2026-11-03T10:00:00.000Z",
+      steps: [
+        {
+          step: "install sn_dex 5.3.2",
+          outcome: "stopped" as const,
+          detail: "the state of sn_dex's install is unknown: socket hang up",
+          seconds: 60,
+          progressId: "progress-lost",
+        },
+      ],
+    };
+    const context = {
+      ...installed.context,
+      workspaceFiles: fsWorkspaceFiles,
+      installJournal: () => ({ ...installed.context.installJournal(), read: async () => lost }),
+    };
+    const { output } = await executeUseCase(
+      acceleratorInstall,
+      { ...input, confirm: planId },
+      context,
+    );
+    const steps = (output as { steps: { step: string; detail: string }[] }).steps;
+    expect(
+      steps.find((s) => s.step === "install sn_dex 5.3.2" && s.detail.startsWith("finished")),
+    ).toMatchObject({
+      detail: "finished on the instance after the run lost it (progress progress-lost)",
+    });
+    expect(installed.instance.installs).toEqual([]);
+  });
+
   it("reads the layouts and form sections its modules add to from the instance, live (ADR-0042)", async () => {
     const SOW = "f5c0a49877413010dc2c885d9f5a999e";
     const installed = await installing({

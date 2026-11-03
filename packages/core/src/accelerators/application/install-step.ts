@@ -1,3 +1,4 @@
+import { UnknownOutcomeError } from "../../plugins/index";
 import { InstallStepStoppedError } from "../domain/errors";
 import type { InstallRecord, InstallStepRecord } from "../domain/install-plan";
 import type { InstallJournal, InstallSteps } from "../ports";
@@ -51,7 +52,10 @@ export async function step(
     finish({ step: name, outcome, detail, seconds: seconds() });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    finish({ step: name, outcome: "stopped", detail, seconds: seconds() });
+    // A lost outcome keeps its progress, for the next run to read before it asks again.
+    const lost = error instanceof UnknownOutcomeError ? error.progressId : null;
+    const progressId = lost === null ? {} : { progressId: lost };
+    finish({ step: name, outcome: "stopped", detail, seconds: seconds(), ...progressId });
     // Stops the run where it is, with the reason the report gives.
     throw new InstallStepStoppedError(name, detail);
   } finally {

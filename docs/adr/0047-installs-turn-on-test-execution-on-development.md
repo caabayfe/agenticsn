@@ -1,6 +1,6 @@
 # 0047. An install turns on ATF test execution on a development instance, in an update set that is never promoted
 
-- Status: Proposed (2026-11-03)
+- Status: Accepted (product owner, 2026-11-03)
 - Date: 2026-11-03
 - Requirements: G1, G3, ASR-16
 - Relates to: 0012 (only development instances are written), 0038 (install by plan, component

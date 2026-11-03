@@ -4,6 +4,7 @@ import { checkAgentPack, type WorkspaceFiles, withInstructions } from "@snagenti
 const filesWith = (agentsMd: string | null): WorkspaceFiles => ({
   read: async (path) => (path === "/w/AGENTS.md" ? agentsMd : null),
   write: async () => {},
+  remove: async () => {},
 });
 
 describe("the agent pack check", () => {

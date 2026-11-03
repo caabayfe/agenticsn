@@ -1,4 +1,5 @@
 import type { LedgerEntry } from "../../authoring/domain/ledger";
+import { carriedNames, namedLists } from "../../authoring/domain/renamed-units";
 import type { BuiltUnit } from "../../authoring/domain/unit";
 import { keyedTableOf } from "../../authoring/domain/unit-specs";
 import type { SourceProject } from "../../authoring/ports";
@@ -136,11 +137,17 @@ export async function removedDefinitions(
   deleting: ReadonlySet<string | null>,
 ): Promise<{ forgotten: PlannedUnit[]; problems: UnitProblem[] }> {
   const built = new Set(units.map((unit) => unit.updateName));
+  // Names the SDK no longer builds whose records are still built, or still needed (ADR-0046).
+  const renamed = new Set([...carriedNames(units), ...namedLists(units)]);
   const forgotten: PlannedUnit[] = [];
   const problems: UnitProblem[] = [];
   for (const [name, entry] of entries) {
     if (built.has(name) || deleting.has(name)) continue;
     const record = lookupOf(name);
+    if (record !== null && renamed.has(name)) {
+      forgotten.push(forget(project, name, record, entry));
+      continue;
+    }
     const where = record === null ? "unknown" : await held(reader, project, record, name, signal);
     if (record !== null && (where === "absent" || where === "shipped")) {
       forgotten.push(forget(project, name, record, entry));

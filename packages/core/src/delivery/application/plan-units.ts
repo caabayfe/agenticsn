@@ -2,6 +2,7 @@ import { readUnits } from "../../authoring/application/read-units";
 import { unitDigest } from "../../authoring/domain/digest";
 import type { Ledger, LedgerEntry } from "../../authoring/domain/ledger";
 import { planUnit } from "../../authoring/domain/plan-unit";
+import { ledgerEntryOf } from "../../authoring/domain/renamed-units";
 import { type BuiltUnit, type InstanceCopy, isDeletion } from "../../authoring/domain/unit";
 import type { AuthoringWorkspace, FluentToolchain, SourceProject } from "../../authoring/ports";
 import type { InstanceReader } from "../../connection/ports";
@@ -167,7 +168,7 @@ async function planProject(
   const problems = removed.problems;
   for (const unit of candidates) {
     const copy = copies.get(unit.updateName) ?? null;
-    const entry = entries.get(unit.updateName);
+    const entry = ledgerEntryOf(unit, copy, entries);
     const digest = digests.get(unit.updateName) ?? "";
     const outcome = plannedOrProblem(planUnit(unit, digest, copy, entry), unit, {
       project: project.path,

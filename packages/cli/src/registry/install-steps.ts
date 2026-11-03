@@ -185,6 +185,7 @@ export function installSteps(
       await context.workspaceFiles.write(join(where.root, path), text);
     },
     readFile: (path) => context.workspaceFiles.read(join(where.root, path)),
+    removeFile: (path) => context.workspaceFiles.remove(join(where.root, path)),
     commit: (paths, message) => delivery().commitFiles(paths, message),
   };
 }

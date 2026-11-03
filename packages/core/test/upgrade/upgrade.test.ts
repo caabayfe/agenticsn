@@ -53,6 +53,7 @@ function setup(overrides: Partial<UpgradeDependencies> = {}) {
     workspaceFiles: {
       read: async (path) => files.get(path) ?? null,
       write: async () => {},
+      remove: async () => {},
     },
     current: "1.2.1",
     platform: "darwin",

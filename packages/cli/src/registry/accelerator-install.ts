@@ -27,6 +27,8 @@ const Step = z.object({
   outcome: z.enum(["done", "skipped", "stopped"]),
   detail: z.string(),
   seconds: z.number(),
+  // The instance's progress for a component change whose outcome the run lost.
+  progressId: z.string().optional(),
 });
 
 // The install steps that read or write the instance directly, through the open connection.
@@ -45,6 +47,9 @@ function connectedSteps(connection: Awaited<ReturnType<typeof connect>>) {
         profile.auth.username,
         values,
       ),
+    // Plugin activations and store installs share the CI/CD progress resource.
+    progress: (progressId: string, signal: AbortSignal) =>
+      reader.plugins.progress(progressId, signal),
     layouts: (facts: readonly ListFact[], signal: AbortSignal) =>
       readLayouts(reader, facts, signal),
     sections: (facts: readonly FormFieldFact[], signal: AbortSignal) =>

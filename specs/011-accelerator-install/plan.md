@@ -632,7 +632,7 @@ modules.
 |---|---|---|
 | a | Demo data never requested | Met: `load_demo_data=false` on every request (adapter test) |
 | b | A component past its budget is reported, the run stops, a re-run resumes | Met, as for plugins: 45 minutes, then "unknown" with the progress id to check |
-| c | An unknown progress after a lost response is read, never re-requested | **Not met, for plugins either.** The progress id is in the stopped step's detail, not in the journal, and a re-run checks the instance (`sys_scope`) and may request the install again if the first is still running. Follow-up: keep the progress id in the journal and read it before any new request, for both kinds |
+| c | An unknown progress after a lost response is read, never re-requested | **Met, for plugins and store applications** (branch `feat/install-resume-progress`). A step that stops with its outcome unknown keeps the progress id in the journal (`progressId`). A re-run reads that progress before any component request, whatever the plan now says: finished, the step is done and the run goes on; pending or running, the run stops again with the same progress id and asks nothing; failed or canceled, it stops with the instance's reason and no progress id, so the next run requests it again. A component step the journal records as done is not requested again |
 | d | Live run | Not yet: no store application has been installed through it. First run planned on everis2 (zero-touch S0) |
 
 ## 18. `--demo` as the one demo switch (ADR-0048, 2026-11-03)

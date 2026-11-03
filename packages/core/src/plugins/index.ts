@@ -23,6 +23,8 @@ export {
 } from "./application/list-plugins";
 export {
   ActivationStateUnknownError,
+  ComponentChangeFailedError,
+  ComponentChangeRunningError,
   ConfirmationRequiredError,
   PluginActivationFailedError,
   PluginNotFoundError,
@@ -30,6 +32,7 @@ export {
   StoreAppInstallStateUnknownError,
   StoreAppNotOfferedError,
   StoreAppOutdatedError,
+  UnknownOutcomeError,
 } from "./domain/errors";
 export type {
   ActivationProgress,

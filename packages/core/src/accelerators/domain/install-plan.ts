@@ -231,6 +231,9 @@ export interface InstallStepRecord {
   readonly outcome: "done" | "skipped" | "stopped";
   readonly detail: string;
   readonly seconds: number;
+  // A component change whose outcome the run lost: the instance's progress for it, read by the
+  // next run before it asks for anything (spec 011, I3 c).
+  readonly progressId?: string;
 }
 
 // An install in progress, kept until it finishes so a re-run with the same plan id resumes it.

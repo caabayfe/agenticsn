@@ -1,4 +1,5 @@
 import type {
+  ActivationProgress,
   FormFieldFact,
   InstallJournal,
   InstallRecord,
@@ -26,6 +27,11 @@ export function fakeSteps(
     workspace?: Record<string, string>;
     // Scopes the workspace has no project for yet.
     noProject?: string[];
+    // What activating a plugin or installing an application throws, when it does.
+    activateFails?: Error;
+    installFails?: Error;
+    // The instance's answers to progress reads, in order.
+    progress?: ActivationProgress[];
   } = {},
 ) {
   const calls: string[] = [];
@@ -36,11 +42,19 @@ export function fakeSteps(
   const steps: InstallSteps = {
     activatePlugin: async (id) => {
       calls.push(`activate ${id}`);
+      if (options.activateFails !== undefined) throw options.activateFails;
       return { seconds: 3 };
     },
     installApp: async (scope, version, demoData) => {
       calls.push(`install ${scope} ${version}${demoData ? " with demo data" : ""}`);
+      if (options.installFails !== undefined) throw options.installFails;
       return { seconds: 4 };
+    },
+    progress: async (progressId) => {
+      calls.push(`progress ${progressId}`);
+      const next = options.progress?.shift();
+      if (next === undefined) throw new Error(`no progress ${progressId} in the fake`);
+      return next;
     },
     refresh: async () => {
       calls.push("refresh");

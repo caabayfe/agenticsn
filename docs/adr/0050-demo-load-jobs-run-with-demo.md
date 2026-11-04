@@ -15,10 +15,17 @@ scheduled job ("ACC demo: load history", "ACC demo: load scenarios"), and someon
 choose *Execute Now*. The owner asked for `--demo` to run them.
 
 snagentic has no script runner and must not get one (AGENTS.md: no background scripts). The
-platform's *Execute Now* does not run the job in the request either: it adds a run-once trigger
-(`sys_trigger`, `trigger_type` 0) on the job, with the platform's script job runner
-(`sys_job` `RunScriptJob`), for the scheduler to pick up. The Table API can add the same row. A
-trigger is not captured in update sets, so nothing of it is promoted.
+platform's *Execute Now* does not run the job in the request either: it is a server-side UI
+action on scheduled jobs (`sysauto`) that adds a run-once trigger (`sys_trigger`) for the
+scheduler to pick up. The UI Action API (`POST /api/now/ui/ui_action/{action}` with the table and
+record) presses the same button, as a person's click does. A trigger is not captured in update
+sets, so nothing of it is promoted.
+
+**Amended after the first live run (everis2, 2026-11-04):** the first version inserted the
+trigger itself through the Table API. Field ACLs dropped its name, document, document key and
+type, so it never ran. The install now presses *Execute Now* through the UI Action API: the
+platform writes the trigger in full, and the job record is left unchanged (no update, no update
+set entry). An instance without an active *Execute Now* action on `sysauto` stops the install.
 
 ## Decision
 

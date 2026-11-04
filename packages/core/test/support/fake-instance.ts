@@ -154,6 +154,9 @@ export function memoryWriter(
       captureFor(table, sysId, row["sys_scope"] ?? "");
       return { ...row, ...values };
     },
+    uiAction: async (action, table, sysId) => {
+      writes.push(`ui_action ${action} ${table} ${sysId}`);
+    },
   };
   return writer;
 }

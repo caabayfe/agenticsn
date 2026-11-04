@@ -111,11 +111,11 @@ export class BranchNotPublishedError extends SnagenticError {
 }
 
 export class OnDemandJobsUnavailableError extends SnagenticError {
-  constructor(runner: string) {
+  constructor(action: string) {
     super(
       "on-demand-jobs-unavailable",
       "precondition",
-      `the instance has no ${runner} job, so it cannot run a scheduled job on demand`,
+      `the instance has no active ${action} action on scheduled jobs, so it cannot run one on demand`,
       "run the demo modules' load jobs by hand: open each one and choose Execute Now",
     );
   }

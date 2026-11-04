@@ -23,7 +23,8 @@ function rowOf(result: unknown, what: string): Readonly<Record<string, string>> 
   );
 }
 
-// Inserts and updates through the Table API (ADR-0007): records, update sets, preferences.
+// Inserts and updates through the Table API (ADR-0007): records, update sets, preferences. A UI
+// action through the UI Action API (ADR-0050).
 export class TableApiWriter implements InstanceWriter {
   constructor(private readonly client: JsonSender) {}
 
@@ -42,5 +43,18 @@ export class TableApiWriter implements InstanceWriter {
     const what = `updating ${table} ${sysId}`;
     const path = `/api/now/table/${encodeURIComponent(table)}/${encodeURIComponent(sysId)}${QUERY}`;
     return rowOf(await this.client.sendJson("PATCH", path, values, what, signal), what);
+  }
+
+  // The UI Action API runs the action's server script on the record, as its form button does.
+  async uiAction(action: string, table: string, sysId: string, signal: AbortSignal) {
+    const what = `running UI action ${action} on ${table} ${sysId}`;
+    const query = `?sysparm_table=${encodeURIComponent(table)}&sysparm_sys_id=${encodeURIComponent(sysId)}`;
+    await this.client.sendJson(
+      "POST",
+      `/api/now/ui/ui_action/${encodeURIComponent(action)}${query}`,
+      {},
+      what,
+      signal,
+    );
   }
 }

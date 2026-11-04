@@ -190,7 +190,7 @@ describe("accelerator install (ADR-0038)", () => {
 
   it("runs the demo modules' load jobs once, as Execute Now does (ADR-0050)", async () => {
     const installed = await installing({
-      sys_job: [{ sys_id: "rsj", name: "RunScriptJob" }],
+      sys_ui_action: [{ sys_id: "en", name: "Execute Now", table: "sysauto", active: "true" }],
       sysauto_script: [{ sys_id: "j1", name: "Showcase: load demo records", active: "true" }],
     });
     const packs = await mkdtemp(join(tmpdir(), "snagentic-showcase-"));
@@ -225,9 +225,8 @@ describe("accelerator install (ADR-0038)", () => {
     );
     const steps = (output as { steps: { step: string; outcome: string }[] }).steps;
     expect(steps.find((s) => s.step === "run the demo load jobs")?.outcome).toBe("done");
-    const triggers = installed.instance.tables["sys_trigger"] ?? [];
-    expect(triggers.map((t) => [t["name"], t["document_key"], t["job_id"]])).toEqual([
-      ["Showcase: load demo records", "j1", "rsj"],
+    expect(installed.instance.writes.filter((w) => w.startsWith("ui_action"))).toEqual([
+      "ui_action en sysauto_script j1",
     ]);
   });
 

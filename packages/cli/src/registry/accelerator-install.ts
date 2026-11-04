@@ -9,6 +9,7 @@ import {
   type ListFact,
   mirrorSchema,
   openUpdateSets,
+  queueOnDemandJobs,
   readLayouts,
   readSections,
   storeOffers,
@@ -34,7 +35,7 @@ const Step = z.object({
 });
 
 // The install steps that read or write the instance directly, through the open connection.
-function connectedSteps(connection: Awaited<ReturnType<typeof connect>>) {
+function connectedSteps(connection: Awaited<ReturnType<typeof connect>>, clock: () => Date) {
   const { reader, profile } = connection;
   return {
     completeUpdateSets: (sets: readonly { readonly sysId: string }[], signal: AbortSignal) =>
@@ -54,6 +55,8 @@ function connectedSteps(connection: Awaited<ReturnType<typeof connect>>) {
         values,
         purpose === "demo" ? DEMO_SETTINGS_SET : DEVELOPMENT_SETTINGS_SET,
       ),
+    demoJobs: (names: readonly string[], signal: AbortSignal) =>
+      queueOnDemandJobs({ reader, writer: reader.writer, signal }, names, clock()),
     // Plugin activations and store installs share the CI/CD progress resource.
     progress: (progressId: string, signal: AbortSignal) =>
       reader.plugins.progress(progressId, signal),
@@ -120,7 +123,7 @@ export const acceleratorInstall = defineUseCase({
             { root, instance: name, pack: input.pack },
             callerFor(context, run),
           ),
-          ...connectedSteps(connection),
+          ...connectedSteps(connection, context.clock),
         },
         journal: context.installJournal(root, name),
         now: context.clock,

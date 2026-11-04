@@ -6,6 +6,7 @@ export {
   DEMO_SETTINGS_SET,
   DEVELOPMENT_SETTINGS_SET,
 } from "./application/development-settings";
+export { type QueuedJobs, queueOnDemandJobs } from "./application/on-demand-jobs";
 export {
   computeUnitPlan,
   type HeldRecord,
@@ -28,6 +29,7 @@ export {
 export {
   BranchNotPublishedError,
   IntegrationUserNotFoundError,
+  OnDemandJobsUnavailableError,
   PlanChangedError,
   PlanNotReadyError,
   PullRequestFromDefaultBranchError,

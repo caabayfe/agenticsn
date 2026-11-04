@@ -83,6 +83,8 @@ export interface InstallPlan {
   readonly demoOnly: readonly string[];
   // The kept demo modules' settings, set after the modules (ADR-0049); empty without --demo.
   readonly demoSettings: Readonly<Record<string, string>>;
+  // The kept demo modules' load jobs, run once after the data (ADR-0050); empty without --demo.
+  readonly demoJobs: readonly string[];
   readonly components: readonly PlannedComponent[];
   // The platform fields the modules read, each with its state on the instance.
   readonly fields: readonly PlannedField[];
@@ -192,6 +194,7 @@ export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
     // Absent when empty, so plans without demo modules keep the ids they had.
     ...(plan.demoOnly.length === 0 ? {} : { demoOnly: [...plan.demoOnly] }),
     ...(Object.keys(plan.demoSettings).length === 0 ? {} : { demoSettings: plan.demoSettings }),
+    ...(plan.demoJobs.length === 0 ? {} : { demoJobs: [...plan.demoJobs] }),
     components: plan.components.map((c) => ({
       key: `${c.kind}:${c.id}`,
       state: c.state,

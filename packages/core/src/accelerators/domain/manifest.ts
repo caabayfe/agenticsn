@@ -133,6 +133,19 @@ function demoSettingsOf(fields: Fields, say: (problem: string) => void) {
   return Object.keys(settings).length === 0 ? {} : { demoSettings: settings };
 }
 
+// A demo module's demoJobs: the names of its on-demand load jobs (ADR-0050). An encoded query
+// holds them, so a name cannot have a comma or a caret.
+function demoJobsOf(fields: Fields, say: (problem: string) => void) {
+  const declared = list(fields["demoJobs"]);
+  if (declared.length === 0) return {};
+  if (fields["demo"] !== true) say("demoJobs is for demo modules only");
+  const named = declared.filter((n): n is string => typeof n === "string" && /^[^,^]+$/.test(n));
+  if (named.length < declared.length) {
+    say("demoJobs: each job is named by text without commas or ^");
+  }
+  return named.length === 0 ? {} : { demoJobs: named };
+}
+
 function capability(pack: string, id: string, value: unknown, problems: string[]): Capability {
   const fields = fieldsOf(value) ?? {};
   const say = (problem: string) => problems.push(`module ${id}: ${problem}`);
@@ -157,6 +170,7 @@ function capability(pack: string, id: string, value: unknown, problems: string[]
     fields: required.filter((f): f is RequiredField => f !== null),
     ...(fields["demo"] === true ? { demo: true as const } : {}),
     ...demoSettingsOf(fields, say),
+    ...demoJobsOf(fields, say),
   };
 }
 

@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- A demo module may declare `demoJobs` in `module.yaml`: its on-demand load jobs. With `--demo` on
+  a development instance, the install runs each once, as *Execute Now* does, after the demo
+  modules' settings are on and the pack's data is loaded. It does not wait for them, and a resumed
+  install does not run them again. The plan document names them (ADR-0050).
+
 ## [2.18.0] - 2026-11-03
 
 `--demo` turns on the demo modules it installs (ADR-0049).

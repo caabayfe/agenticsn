@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { resolve } from "node:path";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { InstallPlanChangedError } from "@snagentic/core";
 import { CsvDataTemplates } from "../../src/adapters/accelerators/csv-data-templates";
 import { DirectoryPackSource } from "../../src/adapters/accelerators/directory-pack-source";
@@ -184,6 +186,49 @@ describe("accelerator install (ADR-0038)", () => {
       detail: "finished on the instance after the run lost it (progress progress-lost)",
     });
     expect(installed.instance.installs).toEqual([]);
+  });
+
+  it("runs the demo modules' load jobs once, as Execute Now does (ADR-0050)", async () => {
+    const installed = await installing({
+      sys_job: [{ sys_id: "rsj", name: "RunScriptJob" }],
+      sysauto_script: [{ sys_id: "j1", name: "Showcase: load demo records", active: "true" }],
+    });
+    const packs = await mkdtemp(join(tmpdir(), "snagentic-showcase-"));
+    await mkdir(join(packs, "showcase/modules/records"), { recursive: true });
+    await writeFile(
+      join(packs, "showcase/accelerator.yaml"),
+      'id: showcase\nversion: 1.0.0\nrequires:\n  snagentic: ">=1.6.0"\nprofiles:\n  all: [records]\n',
+    );
+    await writeFile(
+      join(packs, "showcase/modules/records/module.yaml"),
+      'label: "showcase: records"\ndemo: true\ndemoJobs: ["Showcase: load demo records"]\ncomponents: []\n',
+    );
+    const input = { pack: "showcase", instance: "pdi", profile: "all", demo: true };
+    const planning = { ...installed.context, packs: new DirectoryPackSource([packs]) };
+    const { output: plan } = await executeUseCase(acceleratorInstall, input, planning);
+    const planId = (plan as { planId: string }).planId;
+    // The module was delivered by an earlier run: only the jobs are left.
+    const earlier = {
+      planId,
+      startedAt: "2026-11-04T10:00:00.000Z",
+      steps: [{ step: "module records", outcome: "done" as const, detail: "", seconds: 1 }],
+    };
+    const context = {
+      ...planning,
+      workspaceFiles: fsWorkspaceFiles,
+      installJournal: () => ({ ...installed.context.installJournal(), read: async () => earlier }),
+    };
+    const { output } = await executeUseCase(
+      acceleratorInstall,
+      { ...input, confirm: planId },
+      context,
+    );
+    const steps = (output as { steps: { step: string; outcome: string }[] }).steps;
+    expect(steps.find((s) => s.step === "run the demo load jobs")?.outcome).toBe("done");
+    const triggers = installed.instance.tables["sys_trigger"] ?? [];
+    expect(triggers.map((t) => [t["name"], t["document_key"], t["job_id"]])).toEqual([
+      ["Showcase: load demo records", "j1", "rsj"],
+    ]);
   });
 
   it("reads the layouts and form sections its modules add to from the instance, live (ADR-0042)", async () => {

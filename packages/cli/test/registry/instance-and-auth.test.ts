@@ -75,6 +75,7 @@ async function setup() {
         writer: {
           insert: async () => ({}),
           update: async () => ({}),
+          uiAction: async () => {},
         },
         countBy: async () => new Map(),
         count: async () => 0,

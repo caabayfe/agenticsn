@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   type AvailableApp,
+  type InstallJournal,
   type InstallSteps,
   installPack,
   installPlanDocument,
@@ -51,6 +52,7 @@ function deps(
     steps?: InstallSteps;
     pack?: PackFixture;
     apps?: readonly Record<string, string>[];
+    journal?: InstallJournal;
   } = {},
 ) {
   const clock = { ms: 0 };
@@ -86,7 +88,7 @@ function deps(
     },
     schema: { ready: async () => true, fieldsOf: async () => [], refresh: () => {} },
     steps: extra.steps ?? fakeSteps().steps,
-    journal: memoryJournal().journal,
+    journal: extra.journal ?? memoryJournal().journal,
     now: () => {
       clock.ms += 1000;
       return new Date(clock.ms);
@@ -336,6 +338,116 @@ describe("--demo turns on the demo modules it installs (ADR-0049)", () => {
     const document = installPlanDocument(await planInstall(settingsDeps(), QUERY));
     expect(document).toContain(
       "**Demo modules turned on.** After the modules, the install sets `nttdata.acc.dex_demo.allowed` = `true`",
+    );
+  });
+});
+
+// A demo module whose loader runs as an on-demand job, once its property is on (ADR-0050).
+const JOBS_PACK: PackFixture = {
+  ...SETTINGS_PACK,
+  modules: {
+    ...SETTINGS_PACK.modules,
+    "dex-demo": {
+      label: "ZT: dex demo",
+      demo: true,
+      dependsOn: ["dex"],
+      components: [{ kind: "app", id: "sn_dex_demo_data" }],
+      demoSettings: { "nttdata.acc.dex_demo.allowed": "true" },
+      demoJobs: ["ZT demo: load devices"],
+    },
+  },
+};
+const jobsDeps = (extra: Parameters<typeof deps>[0] = {}) =>
+  demoDeps({ pack: JOBS_PACK, ...extra });
+
+describe("--demo runs the demo modules' load jobs (ADR-0050)", () => {
+  it("plans the demo modules' jobs with --demo, and none with --data", async () => {
+    const demo = await planInstall(jobsDeps(), QUERY);
+    expect(demo.demoJobs).toEqual(["ZT demo: load devices"]);
+    expect((await planInstall(jobsDeps(), CUSTOMER)).demoJobs).toEqual([]);
+    expect(demo.planId).not.toBe((await planInstall(settingsDeps(), QUERY)).planId);
+  });
+
+  it("refuses demo jobs on a module that is not a demo module", async () => {
+    const pack: PackFixture = {
+      ...DEMO_PACK,
+      modules: {
+        ...DEMO_PACK.modules,
+        dex: {
+          label: "ZT: dex",
+          dependsOn: ["foundation"],
+          components: [{ kind: "app", id: "sn_dex", demoData: true }],
+          demoJobs: ["ZT: load devices"],
+        },
+      },
+    };
+    await expect(planInstall(demoDeps({ pack }), QUERY)).rejects.toThrow(
+      "module dex: demoJobs is for demo modules only",
+    );
+  });
+
+  it("refuses a job name an encoded query cannot hold", async () => {
+    const pack: PackFixture = {
+      ...JOBS_PACK,
+      modules: {
+        ...JOBS_PACK.modules,
+        "dex-demo": {
+          label: "ZT: dex demo",
+          demo: true,
+          dependsOn: ["dex"],
+          components: [{ kind: "app", id: "sn_dex_demo_data" }],
+          demoSettings: { "nttdata.acc.dex_demo.allowed": "true" },
+          demoJobs: ["load, then score", 3],
+        },
+      },
+    };
+    await expect(planInstall(demoDeps({ pack }), QUERY)).rejects.toThrow(
+      "module dex-demo: demoJobs: each job is named by text without commas or ^",
+    );
+  });
+
+  it("queues them once the modules are on and the data is loaded", async () => {
+    const { steps, calls } = fakeSteps();
+    const plan = await planInstall(jobsDeps(), QUERY);
+    const result = await installPack(jobsDeps({ steps }), { ...QUERY, confirm: plan.planId });
+    expect(result.stopped).toBeNull();
+    expect(calls.indexOf("demo jobs ZT demo: load devices")).toBeGreaterThan(
+      calls.indexOf("demo settings"),
+    );
+    expect(calls.indexOf("demo jobs ZT demo: load devices")).toBeGreaterThan(
+      calls.findIndex((c) => c.startsWith("load ")),
+    );
+    expect(result.steps.find((s) => s.step === "run the demo load jobs")?.detail).toBe(
+      "queued ZT demo: load devices: they run in the background, in the instance's system log",
+    );
+  });
+
+  it("does not queue them again when a stopped install is resumed", async () => {
+    const { steps, calls } = fakeSteps();
+    const plan = await planInstall(jobsDeps(), QUERY);
+    const { journal } = memoryJournal({
+      planId: plan.planId,
+      startedAt: "2026-11-04T10:00:00.000Z",
+      steps: [{ step: "run the demo load jobs", outcome: "done", detail: "queued", seconds: 1 }],
+    });
+    await installPack(jobsDeps({ steps, journal }), { ...QUERY, confirm: plan.planId });
+    expect(calls.some((c) => c.startsWith("demo jobs"))).toBe(false);
+  });
+
+  it("stops when the instance lacks a job the plan runs", async () => {
+    const { steps } = fakeSteps({ missingJobs: ["ZT demo: load devices"] });
+    const plan = await planInstall(jobsDeps(), QUERY);
+    const result = await installPack(jobsDeps({ steps }), { ...QUERY, confirm: plan.planId });
+    expect(result.stopped).toMatchObject({
+      step: "run the demo load jobs",
+      detail: "the instance lacks the jobs ZT demo: load devices",
+    });
+  });
+
+  it("tells the admin which jobs it runs, and that it does not wait for them", async () => {
+    const document = installPlanDocument(await planInstall(jobsDeps(), QUERY));
+    expect(document).toContain(
+      "**Demo load jobs run.** Once the modules are on and the data is loaded, the install runs `ZT demo: load devices` once",
     );
   });
 });

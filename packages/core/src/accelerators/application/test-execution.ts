@@ -55,3 +55,25 @@ export async function turnOnDemoModules(
     };
   });
 }
+
+// The demo modules' loaders run as on-demand jobs: --demo runs each once, after the modules are
+// on and the pack's data is loaded (ADR-0050). Each run writes demo records, so a resumed install
+// that already ran them does not run them again.
+export async function runDemoJobs(
+  deps: InstallRunDependencies,
+  plan: InstallPlan,
+  record: { current: InstallRecord },
+  signal: AbortSignal,
+) {
+  const name = "run the demo load jobs";
+  if (plan.instance.kind !== "development" || plan.demoJobs.length === 0) return;
+  if (record.current.steps.some((s) => s.step === name && s.outcome === "done")) return;
+  await step(deps, record, name, async () => {
+    const { queued, missing } = await deps.steps.demoJobs(plan.demoJobs, signal);
+    if (missing.length > 0) throw new Error(`the instance lacks the jobs ${missing.join(", ")}`);
+    return {
+      outcome: "done",
+      detail: `queued ${queued.join(", ")}: they run in the background, in the instance's system log`,
+    };
+  });
+}

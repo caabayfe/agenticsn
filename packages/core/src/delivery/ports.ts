@@ -51,6 +51,8 @@ export interface InstanceWriter {
     values: Readonly<Record<string, string>>,
     signal: AbortSignal,
   ): Promise<Readonly<Record<string, string>>>;
+  // Presses a server-side UI action's button on a record, as a person's click does (ADR-0050).
+  uiAction(action: string, table: string, sysId: string, signal: AbortSignal): Promise<void>;
 }
 
 export interface SwitchedPreference {

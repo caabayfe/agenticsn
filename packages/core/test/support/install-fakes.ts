@@ -32,6 +32,8 @@ export function fakeSteps(
     installFails?: Error;
     // The instance's answers to progress reads, in order.
     progress?: ActivationProgress[];
+    // Demo load jobs the instance does not have (ADR-0050).
+    missingJobs?: string[];
   } = {},
 ) {
   const calls: string[] = [];
@@ -69,6 +71,11 @@ export function fakeSteps(
       }
       settings.push(...Object.keys(values));
       return { changed: Object.keys(values), missing: [] };
+    },
+    demoJobs: async (names) => {
+      calls.push(`demo jobs ${names.join("+")}`);
+      const missing = names.filter((name) => (options.missingJobs ?? []).includes(name));
+      return { queued: names.filter((name) => !missing.includes(name)), missing };
     },
     add: async (modules) => {
       calls.push(`add ${modules.join("+")}`);

@@ -104,6 +104,12 @@ export interface InstallSteps {
     signal: AbortSignal,
     purpose: "tests" | "demo",
   ): Promise<{ readonly changed: readonly string[]; readonly missing: readonly string[] }>;
+  // Runs the demo modules' on-demand jobs once, now (ADR-0050): those queued, and those the
+  // instance lacks. It does not wait for them: a load can take many runs.
+  demoJobs(
+    names: readonly string[],
+    signal: AbortSignal,
+  ): Promise<{ readonly queued: readonly string[]; readonly missing: readonly string[] }>;
   // accelerator add for these modules: the workspace files it wrote, and those the merge left in
   // conflict.
   add(

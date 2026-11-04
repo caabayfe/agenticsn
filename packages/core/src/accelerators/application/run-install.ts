@@ -12,7 +12,7 @@ import { deliverAs } from "./deliver-module";
 import { components } from "./install-components";
 import { type InstallRunDependencies, step } from "./install-step";
 import { type InstallQuery, planInstall } from "./plan-install";
-import { turnOnDemoModules, turnOnTests } from "./test-execution";
+import { runDemoJobs, turnOnDemoModules, turnOnTests } from "./test-execution";
 
 const folderOf = (pack: string, instance: string, planId: string) =>
   `accelerators/installs/${instance}/${pack}-${planId}`;
@@ -213,6 +213,7 @@ async function run(
     await deliver(deps, plan, record, query.signal);
     await turnOnDemoModules(deps, plan, record, query.signal);
     await load(deps, plan, query, record, query.signal);
+    await runDemoJobs(deps, plan, record, query.signal);
     await step(deps, record, "pull and integrate", async () => {
       await deps.steps.refresh(query.signal);
       return { outcome: "done", detail: "the mirror shows the installed modules" };

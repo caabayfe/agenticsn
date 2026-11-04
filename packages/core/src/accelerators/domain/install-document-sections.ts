@@ -139,3 +139,13 @@ export function demoSettingsNote(plan: InstallPlan): string[] {
     "",
   ];
 }
+
+// The demo modules' load jobs --demo runs once, without waiting for them (ADR-0050).
+export function demoJobsNote(plan: InstallPlan): string[] {
+  if (plan.demoJobs.length === 0) return [];
+  const named = plan.demoJobs.map((job) => `\`${job}\``).join(", ");
+  return [
+    `**Demo load jobs run.** Once the modules are on and the data is loaded, the install runs ${named} once, as *Execute Now* does. It does not wait for them: they write the demo records in the background, and the instance's system log shows their progress. A resumed install does not run them again (ADR-0050).`,
+    "",
+  ];
+}

@@ -1,7 +1,13 @@
 import { sha256Hex } from "../../kernel/sha256";
 import { selectCapabilities } from "../domain/capability-graph";
 import type { DataDomain } from "../domain/data-domain";
-import { demoChoice, demoDataWarnings, demoSettings, loadsDemoData } from "../domain/demo-modules";
+import {
+  demoChoice,
+  demoDataWarnings,
+  demoJobs,
+  demoSettings,
+  loadsDemoData,
+} from "../domain/demo-modules";
 import { earlierSets, recordedSets } from "../domain/earlier-sets";
 import {
   blockingProblems,
@@ -171,6 +177,7 @@ function withDemoData(
   );
   return {
     settings: demoSettings(manifest, selected, demo),
+    jobs: demoJobs(manifest, selected, demo),
     components: components.map((c) =>
       loadsDemoData(c, declared.has(c.id), demo) ? { ...c, demoData: true as const } : c,
     ),
@@ -273,6 +280,7 @@ export async function planInstall(
     skipped,
     demoOnly: choice.leftOut,
     demoSettings: demo.settings,
+    demoJobs: demo.jobs,
     components: demo.components,
     fields: required.fields,
     earlierSets: await plannedEarlierSets(deps, manifest, query.signal),

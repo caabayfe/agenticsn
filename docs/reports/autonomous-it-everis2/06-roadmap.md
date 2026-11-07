@@ -63,7 +63,7 @@ These start by themselves on a record event. Switching one on is a single change
 
 | Trigger (off) | What it does | Demo fit |
 |---|---|---|
-| **Generate post incident review on resolved** | When an incident is resolved, the agent writes the post-incident review on its own | Very good: closes the SAP act. Resolve major incident INC0025716 and the review appears without anyone asking |
+| **Generate post incident review on resolved** | When an accepted major incident with an assignee is resolved, the agent drafts the post-incident review from the incident, its child incidents and related records, as the assignee, in the Now Assist panel; once the assignee approves, it writes it to the incident (level 2) | Very good: closes the SAP act. Resolve major incident INC0025716 and the draft is waiting for its assignee, without anyone asking |
 | **Change Request Planner** | When a change is created, the agent writes its implementation, backout and test plans | Good: CHG0030146 (the HANA firewall change) or a new SAP change gets its plans unasked |
 | Survey filling trigger | Proposes answers to surveys | Weak for a demo |
 | Investigate and recommend incident resolution | Proposes a resolution on the incident | Already covered by our build, which runs on assignment |

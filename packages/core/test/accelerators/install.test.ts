@@ -965,15 +965,34 @@ describe("layouts a module adds to (ADR-0042)", () => {
   });
 
   // An install by snagentic 2.15 or earlier restated the container in its own file.
-  it("removes a container file an earlier install generated, in the same commit", async () => {
+  it("removes a container file an earlier install generated, before the first module is planned", async () => {
     const layout: ListState = { container: CONTAINER, view: "Default view", entries: [] };
     const stale = `source/global/src/fluent/ensure-list-${CONTAINER}.now.ts`;
     const { steps, calls, files } = fakeSteps({ layout, workspace: { [stale]: "Record({})" } });
     const plan = await planInstall(ensureDeps(steps), QUERY);
     await installPack(ensureDeps(steps), { ...QUERY, confirm: plan.planId });
     expect(files.has(stale)).toBe(false);
+    // Removed when the first module (foundation) is delivered, in a commit of its own.
+    const first = calls.findIndex((c) => c.startsWith("plan "));
+    expect(calls.slice(0, first)).toContain("commit 1");
     const at = calls.indexOf("layouts 1");
-    expect(calls.slice(at, at + 3)).toEqual(["layouts 1", "commit 2", "keys 2"]);
+    expect(calls.slice(at, at + 3)).toEqual(["layouts 1", "commit 1", "keys 2"]);
+  });
+
+  // pdi2, 2026-11-07: the workspace held container files of modules this install did not deliver,
+  // and SDK 4.14 built each as a whole layout with only the pack's entries, which the plan refused.
+  it("removes every container file an earlier install generated, for modules it does not deliver too", async () => {
+    const other = "7af0c6718304db50292aca75eeaad3de";
+    const stale = `source/global/src/fluent/ensure-list-${other}.now.ts`;
+    const own = "source/global/src/fluent/ensure-list-notes.now.ts";
+    const { steps, files } = fakeSteps({
+      workspace: { [stale]: "Record({})", [own]: "// the developer's own file" },
+    });
+    const plain = deps(ACTIVE, { steps });
+    const plan = await planInstall(plain, QUERY);
+    await installPack(plain, { ...QUERY, confirm: plan.planId });
+    expect(files.has(stale)).toBe(false);
+    expect(files.has(own)).toBe(true);
   });
 
   it("adds nothing when the list is already there", async () => {

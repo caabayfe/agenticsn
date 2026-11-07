@@ -127,7 +127,12 @@ export const FAKE_CONTEXT: UseCaseContext = {
   knowledge: () => {
     throw new Error("no knowledge index in this test");
   },
-  workspaceFiles: { read: async () => null, write: async () => {}, remove: async () => {} },
+  workspaceFiles: {
+    read: async () => null,
+    write: async () => {},
+    remove: async () => {},
+    list: async () => [],
+  },
   delivery: () => {
     throw new Error("no delivery in this test");
   },

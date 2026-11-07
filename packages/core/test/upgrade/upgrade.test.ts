@@ -54,6 +54,7 @@ function setup(overrides: Partial<UpgradeDependencies> = {}) {
       read: async (path) => files.get(path) ?? null,
       write: async () => {},
       remove: async () => {},
+      list: async () => [],
     },
     current: "1.2.1",
     platform: "darwin",

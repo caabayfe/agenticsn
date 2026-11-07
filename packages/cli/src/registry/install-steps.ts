@@ -204,6 +204,7 @@ export function installSteps(
     },
     readFile: (path) => context.workspaceFiles.read(join(where.root, path)),
     removeFile: (path) => context.workspaceFiles.remove(join(where.root, path)),
+    listFiles: (directory) => context.workspaceFiles.list(join(where.root, directory)),
     commit: (paths, message) => delivery().commitFiles(paths, message),
   };
 }

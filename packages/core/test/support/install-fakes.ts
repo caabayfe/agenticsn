@@ -176,6 +176,14 @@ export function fakeSteps(
     removeFile: async (path) => {
       files.delete(path);
     },
+    listFiles: async (directory) =>
+      [...files.keys()]
+        .filter(
+          (path) =>
+            path.startsWith(`${directory}/`) && !path.slice(directory.length + 1).includes("/"),
+        )
+        .map((path) => path.slice(directory.length + 1))
+        .sort(),
     commit: async (paths) => {
       calls.push(`commit ${paths.length}`);
       return "r1";

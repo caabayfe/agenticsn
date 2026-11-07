@@ -87,6 +87,7 @@ function fakes() {
         written.push([path, text]);
       },
       remove: async () => {},
+      list: async () => [],
     },
   };
   const steps = installSteps(

@@ -1,4 +1,4 @@
-import { chmod, readFile, rm } from "node:fs/promises";
+import { chmod, readdir, readFile, rm } from "node:fs/promises";
 import type { WorkspaceFiles } from "@snagentic/core";
 import { writeTextFile } from "./write-text-file";
 
@@ -21,5 +21,16 @@ export const fsWorkspaceFiles: WorkspaceFiles = {
   },
   remove: async (path) => {
     await rm(path, { force: true });
+  },
+  list: async (directory) => {
+    try {
+      const entries = await readdir(directory, { withFileTypes: true });
+      return entries.flatMap((entry) => (entry.isFile() ? [entry.name] : [])).sort();
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+        return [];
+      }
+      throw error;
+    }
   },
 };

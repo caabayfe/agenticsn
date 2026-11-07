@@ -18,4 +18,6 @@ export interface WorkspaceFiles {
   write(path: string, content: string, options?: { readonly executable?: boolean }): Promise<void>;
   // Removes the file; nothing when there is none.
   remove(path: string): Promise<void>;
+  // The names of the directory's files, sorted; none when there is no such directory.
+  list(directory: string): Promise<readonly string[]>;
 }

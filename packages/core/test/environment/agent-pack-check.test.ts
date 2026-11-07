@@ -5,6 +5,7 @@ const filesWith = (agentsMd: string | null): WorkspaceFiles => ({
   read: async (path) => (path === "/w/AGENTS.md" ? agentsMd : null),
   write: async () => {},
   remove: async () => {},
+  list: async () => [],
 });
 
 describe("the agent pack check", () => {

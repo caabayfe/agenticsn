@@ -196,6 +196,8 @@ export interface InstallSteps {
   readFile(path: string): Promise<string | null>;
   // Removes a workspace file, relative to the workspace root; committing its path records it.
   removeFile(path: string): Promise<void>;
+  // The names of a workspace directory's files, relative to the workspace root, sorted.
+  listFiles(directory: string): Promise<readonly string[]>;
   commit(paths: readonly string[], message: string): Promise<string>;
 }
 

@@ -79,7 +79,14 @@ export async function readLayouts(
 
 type EnsureSteps = Pick<
   InstallSteps,
-  "layouts" | "sections" | "project" | "writeFile" | "readFile" | "removeFile" | "commit"
+  | "layouts"
+  | "sections"
+  | "project"
+  | "writeFile"
+  | "readFile"
+  | "removeFile"
+  | "listFiles"
+  | "commit"
 >;
 
 // The layouts and forms the modules add to (ADR-0042): related lists, then form fields.
@@ -98,7 +105,10 @@ export async function ensureLayouts(
   };
 }
 
-type ListSteps = Pick<InstallSteps, "layouts" | "writeFile" | "readFile" | "removeFile" | "commit">;
+type ListSteps = Pick<
+  InstallSteps,
+  "layouts" | "writeFile" | "readFile" | "removeFile" | "listFiles" | "commit"
+>;
 
 // The related lists the modules add to: each fact read live after the components, so a plugin
 // that replaced a layout is found by table and view; the lists to add become a generated Fluent
@@ -110,7 +120,23 @@ async function ensureLists(
   facts: readonly ListFact[],
   signal: AbortSignal,
 ): Promise<{ readonly adoptions: Adoption[]; readonly written: readonly string[] }> {
-  if (facts.length === 0) return { adoptions: [], written: [] };
+  const written = facts.length === 0 ? [] : await writeEntries(deps, pack, facts, signal);
+  const removed = await removeContainerFiles(deps);
+  if (written.length + removed.length > 0) {
+    await deps.steps.commit(
+      [...written, ...removed],
+      "chore(snagentic): the layouts the accelerator adds to",
+    );
+  }
+  return { adoptions: [], written };
+}
+
+async function writeEntries(
+  deps: { readonly steps: ListSteps },
+  pack: string,
+  facts: readonly ListFact[],
+  signal: AbortSignal,
+): Promise<string[]> {
   const states = await deps.steps.layouts(facts, signal);
   const resolved = facts.flatMap((fact, i) => {
     const state = states[i];
@@ -124,30 +150,27 @@ async function ensureLists(
       resolved.filter((r) => r.fact.capability === module),
     );
     if (source.text === "") continue;
-    const path = `source/global/src/fluent/ensure-${module}.now.ts`;
+    const path = `${FLUENT}/ensure-${module}.now.ts`;
     await deps.steps.writeFile(path, source.text);
     written.push(path);
   }
-  const removed = await removeContainerFiles(deps, states);
-  if (written.length + removed.length > 0) {
-    await deps.steps.commit(
-      [...written, ...removed],
-      "chore(snagentic): the layouts the accelerator adds to",
-    );
-  }
-  return { adoptions: [], written };
+  return written;
 }
 
-// The container files snagentic 2.15 and earlier generated beside the entries, for the layouts
-// these facts resolved to.
-async function removeContainerFiles(
-  deps: { readonly steps: Pick<ListSteps, "readFile" | "removeFile"> },
-  states: readonly ListState[],
-): Promise<string[]> {
+const FLUENT = "source/global/src/fluent";
+const CONTAINER_FILE = /^ensure-list-[0-9a-f]{32}\.now\.ts$/;
+
+// The container files snagentic 2.15 and earlier generated beside the entries: all of them, as
+// the workspace also holds modules this install does not deliver (pdi2, 2026-11-07). Removing one
+// deletes nothing on the instance: the plan forgets a container its built entries still name, or
+// that the platform ships.
+async function removeContainerFiles(deps: {
+  readonly steps: Pick<ListSteps, "removeFile" | "listFiles">;
+}): Promise<string[]> {
   const removed: string[] = [];
-  for (const container of new Set(states.flatMap((s) => s.container ?? []))) {
-    const path = `source/global/src/fluent/ensure-list-${container}.now.ts`;
-    if ((await deps.steps.readFile(path)) === null) continue;
+  for (const name of await deps.steps.listFiles(FLUENT)) {
+    if (!CONTAINER_FILE.test(name)) continue;
+    const path = `${FLUENT}/${name}`;
     await deps.steps.removeFile(path);
     removed.push(path);
   }

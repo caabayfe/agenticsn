@@ -4,6 +4,7 @@
 - Date: 2026-11-03
 - Requirements: G1, ASR-08
 - Amends: 0048, section 3 ("Their loaders stay behind a property that is off as installed")
+- Amended by: 0050 (`--demo` also runs the demo modules' load jobs)
 - Relates to: 0012 (only development instances are written), 0047 (development settings in an
   update set that is never promoted)
 

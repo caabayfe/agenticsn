@@ -71,6 +71,8 @@ export interface Capability {
   readonly demo?: true;
   // A demo module's system properties and values, set with --demo on development (ADR-0049).
   readonly demoSettings?: Readonly<Record<string, string>>;
+  // A demo module's on-demand jobs, run once with --demo on development (ADR-0050).
+  readonly demoJobs?: readonly string[];
 }
 
 export interface Manifest {

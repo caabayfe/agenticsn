@@ -152,7 +152,7 @@ export function installSteps(
   call: CallUseCase,
 ): Omit<
   InstallSteps,
-  "completeUpdateSets" | "developmentSettings" | "layouts" | "progress" | "sections"
+  "completeUpdateSets" | "demoJobs" | "developmentSettings" | "layouts" | "progress" | "sections"
 > {
   const instance = String(where.instance);
   const delivery = () => context.delivery(where.root, where.instance);

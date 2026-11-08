@@ -666,3 +666,9 @@ its loaders on) are set with `--demo` on development, once the modules are deliv
 ignored update set `snagentic: demo settings (development only)`. A `--demo` plan for any other
 kind of instance is a problem. The itsm pack uses it for `demo-history` and `demo-scenarios`
 (`nttdata.acc.demo_history.allowed`, `nttdata.acc.demo_scenarios.allowed`).
+
+**Amended by ADR-0050 (2026-11-04).** A demo module's `demoJobs` (its on-demand load jobs) run
+once with `--demo` on development, after its settings are on and the pack's data is loaded, as
+*Execute Now* runs them: the install presses that action through the UI Action API. The install does not wait for them,
+and a resumed install does not run them again. The itsm pack uses it for "ACC demo: load history"
+and "ACC demo: load scenarios".

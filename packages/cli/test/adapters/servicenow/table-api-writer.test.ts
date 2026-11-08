@@ -58,6 +58,20 @@ describe("TableApiWriter", () => {
     expect(sent).toHaveLength(1);
   });
 
+  it("presses a UI action on a record through the UI Action API (ADR-0050)", async () => {
+    const { writer, sent } = writerWith(async () =>
+      response(201, '{"result":{"operation":"update","record":{"sys_id":"j1"}}}'),
+    );
+    await writer.uiAction("en", "sysauto_script", "j1", LIVE);
+    expect(sent.map((r) => [r.method, new URL(r.url).pathname, r.body])).toEqual([
+      ["POST", "/api/now/ui/ui_action/en", "{}"],
+    ]);
+    expect(Object.fromEntries(new URL(sent[0]?.url ?? "").searchParams)).toEqual({
+      sysparm_table: "sysauto_script",
+      sysparm_sys_id: "j1",
+    });
+  });
+
   it("refuses an answer that is not a record", async () => {
     const { writer } = writerWith(async () => response(200, '{"result":null}'));
     await expect(writer.insert("x", {}, LIVE)).rejects.toThrow(/not a record/);

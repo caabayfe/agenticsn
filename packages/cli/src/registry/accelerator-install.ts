@@ -9,6 +9,7 @@ import {
   type ListFact,
   mirrorSchema,
   openUpdateSets,
+  queueOnDemandJobs,
   readLayouts,
   readSections,
   storeOffers,
@@ -54,6 +55,8 @@ function connectedSteps(connection: Awaited<ReturnType<typeof connect>>) {
         values,
         purpose === "demo" ? DEMO_SETTINGS_SET : DEVELOPMENT_SETTINGS_SET,
       ),
+    demoJobs: (names: readonly string[], signal: AbortSignal) =>
+      queueOnDemandJobs({ reader, writer: reader.writer, signal }, names),
     // Plugin activations and store installs share the CI/CD progress resource.
     progress: (progressId: string, signal: AbortSignal) =>
       reader.plugins.progress(progressId, signal),

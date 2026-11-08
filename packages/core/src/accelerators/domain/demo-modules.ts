@@ -77,3 +77,13 @@ export function demoSettings(
       .sort(([a], [b]) => a.localeCompare(b)),
   );
 }
+
+// The on-demand load jobs the kept demo modules declare, dependencies first (ADR-0050).
+export function demoJobs(
+  manifest: Manifest,
+  kept: readonly string[],
+  demo: boolean,
+): readonly string[] {
+  if (!demo) return [];
+  return kept.flatMap((id) => manifest.capabilities.find((c) => c.id === id)?.demoJobs ?? []);
+}

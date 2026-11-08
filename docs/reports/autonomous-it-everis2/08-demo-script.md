@@ -354,11 +354,22 @@ workflow "Generate post incident reviews", unchanged, started by our trigger "AI
 resolved (DEMO.PI)" (update set `AIT-P2-pir-trigger`). ServiceNow's own trigger for it is protected and
 can't be switched on; ours does the same, limited to the DEMO.PI groups, with the panel alert on.
 
-**Before the scene:** the major incident INC0025716 (SAP V1 801) is In Progress, assigned to **Analista
-AIT (ES)**, with the resolution code and the cause in the resolution notes. Run it once in the
-rehearsal and answer "No" to the approval.
+**Before the scene:** "AIT demo 1 - prepare" makes three fresh `[AIT-PIR]` major incidents and prints their
+numbers (line 3.5). Each is In Progress, assigned to **Analista AIT (ES)**, with the resolution code and the
+cause already written, and with the records the review reads: service, offering, CI, the Madrid office,
+three child incidents from users, a work-note timeline, the change that caused it, the problem and an
+outage.
 
-**Where:** Service Operations Workspace, persona, INC0025716.
+| Major incident | Group | Caused by |
+|---|---|---|
+| SAP: sales orders fail in VA01 with V1 801 | DEMO.PI.SAP | CHG0030111, the kernel change of scene 3.1 |
+| SAP S/4HANA PRD down: HANA log volume full | DEMO.PI.SAP | A firewall rule that blocked the log backups |
+| MFA: Authenticator prompts fail at sign-in | DEMO.PI.Identity | A conditional-access change |
+
+Use the SAP one after scene 3.1, so the story continues. Rehearse with another one and answer "No" to the
+approval.
+
+**Where:** Service Operations Workspace, persona, the `[AIT-PIR]` SAP major incident.
 
 1. **Resolve** the incident (Resolve, code "Resolved by change", the notes already there). Say: "The
    outage is over. Nobody asks for a review."
@@ -366,11 +377,11 @@ rehearsal and answer "No" to the approval.
    waiting. Open it.
 3. **Expect:** the draft review in four sections, from the incident, its child incidents and related
    records:
-   - executive summary (Madrid sales office, about 25 users, orders blocked in VA01 from 07:30);
-   - customer and service impact;
-   - technical overview (V1 801, condition PR00 lost by the transport of CHG0030111, transport
-     reimported);
-   - action items and prevention (PR00 checks, regression tests, problem PRB0040126).
+   - executive summary (Madrid sales office, about 25 users, orders blocked in VA01);
+   - customer and service impact (the order and billing offerings);
+   - technical overview, from the timeline (V1 801, condition PR00 lost by the transport of CHG0030111,
+     transport reimported);
+   - action items and prevention (the problem, PR00 checks after transports).
 
    It ends asking for approval.
 4. Answer **"Sí"**. Open the major incident's **Post Incident Review**: the draft is there, marked
@@ -384,9 +395,10 @@ box agent, our trigger, and a person approves before anything is saved."
 - Asking for the review in a **new chat**: the panel answers that it found no resources. Use the alert.
 - An incident that isn't a **resolved** major incident (Closed doesn't count): the agent refuses it.
 - The draft is in **English**, although the persona is Spanish. Say so if asked; it's ServiceNow's agent.
-- Resolving the major incident also resolves its child incidents, which starts other automations on
-  them (the SLA pilot, knowledge drafts). After the demo, run "AIT demo 1 - prepare" and reopen the
-  children.
+- Resolving the major incident also resolves its three child incidents. They are in the Service Desk
+  group, so the SLA pilot leaves them alone, but other automations on resolved incidents may run.
+- Tested on INC0025716 on 8 November; the `[AIT-PIR]` copies were added to the preparation script after
+  that test.
 
 ## Act 4: management (7 min)
 

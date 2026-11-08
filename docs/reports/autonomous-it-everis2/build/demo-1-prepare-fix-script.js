@@ -3,8 +3,9 @@
 // again: each run retires the copies of the previous run and makes new ones.
 // It refreshes the records that a demo uses up, resets the ones a scene changes, and prints the demo
 // route: every record to open, in the order of the storyline, with a check of its state.
-// Demo data only: every record it creates is tagged [AIT-DEMO] or [AIT-P1], on DEMO.PI groups or the
-// SAP demo CIs. It changes no configuration; it realigns the start date of the demo SAP on-call rota.
+// Demo data only: every record it creates is tagged [AIT-DEMO], [AIT-P1] or [AIT-PIR], on DEMO.PI groups
+// or the SAP demo CIs; the major incidents of scene 3.5 also keep a Madrid location, changes and problems.
+// It changes no configuration; it realigns the start date of the demo SAP on-call rota.
 (function() {
     var TAG = '[AIT-DEMO]';
     var log = [];
@@ -218,6 +219,292 @@
         move.schedule();
     }
 
+    // 7. Major incidents for scene 3.5: fresh copies, In Progress, assigned to the persona, with the cause and
+    // the resolution already written. Resolving one live starts the trigger "AIT post incident review on
+    // resolved (DEMO.PI)", and the review drafts itself from these records. The review is only as good as the
+    // records it reads, so each one gets what the agent looks for: service, offering, CI and location; child
+    // incidents from users; a work-note timeline; the change that caused it and the problem; an outage. The open
+    // copies of the last run are cancelled, not resolved: resolving them would start the review trigger.
+    function majorIncidentsForReviews() {
+        var TAG = '[AIT-PIR]';
+        var made = [];
+        function ago(minutes) {
+            var t = new GlideDateTime();
+            t.addSeconds(-minutes * 60);
+            return t;
+        }
+        // The clock time a timeline line shows, in the instance's time zone.
+        function clock(minutes) {
+            var t = ago(minutes);
+            return t.getDisplayValue().substring(11, 16);
+        }
+        // Demo records are inserted without business rules, so a change or a problem can be written
+        // directly in its final state without approvals, flows or state-model checks.
+        function ensure(table, shortDescription, values) {
+            var gr = new GlideRecord(table);
+            var found = gr.get('short_description', shortDescription);
+            if (!found) { gr.initialize(); gr.short_description = shortDescription; }
+            for (var k in values) { if (values[k] !== undefined) { gr.setValue(k, values[k]); } }
+            gr.setWorkflow(false);
+            var id = found ? gr.update() : gr.insert();
+            return { id: id, number: gr.getValue('number'), created: !found };
+        }
+
+        var serviceDesk = byName('sys_user_group', 'name', 'Service Desk');
+
+        // The office the incidents happen in. There is no Spanish location on everis2, so the script keeps one.
+        var madrid = byName('cmn_location', 'name', 'Madrid - Oficina comercial');
+        if (!madrid) {
+            var loc = new GlideRecord('cmn_location');
+            loc.initialize();
+            loc.name = 'Madrid - Oficina comercial';
+            loc.city = 'Madrid';
+            loc.country = 'Spain';
+            loc.street = 'Paseo de la Castellana 95';
+            madrid = loc.insert();
+        }
+        if (!madrid) { check(false, '3.5 location Madrid - Oficina comercial could not be created'); }
+
+        var scenarios = [
+            {
+                key: 'SAP pricing',
+                title: 'SAP: no se pueden grabar pedidos de venta en VA01 (error de precios V1 801)',
+                description: 'Desde las {start} los usuarios de la oficina comercial de Madrid no pueden grabar pedidos de venta en ' +
+                    'VA01: al grabar aparece el mensaje V1 801 "Error en la determinación de precios". Unos 25 usuarios afectados; ' +
+                    'la facturación del día está bloqueada.',
+                group: 'DEMO.PI.SAP', service: ['cmdb_ci_service_discovered', 'SAP S/4HANA PRD'], offering: 'Pedidos de venta - España',
+                ci: 'SAP AppSRV01', impact: 1, urgency: 1, start: 150,
+                cause: { existing: 'CHG0030111' },
+                problem: 'La condición de precio PR00 se pierde al importar transportes junto con una actualización del kernel',
+                problemText: 'El transporte de condiciones de precios importado con el cambio del kernel 7.89 PL 200 dejó la condición ' +
+                    'PR00 sin registro para la organización de ventas de Madrid. Falta una validación de condiciones tras los transportes.',
+                close: 'Causa raíz: el transporte de condiciones de precios importado con el cambio CHG0030111 (kernel SAP 7.89 PL 200) ' +
+                    'dejó la condición PR00 sin registro para la oficina comercial de Madrid, lo que provocaba el error V1 801 al grabar ' +
+                    'pedidos en VA01. Se reimportó el transporte corregido, se regeneraron los registros de condición y se validó la ' +
+                    'grabación de pedidos y la facturación con usuarios de ventas. Servicio restablecido.',
+                children: [
+                    { user: 'abel.tuter', minutes: 145, summary: 'No puedo grabar pedidos en SAP: error V1 801',
+                      text: 'Al grabar el pedido en VA01 sale "Error en la determinación de precios" (V1 801). Tengo tres clientes esperando.' },
+                    { user: 'adela.cervantsz', minutes: 141, summary: 'Error de precios al crear pedidos de venta',
+                      text: 'Ningún pedido nuevo se puede grabar desde las 7:30, siempre el mismo error de precios.' },
+                    { user: 'aileen.mottern', minutes: 132, summary: 'No se generan facturas de los pedidos de hoy',
+                      text: 'La facturación del día está parada porque no hay pedidos grabados desde primera hora.' }
+                ],
+                timeline: [
+                    [148, 'Detección: primeras llamadas al Service Desk desde la oficina comercial de Madrid; VA01 devuelve V1 801 al grabar.'],
+                    [140, 'Declarada incidencia grave: 25 usuarios sin poder grabar pedidos, facturación del día bloqueada. Puente abierto con SAP Basis y el equipo de ventas.'],
+                    [125, 'Análisis: la determinación de precios no encuentra la condición PR00 para la organización de ventas de Madrid. Otras oficinas no afectadas.'],
+                    [110, 'Relación con el cambio CHG0030111 (kernel 7.89 PL 200), implantado anoche junto con un transporte de condiciones de precios.'],
+                    [95, 'Solución temporal descartada: introducir precios manuales en cada pedido no es viable para 25 usuarios.'],
+                    [70, 'Causa encontrada: el transporte dejó PR00 sin registro de condición. Se prepara el transporte corregido.'],
+                    [45, 'Transporte corregido importado en PRD y registros de condición regenerados.'],
+                    [25, 'Validación: tres usuarios de ventas graban pedidos y se genera la facturación pendiente. Servicio restablecido.']
+                ],
+                outage: { type: 'outage', begin: 150, end: 25 }
+            },
+            {
+                key: 'HANA database',
+                title: 'SAP S/4HANA PRD no disponible: base de datos HANA bloqueada por volumen de log lleno',
+                description: 'Desde las {start} SAP S/4HANA producción no responde: las transacciones se quedan esperando a la base de ' +
+                    'datos y Fiori devuelve errores 503. El volumen de log de HANA (HDB) está al 100 % porque los backups de log fallan.',
+                group: 'DEMO.PI.SAP', service: ['cmdb_ci_service_discovered', 'SAP S/4HANA PRD'], offering: 'Facturación - España',
+                ci: 'SAP HANADB01', impact: 1, urgency: 1, start: 190,
+                cause: {
+                    change: 'Nueva regla de firewall en la red de base de datos de SAP (segmentación de la red de backup)',
+                    changeText: 'Segmentación de la red de backup: nueva regla de firewall entre la red de base de datos de SAP y el ' +
+                        'servidor de backup 10.20.40.15. Sin impacto previsto.',
+                    group: 'DEMO.PI.Network', start: 1500, end: 1440
+                },
+                problem: 'Los backups de log de HANA fallan sin alerta cuando una regla de red bloquea el servidor de backup',
+                problemText: 'La regla de firewall bloqueó el puerto 4000 del servidor de backup; los backups de log fallaron durante ' +
+                    'horas sin avisar a nadie hasta que el volumen de log se llenó y la base de datos se detuvo.',
+                close: 'Causa raíz: la regla de firewall del cambio de segmentación de la red de backup bloqueó el puerto 4000 entre ' +
+                    'SAP HANADB01 y el servidor de backup 10.20.40.15. Los backups de log fallaron durante horas, el volumen ' +
+                    '/hana/log/HDB se llenó y HANA detuvo las escrituras. Se revirtió la regla, se lanzaron los backups de log ' +
+                    'pendientes, se liberó el volumen y se comprobaron pedidos y facturación. Servicio restablecido.',
+                children: [
+                    { user: 'adela.cervantsz', minutes: 185, summary: 'SAP no responde al facturar',
+                      text: 'Cada pantalla tarda más de un minuto y la factura no se genera.' },
+                    { user: 'alejandra.prenatt', minutes: 182, summary: 'Fiori da error 503 en Gestionar pedidos',
+                      text: 'La aplicación Gestionar pedidos de venta devuelve "Service unavailable".' },
+                    { user: 'alene.rabeck', minutes: 176, summary: 'No puedo entrar en SAP desde esta mañana',
+                      text: 'El inicio de sesión se queda cargando y al final da un error de tiempo de espera.' }
+                ],
+                timeline: [
+                    [188, 'Detección: alertas de Event Management en SAP HANADB01 (volumen de log al 97 %, backups de log fallidos) y en los servidores de aplicación.'],
+                    [180, 'Declarada incidencia grave: SAP S/4HANA PRD no disponible para toda la empresa. Puente abierto con SAP Basis, bases de datos y redes.'],
+                    [165, 'Análisis: el volumen /hana/log/HDB está al 100 %; HANA no puede escribir y los procesos de actualización esperan.'],
+                    [150, 'Los backups de log fallan desde ayer: "backint: connection timed out to backup server 10.20.40.15:4000".'],
+                    [130, 'Relación con el cambio de la regla de firewall en la red de base de datos, implantado ayer por la tarde.'],
+                    [110, 'Decisión: revertir la regla de firewall en lugar de ampliar el volumen de log.'],
+                    [90, 'Regla revertida; los backups de log pendientes se completan y el volumen baja al 35 %.'],
+                    [60, 'HANA vuelve a aceptar escrituras; se procesan las actualizaciones pendientes.'],
+                    [35, 'Validación: inicio de sesión, pedidos, facturación y Fiori correctos. Servicio restablecido.']
+                ],
+                outage: { type: 'outage', begin: 190, end: 35 }
+            },
+            {
+                key: 'MFA',
+                title: 'MFA: los usuarios no reciben la notificación de Microsoft Authenticator al iniciar sesión',
+                description: 'Desde las {start} muchos usuarios no pueden iniciar sesión en Microsoft 365 ni en las aplicaciones con ' +
+                    'inicio de sesión único: la notificación de Microsoft Authenticator no llega o pide un número que no aparece.',
+                group: 'DEMO.PI.Identity', service: ['cmdb_ci_service', 'Microsoft 365'], offering: '',
+                ci: '', impact: 1, urgency: 2, start: 120,
+                cause: {
+                    change: 'Política de acceso condicional: exigir coincidencia de número en Microsoft Authenticator para todos los usuarios',
+                    changeText: 'Activar la coincidencia de número en las notificaciones de Microsoft Authenticator para todos los ' +
+                        'usuarios mediante una política de acceso condicional.',
+                    group: 'DEMO.PI.Identity', start: 180, end: 170
+                },
+                problem: 'Las versiones antiguas de Microsoft Authenticator no muestran la coincidencia de número',
+                problemText: 'Unos 300 móviles tienen una versión de Authenticator anterior a la que muestra la coincidencia de ' +
+                    'número; la política se aplicó a todos sin comprobar las versiones instaladas.',
+                close: 'Causa raíz: la política de acceso condicional que exige la coincidencia de número en Microsoft Authenticator ' +
+                    'se aplicó a todos los usuarios, pero unos 300 móviles tenían una versión antigua de la aplicación que no muestra ' +
+                    'el número, así que no podían completar el inicio de sesión. Se excluyó temporalmente a esos usuarios de la ' +
+                    'política, se publicó la actualización de Authenticator por MDM y se comprobó el acceso con usuarios afectados. ' +
+                    'Servicio restablecido.',
+                children: [
+                    { user: 'abel.tuter', minutes: 115, summary: 'No me llega la notificación de Authenticator',
+                      text: 'Intento entrar en Outlook y el móvil no recibe nada; no puedo trabajar.' },
+                    { user: 'alejandra.prenatt', minutes: 110, summary: 'Authenticator pide un número que no veo',
+                      text: 'La pantalla de inicio de sesión me pide escribir un número en la aplicación, pero la aplicación no muestra ninguno.' },
+                    { user: 'aileen.mottern', minutes: 104, summary: 'Bloqueada fuera de Teams y del correo',
+                      text: 'Desde las 9 no puedo entrar ni en Teams ni en el correo, siempre se queda esperando la aprobación.' }
+                ],
+                timeline: [
+                    [118, 'Detección: pico de llamadas al Service Desk por inicios de sesión que no se completan.'],
+                    [112, 'Declarada incidencia grave: cientos de usuarios sin acceso a Microsoft 365. Puente abierto con Identidad y Puesto de trabajo.'],
+                    [100, 'Análisis: los registros de inicio de sesión muestran fallos de MFA solo en usuarios con versiones antiguas de Authenticator.'],
+                    [85, 'Relación con el cambio de la política de acceso condicional (coincidencia de número), activado esta mañana para todos.'],
+                    [70, 'Solución temporal: grupo de exclusión para los usuarios con versiones antiguas.'],
+                    [45, 'Actualización de Authenticator publicada por MDM a los móviles afectados.'],
+                    [20, 'Validación: usuarios afectados inician sesión con normalidad. Servicio restablecido.']
+                ],
+                outage: { type: 'degradation', begin: 120, end: 20 }
+            }
+        ];
+
+        // 1. Cancel the open copies of the last run, and their children. Cancelled, not resolved: resolving
+        // would start the review trigger on them.
+        var old = new GlideRecord('incident');
+        old.addQuery('state', 'IN', '1,2,3');
+        old.addQuery('short_description', 'STARTSWITH', TAG);
+        old.query();
+        var cancelled = 0;
+        while (old.next()) {
+            old.state = 8;
+            old.incident_state = 8;
+            old.close_notes = 'Copia de demo cancelada por una nueva preparación.';
+            old.setWorkflow(false);
+            old.update();
+            cancelled++;
+        }
+
+        // 2. One fresh major incident per scenario.
+        for (var s = 0; s < scenarios.length; s++) {
+            var sc = scenarios[s];
+            var group = byName('sys_user_group', 'name', sc.group);
+            var service = byName(sc.service[0], 'name', sc.service[1]);
+            var offering = sc.offering ? byName('service_offering', 'name', sc.offering) : '';
+            var ci = sc.ci ? byName('cmdb_ci', 'name', sc.ci) : '';
+            check(!!group, sc.key + ': group ' + sc.group);
+            check(!!service, sc.key + ': service ' + sc.service[1]);
+            if (sc.offering) { check(!!offering, sc.key + ': offering ' + sc.offering); }
+            if (sc.ci) { check(!!ci, sc.key + ': CI ' + sc.ci); }
+
+            var change = '';
+            if (sc.cause.existing) {
+                change = byName('change_request', 'number', sc.cause.existing);
+                check(!!change, sc.key + ': change ' + sc.cause.existing);
+            } else {
+                var chg = ensure('change_request', TAG + ' ' + sc.cause.change, {
+                    description: sc.cause.changeText, type: 'normal', state: '3', assignment_group: byName('sys_user_group', 'name', sc.cause.group),
+                    business_service: service, cmdb_ci: ci, start_date: ago(sc.cause.start), end_date: ago(sc.cause.end),
+                    work_start: ago(sc.cause.start), work_end: ago(sc.cause.end), close_code: 'successful', close_notes: 'Implantado según lo previsto.'
+                });
+                change = chg.id;
+                check(!!change, sc.key + ': change ' + chg.number + (chg.created ? ' created' : ' reused'));
+            }
+            var prb = ensure('problem', TAG + ' ' + sc.problem, {
+                description: sc.problemText, state: '103', assignment_group: group, business_service: service, cmdb_ci: ci,
+                impact: '1', urgency: '2'
+            });
+            check(!!prb.id, sc.key + ': problem ' + prb.number + (prb.created ? ' created' : ' reused'));
+
+            var reporter = byName('sys_user', 'user_name', sc.children[0].user);
+            var mi = new GlideRecord('incident');
+            mi.initialize();
+            mi.short_description = TAG + ' ' + sc.title;
+            mi.description = sc.description.replace('{start}', clock(sc.start));
+            mi.caller_id = reporter;
+            mi.contact_type = 'phone';
+            mi.category = 'software';
+            mi.impact = sc.impact;
+            mi.urgency = sc.urgency;
+            mi.assignment_group = group;
+            mi.assigned_to = persona;
+            mi.business_service = service;
+            if (offering) { mi.service_offering = offering; }
+            if (ci) { mi.cmdb_ci = ci; }
+            mi.location = madrid;
+            mi.caused_by = change;
+            mi.problem_id = prb.id;
+            mi.opened_at = ago(sc.start);
+            mi.major_incident_state = 'accepted';
+            mi.promoted_by = persona;
+            mi.promoted_on = ago(sc.start - 10);
+            mi.state = 2;
+            // Written now, so the presenter only clicks Resolve: the trigger needs Resolved with an assignee.
+            mi.close_code = 'Resolved by change';
+            mi.close_notes = sc.close;
+            var miId = mi.insert();
+            if (miId) { made.push(mi.getValue('number') + ' (' + sc.key + ')'); }
+            if (!miId) { continue; }
+
+            for (var t = 0; t < sc.timeline.length; t++) {
+                mi.work_notes = '[' + clock(sc.timeline[t][0]) + '] ' + sc.timeline[t][1];
+                mi.update();
+            }
+
+            // Children go to the Service Desk, outside the DEMO.PI groups, so the SLA pilot leaves them alone.
+            var kids = [];
+            for (var c = 0; c < sc.children.length; c++) {
+                var k = sc.children[c];
+                var kid = new GlideRecord('incident');
+                kid.initialize();
+                kid.short_description = TAG + ' ' + k.summary;
+                kid.description = k.text;
+                kid.caller_id = byName('sys_user', 'user_name', k.user);
+                kid.contact_type = 'self-service';
+                kid.parent_incident = miId;
+                kid.business_service = service;
+                if (offering) { kid.service_offering = offering; }
+                kid.location = madrid;
+                kid.assignment_group = serviceDesk;
+                kid.impact = 2;
+                kid.urgency = 2;
+                kid.opened_at = ago(k.minutes);
+                if (kid.insert()) { kids.push(kid.getValue('number')); }
+            }
+            check(kids.length == sc.children.length, sc.key + ': child incidents ' + kids.join(', '));
+
+            if (ci || service) {
+                var out = new GlideRecord('cmdb_ci_outage');
+                out.initialize();
+                out.cmdb_ci = ci || service;
+                out.type = sc.outage.type;
+                out.begin = ago(sc.outage.begin);
+                out.end = ago(sc.outage.end);
+                out.task_number = miId;
+                out.short_description = TAG + ' ' + sc.title;
+                check(!!out.insert(), sc.key + ': ' + sc.outage.type + ' recorded on ' + (sc.ci || sc.service[1]));
+            }
+        }
+        return { made: made, cancelled: cancelled };
+    }
+    var reviews = majorIncidentsForReviews();
+
     // 6. The demo route, in the order of the storyline, with a check of each record.
     function num(gr) { return gr ? gr.getValue('number') : '(not created)'; }
     function state(number, table) {
@@ -287,6 +574,7 @@
     check(who.indexOf('Marta Ruiz') == 0, '2.5 and 3.2 on call now in DEMO.PI.SAP: ' + who + ' (rotation from ' + monday.getLocalDate().getDisplayValue() + ', 2 weeks)');
     check(state('INC0025194') != 'missing', '3.3 INC0025194 runbook PDF: ' + state('INC0025194'));
     check(automationCount == 0, '3.4 grouping automations named "SAP PRD": ' + automationCount + ' (on a SAP alert, ask Otto: Delete the alert grouping automation with sys_id ' + automationIds.join(', ') + ')');
+    check(reviews.made.length == 3, '3.5 major incidents for the review, In Progress, assigned to the persona: ' + reviews.made.join('; ') + '. Resolve one, reload after 20 s, open the alert; "No" in rehearsals (cancelled ' + reviews.cancelled + ' old copies)');
     say('');
     say('Act 4, management: analytics chat (persona) and AI Agent Analytics (admin). Nothing to prepare.');
     say('');

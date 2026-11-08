@@ -1,6 +1,6 @@
 # Demo script: Autonomous IT on everis2
 
-A 40-minute walkthrough of one working day at a client that runs SAP. Every scene uses a step that
+A 43-minute walkthrough of one working day at a client that runs SAP. Every scene uses a step that
 has been tested and scored against an answer key. Scores and evidence are in
 [evidence/quality-2026-10-28](evidence/quality-2026-10-28/).
 
@@ -19,7 +19,7 @@ not a list of features. Levels are those of the [real plan](capabilities/60-real
 ```mermaid
 flowchart LR
   A["Act 1 · 8 min<br/>Employee<br/>level 0-2: answer, request"] --> B["Act 2 · 13 min<br/>Service desk<br/>level 1-3: suggest, wrap up,<br/>SLA agent acts alone"]
-  B --> C["Act 3 · 10 min<br/>Operations, SAP outage<br/>level 2-3: alerts to incident,<br/>on-call hand-over"]
+  B --> C["Act 3 · 13 min<br/>Operations, SAP outage<br/>level 2-3: alerts to incident,<br/>on-call hand-over, review"]
   C --> D["Act 4 · 7 min<br/>Management<br/>numbers and governance"]
 ```
 
@@ -29,7 +29,7 @@ flowchart LR
 | The employee helps herself | 1.1 knowledge, 1.2 Visio, 1.3 status | 0 to 2 | Fewer tickets: answers with sources, requests without forms, status without calling |
 | The agent works faster | 2.1 wrong door, 2.2 and 2.2b plans with evidence, 2.3 SLA why, 2.4 wrap-up | 1 to 2 | Every suggestion cites its evidence; the person decides |
 | **The turn** | **2.5 the SLA nobody watched** | **3** | "The ticket from the start: the AI saw the risk, found the cause and told the team. Nobody asked." |
-| Operations at speed | 3.1 alerts with cause, 3.2 on-call and hand-over, 3.3 runbook, 3.4 rule in words | 2 to 3 | From alert to an owned incident with the probable cause, in minutes |
+| Operations at speed | 3.1 alerts with cause, 3.2 on-call and hand-over, 3.3 runbook, 3.4 rule in words, 3.5 post-incident review | 2 to 3 | From alert to an owned incident with the probable cause, in minutes, and the review written for you afterwards |
 | Management trusts it | 4.1 numbers, 4.2 governance | 0 | Exact numbers, and every agent run is measured and auditable |
 | Close (2 min) | The quality method and the next phase | – | Out of the box, Global update sets, no extra licence; tested, not promised |
 
@@ -258,7 +258,7 @@ hands the incident over.
   there at minute 10, go to Act 3 and come back.
 - Saying that it fixes the incident: it only warns, with the cause. Fixing is the next level.
 
-## Act 3: operations, an SAP incident (10 min)
+## Act 3: operations, an SAP incident (13 min)
 
 **Story:** "At 11:00, SAP sales orders start failing."
 
@@ -346,6 +346,36 @@ test and activate."
 - Asking for a *response* automation: the agent only builds grouping rules.
 - Asking how many past alerts it would match: it can't count them.
 - Delete the automation made in the rehearsal first, or it will propose a duplicate.
+
+### 3.5 After the outage: the post-incident review (tested 8 November)
+
+**Use case:** after a major incident, the review nobody has time to write. ServiceNow's own workflow
+"Generate post incident reviews", with no build. On everis2 it was made available in the Otto panel
+on 8 November (update set `AIT-P2-pir-panel`).
+
+**Where:** Service Operations Workspace, persona. Open **INC0026058** ("[LuxLab demo] Corporate email
+down for EMEA users", a closed major incident with 3 child incidents), new chat:
+
+> Genera el informe post-incidente de esta incidencia grave
+
+**Expect:** the agent reads the incident, its child incidents and related records, and drafts the review
+in Spanish in four sections: executive summary, customer and service impact, technical overview, and
+action items and prevention. Then it asks for approval before writing the review to the incident.
+
+**Say:** "The outage is over. The bridge is closed and everyone is tired. The review is drafted from the
+records in a minute; the major incident manager reads it, corrects it and approves it."
+
+**Avoid:**
+- An incident that isn't a **resolved** major incident: the agent answers that it found no valid
+  resolved major incident. This includes the open SAP incident INC0025716 and the child incidents.
+- Approving it in the rehearsal: the review is then already on the incident. Answer "No" in rehearsals.
+- Not yet scored against an answer key; the owner rated the 8 November draft as good. Writing the
+  review to the incident after approval has not been checked yet.
+
+**Next level (not in the demo yet):** ServiceNow's trigger "Generate post incident review on resolved"
+(off) starts the same workflow by itself when an accepted major incident with an assignee is resolved.
+With it, resolving the SAP major incident is enough, and the draft waits in the assignee's panel
+(roadmap, out-of-the-box candidates).
 
 ## Act 4: management (7 min)
 

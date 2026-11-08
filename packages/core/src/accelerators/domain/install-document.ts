@@ -13,6 +13,7 @@ import type {
   InstallStepRecord,
   PlannedComponent,
 } from "./install-plan";
+import { installedResult } from "./refused-components";
 
 // The install plan and report as Markdown, written for the platform admin who approves the
 // install (ADR-0038, item 3). Pure.
@@ -218,7 +219,7 @@ function risks(plan: InstallPlan): string[] {
     "## 4. Risks and recovery",
     "",
     "- **Timeouts.** A component install that loses its answer is followed on the instance, never requested twice. A module push that times out is planned again against the instance, so nothing is loaded twice.",
-    "- **Resume.** Run the same command with the same plan id: finished steps are skipped (active components, modules the instance already holds, rows unchanged).",
+    "- **Resume.** Run the same command with the same plan id: finished steps are skipped (active components, modules the instance already holds, rows unchanged). A licensed component the instance refuses while the install runs leaves out the modules that need it, named in the report, and the install goes on: run it again once the instance is entitled.",
     "- **Cannot be undone by the install:** component activations. Records it created can be removed through a follow-up change, reviewed like any other.",
     ...(plan.warnings.length === 0
       ? []
@@ -284,7 +285,7 @@ export function installReportDocument(
     `# Install report: ${plan.pack} ${plan.version} on ${plan.instance.name}`,
     "",
     `- **Approved plan:** \`${record.planId}\` (plan.md in this folder), started ${record.startedAt}`,
-    `- **Result:** ${stopped === null ? "installed" : `stopped at ${stopped.step}: run the same command with --confirm ${record.planId} to resume`}`,
+    `- **Result:** ${stopped === null ? installedResult(record) : `stopped at ${stopped.step}: run the same command with --confirm ${record.planId} to resume`}`,
     `- **Time:** ${Math.round(total)} s across ${record.steps.length} step(s)`,
     "",
     ...table(

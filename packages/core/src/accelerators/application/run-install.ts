@@ -206,18 +206,20 @@ async function run(
     finished: plan.modules.filter((m) => finished.has(`module ${m.id}`)).length,
   });
   let stopped: InstallStepRecord | null = null;
+  // The approved plan, less the modules of components the instance refused while it ran.
+  let kept = plan;
   try {
-    await components(deps, plan, record, query.signal);
-    await turnOnTests(deps, plan, record, query.signal);
-    await completeEarlier(deps, plan, record, query.signal);
-    await deliver(deps, plan, record, query.signal);
-    await turnOnDemoModules(deps, plan, record, query.signal);
-    await load(deps, plan, query, record, query.signal);
+    kept = await components(deps, plan, record, query.signal);
+    await turnOnTests(deps, kept, record, query.signal);
+    await completeEarlier(deps, kept, record, query.signal);
+    await deliver(deps, kept, record, query.signal);
+    await turnOnDemoModules(deps, kept, record, query.signal);
+    await load(deps, kept, query, record, query.signal);
     await step(deps, record, "pull and integrate", async () => {
       await deps.steps.refresh(query.signal);
       return { outcome: "done", detail: "the mirror shows the installed modules" };
     });
-    const ensures = plan.modules.flatMap((m) => m.ensures);
+    const ensures = kept.modules.flatMap((m) => m.ensures);
     if (ensures.length > 0) {
       await step(deps, record, "check the layouts and forms", async () => ({
         outcome: "done",

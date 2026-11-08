@@ -53,6 +53,8 @@ async function plannedFields(
 // The label a module's update sets carry, before the pack's version.
 const labelOf = (manifest: Manifest, id: string) =>
   manifest.capabilities.find((c) => c.id === id)?.label ?? `${manifest.id}/${id}`;
+const dependsOnOf = (manifest: Manifest, id: string) =>
+  manifest.capabilities.find((c) => c.id === id)?.dependsOn ?? [];
 
 // The pack's update sets from older versions still in progress, by any module of the pack
 // (ADR-0038, section 6): known by their names or by the reports of earlier installs.
@@ -85,6 +87,7 @@ function plannedModules(
     return {
       id,
       label: `${labelOf(manifest, id)} ${manifest.version}`,
+      dependsOn: dependsOnOf(manifest, id).filter((d) => selected.includes(d)),
       files: result.files.map((f) => f.path),
       adoptions: result.adoptions,
       ensures: result.ensures,

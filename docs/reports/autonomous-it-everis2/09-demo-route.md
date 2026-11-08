@@ -46,7 +46,7 @@ flowchart LR
     MON["INC0025308<br/>wrong door"] --> REC["MFA copy in Network<br/>recommendation"] --> WG["MFA copy in M365<br/>plan + right group"] --> SLA["INC0010147<br/>why the SLA broke"] --> WR["MFA copy In Progress<br/>wrap up"] --> P1["[AIT-P1] incident<br/>autonomous note"]
   end
   subgraph A3["Act 3 · operations · level 2-3"]
-    AL["Newest SAP alert group<br/>+ CHG0030111"] --> OC["INC0025716<br/>on call + hand-over"] --> RB["INC0025194<br/>runbook PDF"] --> AU["SAP alert<br/>automation in words"]
+    AL["Newest SAP alert group<br/>+ CHG0030111"] --> OC["INC0025716<br/>on call + hand-over"] --> RB["INC0025194<br/>runbook PDF"] --> AU["SAP alert<br/>automation in words"] --> PIR["INC0026058<br/>post-incident review"]
   end
   subgraph A4["Act 4 · management"]
     AN["Analytics chat"] --> GOV["AI Agent Analytics"]
@@ -69,6 +69,7 @@ flowchart LR
 | 3.2 | SOW | INC0025716 (b5ca9f10…7bfc) | Ask who is on call; then "Asigna esta incidencia a la persona de guardia…" | Marta Ruiz until 1 Nov, then Jordi, escalation Elena; assigned after two "Sí" |
 | 3.3 | SOW | INC0025194, attachment Runbook_SAP_SD-OPS-017_V1-801.pdf | Document Viewer → Ask Otto | The most common cause (80 %) and "never restart PRD without an emergency change" |
 | 3.4 | SOW, admin | A SAP alert of 3.1 | Describe the grouping rule in words | The automation, created inactive |
+| 3.5 | SOW | INC0026058 (closed major incident) | "Genera el informe post-incidente de esta incidencia grave" | The review drafted in four sections, in Spanish, waiting for approval |
 | 4.1 | SOW chat | – | The two analytics questions, each in a new chat | Stacked chart, then 843 against 895, P4 explains 73 % |
 | 4.2 | Platform Analytics, admin | AI Agent Analytics | – | Runs, blocked runs and errors; every number matches the tables |
 

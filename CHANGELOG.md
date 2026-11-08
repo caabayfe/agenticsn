@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- A licensed component that the instance refuses while an install runs no longer stops the run.
+  The store may offer a licensed application that the platform's installer then refuses ("Unable
+  to download app package", pdi2). The install records the change as skipped, leaves out the
+  modules that need it and the modules that depend on them, names each in the report with the
+  reason, and installs the rest. Running the install again once the instance is entitled adds them.
+  A free component that fails, or a change whose answer is lost, still stops the run, as before.
+
 ## [2.18.0] - 2026-11-03
 
 `--demo` turns on the demo modules it installs (ADR-0049).

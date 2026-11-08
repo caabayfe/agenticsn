@@ -347,35 +347,46 @@ test and activate."
 - Asking how many past alerts it would match: it can't count them.
 - Delete the automation made in the rehearsal first, or it will propose a duplicate.
 
-### 3.5 After the outage: the post-incident review (tested 8 November)
+### 3.5 After the outage: the review writes itself (tested 8 November, level 2)
 
-**Use case:** after a major incident, the review nobody has time to write. ServiceNow's own workflow
-"Generate post incident reviews", with no build. On everis2 it was made available in the Otto panel
-on 8 November (update set `AIT-P2-pir-panel`).
+**Use case:** after a major incident, the post-incident review nobody has time to write. ServiceNow's own
+workflow "Generate post incident reviews", unchanged, started by our trigger "AIT post incident review on
+resolved (DEMO.PI)" (update set `AIT-P2-pir-trigger`). ServiceNow's own trigger for it is protected and
+can't be switched on; ours does the same, limited to the DEMO.PI groups, with the panel alert on.
 
-**Where:** Service Operations Workspace, persona. Open **INC0026058** ("[LuxLab demo] Corporate email
-down for EMEA users", a closed major incident with 3 child incidents), new chat:
+**Before the scene:** the major incident INC0025716 (SAP V1 801) is In Progress, assigned to **Analista
+AIT (ES)**, with the resolution code and the cause in the resolution notes. Run it once in the
+rehearsal and answer "No" to the approval.
 
-> Genera el informe post-incidente de esta incidencia grave
+**Where:** Service Operations Workspace, persona, INC0025716.
 
-**Expect:** the agent reads the incident, its child incidents and related records, and drafts the review
-in Spanish in four sections: executive summary, customer and service impact, technical overview, and
-action items and prevention. Then it asks for approval before writing the review to the incident.
+1. **Resolve** the incident (Resolve, code "Resolved by change", the notes already there). Say: "The
+   outage is over. Nobody asks for a review."
+2. Wait about 20 seconds and **reload** the incident. The assistant's alert appears: a response is
+   waiting. Open it.
+3. **Expect:** the draft review in four sections, from the incident, its child incidents and related
+   records:
+   - executive summary (Madrid sales office, about 25 users, orders blocked in VA01 from 07:30);
+   - customer and service impact;
+   - technical overview (V1 801, condition PR00 lost by the transport of CHG0030111, transport
+     reimported);
+   - action items and prevention (PR00 checks, regression tests, problem PRB0040126).
 
-**Say:** "The outage is over. The bridge is closed and everyone is tired. The review is drafted from the
-records in a minute; the major incident manager reads it, corrects it and approves it."
+   It ends asking for approval.
+4. Answer **"Sí"**. Open the major incident's **Post Incident Review**: the draft is there, marked
+   "[Now assist generated]", next to the incident timeline.
+
+**Say:** "The bridge is closed and everyone is tired. The review was drafted from the records the moment
+the incident was resolved; the major incident manager reads it, corrects it and approves it. Out of the
+box agent, our trigger, and a person approves before anything is saved."
 
 **Avoid:**
-- An incident that isn't a **resolved** major incident: the agent answers that it found no valid
-  resolved major incident. This includes the open SAP incident INC0025716 and the child incidents.
-- Approving it in the rehearsal: the review is then already on the incident. Answer "No" in rehearsals.
-- Not yet scored against an answer key; the owner rated the 8 November draft as good. Writing the
-  review to the incident after approval has not been checked yet.
-
-**Next level (not in the demo yet):** ServiceNow's trigger "Generate post incident review on resolved"
-(off) starts the same workflow by itself when an accepted major incident with an assignee is resolved.
-With it, resolving the SAP major incident is enough, and the draft waits in the assignee's panel
-(roadmap, out-of-the-box candidates).
+- Asking for the review in a **new chat**: the panel answers that it found no resources. Use the alert.
+- An incident that isn't a **resolved** major incident (Closed doesn't count): the agent refuses it.
+- The draft is in **English**, although the persona is Spanish. Say so if asked; it's ServiceNow's agent.
+- Resolving the major incident also resolves its child incidents, which starts other automations on
+  them (the SLA pilot, knowledge drafts). After the demo, run "AIT demo 1 - prepare" and reopen the
+  children.
 
 ## Act 4: management (7 min)
 

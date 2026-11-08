@@ -46,7 +46,7 @@ flowchart LR
     MON["INC0025308<br/>wrong door"] --> REC["MFA copy in Network<br/>recommendation"] --> WG["MFA copy in M365<br/>plan + right group"] --> SLA["INC0010147<br/>why the SLA broke"] --> WR["MFA copy In Progress<br/>wrap up"] --> P1["[AIT-P1] incident<br/>autonomous note"]
   end
   subgraph A3["Act 3 · operations · level 2-3"]
-    AL["Newest SAP alert group<br/>+ CHG0030111"] --> OC["INC0025716<br/>on call + hand-over"] --> RB["INC0025194<br/>runbook PDF"] --> AU["SAP alert<br/>automation in words"] --> PIR["INC0026058<br/>post-incident review"]
+    AL["Newest SAP alert group<br/>+ CHG0030111"] --> OC["INC0025716<br/>on call + hand-over"] --> RB["INC0025194<br/>runbook PDF"] --> AU["SAP alert<br/>automation in words"] --> PIR["INC0025716 resolved<br/>review drafts itself"]
   end
   subgraph A4["Act 4 · management"]
     AN["Analytics chat"] --> GOV["AI Agent Analytics"]
@@ -69,7 +69,7 @@ flowchart LR
 | 3.2 | SOW | INC0025716 (b5ca9f10…7bfc) | Ask who is on call; then "Asigna esta incidencia a la persona de guardia…" | Marta Ruiz until 1 Nov, then Jordi, escalation Elena; assigned after two "Sí" |
 | 3.3 | SOW | INC0025194, attachment Runbook_SAP_SD-OPS-017_V1-801.pdf | Document Viewer → Ask Otto | The most common cause (80 %) and "never restart PRD without an emergency change" |
 | 3.4 | SOW, admin | A SAP alert of 3.1 | Describe the grouping rule in words | The automation, created inactive |
-| 3.5 | SOW | INC0026058 (closed major incident) | "Genera el informe post-incidente de esta incidencia grave" | The review drafted in four sections, in Spanish, waiting for approval |
+| 3.5 | SOW | INC0025716, In Progress, assigned to the persona | Resolve it; reload; open the alert; "Sí" | The review drafted by itself, then saved to the Post Incident Review |
 | 4.1 | SOW chat | – | The two analytics questions, each in a new chat | Stacked chart, then 843 against 895, P4 explains 73 % |
 | 4.2 | Platform Analytics, admin | AI Agent Analytics | – | Runs, blocked runs and errors; every number matches the tables |
 
@@ -99,7 +99,7 @@ those of the 30 October run; use the ones the Fix Script prints.
 | 3.2b | Hand it over | SOW, INC0025716, new chat | Analista AIT (ES) | `Asigna esta incidencia a la persona de guardia y deja una nota de trabajo: revisar primero el transporte de condiciones de precios`, then `Sí` twice | Assigned to Marta Ruiz, In Progress, with the work note |
 | 3.3 | Ask the runbook | INC0025194, Runbook_SAP_SD-OPS-017_V1-801.pdf, Document Viewer, Pregunte a Otto | Analista AIT (ES) | First pick "Answer questions about the document", then `¿Cuál es la causa más frecuente del error V1 801?`, `¿Puedo reiniciar PRD para arreglarlo?` and `Son las 3 de la mañana y el error V1 801 está pasando ahora. ¿Qué reviso primero y a quién llamo si no lo resuelvo en 20 minutos?` | The price-conditions transport (80 %); "No… sin un cambio de emergencia aprobado por el CAB"; the three checks, then the level 2 contact. The PDF names Laura Martínez Ruiz, the live rota Marta Ruiz: "the document is static, 3.2 reads the rota" |
 | 3.4 | Make it automatic next time | SOW, a SAP alert of 3.1 | admin | `Create an alert grouping automation so that future alerts on the SAP PRD hosts (SAP AppSRV01, SAP AppSRV02, SAP LoadBal01, SAP WEB01 to WEB04) that happen within 30 minutes of each other are grouped into one, even when the CIs are not related. Show me the proposal first and keep it inactive.`, then `Yes, create it inactive` | The proposal (seven hosts, 30 minutes), then the automation created inactive ("View automation") |
-| 3.5 | Post-incident review | SOW, INC0026058 (closed major incident, 3 child incidents) | Analista AIT (ES) | `Genera el informe post-incidente de esta incidencia grave` | A Spanish draft in four sections (executive summary, customer and service impact, technical overview, action items and prevention), then a request for approval: answer `No` in rehearsals |
+| 3.5 | Post-incident review, automatic | SOW, INC0025716 | Analista AIT (ES) | Nothing: resolve it, reload, open the alert, then `Sí` | A draft in four sections about 20 s after the resolve (English), then saved to the major incident's Post Incident Review |
 | 4.1a | A chart from a question | SOW chat, new chat | Analista AIT (ES) | `Compara en un gráfico de columnas apiladas las incidencias registradas en agosto y en septiembre de 2026, por mes y por prioridad` | A stacked column chart by month and priority |
 | 4.1b | The numbers behind it | SOW chat, new chat | Analista AIT (ES) | `¿Cuántas incidencias se registraron en agosto y en septiembre de 2026, y qué prioridad explica la diferencia entre los dos meses?` | 843 against 895; P4 explains 73 % of the difference |
 | 4.2 | Governance | Platform Analytics, AI Agent Analytics | admin | Nothing | Runs, blocked runs and errors per agent; every number matches the tables |

@@ -25,6 +25,9 @@ export interface UnitSpec {
   // False for units the platform compiles after the load (flows): their live copy never equals
   // the build, so only the ledger's hashes decide.
   readonly comparable: boolean;
+  // What a keyed unit's update name starts with, when it is not the table: a choice list's is
+  // sys_choice_<table>_<element>, on its header in sys_choice_set.
+  readonly updatePrefix?: string;
 }
 
 const RECORD: UnitSpec = { comparable: true };
@@ -42,6 +45,7 @@ const SPECS: Readonly<Record<string, UnitSpec>> = {
       ordered: false,
     },
     comparable: true,
+    updatePrefix: "sys_choice",
   },
   sys_ui_list: {
     coalesce: ["name", "view", "parent", "relationship", "sys_domain"],
@@ -108,14 +112,16 @@ export function unitSpec(table: string): UnitSpec {
   return SPECS[table] ?? RECORD;
 }
 
-// The table of a unit named by its keys (sys_dictionary_<table>_<element>): the longest table
-// the platform coalesces on that the name starts with. Null for any other name.
+// The table of a unit named by its keys (sys_dictionary_<table>_<element>): the table the
+// platform coalesces on whose update-name prefix the name starts with, the longest prefix first.
+// Null for any other name.
 export function keyedTableOf(updateName: string): string | null {
   const tables = Object.entries(SPECS)
-    .filter(([table, spec]) => spec.coalesce !== undefined && updateName.startsWith(`${table}_`))
-    .map(([table]) => table)
-    .sort((a, b) => b.length - a.length);
-  return tables[0] ?? null;
+    .filter(([, spec]) => spec.coalesce !== undefined)
+    .map(([table, spec]) => ({ table, prefix: `${spec.updatePrefix ?? table}_` }))
+    .filter(({ prefix }) => updateName.startsWith(prefix))
+    .sort((a, b) => b.prefix.length - a.prefix.length);
+  return tables[0]?.table ?? null;
 }
 
 // The query fields and values that find the head when its sys_id differs, or null when the head

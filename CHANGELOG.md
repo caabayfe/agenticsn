@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.19.1] - 2026-11-08
+
+### Fixed
+
+- A choice list (`sys_choice_set`) that a pack's source removed, and that the instance no longer
+  holds, is forgotten by the install plan like any other removed record. Its update names start
+  with `sys_choice_`, not the table name, so the plan kept the ledger entry and stopped with "its
+  definition was removed" (zero-touch 0.7.0 upgrade on everis2, 2026-11-08).
+
 ## [2.19.0] - 2026-11-08
 
 An install goes on without a licensed component the instance refuses.

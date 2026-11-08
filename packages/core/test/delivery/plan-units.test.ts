@@ -269,6 +269,55 @@ describe("plan on built units (ADR-0031, ADR-0033)", () => {
       expect(plan.problems).toMatchObject([{ updateName: FIELD, kind: "removed" }]);
     });
 
+    // everis2, 2026-11-08: a choice list's update name starts with sys_choice_, but the record is
+    // the list's header in sys_choice_set. The retired table's choice list stopped the plan after
+    // the table was deleted.
+    describe("a removed choice list", () => {
+      const CHOICES = "sys_choice_x_app_task_u_status";
+
+      function choiceSetup() {
+        const setup = keyedSetup();
+        const entry: LedgerEntry = { build: "b".repeat(32), instance: VERSION, losses: [] };
+        setup.authoring.ledgers.set(
+          setup.project.path,
+          withEntries(new Map(), "dev", new Map([[CHOICES, entry]])),
+        );
+        return setup;
+      }
+
+      it("forgets it when the instance no longer holds the list", async () => {
+        const { deps } = choiceSetup();
+        const { plan } = await computeUnitPlan(deps, QUERY);
+        expect(plan.problems).toEqual([]);
+        expect(plan.units).toMatchObject([
+          { updateName: CHOICES, operation: "forget", table: "sys_choice_set" },
+        ]);
+      });
+
+      it("finds the list's header by its update name", async () => {
+        const { deps, fake } = choiceSetup();
+        await computeUnitPlan(deps, QUERY);
+        expect(fake.queries).toContainEqual(
+          expect.objectContaining({ table: "sys_choice_set", query: `sys_update_name=${CHOICES}` }),
+        );
+      });
+
+      it("keeps refusing it while the instance still holds the list", async () => {
+        const { deps, tables } = choiceSetup();
+        tables["sys_choice_set"] = [
+          {
+            sys_id: "d".repeat(32),
+            sys_update_name: CHOICES,
+            sys_package: "global",
+            name: "x_app_task",
+            element: "u_status",
+          },
+        ];
+        const { plan } = await computeUnitPlan(deps, QUERY);
+        expect(plan.problems).toMatchObject([{ updateName: CHOICES, kind: "removed" }]);
+      });
+    });
+
     it("keeps refusing a removed unit whose table it cannot tell from the name", async () => {
       const { deps, authoring, project } = keyedSetup();
       const entry: LedgerEntry = { build: "b".repeat(32), instance: VERSION, losses: [] };

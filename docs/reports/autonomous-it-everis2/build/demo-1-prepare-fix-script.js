@@ -385,8 +385,21 @@
             }
         ];
 
+        // The persona works the major incidents, and an incident can only be assigned to a member of its group.
+        function ensureMember(groupId) {
+            var m = new GlideRecord('sys_user_grmember');
+            m.addQuery('group', groupId);
+            m.addQuery('user', persona);
+            m.query();
+            if (m.hasNext()) { return true; }
+            m.initialize();
+            m.group = groupId;
+            m.user = persona;
+            return !!m.insert();
+        }
+
         // 1. Cancel the open copies of the last run, and their children. Cancelled, not resolved: resolving
-        // would start the review trigger on them.
+        // would start the review trigger on them. Their outages go too, so the CIs don't collect them.
         var old = new GlideRecord('incident');
         old.addQuery('state', 'IN', '1,2,3');
         old.addQuery('short_description', 'STARTSWITH', TAG);
@@ -400,6 +413,11 @@
             old.update();
             cancelled++;
         }
+        // A business rule renames every outage to "<CI> Outage", so old ones are found through their incident.
+        var oldOutage = new GlideRecord('cmdb_ci_outage');
+        oldOutage.addQuery('task_number.short_description', 'STARTSWITH', TAG);
+        oldOutage.query();
+        while (oldOutage.next()) { oldOutage.deleteRecord(); }
 
         // 2. One fresh major incident per scenario.
         for (var s = 0; s < scenarios.length; s++) {
@@ -412,6 +430,7 @@
             check(!!service, sc.key + ': service ' + sc.service[1]);
             if (sc.offering) { check(!!offering, sc.key + ': offering ' + sc.offering); }
             if (sc.ci) { check(!!ci, sc.key + ': CI ' + sc.ci); }
+            check(!!group && ensureMember(group), sc.key + ': the persona is a member of ' + sc.group);
 
             var change = '';
             if (sc.cause.existing) {
@@ -427,8 +446,8 @@
                 check(!!change, sc.key + ': change ' + chg.number + (chg.created ? ' created' : ' reused'));
             }
             var prb = ensure('problem', TAG + ' ' + sc.problem, {
-                description: sc.problemText, state: '103', assignment_group: group, business_service: service, cmdb_ci: ci,
-                impact: '1', urgency: '2'
+                description: sc.problemText, state: '103', assignment_group: group, assigned_to: persona, business_service: service,
+                cmdb_ci: ci, impact: '1', urgency: '2'
             });
             check(!!prb.id, sc.key + ': problem ' + prb.number + (prb.created ? ' created' : ' reused'));
 
@@ -466,6 +485,16 @@
                 mi.work_notes = '[' + clock(sc.timeline[t][0]) + '] ' + sc.timeline[t][1];
                 mi.update();
             }
+            // The "Major incident assignment" rule gives an accepted major incident to whoever saves it when
+            // that user is in the group, so the persona and the promotion are set again without rules.
+            var owner = new GlideRecord('incident');
+            if (owner.get(miId)) {
+                owner.assigned_to = persona;
+                owner.promoted_by = persona;
+                owner.promoted_on = ago(sc.start - 10);
+                owner.setWorkflow(false);
+                owner.update();
+            }
 
             // Children go to the Service Desk, outside the DEMO.PI groups, so the SLA pilot leaves them alone.
             var kids = [];
@@ -497,7 +526,6 @@
                 out.begin = ago(sc.outage.begin);
                 out.end = ago(sc.outage.end);
                 out.task_number = miId;
-                out.short_description = TAG + ' ' + sc.title;
                 check(!!out.insert(), sc.key + ': ' + sc.outage.type + ' recorded on ' + (sc.ci || sc.service[1]));
             }
         }

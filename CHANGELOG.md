@@ -4,6 +4,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-11-08
+
+An install goes on without a licensed component the instance refuses.
+
 ### Changed
 
 - A licensed component that the instance refuses while an install runs no longer stops the run.
@@ -12,6 +16,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   modules that need it and the modules that depend on them, names each in the report with the
   reason, and installs the rest. Running the install again once the instance is entitled adds them.
   A free component that fails, or a change whose answer is lost, still stops the run, as before.
+- The install summary names those modules under "Left out" and no longer counts them as still to
+  install.
+
+### Fixed
+
+- Every module delivery removes all the `ensure-list-<sys_id>.now.ts` files snagentic 2.15 and
+  earlier generated. A workspace holding modules the install did not deliver kept them, and SDK
+  4.14 built each as an update that would replace the whole layout (pdi2, 2026-11-07).
 
 ## [2.18.0] - 2026-11-03
 

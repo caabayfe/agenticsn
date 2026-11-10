@@ -118,6 +118,20 @@ describe("validate: ACL units", () => {
     expect(result.findings).toEqual([]);
   });
 
+  it("finds the ACL a Now.del names by sys_id alone, never another deny ACL", async () => {
+    const bySysId = (sysId: string): BuiltUnit => ({
+      ...deletion,
+      updateName: `sys_security_acl_${sysId}`,
+      file: `sys_security_acl_${sysId}.xml`,
+      head: { ...deletion.head, sysId, fields: { sys_id: sysId } },
+    });
+    const deny = acl({ decision_type: "deny", operation: "read" });
+    const unrelated = await run([bySysId("e".repeat(32))], [deny, role("r".repeat(32))]);
+    expect(unrelated.findings).toEqual([]);
+    const same = await run([bySysId(ACL_ID)], [deny, role("r".repeat(32))]);
+    expect(RULE_IDS(same)).toEqual(["SN-SEC-007"]);
+  });
+
   it("warns when admin overrides are turned off", async () => {
     const result = await run(
       [acl({ admin_overrides: "false" }), role("r".repeat(32))],

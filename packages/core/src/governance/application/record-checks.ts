@@ -135,12 +135,15 @@ export const withRule = (ruleId: string, at: Omit<Finding, keyof Rule | "ruleId"
   return rule === undefined ? [] : [finding(rule, at)];
 };
 
-// The ACL a Now.del removes: its definition at the base, found by the keys the Now.del names.
+// The ACL a Now.del removes: its definition at the base, found by the keys the Now.del names, or
+// by its sys_id when it names none (an empty key list would match every ACL, the first one found).
 function deletedAcl(unit: BuiltUnit, base: readonly BuiltUnit[]): BuiltUnit | undefined {
   const keys = Object.entries(unit.head.fields).filter(([field]) => !field.startsWith("sys_"));
-  return base.find(
-    (old) => old.head.table === ACL_CLASS && keys.every(([f, v]) => old.head.fields[f] === v),
-  );
+  const named = (old: BuiltUnit) =>
+    keys.length === 0
+      ? old.head.sysId === unit.head.sysId
+      : keys.every(([f, v]) => old.head.fields[f] === v);
+  return base.find((old) => old.head.table === ACL_CLASS && named(old));
 }
 
 export function aclFindings(

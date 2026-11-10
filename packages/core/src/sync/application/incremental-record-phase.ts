@@ -30,6 +30,8 @@ export interface RecordStep {
   readonly catalogSecretRedactions: readonly SecretRedaction[];
   readonly lostRecords: number;
   readonly records: RecordOutcome;
+  // sys_ids the instance's deletion records name.
+  readonly deleted: readonly string[];
 }
 
 // Reads the record feeds, refreshes the catalog when they show it is stale, and applies them.
@@ -47,7 +49,8 @@ async function pullRecordChanges(
     counts.before === undefined || counts.after === undefined
       ? 0
       : unexplainedLoss(counts.before, counts.after, changes);
-  return { ...(await applyWithCatalog(deps, catalog, changes, signal, progress)), lostRecords };
+  const applied = await applyWithCatalog(deps, catalog, changes, signal, progress);
+  return { ...applied, lostRecords, deleted: changes.deleted };
 }
 
 async function recordStep(
@@ -67,6 +70,7 @@ async function recordStep(
       catalogSecretRedactions: [],
       lostRecords: 0,
       records: NO_RECORD_CHANGES,
+      deleted: [],
     };
   }
   const counts = {

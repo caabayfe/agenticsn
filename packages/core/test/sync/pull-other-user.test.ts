@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { pulledInstance, SECTION, sid } from "../support/incremental-fixture";
+import { CHANGED, pulledInstance, SECTION, sid, touch } from "../support/incremental-fixture";
 
 // ADR-0052 items 4 and 7: a pull by a user other than the mirror's never removes by absence,
 // and a watermark ahead of the instance's clock is refused.
@@ -10,6 +10,36 @@ describe("pullIncremental by a user other than the mirror's", () => {
     const { summary } = await incremental({}, { absence: "keep" });
     expect(summary.removedChildFiles).toBe(0);
     expect(files.has(`${SECTION}.children.sys_ui_element.yaml`)).toBe(true);
+  });
+
+  it("keeps the rows inside a child-row file its listing did not return", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    tables["sys_ui_element"] =
+      tables["sys_ui_element"]?.filter((row) => row["sys_id"] !== "e2") ?? [];
+    touch(tables["sys_ui_element"]?.[0], { element: "priority" });
+    await incremental({}, { absence: "keep" });
+    expect(files.get(`${SECTION}.children.sys_ui_element.yaml`)).toEqual([
+      expect.objectContaining({ sys_id: "e1", element: "priority" }),
+      expect.objectContaining({ sys_id: "e2", element: "state" }),
+    ]);
+  });
+
+  it("removes a child row the instance's deletion records name", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    tables["sys_ui_element"] =
+      tables["sys_ui_element"]?.filter((row) => row["sys_id"] !== "e2") ?? [];
+    touch(tables["sys_ui_element"]?.[0], { element: "priority" });
+    tables["sys_metadata_delete"]?.push({
+      sys_id: "x1",
+      sys_class_name: "sys_metadata_delete",
+      sys_metadata: "e2",
+      sys_created_on: CHANGED,
+      sys_updated_on: CHANGED,
+    });
+    await incremental({}, { absence: "keep" });
+    expect(files.get(`${SECTION}.children.sys_ui_element.yaml`)).toEqual([
+      expect.objectContaining({ sys_id: "e1", element: "priority" }),
+    ]);
   });
 
   it("keeps a record its count does not list, but still repairs what is missing", async () => {

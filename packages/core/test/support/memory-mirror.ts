@@ -73,6 +73,7 @@ export function memoryMirror() {
     abort: async () => {},
     baseOf: (_root, sysId) => baseById.get(sysId),
     filesOf: (_root, base) => [...(byBase.get(base) ?? [])],
+    readDocument: async (_root, path) => files.get(path) ?? null,
     countChildRows: async (_root, table) => {
       const suffix = `.children.${table}.yaml`;
       const counts = new Map<string, number>();

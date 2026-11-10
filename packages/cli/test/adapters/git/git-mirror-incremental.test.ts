@@ -182,6 +182,18 @@ describe("GitMirror in incremental mode", () => {
     await mirror.abort();
   });
 
+  it("reads a file as this pull has left it, or nothing when there is none", async () => {
+    const repo = await pulled();
+    const mirror = await GitMirror.open(repo, PDI, "incremental");
+    await mirror.prepare();
+    const file = `${ONE}.children.sys_ui_element.yaml`;
+    expect(await mirror.readDocument(ROOT, file)).toEqual([{ sys_id: "c" }]);
+    await mirror.writeDocument(ROOT, file, [{ sys_id: "c", order: 2 }]);
+    expect(await mirror.readDocument(ROOT, file)).toEqual([{ sys_id: "c", order: "2" }]);
+    expect(await mirror.readDocument(ROOT, "global/none.yaml")).toBeNull();
+    await mirror.abort();
+  });
+
   it("finds which record holds each child row, quoted or not, in the tables asked for", async () => {
     const repo = await pulled();
     const mirror = await GitMirror.open(repo, PDI, "incremental");

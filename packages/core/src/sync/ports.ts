@@ -118,6 +118,8 @@ export interface MirrorTree {
   countChildRows(root: string, table: string): Promise<ReadonlyMap<string, number>>;
   // Child-row sys_id -> base of the record whose child-row file holds it, for these tables.
   childRowOwners(root: string, tables: readonly string[]): Promise<ReadonlyMap<string, string>>;
+  // A YAML file as this pull has left it so far, read as text values; null when there is none.
+  readDocument(root: string, path: string): Promise<unknown>;
 }
 
 export interface IncrementalMirror extends MirrorSession, MirrorTree {

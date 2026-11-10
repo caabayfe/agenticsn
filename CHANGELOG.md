@@ -53,7 +53,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   refused, naming the file. Agents may not edit `instances/<name>/pull/`.
 - The state names the instance user whose full pull the mirror reflects. A pull by another user adds
   and changes records, and removes only what the instance's own deletion records name: never a
-  file because that user's listing (or `--verify` count) left it out.
+  file, or a row inside a child-row file, because that user's listing (or `--verify` count) left
+  it out.
 - A pull refuses a state whose watermark is later than the instance's own clock (from its responses'
   `Date` header), because it would hide changes.
 

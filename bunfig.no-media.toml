@@ -1,0 +1,9 @@
+# The gating CI legs (spec 014, R1): bunfig.toml, except that the adapters only a real ffmpeg,
+# Chrome or Piper can exercise are measured in the media job, which runs the whole suite with
+# bunfig.toml and SNAGENTIC_TEST_MEDIA=require. tests/tooling/media-tests.test.ts keeps the two
+# files in step.
+[test]
+preload = ["./tests/setup/hermetic-git.ts"]
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = ["scripts/**", "*.cjs", "packages/cli/src/main.ts", "**/test/support/**", "tests/setup/**", "packages/cli/src/adapters/documentation/chrome-video-renderer.ts", "packages/cli/src/adapters/documentation/devtools-client.ts", "packages/cli/src/adapters/documentation/ffmpeg-codec.ts", "packages/cli/src/adapters/documentation/fs-audio-assets.ts", "packages/cli/src/adapters/documentation/run-tool.ts", "packages/cli/src/adapters/documentation/voices.ts"]
+coverageThreshold = 0.9

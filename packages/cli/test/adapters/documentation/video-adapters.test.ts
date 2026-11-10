@@ -9,10 +9,15 @@ import {
   startBrowser,
 } from "../../../src/adapters/documentation/chrome-video-renderer";
 import { DevToolsClient, field } from "../../../src/adapters/documentation/devtools-client";
+import { mediaTestsRun } from "../../support/media-tests";
 
-// Runs where Chrome and ffmpeg are installed (CI installs ffmpeg; its image has Chrome).
+// Runs where Chrome and ffmpeg are installed; SNAGENTIC_TEST_MEDIA moves it to the media CI job,
+// which installs ffmpeg on a runner image that has Chrome (spec 014, R1).
 const CHROME = chromeProgram(process.env);
-const RUN = CHROME !== undefined && (await new ChromeVideoRenderer(CHROME).available());
+const RUN = mediaTestsRun(
+  "Chrome and ffmpeg",
+  CHROME !== undefined && (await new ChromeVideoRenderer(CHROME).available()),
+);
 
 describe("the browser", () => {
   it("is found from SNAGENTIC_CHROME first", () => {

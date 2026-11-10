@@ -1,9 +1,14 @@
 import { createReadStream } from "node:fs";
-import { appendFile, mkdtemp, readFile, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { appendFile, chmod, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import type { KeyedSpill, SpillStore } from "@snagentic/core";
+import {
+  type InstanceName,
+  instancePaths,
+  type KeyedSpill,
+  type SpillStore,
+} from "@snagentic/core";
+import { sweepStaleScratch } from "../fluent/stale-scratch";
 
 // Each spill hashes keys into bucket files; reading one bucket at a time keeps memory at about
 // one bucket. A bucket larger than `bucketBytes` is split again by another hash before it is
@@ -69,8 +74,8 @@ async function* lines(path: string): AsyncIterable<string> {
   }
 }
 
-// Child rows of a pull, spilled to a private temporary directory (PERF-07). They are written
-// already redacted and secret-scanned, and removed when the spill is closed.
+// Child rows of a pull, spilled to a private folder in the workspace's local state (PERF-07).
+// They are written already redacted and secret-scanned, and removed when the spill is closed.
 class FileSpill<T> implements KeyedSpill<T> {
   private readonly writer = new BucketWriter();
   private readonly paths = new Set<string>();
@@ -130,9 +135,25 @@ class FileSpill<T> implements KeyedSpill<T> {
   }
 }
 
-export function fileSpills(parent: string = tmpdir(), limits = DEFAULT_LIMITS): SpillStore {
+const SPILL = /^snagentic-spill-/;
+
+// Spills in `parent` (.snagentic/<instance>/spill/, gitignored), one private directory each.
+// A crashed pull leaves its spills behind: `sweep` removes them, and is called only while the
+// instance's workspace lock is held, when no other pull can be using one.
+export function fileSpills(parent: string, limits = DEFAULT_LIMITS): SpillStore {
   return {
-    open: async <T>(): Promise<KeyedSpill<T>> =>
-      new FileSpill<T>(await mkdtemp(join(parent, "snagentic-spill-")), limits),
+    open: async <T>(): Promise<KeyedSpill<T>> => {
+      await mkdir(parent, { recursive: true, mode: 0o700 });
+      // Private even when something else created the folder first.
+      await chmod(parent, 0o700);
+      return new FileSpill<T>(await mkdtemp(join(parent, "snagentic-spill-")), limits);
+    },
+    sweep: async () =>
+      sweepStaleScratch(parent, Date.now(), Number.NEGATIVE_INFINITY, SPILL).length,
   };
+}
+
+// The spills of one instance in a workspace: .snagentic/<instance>/spill/.
+export function workspaceSpills(root: string, instance: InstanceName): SpillStore {
+  return fileSpills(join(root, instancePaths(instance).localState, "spill"));
 }

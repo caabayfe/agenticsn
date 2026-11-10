@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -503,5 +503,38 @@ describe("pull and integrate", () => {
     expect(verified).toContain(
       "warning: the instance fails to list sn_kmf ids starting 83d7 (server error, typically a record whose read ACL throws); its 1 records were not verified",
     );
+  });
+});
+
+describe("a pull's spilled child rows (PERF-07)", () => {
+  it("spills under the instance's local state and removes what a crashed pull left there", async () => {
+    const { root, context } = await setup();
+    const spills = join(root, ".snagentic/pdi/spill");
+    const leftover = join(spills, "snagentic-spill-crashed");
+    await mkdir(leftover, { recursive: true });
+    await writeFile(join(leftover, "b1"), '["owner",{}]\n');
+    const opened: string[] = [];
+    const watching: UseCaseContext = {
+      ...context,
+      spills: (r, instance) => {
+        const store = context.spills(r, instance);
+        return {
+          sweep: () => store.sweep(),
+          open: async <T>() => {
+            const spill = await store.open<T>();
+            opened.push(...(await readdir(spills)));
+            return spill;
+          },
+        };
+      },
+    };
+    await executeUseCase(pull, { instance: "pdi" }, watching);
+    expect(existsSync(leftover)).toBe(false);
+    expect(opened.length).toBeGreaterThan(0);
+    expect(opened.every((name) => name.startsWith("snagentic-spill-"))).toBe(true);
+    if (process.platform !== "win32") {
+      expect((await stat(spills)).mode & 0o077).toBe(0);
+    }
+    expect(await readdir(spills)).toEqual([]);
   });
 });

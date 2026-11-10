@@ -54,8 +54,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   ran. The tests read no global or system git configuration. The tests that drive a real ffmpeg
   or Chrome run in their own CI job; `SNAGENTIC_TEST_MEDIA=skip` or `require` chooses locally
   (spec 014, R1).
-- A pull's memory follows a page, not a table (spec 014, P2). Child rows wait in private temporary
-  files grouped by owner and each owner's file is written once its table is listed; only the
+- A pull's memory follows a page, not a table (spec 014, P2). Child rows wait in private files
+  under `.snagentic/<name>/spill/`, grouped by owner, and each owner's file is written once its
+  table is listed; the next pull removes what a crashed one left there; only the
   workflow tables' row ids stay in memory, and `sys_variable_value` finds its owners through a join
   on disk. A million child rows used ~280 MB of heap; any number now uses ~4 MB. The mirror's file
   index stores each record as its name's bytes and a few numbers: 2 million records take ~240 MB

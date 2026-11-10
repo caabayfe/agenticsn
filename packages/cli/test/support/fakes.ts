@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import {
   type CredentialStore,
   EMPTY_LEDGER,
@@ -7,7 +8,7 @@ import {
   type WorkspaceStore,
 } from "@snagentic/core";
 import { z } from "zod";
-import { fileSpills } from "../../src/adapters/fs/file-spill";
+import { workspaceSpills } from "../../src/adapters/fs/file-spill";
 import type { CliIo } from "../../src/cli/run-cli";
 import {
   type ConnectionFactory,
@@ -63,7 +64,7 @@ const NO_CREDENTIALS: CredentialStore = {
 };
 
 export const FAKE_CONTEXT: UseCaseContext = {
-  spills: fileSpills(),
+  spills: workspaceSpills,
   packs: { ids: async () => [], files: async () => new Map(), parse: () => null },
   dataTemplates: {
     tracked: async () => false,

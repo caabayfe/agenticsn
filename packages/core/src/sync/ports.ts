@@ -215,4 +215,7 @@ export interface KeyedSpill<T> {
 
 export interface SpillStore {
   open<T>(): Promise<KeyedSpill<T>>;
+  // Removes spills an interrupted pull left behind; returns how many. Called by a pull while
+  // it holds the instance's workspace lock.
+  sweep(): Promise<number>;
 }

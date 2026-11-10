@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { KeyedSpill } from "@snagentic/core";
@@ -98,5 +98,21 @@ describe("file spill (PERF-07)", () => {
       expect((await stat(join(folder, file))).mode & 0o077).toBe(0);
     }
     await spill.close();
+  });
+});
+
+describe("file spill sweep (PERF-07)", () => {
+  it("removes only spill folders, which a pull sweeps while it holds the workspace lock", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "snagentic-spill-sweep-"));
+    try {
+      const spills = fileSpills(join(parent, "spill"));
+      const live = await spills.open<string>();
+      await live.add("owner", "row");
+      await mkdir(join(parent, "spill", "notes"));
+      expect(await spills.sweep()).toBe(1);
+      expect(await readdir(join(parent, "spill"))).toEqual(["notes"]);
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
   });
 });

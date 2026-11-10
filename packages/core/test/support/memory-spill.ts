@@ -11,6 +11,7 @@ export function memorySpills(): MemorySpills {
   let open = 0;
   return {
     openSpills: () => open,
+    sweep: async () => 0,
     open: async <T>(): Promise<KeyedSpill<T>> => {
       open += 1;
       const groups = new Map<string, string[]>();

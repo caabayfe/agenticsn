@@ -5,7 +5,6 @@
 #   fake programs written as "#!/bin/sh" scripts (gh, chrome, voices), not runnable on Windows
 #   replacing a running binary (EFTYPE, uv_spawn), file modes and permissions
 #   the SQLite knowledge index is never closed, so the folder holding it cannot be removed (EBUSY)
-packages/cli/test/adapters/accelerators/pack-source-loader.test.ts
 packages/cli/test/adapters/delivery/gh-pull-requests.test.ts
 packages/cli/test/adapters/documentation/video-adapters.test.ts
 packages/cli/test/adapters/fluent/worker-runtime.test.ts

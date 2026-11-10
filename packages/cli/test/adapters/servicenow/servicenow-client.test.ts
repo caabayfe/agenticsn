@@ -57,6 +57,20 @@ describe("ServiceNowClient", () => {
     expect(sent.map((request) => request.retryTimeout)).toEqual([false, undefined]);
   });
 
+  it("tells the caller how long the request itself took, as the scheduler measured it", async () => {
+    let now = 0;
+    const clock = { ...fakeClock(), now: () => now };
+    const transport: Transport = async () => {
+      now += 700;
+      return response(200, '{"result":[]}');
+    };
+    const scheduler = new RequestScheduler(transport, { clock });
+    const client = new ServiceNowClient(profile, SECRET, scheduler, "snagentic 1.2.3");
+    const reported: number[] = [];
+    await client.query({ ...QUERY, onRequestTime: (ms) => reported.push(ms) }, LIVE);
+    expect(reported).toEqual([700]);
+  });
+
   it("reports the scheduler's connection statistics", async () => {
     const { client } = clientWith(async () =>
       response(200, '{"result":[]}', {

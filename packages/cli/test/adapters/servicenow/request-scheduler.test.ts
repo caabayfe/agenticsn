@@ -303,3 +303,92 @@ describe("RequestScheduler load limits (ADR-0053)", () => {
     expect(peak).toBe(1);
   });
 });
+
+// A response whose headers arrive at once and whose body takes `bodyMs`, or fails with `failure`.
+function slowBody(bodyMs: number, onBody: () => void, failure?: Error): HttpResponse {
+  return {
+    status: 200,
+    headers: { get: () => null },
+    text: async () => {
+      await new Promise((resolve) => setTimeout(resolve, bodyMs));
+      onBody();
+      if (failure !== undefined) {
+        throw failure;
+      }
+      return '{"result":[]}';
+    },
+  };
+}
+
+describe("RequestScheduler body transfer (PERF2-01)", () => {
+  it("holds the concurrency slot until the body is read, so slow bodies never exceed the limit", async () => {
+    let active = 0;
+    let peak = 0;
+    const transport: Transport = async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      return slowBody(20, () => {
+        active -= 1;
+      });
+    };
+    const scheduler = new RequestScheduler(transport, { clock: fakeClock(), maxConcurrency: 2 });
+    const bodies = await Promise.all(
+      Array.from({ length: 8 }, async () => (await scheduler.send(GET, LIVE)).text()),
+    );
+    expect(peak).toBe(2);
+    expect(bodies.every((body) => body === '{"result":[]}')).toBe(true);
+  });
+
+  it("counts a timeout while reading the body as pressure, retries the read once, then fails with a timeout", async () => {
+    const controller = new ConcurrencyController({ initial: 4 });
+    const transport = Object.assign(
+      async () => {
+        transport.calls += 1;
+        return slowBody(1, () => {}, new TransportTimeoutError(90_000));
+      },
+      { calls: 0 },
+    );
+    const scheduler = new RequestScheduler(transport, { clock: fakeClock(), controller });
+    await expect(scheduler.send(GET, LIVE)).rejects.toMatchObject({ code: "request-timed-out" });
+    expect(transport.calls).toBe(2);
+    expect(controller.limit).toBe(1);
+    expect(scheduler.stats()).toMatchObject({ requests: 2, retries: 1, timeouts: 2 });
+  });
+
+  it("never retries a write whose body timed out", async () => {
+    const transport = Object.assign(
+      async () => {
+        transport.calls += 1;
+        return slowBody(1, () => {}, new TransportTimeoutError(90_000));
+      },
+      { calls: 0 },
+    );
+    const scheduler = new RequestScheduler(transport, { clock: fakeClock() });
+    const post = { ...GET, method: "POST" as const, body: "{}" };
+    await expect(scheduler.send(post, LIVE)).rejects.toMatchObject({ code: "request-timed-out" });
+    expect(transport.calls).toBe(1);
+  });
+
+  it("reports a body cut off for another reason as an unreachable instance", async () => {
+    const transport: Transport = async () => slowBody(1, () => {}, new TypeError("socket closed"));
+    const scheduler = new RequestScheduler(transport, { clock: fakeClock() });
+    await expect(scheduler.send(GET, LIVE)).rejects.toMatchObject({ code: "instance-unreachable" });
+  });
+
+  it("reports the time of the request itself, from send to body read, without the queue wait", async () => {
+    const clock = steppingClock();
+    const transport: Transport = async () => {
+      await clock.sleep(300);
+      const text = async () => {
+        await clock.sleep(200);
+        return "{}";
+      };
+      return { ...response(200), text };
+    };
+    const scheduler = new RequestScheduler(transport, { clock, requestsPerSecond: 1 });
+    await scheduler.send(GET, LIVE);
+    const second = await scheduler.send(GET, LIVE);
+    expect(second.elapsedMs).toBe(500);
+    expect(scheduler.stats().requestMs).toBe(1000);
+  });
+});

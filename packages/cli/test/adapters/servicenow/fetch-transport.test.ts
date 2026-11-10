@@ -9,6 +9,18 @@ const server = Bun.serve({
     if (new URL(request.url).pathname === "/moved") {
       return Response.redirect("/ok", 302);
     }
+    if (new URL(request.url).pathname === "/slow-body") {
+      // Headers and a first chunk at once, the rest later: ServiceNow streams large pages.
+      const body = new ReadableStream({
+        async start(stream) {
+          stream.enqueue(new TextEncoder().encode('{"result":['));
+          await Bun.sleep(300);
+          stream.enqueue(new TextEncoder().encode("]}"));
+          stream.close();
+        },
+      });
+      return new Response(body, { status: 200 });
+    }
     if (new URL(request.url).pathname === "/slow") {
       await Bun.sleep(200);
     }
@@ -62,6 +74,16 @@ describe("fetchTransport", () => {
       LIVE,
     ).catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(TransportTimeoutError);
+  });
+
+  it("reports its own timeout while the body is still arriving as a timeout", async () => {
+    const reply = await fetchTransport({ timeoutMs: 100 })(
+      { method: "GET", url: `${server.url}slow-body`, headers: {} },
+      LIVE,
+    );
+    expect(await reply.text().catch((error: unknown) => error)).toBeInstanceOf(
+      TransportTimeoutError,
+    );
   });
 
   it("reports a cancellation as a cancellation, not a timeout", async () => {

@@ -10,6 +10,11 @@ export function fetchTransport(settings: FetchTransportSettings = {}): Transport
   const timeoutMs = settings.timeoutMs ?? 90_000;
   return async (request, signal) => {
     const timeout = AbortSignal.timeout(timeoutMs);
+    // Our own timeout, not the caller's cancellation: the scheduler treats it as pressure. The
+    // timeout covers the body too, which ServiceNow streams while it is still working.
+    const timedOut = (error: unknown): never => {
+      throw timeout.aborted && !signal.aborted ? new TransportTimeoutError(timeoutMs) : error;
+    };
     const response = await fetch(request.url, {
       method: request.method,
       headers: request.headers,
@@ -20,10 +25,11 @@ export function fetchTransport(settings: FetchTransportSettings = {}): Transport
       // hand the credential to whoever answers.
       tls: { rejectUnauthorized: true },
       signal: AbortSignal.any([signal, timeout]),
-    }).catch((error: unknown) => {
-      // Our own timeout, not the caller's cancellation: the scheduler treats it as pressure.
-      throw timeout.aborted && !signal.aborted ? new TransportTimeoutError(timeoutMs) : error;
-    });
-    return { status: response.status, headers: response.headers, text: () => response.text() };
+    }).catch(timedOut);
+    return {
+      status: response.status,
+      headers: response.headers,
+      text: () => response.text().catch(timedOut),
+    };
   };
 }

@@ -85,6 +85,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       { method: "GET", url: url.href, headers: this.headers, ...retry },
       signal,
     );
+    if (response.elapsedMs !== undefined) query.onRequestTime?.(response.elapsedMs);
     const rows = Rows.safeParse(await this.result(response, `table ${query.table}`));
     if (!rows.success) {
       throw this.unexpected(response, `table ${query.table}`, firstIssue(rows.error));

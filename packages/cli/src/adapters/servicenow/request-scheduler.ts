@@ -38,6 +38,16 @@ export interface RunSettings {
   readonly budgetVariable?: string;
 }
 
+// A response whose body has been read: callers read it after the slot is free.
+function buffered(response: HttpResponse, body: string, elapsedMs: number): HttpResponse {
+  return {
+    status: response.status,
+    headers: response.headers,
+    text: () => Promise.resolve(body),
+    elapsedMs,
+  };
+}
+
 type Attempt = { readonly response: HttpResponse } | { readonly error: unknown };
 
 class RunMeter {
@@ -136,9 +146,6 @@ export class RequestScheduler {
         return this.finish(request, result);
       }
       meter.retries += 1;
-      if ("response" in result) {
-        await result.response.text().catch(() => "");
-      }
       await this.clock.sleep(decision.delayMs, signal).catch(() => {
         throw new OperationCancelledError();
       });
@@ -174,9 +181,12 @@ export class RequestScheduler {
       meter.requests += 1;
       const started = this.clock.now();
       try {
-        const response = await this.transport(request, signal);
-        this.record(meter, response);
-        return { response };
+        // The body is read inside the slot: the instance is busy with the request until its last
+        // byte is sent, and a timeout while reading it is pressure like any other (PERF2-01).
+        const answer = await this.transport(request, signal);
+        this.record(meter, answer);
+        const body = await answer.text();
+        return { response: buffered(answer, body, this.clock.now() - started) };
       } finally {
         meter.requestMs += this.clock.now() - started;
       }

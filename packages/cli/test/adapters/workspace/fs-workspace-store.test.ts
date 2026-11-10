@@ -39,6 +39,14 @@ describe("FsWorkspaceStore", () => {
     await new FsWorkspaceStore("win32").create(root, manifestFor("snagentic test"));
     const longPaths = await runGit(["config", "--get", "core.longpaths"], root);
     expect(longPaths.stdout.trim()).toBe("true");
+    // A teammate's clone on Windows is told to set it too (doctor, PERF2-04).
+    const clone = join(await scratch(), "clone");
+    await runGit(["clone", "-q", root, clone], root);
+    const tuning = await new FsWorkspaceStore("win32").repositoryTuning(clone);
+    expect(tuning?.find((s) => s.key === "core.longpaths")).toMatchObject({ value: "true" });
+    expect(await new FsWorkspaceStore("linux").repositoryTuning(clone)).not.toContainEqual(
+      expect.objectContaining({ key: "core.longpaths" }),
+    );
   });
 
   it("records the workspace files in a first commit, so git status starts clean", async () => {

@@ -31,7 +31,8 @@ export interface LockHolder {
 }
 
 // The lock of one instance in one workspace (.snagentic/<name>/), held by every command that
-// writes its mirror or the instance, so two never interleave (REL-03).
+// writes its mirror, its profile or the instance, so two never interleave; or the workspace's
+// own lock (.snagentic/), held by commands that write the workspace but no instance (REL-03).
 export interface WorkspaceLock {
   // Takes the lock for `command`. When another run holds it: who, or null when unreadable.
   acquire(

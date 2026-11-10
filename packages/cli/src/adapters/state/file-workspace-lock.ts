@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { link, mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import type { LockHolder, WorkspaceLock } from "@snagentic/core";
 import { z } from "zod";
+import { readStateText } from "./state-file";
 
 const LockFile = z.object({
   command: z.string(),
@@ -45,10 +46,6 @@ function ended(file: LockFile | null): boolean {
   }
 }
 
-function readText(path: string): Promise<string | null> {
-  return readFile(path, "utf8").catch(() => null);
-}
-
 // Moves a stale lock out of the way, checking it is still the one judged stale: a command that
 // took it over meanwhile gets its lock back. False when it is gone or no longer stale.
 export async function setAsideStale(path: string, stale: string, aside: string): Promise<boolean> {
@@ -57,7 +54,7 @@ export async function setAsideStale(path: string, stale: string, aside: string):
   } catch {
     return false;
   }
-  const moved = await readText(aside);
+  const moved = await readStateText(aside);
   if (moved !== stale) {
     try {
       await link(aside, path);
@@ -90,7 +87,7 @@ export class FileWorkspaceLock implements WorkspaceLock {
       token: this.token,
     };
     if (await this.create(mine)) return { acquired: true };
-    const text = await readText(this.path);
+    const text = await readStateText(this.path);
     if (
       text !== null &&
       ended(parse(text)) &&
@@ -99,7 +96,7 @@ export class FileWorkspaceLock implements WorkspaceLock {
     ) {
       return { acquired: true };
     }
-    return { acquired: false, holder: holderOf(parse(await readText(this.path))) };
+    return { acquired: false, holder: holderOf(parse(await readStateText(this.path))) };
   }
 
   private async create(file: LockFile): Promise<boolean> {
@@ -116,7 +113,7 @@ export class FileWorkspaceLock implements WorkspaceLock {
   }
 
   async release(): Promise<void> {
-    if (parse(await readText(this.path))?.token === this.token) {
+    if (parse(await readStateText(this.path))?.token === this.token) {
       await rm(this.path, { force: true });
     }
   }

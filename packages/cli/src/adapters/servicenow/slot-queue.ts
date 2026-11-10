@@ -32,6 +32,11 @@ export class SlotQueue {
 
   release(): void {
     this.running -= 1;
+    this.admit();
+  }
+
+  // Lets waiting work in while there is room, as after the limit was raised.
+  admit(): void {
     while (this.running < this.limit() && this.waiting.length > 0) {
       this.waiting.shift()?.();
     }

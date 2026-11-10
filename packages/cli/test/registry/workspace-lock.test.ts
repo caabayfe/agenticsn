@@ -12,7 +12,7 @@ import {
   type UseCase,
   type UseCaseContext,
 } from "../../src/registry/use-case";
-import { locksWorkspace } from "../../src/registry/workspace-lock";
+import { lockScope } from "../../src/registry/workspace-lock";
 import { FAKE_CONTEXT } from "../support/fakes";
 
 const ROOT = "/work/space";
@@ -28,12 +28,19 @@ function lockedContext(): UseCaseContext {
       readManifest: async (directory) =>
         directory === ROOT ? { layout: 2, createdWith: "test" } : null,
     },
-    workspaceLock: (_root, instance) => new FileWorkspaceLock(join(locks, instance)),
+    workspaceLock: (_root, instance) =>
+      new FileWorkspaceLock(join(locks, instance ?? "_workspace")),
   };
 }
 
-// A write command that runs until the test lets it finish.
-function gatedUseCase(name: string, readOnly = false, inner?: () => Promise<unknown>) {
+// A write command that runs until the test lets it finish; without an instance input, it writes
+// the workspace only.
+function gatedUseCase(
+  name: string,
+  readOnly = false,
+  inner?: () => Promise<unknown>,
+  input: z.ZodObject = z.object({ instance: z.string() }),
+) {
   let open = () => {};
   const gate = new Promise<void>((resolve) => {
     open = resolve;
@@ -45,7 +52,7 @@ function gatedUseCase(name: string, readOnly = false, inner?: () => Promise<unkn
   const useCase = defineUseCase({
     name,
     description: "A command that waits.",
-    input: z.object({ instance: z.string() }),
+    input,
     output: z.object({ done: z.boolean() }),
     flags: { readOnly, destructive: false, requiresDevelopmentInstance: false },
     mcp: false,
@@ -140,19 +147,127 @@ describe("the workspace lock taken by every write command (REL-03)", () => {
     });
   });
 
-  it("is taken by every command that writes a mirror, a workspace branch or an instance", () => {
-    const locking = USE_CASES.filter(locksWorkspace).map(qualifiedName).sort();
-    expect(locking).toEqual([
-      "accelerator add",
-      "accelerator install",
-      "accelerator load",
-      "adopt",
-      "apps install",
-      "integrate",
-      "plugins activate",
-      "pull",
-      "push",
-      "take-over",
-    ]);
+  it("refuses a command that changes an instance's profile while another command holds it", async () => {
+    const context = lockedContext();
+    const push = gatedUseCase("push");
+    const first = executeUseCase(push.useCase, { instance: "dev" }, context);
+    await push.running;
+    const remove = USE_CASES.find((u) => qualifiedName(u) === "instance remove");
+    const refused = await executeUseCase(
+      remove ?? push.useCase,
+      { name: "dev", forgetCredentials: true },
+      context,
+    ).catch((error: unknown) => error);
+    expect(describeError(refused)).toMatchObject({ code: "workspace-locked" });
+    push.open();
+    await first;
+  });
+
+  it("lets one command that writes the workspace but no instance run at a time", async () => {
+    const context = lockedContext();
+    const build = gatedUseCase("docs-build", false, undefined, z.object({}));
+    const pin = gatedUseCase("docs-pin", false, undefined, z.object({}));
+    const first = executeUseCase(build.useCase, {}, context);
+    await build.running;
+    const refused = await executeUseCase(pin.useCase, {}, context).catch((e: unknown) => e);
+    expect(describeError(refused)).toMatchObject({ code: "workspace-locked" });
+    expect(describeError(refused).hint).toContain(".snagentic/workspace.lock");
+    build.open();
+    await first;
+  });
+
+  it("lets a workspace command and an instance command run at once", async () => {
+    const context = lockedContext();
+    const build = gatedUseCase("docs-build", false, undefined, z.object({}));
+    const push = gatedUseCase("push");
+    const runs = [
+      executeUseCase(build.useCase, {}, context),
+      executeUseCase(push.useCase, { instance: "dev" }, context),
+    ];
+    await Promise.all([build.running, push.running]);
+    build.open();
+    push.open();
+    expect(await Promise.all(runs)).toHaveLength(2);
+  });
+
+  it("runs a workspace step of an instance command under the instance's lock", async () => {
+    const base = lockedContext();
+    const taken: (string | null)[] = [];
+    const context: UseCaseContext = {
+      ...base,
+      workspaceLock: (root, instance) => {
+        taken.push(instance);
+        return base.workspaceLock(root, instance);
+      },
+    };
+    const keys = gatedUseCase("fluent-keys", false, undefined, z.object({}));
+    keys.open();
+    const install = gatedUseCase("install", false, () => executeUseCase(keys.useCase, {}, context));
+    install.open();
+    await executeUseCase(install.useCase, { instance: "dev" }, context);
+    expect(taken).toEqual(["dev"]);
+  });
+
+  it("runs a workspace command outside any workspace without a lock", async () => {
+    const context: UseCaseContext = {
+      ...lockedContext(),
+      host: { ...FAKE_CONTEXT.host, cwd: "/elsewhere" },
+      workspaceLock: () => {
+        throw new Error("no workspace to lock");
+      },
+    };
+    const upgrade = gatedUseCase("upgrade", false, undefined, z.object({}));
+    upgrade.open();
+    expect((await executeUseCase(upgrade.useCase, {}, context)).output).toEqual({ done: true });
+  });
+
+  it("holds a lock for every command that is not read-only", () => {
+    const scopes = Object.fromEntries(
+      USE_CASES.flatMap((u) => {
+        const scope = lockScope(u);
+        if (scope === null) return [];
+        return [
+          [qualifiedName(u), typeof scope === "string" ? scope : `instance:${scope.instance}`],
+        ];
+      }),
+    );
+    expect(scopes).toEqual({
+      "accelerator add": "instance:instance",
+      "accelerator install": "instance:instance",
+      "accelerator load": "instance:instance",
+      adopt: "instance:instance",
+      "agent install": "workspace",
+      "apps install": "instance:instance",
+      "auth login": "instance:instance",
+      "auth logout": "instance:instance",
+      "docs build": "workspace",
+      "docs pin": "workspace",
+      // Writes nothing itself: its build runs as `docs build`, under the workspace's lock.
+      "docs serve": "none",
+      "docs video": "workspace",
+      "fluent-keys": "workspace",
+      // Creates the workspace: there is none to lock yet.
+      init: "none",
+      "instance add": "instance:name",
+      "instance remove": "instance:name",
+      integrate: "instance:instance",
+      "plugins activate": "instance:instance",
+      pull: "instance:instance",
+      push: "instance:instance",
+      "take-over": "instance:instance",
+      upgrade: "workspace",
+    });
+  });
+
+  it("names, for every command locking an instance, a string input that holds it", () => {
+    for (const useCase of USE_CASES) {
+      const scope = lockScope(useCase);
+      if (scope === null || typeof scope === "string") continue;
+      const field = useCase.input.shape[scope.instance];
+      expect({ useCase: qualifiedName(useCase), takes: field?.safeParse("dev").success }).toEqual({
+        useCase: qualifiedName(useCase),
+        takes: true,
+      });
+    }
   });
 });

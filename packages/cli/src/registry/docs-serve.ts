@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { AudioInput, buildDocs } from "./docs-build";
+import { AudioInput, docsBuild } from "./docs-build";
+import { runUseCase } from "./execute";
 import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
@@ -22,10 +23,18 @@ export const docsServe = defineUseCase({
       .describe(`the port (default ${DEFAULT_PORT})`),
   }),
   output: z.object({ url: z.string(), files: z.number() }),
-  flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
+  flags: {
+    readOnly: false,
+    destructive: false,
+    requiresDevelopmentInstance: false,
+    // Serving writes nothing: the build runs as docs build, under the workspace's lock, which is
+    // given back before serving, so a preview left running blocks no other command.
+    lock: "none",
+  },
   mcp: false,
   async handle(input, context, run) {
-    const built = await buildDocs(context, run.signal, input);
+    const { audio, voice, video } = input;
+    const built = await runUseCase(docsBuild, { audio, voice, video }, context, run);
     const docs = context.documentation(await workspaceRoot(context));
     let url = "";
     await docs.serve(input.port ?? DEFAULT_PORT, run.signal, (address) => {

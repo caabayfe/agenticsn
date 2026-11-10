@@ -15,6 +15,7 @@ import { docsPin } from "../../src/registry/docs-pin";
 import { docsQuestions } from "../../src/registry/docs-questions";
 import { docsServe } from "../../src/registry/docs-serve";
 import { docsVideo } from "../../src/registry/docs-video";
+import { executeUseCase } from "../../src/registry/execute";
 import type { UseCaseContext } from "../../src/registry/use-case";
 import { FAKE_CONTEXT } from "../support/fakes";
 
@@ -324,6 +325,32 @@ describe("snagentic docs", () => {
     expect(progress[0]).toContain("serving 13 files at http://127.0.0.1:4999/");
     expect(docsServe.render(result, "text")).toBe("stopped serving http://127.0.0.1:4999/");
     expect(docsServe.exitCode(result)).toBe(0);
+  });
+
+  it("serve builds under the workspace's lock, and gives it back before serving", async () => {
+    const events: string[] = [];
+    const base = context();
+    const locked: UseCaseContext = {
+      ...base,
+      workspaceLock: (_root, instance) => ({
+        acquire: async () => {
+          events.push(`lock ${instance ?? "workspace"}`);
+          return { acquired: true };
+        },
+        release: async () => {
+          events.push("unlock");
+        },
+      }),
+      documentation: (workspace) => ({
+        ...base.documentation(workspace),
+        serve: async (_port, _signal, ready) => {
+          events.push("serve");
+          ready("http://127.0.0.1:4999/");
+        },
+      }),
+    };
+    await executeUseCase(docsServe, { port: 4999 }, locked, run);
+    expect(events).toEqual(["lock workspace", "unlock", "serve"]);
   });
 
   it("build --voice gives each animation a narrated track, embedded and as an MP3", async () => {

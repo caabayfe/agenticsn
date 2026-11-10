@@ -204,6 +204,30 @@ snagentic instance list                     # dev  development  jdoe (this clone
 - A clone that only reads (status, integrate, describe, search) doesn't need an instance
   login at all.
 
+## One push per instance user at a time
+
+A push makes its update sets and application the instance user's current ones while it loads,
+then puts the earlier ones back. These are the user's preferences on the instance, so they are
+shared by every push signed in as that user.
+
+- In one clone, the workspace lock keeps two commands from changing the same instance at once.
+  The lock is a file in that clone (`.snagentic/<name>/workspace.lock`), so it does not see
+  another clone, another git worktree or another machine.
+- Two pushes signed in as the same user at the same time can record each other's changes in the
+  wrong update set, and leave the user's current update set pointing at the other push's batch.
+- snagentic doesn't detect this. The push reads each preference only before it switches it, and
+  finding a change made under it would take an extra request per preference.
+
+So:
+
+- Each developer signs in as themselves (see [who signs in](#who-signs-in)). Pushes by different
+  users never share preferences.
+- Where a user is shared, such as a service account or CI, run one push for that user at a
+  time: a CI concurrency group, or one clone that pushes.
+- If two pushes did overlap, check the update set each push reports. A load that isn't in its
+  update set is reported as not captured. Then set your current update set on the instance
+  again.
+
 ## Troubleshooting
 
 | Code | Meaning | What to do |
@@ -213,7 +237,7 @@ snagentic instance list                     # dev  development  jdoe (this clone
 | `publish-needs-shared-mirror` | `--publish` on a profile without `shared_mirror` | Add `shared_mirror` to `instance.yaml`, or pull without `--publish` |
 | `mirror-moved` | Another pull moved the mirror branch while this one ran. Nothing was committed | Run the pull again: it continues from what the other pull left |
 | `watermark-in-future` | The mirror's state says it was pulled later than the instance's clock. A pull didn't write that state | Run `snagentic pull <name> --full` from the puller, and check who can push `servicenow-remote/<name>` |
-| `workspace-locked` | Another command is changing the instance in this workspace | Wait for it to finish. If it's no longer running, remove `.snagentic/<name>/workspace.lock` |
+| `workspace-locked` | Another command is changing the instance in this workspace, or this workspace's own files | Wait for it to finish. If it's no longer running, remove the lock file the hint names: `.snagentic/<name>/workspace.lock`, or `.snagentic/workspace.lock` |
 | `git-command-failed` | A git fetch or push failed | Check your git credentials for the remote, and that the remote named in `shared_mirror` exists (`git remote -v`) |
 
 See also: [getting started](../getting-started.md#team-mode-one-pull-per-instance),

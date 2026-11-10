@@ -163,8 +163,9 @@ export interface UseCaseContext {
   // Where push journals its progress (.snagentic/<name>/push-journal.json).
   readonly pushJournal: (root: string, instance: InstanceName) => PushJournalStore;
   readonly installJournal: (root: string, instance: InstanceName) => InstallJournal;
-  // The instance's workspace lock (.snagentic/<name>/workspace.lock), taken by executeUseCase.
-  readonly workspaceLock: (root: string, instance: InstanceName) => WorkspaceLock;
+  // The instance's workspace lock (.snagentic/<name>/workspace.lock), or with null the
+  // workspace's own (.snagentic/workspace.lock), taken by executeUseCase.
+  readonly workspaceLock: (root: string, instance: InstanceName | null) => WorkspaceLock;
   // Text files inside the workspace (the agent pack).
   readonly workspaceFiles: WorkspaceFiles;
   // New files a use case writes for the person, such as an export; never overwrites.
@@ -211,13 +212,22 @@ export interface RunControl {
   progress(event: ProgressEvent): void;
 }
 
+// What a use case that is not read-only holds while it runs, so two commands never interleave
+// their writes (REL-03):
+// - { instance: <input field> }: the lock of the instance that field names. Per instance, so
+//   commands on two instances still run at once; everything an instance's commands write (its
+//   mirror, journals, profile, credentials, the instance) belongs to that one instance.
+// - "workspace": the workspace's own lock, for a command that writes the workspace but no
+//   instance's state (the agent pack, documentation, Fluent keys, the binary's pack upgrade).
+// - "none": only for a command with nothing to lock itself (init creates the workspace).
+export type LockScope = { readonly instance: string } | "workspace" | "none";
+
 export interface UseCaseFlags {
   readonly readOnly: boolean;
   readonly destructive: boolean;
   readonly requiresDevelopmentInstance: boolean;
-  // A write use case with an instance input holds the instance's workspace lock (REL-03).
-  // False only for one that changes neither the workspace nor the instance (the keychain).
-  readonly locksWorkspace?: false;
+  // Unset: the instance its `instance` input names, else the workspace (workspace-lock.ts).
+  readonly lock?: LockScope;
 }
 
 export interface UseCase<

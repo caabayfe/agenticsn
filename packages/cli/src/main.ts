@@ -7,6 +7,7 @@ import {
   documentationLookup,
   InstanceName,
   instancePaths,
+  LOCAL_STATE_DIR,
   noticeAllowed,
   updateNotice,
   usernameResolvingProfiles,
@@ -184,7 +185,9 @@ const context: UseCaseContext = {
   installJournal: (root, instance) =>
     new JsonInstallJournal(join(root, instancePaths(instance).localState)),
   workspaceLock: (root, instance) =>
-    new FileWorkspaceLock(join(root, instancePaths(instance).localState)),
+    new FileWorkspaceLock(
+      join(root, instance === null ? LOCAL_STATE_DIR : instancePaths(instance).localState),
+    ),
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,
   upgrade: {

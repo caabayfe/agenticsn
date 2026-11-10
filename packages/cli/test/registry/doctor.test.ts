@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { join } from "node:path";
 import { doctor } from "../../src/registry/doctor";
 import { executeUseCase } from "../../src/registry/execute";
 import { FAKE_CONTEXT, fakeProbe } from "../support/fakes";
@@ -26,8 +27,29 @@ describe("doctor use case", () => {
     expect(output["checks"]).toEqual([
       expect.objectContaining({ name: "git" }),
       expect.objectContaining({ name: "agent-pack", status: "warn" }),
+      expect.objectContaining({ name: "mcp-config", status: "ok" }),
     ]);
     expect(exitCode).toBe(0);
+  });
+
+  it("fails when a committed MCP config gives snagentic's server a proxy", async () => {
+    const ws = await instanceWorkspace({});
+    cleanups.push(ws.cleanup);
+    const server = { command: "snagentic", args: ["mcp"], env: { HTTPS_PROXY: "http://p:8080" } };
+    await Bun.write(
+      join(ws.root, ".mcp.json"),
+      JSON.stringify({ mcpServers: { snagentic: server } }),
+    );
+    const context = { ...ws.context, environmentProbes: [fakeProbe("git", "ok")] };
+    const { output, exitCode } = await executeUseCase(doctor, {}, context);
+    expect(output["checks"]).toContainEqual(
+      expect.objectContaining({
+        name: "mcp-config",
+        status: "fail",
+        detail: ".mcp.json sets HTTPS_PROXY",
+      }),
+    );
+    expect(exitCode).toBe(3);
   });
 
   it("leaves the agent pack out outside a workspace", async () => {

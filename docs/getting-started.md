@@ -33,6 +33,10 @@ Then check your machine:
 snagentic doctor
 ```
 
+Behind a corporate proxy or TLS inspection? Set `HTTPS_PROXY`, `NO_PROXY` and
+`NODE_EXTRA_CA_CERTS` in your environment; `doctor` shows what is in effect. See
+[network: proxies and corporate certificates](guides/network.md).
+
 **Upgrading.** Once a day snagentic checks for a new release and, when there is one, prints
 `snagentic <version> is available: run snagentic upgrade` after a command. Then:
 

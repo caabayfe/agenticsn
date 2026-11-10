@@ -82,6 +82,8 @@ const UPGRADE = "the binary an agent runs changes only when a person upgrades it
 const SECRETS = "stored credentials are read only by snagentic, never shown to an agent (ADR-0020)";
 const RUNTIME =
   "these variables make the snagentic binary run other code, or stop checking certificates, with the credentials it holds";
+const NETWORK =
+  "these variables send instance traffic through another host or trust other certificates; a person sets them in their own environment (docs/guides/network.md)";
 export const SHELL_DENY: readonly { readonly pattern: RegExp; readonly reason: string }[] = [
   { pattern: /(?:^|[\s;&|(`])(?:curl|wget)(?=\s|$)/, reason: INSTANCE },
   { pattern: /service-now\.com/i, reason: INSTANCE },
@@ -98,5 +100,11 @@ export const SHELL_DENY: readonly { readonly pattern: RegExp; readonly reason: s
   {
     pattern: /\b(?:BUN_BE_BUN|BUN_OPTIONS|NODE_OPTIONS|NODE_TLS_REJECT_UNAUTHORIZED)\s*=/,
     reason: RUNTIME,
+  },
+  // Kept in step with doctor's network check by a test; the proxy names are read in either case.
+  { pattern: /\b(?:HTTPS?_PROXY|ALL_PROXY|NO_PROXY)\s*=/i, reason: NETWORK },
+  {
+    pattern: /\b(?:NODE_EXTRA_CA_CERTS|NODE_USE_SYSTEM_CA|SSL_CERT_FILE|SSL_CERT_DIR)\s*=/,
+    reason: NETWORK,
   },
 ];

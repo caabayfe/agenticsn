@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- `doctor` shows the proxy and extra certificate variables in effect (`network`), with any
+  credentials in a proxy address hidden, and fails when a committed MCP config gives snagentic's
+  server a proxy, certificate or runtime variable (`mcp-config`).
+- Guide: [network: proxies and corporate certificates](docs/guides/network.md).
+
 ### Changed
 
 - The ADR index in `docs/adr/README.md` is generated from each record's title, status line and
@@ -11,6 +18,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   not built yet, such as components-only installs on test and production (ADR-0038, section 5).
 - The product documents, the README and getting started quote rule, MCP tool and skill counts
   checked against the code by a test, and describe 2.x (spec 014, F9).
+
+- The agent pack's shell hook refuses commands that set proxy or certificate variables
+  (`HTTPS_PROXY`, `NO_PROXY`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE` and similar). Set them in
+  your own environment, where they keep working.
 
 ### Fixed
 

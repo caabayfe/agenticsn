@@ -62,3 +62,46 @@ describe("fetchTransport", () => {
     );
   });
 });
+
+// A corporate proxy is set by the person in their own environment (docs/guides/network.md). This
+// one only records the tunnel it is asked for and refuses it.
+async function throughProxy(env: Record<string, string>, body: () => Promise<unknown>) {
+  const tunnels: string[] = [];
+  const proxy = Bun.listen({
+    hostname: "127.0.0.1",
+    port: 0,
+    socket: {
+      data(socket, data) {
+        tunnels.push(data.toString().split("\r\n")[0] ?? "");
+        socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
+      },
+    },
+  });
+  const names = ["HTTPS_PROXY", "NO_PROXY", ...Object.keys(env)];
+  const before = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  Object.assign(process.env, { HTTPS_PROXY: `http://127.0.0.1:${proxy.port}`, ...env });
+  try {
+    await body().catch(() => undefined);
+  } finally {
+    for (const [name, value] of Object.entries(before)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    proxy.stop(true);
+  }
+  return tunnels;
+}
+
+describe("fetchTransport behind a proxy", () => {
+  const request = () =>
+    fetchTransport()({ method: "GET", url: `${untrusted.url}ok`, headers: {} }, LIVE);
+
+  it("tunnels instance traffic through the proxy in the environment", async () => {
+    const tunnels = await throughProxy({}, request);
+    expect(tunnels).toEqual([`CONNECT localhost:${untrusted.port} HTTP/1.1`]);
+  });
+
+  it("goes direct to hosts listed in NO_PROXY", async () => {
+    expect(await throughProxy({ NO_PROXY: "localhost" }, request)).toEqual([]);
+  });
+});

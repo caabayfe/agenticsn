@@ -226,7 +226,19 @@ describe("GitMirror in incremental mode", () => {
     await mirror.write(ROOT, record(1, "One", "changed();"));
     const tip = (await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], repo)).trim();
     const other = (
-      await runGitOrThrow(["commit-tree", `${tip}^{tree}`, "-p", tip, "-m", "other pull"], repo)
+      await runGitOrThrow(
+        [
+          "-c",
+          "user.name=t",
+          "-c",
+          "user.email=t@t",
+          "commit-tree",
+          `${tip}^{tree}`,
+          "-p",
+          tip,
+        ].concat(["-m", "other pull"]),
+        repo,
+      )
     ).trim();
     await runGitOrThrow(["update-ref", "refs/heads/servicenow-remote/pdi", other, tip], repo);
     const error = await mirror.finish("incremental").catch((caught: unknown) => caught);

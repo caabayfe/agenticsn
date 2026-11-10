@@ -166,7 +166,7 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - With a shared mirror, the fetch is never forced. A shared tip that no longer contains the
   commit this clone last fetched (a rewritten history) is refused, naming both commits and how to
   recover. A clone that never fetched the shared mirror takes it only by fast-forward (ADR-0052
-  amendment A1, proposed).
+  amendment A1).
 - Pull, adopt and update set export treat an outbound REST or SOAP header or parameter whose name
   marks a credential (`Authorization`, an API key, a token, a password) as a secret field: pull
   leaves its value out of the mirror and names it as redacted, and export withholds the update.

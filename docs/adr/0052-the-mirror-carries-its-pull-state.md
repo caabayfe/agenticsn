@@ -1,6 +1,6 @@
 # 0052. The mirror carries its pull state, so any clone continues a pull from git
 
-- Status: Accepted (2026-11-10); amendments A1 and A2 Proposed (2026-11-10)
+- Status: Accepted (2026-11-10); amendments A1 and A2 accepted (2026-11-10)
 - Date: 2026-11-10
 - Requirements: ASR-06, ASR-07, ASR-08, ASR-16
 - Amends: 0004 (team mode: how developers get and refresh the mirror), 0014 (what `.snagentic/`
@@ -145,7 +145,7 @@ user can't read.
 
 ## Amendments
 
-### A1. A shared mirror's history is only ever extended (built; status: Proposed, 2026-11-10)
+### A1. A shared mirror's history is only ever extended (Accepted, 2026-11-10; built)
 
 Evidence: spec 014 re-audit, SEC2-06. The shared fetch used a forced refspec, and item 2 moved
 the local branch to a later shared tip without checking how the two histories relate. A force
@@ -166,7 +166,7 @@ Item 2 and item 5 gain one precondition:
 A team that deliberately replaces the shared mirror says so to every clone, which then deletes
 that ref once. Branch protection (the team-mode guide) remains the control that prevents it.
 
-### A2. Developer pulls outside maxAge (proposed, not built; status: Proposed, 2026-11-10)
+### A2. Developer pulls outside maxAge (Accepted, 2026-11-10; not built yet)
 
 Evidence: spec 014 re-audit, PERF2-02. The CI template pulls every 15 minutes, and the default
 `max_age_minutes` is 15. The watermark is the pull's start time, so a mirror is already "pull
@@ -178,7 +178,7 @@ a puller. Each process has its own request scheduler, so ADR-0053's limits cap o
 not the team: with N developers whose agents follow `status`, the steady state is up to N
 no-change pulls per interval, not one.
 
-Today's behaviour is unchanged until the owner decides. The options:
+The options considered:
 
 1. **Require `--now` for a non-publisher to pull from the instance.** In team mode, a pull by a
    user other than the one the shared state names, outside maxAge, fetches and takes the shared
@@ -207,6 +207,9 @@ Today's behaviour is unchanged until the owner decides. The options:
 3. **Both.** Option 2's default keeps a normal cycle current. Option 1 keeps the load at one
    puller when the publisher is late or down.
 
-Recommendation: option 3. It needs a decision on the "stale" threshold and on what `status`'s
-`next` says then. The CI template's comment that ties its cron to `max_age_minutes` changes
-with it (packaging/ci, a separate change).
+**Decision: option 3, both.** Accepted by the product owner on 2026-11-10. In team mode, a
+non-publisher's pull outside maxAge reaches the instance only with `--now`, and the default
+`max_age_minutes` rises to at least twice the scheduled interval. It is accepted but not built:
+a follow-up step builds it. Until then, today's behaviour stands. That step also settles the
+"stale" threshold, what `status`'s `next` says when the mirror is stale, and the CI template
+comment that ties its cron to `max_age_minutes` (packaging/ci).

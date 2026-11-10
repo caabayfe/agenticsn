@@ -55,6 +55,7 @@ old one's status line (`Superseded by NNNN` or `Accepted (amended by NNNN)`).
 | [0047](0047-installs-turn-on-test-execution-on-development.md) | An install turns on ATF test execution on a development instance, in an update set that is never promoted | Accepted |
 | [0048](0048-store-application-demo-data-on-request.md) | `--demo` is the one demo switch: demo data, demo modules and store applications' demo data | Accepted |
 | [0049](0049-demo-modules-turned-on-with-demo.md) | `--demo` turns on the demo modules it installs, on development only, never promoted | Accepted |
+| [0052](0052-the-mirror-carries-its-pull-state.md) | The mirror carries its pull state, so any clone continues a pull from git | Proposed |
 
 Requirements referenced as `ASR-nn` are in
 [`../architecture/significant-requirements.md`](../architecture/significant-requirements.md).

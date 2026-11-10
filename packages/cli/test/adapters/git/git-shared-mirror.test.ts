@@ -38,4 +38,33 @@ describe("gitSharedMirror", () => {
       code: "shared-mirror-unreachable",
     });
   });
+
+  it("moves the mirror branch only from the tip it was told, as F6's pulls do", async () => {
+    const { root } = await repositories();
+    const commit = async (message: string) =>
+      (
+        await runGitOrThrow(
+          [
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit-tree",
+            "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+            "-m",
+            message,
+          ],
+          root,
+        )
+      ).trim();
+    const first = await commit("first");
+    const second = await commit("second");
+    await gitSharedMirror.moveTo(root, "pdi", { commit: first, expected: null });
+    expect(await gitSharedMirror.localTip(root, "pdi")).toBe(first);
+    await expect(
+      gitSharedMirror.moveTo(root, "pdi", { commit: second, expected: null }),
+    ).rejects.toMatchObject({ code: "mirror-moved" });
+    await gitSharedMirror.moveTo(root, "pdi", { commit: second, expected: first });
+    expect(await gitSharedMirror.localTip(root, "pdi")).toBe(second);
+  });
 });

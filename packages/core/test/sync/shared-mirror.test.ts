@@ -33,8 +33,8 @@ function world(options: {
     localTip: async () => tip,
     contains: async (_root, descendant, ancestor) =>
       descendant === ancestor || (options.history?.[descendant] ?? []).includes(ancestor),
-    moveTo: async (_root, _instance, commit) => {
-      tip = commit;
+    moveTo: async (_root, _instance, move) => {
+      tip = move.commit;
     },
     publish: async () => "published",
   };

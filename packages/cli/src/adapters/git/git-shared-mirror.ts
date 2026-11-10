@@ -6,6 +6,7 @@ import {
   type SharedTip,
 } from "@snagentic/core";
 import { pullStateAt } from "../state/mirror-sync-state-store";
+import { moveMirrorBranch } from "./mirror-ref";
 import { runGit, runGitOrThrow } from "./run-git";
 
 const firstLine = (text: string) => text.trim().split("\n")[0] ?? "";
@@ -53,8 +54,8 @@ export const gitSharedMirror: SharedMirror = {
     return result.exitCode === 0;
   },
 
-  async moveTo(root, instance, commit) {
-    await runGitOrThrow(["update-ref", branchOf(instance), commit], root);
+  async moveTo(root, instance, move) {
+    await moveMirrorBranch(root, instance, { ref: branchOf(instance), ...move });
   },
 
   // Never forced: the remote refuses anything but a fast-forward.

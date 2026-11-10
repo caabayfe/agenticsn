@@ -185,8 +185,13 @@ export interface SharedMirror {
   localTip(root: string, instance: string): Promise<string | null>;
   // True when `descendant` is `ancestor` or contains it in its history.
   contains(root: string, descendant: string, ancestor: string): Promise<boolean>;
-  // Moves the local servicenow-remote/<name> to `commit`.
-  moveTo(root: string, instance: string, commit: string): Promise<void>;
+  // Moves the local servicenow-remote/<name> to `commit`, only while it is still at `expected`
+  // (null: no branch yet).
+  moveTo(
+    root: string,
+    instance: string,
+    move: { readonly commit: string; readonly expected: string | null },
+  ): Promise<void>;
   // Pushes `commit` as servicenow-remote/<name>, fast-forward only.
   publish(
     root: string,

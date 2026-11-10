@@ -29,13 +29,12 @@ export interface SharedStart {
 async function takesShared(
   deps: SharedPullDependencies,
   root: string,
-  instance: string,
+  tip: string | null,
   shared: SharedTip | null,
   local: SyncState | null,
   publishing: boolean,
 ): Promise<boolean> {
   if (shared === null || shared.state === null) return false;
-  const tip = await deps.shared.localTip(root, instance);
   if (tip === shared.commit) return false;
   if (local === null || tip === null) return true;
   if (isLater(shared.state.watermark, local.watermark)) return true;
@@ -56,9 +55,11 @@ export async function continueFromNewest(
 ): Promise<SharedStart> {
   const shared = await deps.shared.fetch(root, instance, setting.remote);
   const local = await deps.state.readState();
-  const moved = await takesShared(deps, root, instance, shared, local, publishing);
+  const tip = await deps.shared.localTip(root, instance);
+  const moved = await takesShared(deps, root, tip, shared, local, publishing);
   if (moved && shared !== null) {
-    await deps.shared.moveTo(root, instance, shared.commit);
+    // Only from the tip just compared: a pull that moved it since is not overwritten.
+    await deps.shared.moveTo(root, instance, { commit: shared.commit, expected: tip });
     // An interrupted pull older than the shared mirror is not worth finishing.
     const checkpoint = await deps.state.readCheckpoint();
     const watermark = shared.state?.watermark ?? "";

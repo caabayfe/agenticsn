@@ -68,7 +68,9 @@ jobs:
       - name: the known Windows failures
         if: runner.os == 'Windows'
         continue-on-error: true
-        run: bun test $(grep -v '^#' tests/windows-known-failures.txt | tr -d '\r')
+        run: |
+          files=$(grep -v '^#' tests/windows-known-failures.txt | tr -d '\r')
+          if [[ -z "$files" ]]; then echo "no known Windows failures"; else bun test $files; fi
       # The Fluent worker's macOS sandbox (ADR-0044) is tested only on macOS: fail if its tests
       # were filtered or skipped away rather than run.
       - name: the macOS sandbox tests ran

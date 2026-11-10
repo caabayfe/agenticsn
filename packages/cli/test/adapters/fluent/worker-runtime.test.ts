@@ -15,7 +15,8 @@ import { copyFixture, FLUENT_FIXTURES } from "../../support/fluent-fixtures";
 const BUILD_TIMEOUT = 60_000;
 const FAKE = [process.execPath, join(import.meta.dir, "../../support/fake-fluent-worker.ts")];
 const HOST = "https://instance.example.com/";
-const NOT_STARTING = ["/bin/sh", "-c", "exit 3"];
+const NOT_STARTING = [process.execPath, "-e", "process.exit(3)"];
+const MISSING = [join(tmpdir(), "snagentic-no-such-program")];
 
 function project(mode: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), "snagentic-worker-test-"));
@@ -80,6 +81,12 @@ describe("the SDK worker", () => {
 
   it("fails when no worker starts", async () => {
     await expect(fake({ command: NOT_STARTING }).build(project({ mode: "env" }))).rejects.toThrow(
+      /did not start/,
+    );
+  });
+
+  it("fails when the worker program can't be found", async () => {
+    await expect(fake({ command: MISSING }).build(project({ mode: "env" }))).rejects.toThrow(
       /did not start/,
     );
   });

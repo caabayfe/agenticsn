@@ -65,6 +65,15 @@ function answer(child: Bun.Subprocess, message: FromWorker, job: Job): void {
 // One worker, from start to its one result. The worker never exits by itself once it has
 // answered: it is stopped here, so its result always arrives before its exit.
 function attempt(command: readonly string[], scratch: string, job: Job): Promise<Attempt> {
+  // A program that can't be found (a missing sandbox, a moved binary) throws at the spawn: the
+  // worker did not start, as when it exits before `ready`.
+  return spawnWorker(command, scratch, job).catch((error: unknown) => ({
+    started: false,
+    detail: error instanceof Error ? error.message : String(error),
+  }));
+}
+
+function spawnWorker(command: readonly string[], scratch: string, job: Job): Promise<Attempt> {
   return new Promise((resolve) => {
     let ready = false;
     let settled = false;

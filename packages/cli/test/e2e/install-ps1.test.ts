@@ -97,8 +97,8 @@ describe.skipIf(process.platform !== "win32")("install.ps1", () => {
     "installs the release binary after checking its checksum",
     async () => {
       const where = await release("1.0.0");
-      const { out, code } = await install(where);
-      expect(code).toBe(0);
+      const { out, err, code } = await install(where);
+      expect({ code, err }).toEqual({ code: 0, err: "" });
       expect(out).toContain(`installed snagentic in ${where.installDir}`);
       expect(out).toContain("provenance not checked");
       const ran = Bun.spawnSync([installed(where)]);
@@ -124,7 +124,7 @@ describe.skipIf(process.platform !== "win32")("install.ps1", () => {
     async () => {
       const where = await release("1.0.0");
       const verified = await install(where, { auth: 0, verify: 0 });
-      expect(verified.code).toBe(0);
+      expect({ code: verified.code, err: verified.err }).toEqual({ code: 0, err: "" });
       expect(verified.out).toContain("provenance verified");
       const [, verify] = await verified.calls();
       expect(verify).toStartWith("attestation verify ");
@@ -142,12 +142,13 @@ describe.skipIf(process.platform !== "win32")("install.ps1", () => {
     "installs over a snagentic.exe that is still running",
     async () => {
       const where = await release("1.0.0");
-      expect((await install(where)).code).toBe(0);
+      const first = await install(where);
+      expect({ code: first.code, err: first.err }).toEqual({ code: 0, err: "" });
       const running = Bun.spawn([installed(where), "--wait"], { stdout: "ignore" });
       try {
         const next = await release("1.1.0");
         const { code, err } = await install({ ...next, installDir: where.installDir });
-        expect({ code, err }).toMatchObject({ code: 0 });
+        expect({ code, err }).toEqual({ code: 0, err: "" });
         const ran = Bun.spawnSync([installed(where)]);
         expect(ran.stdout.toString()).toContain("snagentic 1.1.0");
       } finally {

@@ -1,6 +1,5 @@
 import {
   InstallBlockedError,
-  InstallLockedError,
   InstallPlanChangedError,
   InstallResumeChangedError,
   InstallResumeUnknownError,
@@ -182,20 +181,15 @@ export async function installPack(
     throw new InstallPlanChangedError(query.confirm, plan.planId);
   if (plan.problems.length > 0) throw new InstallBlockedError(plan.problems);
   if (resuming) checkResume(journal, plan);
-  if (!(await deps.journal.lock())) throw new InstallLockedError(plan.instance.name);
-  try {
-    const start = resuming
-      ? journal
-      : {
-          planId: plan.planId,
-          startedAt: deps.now().toISOString(),
-          steps: [],
-          approved: installApproval(plan),
-        };
-    return await run(deps, plan, query, { folder, planPath }, start);
-  } finally {
-    await deps.journal.unlock();
-  }
+  const start = resuming
+    ? journal
+    : {
+        planId: plan.planId,
+        startedAt: deps.now().toISOString(),
+        steps: [],
+        approved: installApproval(plan),
+      };
+  return run(deps, plan, query, { folder, planPath }, start);
 }
 
 // A resume runs the plan computed now, not the one approved: their ids differ once the stopped

@@ -1,7 +1,13 @@
 import type { PushJournal, SwitchedPreference } from "../ports";
-import { type InstanceSession, restorePreference, switchPreference } from "./push-steps";
+import {
+  applyPreference,
+  currentPreference,
+  type InstanceSession,
+  restorePreference,
+} from "./push-steps";
 
-// Makes `value` the user's preference `name`, journaled so it is restored even after a crash.
+// Makes `value` the user's preference `name`, journaled so it is restored even after a crash:
+// the value to restore is journaled before the instance changes, never after (REL-03).
 // The platform creates a record in the user's current application (apps.current_app),
 // whatever sys_scope it is sent, and records it in that application's current update set
 // (ADR-0025).
@@ -12,8 +18,14 @@ export async function switchFor(
   save: (preferences: readonly SwitchedPreference[]) => Promise<void>,
 ): Promise<void> {
   const { user, name, value } = preference;
-  const switched = await switchPreference(session, user, name, value);
-  await save([...journal.current.preferences, switched]);
+  const earlier = journal.current.preferences;
+  const current = await currentPreference(session, user, name);
+  await save([...earlier, current]);
+  const switched = await applyPreference(session, current, value);
+  // A preference the user did not have is journaled again with the row the switch created.
+  if (switched.sysId !== current.sysId) {
+    await save([...earlier, switched]);
+  }
 }
 
 // Restores each preference, trying all of them. What is restored leaves the journal; what is

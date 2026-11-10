@@ -6,7 +6,7 @@ import { JsonInstallJournal } from "../../../src/adapters/state/json-install-jou
 
 const fresh = () => new JsonInstallJournal(join(mkdtempSync(join(tmpdir(), "install-")), "pdi"));
 
-describe("the install journal and lock (ADR-0038, item 2.5)", () => {
+describe("the install journal (ADR-0038, item 2.5)", () => {
   it("keeps an install's record until it is cleared", async () => {
     const journal = fresh();
     expect(await journal.read()).toBeNull();
@@ -74,30 +74,6 @@ describe("the install journal and lock (ADR-0038, item 2.5)", () => {
     const record = { planId: "p", startedAt: "s", steps: [], addedLater: 1 };
     writeFileSync(join(directory, "install.json"), JSON.stringify(record));
     expect(await new JsonInstallJournal(directory).read()).toMatchObject({ addedLater: 1 });
-  });
-
-  it("lets one install hold an instance at a time", async () => {
-    const journal = fresh();
-    expect(await journal.lock()).toBe(true);
-    expect(await journal.lock()).toBe(false);
-    await journal.unlock();
-    expect(await journal.lock()).toBe(true);
-  });
-
-  it("takes over a lock whose install is no longer running", async () => {
-    const directory = join(mkdtempSync(join(tmpdir(), "install-")), "pdi");
-    mkdirSync(directory, { recursive: true });
-    const ended = Bun.spawn(["true"]);
-    await ended.exited;
-    writeFileSync(join(directory, "install.lock"), `${ended.pid}\n`);
-    expect(await new JsonInstallJournal(directory).lock()).toBe(true);
-  });
-
-  it("keeps a lock it cannot tell is stale", async () => {
-    const directory = join(mkdtempSync(join(tmpdir(), "install-")), "pdi");
-    mkdirSync(directory, { recursive: true });
-    writeFileSync(join(directory, "install.lock"), "");
-    expect(await new JsonInstallJournal(directory).lock()).toBe(false);
   });
 
   it("refuses a journal that is not an install record, naming the file and what to do", async () => {

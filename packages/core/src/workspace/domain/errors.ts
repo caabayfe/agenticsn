@@ -49,3 +49,27 @@ export class DirectoryNotEmptyError extends SnagenticError {
     );
   }
 }
+
+// Another snagentic command is changing the instance's mirror or the instance itself.
+export class WorkspaceLockedError extends SnagenticError {
+  constructor(
+    instance: string,
+    holder: {
+      readonly command: string;
+      readonly pid: number;
+      readonly host: string;
+      readonly started: string;
+    } | null,
+  ) {
+    const who =
+      holder === null
+        ? "another snagentic command"
+        : `\`${holder.command}\` (pid ${holder.pid} on ${holder.host}, started ${holder.started})`;
+    super(
+      "workspace-locked",
+      "precondition",
+      `${who} is changing ${instance} in this workspace`,
+      `wait for it to finish, then run the command again; if it is no longer running, remove .snagentic/${instance}/workspace.lock`,
+    );
+  }
+}

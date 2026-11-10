@@ -21,3 +21,23 @@ export interface WorkspaceFiles {
   // The names of the directory's files, sorted; none when there is no such directory.
   list(directory: string): Promise<readonly string[]>;
 }
+
+// Who holds a workspace lock, so a refused command can name it.
+export interface LockHolder {
+  readonly command: string;
+  readonly pid: number;
+  readonly host: string;
+  readonly started: string;
+}
+
+// The lock of one instance in one workspace (.snagentic/<name>/), held by every command that
+// writes its mirror or the instance, so two never interleave (REL-03).
+export interface WorkspaceLock {
+  // Takes the lock for `command`. When another run holds it: who, or null when unreadable.
+  acquire(
+    command: string,
+    started: string,
+  ): Promise<{ readonly acquired: true } | { readonly acquired: false; holder: LockHolder | null }>;
+  // Gives back a lock this run took; another run's lock is left alone.
+  release(): Promise<void>;
+}

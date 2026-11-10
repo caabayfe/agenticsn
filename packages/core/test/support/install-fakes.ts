@@ -192,8 +192,8 @@ export function fakeSteps(
   return { steps, calls, files, owned, settings, demoSettings };
 }
 
-export function memoryJournal(start: InstallRecord | null = null, locked = false) {
-  const state = { record: start, locked, cleared: false };
+export function memoryJournal(start: InstallRecord | null = null) {
+  const state = { record: start, cleared: false };
   const journal: InstallJournal = {
     read: async () => state.record,
     write: async (r) => {
@@ -203,8 +203,6 @@ export function memoryJournal(start: InstallRecord | null = null, locked = false
       state.record = null;
       state.cleared = true;
     },
-    lock: async () => !state.locked,
-    unlock: async () => {},
   };
   return { journal, state };
 }

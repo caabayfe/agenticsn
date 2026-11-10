@@ -53,6 +53,7 @@ import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
 import { ServiceNowWriteClient } from "./adapters/servicenow/servicenow-write-client";
+import { FileWorkspaceLock } from "./adapters/state/file-workspace-lock";
 import { JsonInstallJournal } from "./adapters/state/json-install-journal";
 import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
 import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
@@ -178,6 +179,8 @@ const context: UseCaseContext = {
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),
   installJournal: (root, instance) =>
     new JsonInstallJournal(join(root, instancePaths(instance).localState)),
+  workspaceLock: (root, instance) =>
+    new FileWorkspaceLock(join(root, instancePaths(instance).localState)),
   clock: () => new Date(),
   sleep: SYSTEM_CLOCK.sleep,
   upgrade: {

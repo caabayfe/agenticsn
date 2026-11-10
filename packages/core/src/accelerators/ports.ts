@@ -201,14 +201,12 @@ export interface InstallSteps {
   commit(paths: readonly string[], message: string): Promise<string>;
 }
 
-// The instance's install journal and lock (local state, never committed).
+// The instance's install journal (local state, never committed). Two installs never run at
+// once: install holds the workspace lock, as every command that changes the instance does.
 export interface InstallJournal {
   read(): Promise<InstallRecord | null>;
   write(record: InstallRecord): Promise<void>;
   clear(): Promise<void>;
-  // False when another install holds the lock.
-  lock(): Promise<boolean>;
-  unlock(): Promise<void>;
 }
 
 // The instance's update sets in progress, read live (ADR-0018).

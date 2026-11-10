@@ -156,6 +156,11 @@ export const FAKE_CONTEXT: UseCaseContext = {
   installJournal: () => {
     throw new Error("no install in this test");
   },
+  // Every write command takes it; tests that check the lock use a real one.
+  workspaceLock: () => ({
+    acquire: async () => ({ acquired: true }),
+    release: async () => {},
+  }),
   pullRequests: () => {
     throw new Error("no git platform in this test");
   },

@@ -9,7 +9,13 @@ export const authLogout = defineUseCase({
   description: "Delete the stored password for an instance from the OS keychain.",
   input: z.object({ instance: z.string() }),
   output: z.object({ instance: z.string(), account: z.string(), removed: z.boolean() }),
-  flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: false },
+  flags: {
+    readOnly: false,
+    destructive: true,
+    requiresDevelopmentInstance: false,
+    // Changes only the keychain, so it may run while a push holds the instance.
+    locksWorkspace: false,
+  },
   mcp: false,
   arguments: ["instance"],
   async handle(input, context) {

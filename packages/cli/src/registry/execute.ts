@@ -11,6 +11,7 @@ import {
 } from "@snagentic/core";
 import { z } from "zod";
 import type { RunControl, UseCase, UseCaseContext } from "./use-case";
+import { underWorkspaceLock } from "./workspace-lock";
 import { workspaceRoot } from "./workspace-root";
 
 export type { ProgressEvent, RunControl } from "./use-case";
@@ -88,7 +89,9 @@ export async function runUseCase<I extends z.ZodObject, O extends z.ZodObject>(
     throw new InvalidInputError(z.prettifyError(input.error));
   }
   await ensureWritableTarget(useCase, input.data, context);
-  const result = await handle(useCase, input.data, gated(useCase, context), run);
+  const result = await underWorkspaceLock(useCase, input.data, context, () =>
+    handle(useCase, input.data, gated(useCase, context), run),
+  );
   const output = useCase.output.safeParse(result);
   if (!output.success) {
     throw new Error(

@@ -95,29 +95,48 @@ export async function openChild(
   return { sysId, name, created: true };
 }
 
-// Makes `value` the user's current update set for the scope, returning what to restore.
+// The user's preference `name` as it is now, the value to restore it to. One the user does
+// not have is restored as empty: the platform then uses the default.
+export async function currentPreference(
+  session: InstanceSession,
+  user: string,
+  name: string,
+): Promise<SwitchedPreference> {
+  const existing = await first(session, "sys_user_preference", `user=${user}^name=${name}`, [
+    "sys_id",
+    "value",
+  ]);
+  return existing === null
+    ? { sysId: "", user, name, previousValue: "" }
+    : { sysId: existing["sys_id"] ?? "", user, name, previousValue: existing["value"] ?? "" };
+}
+
+// Sets the preference read as `current` to `value`: its row, or a new one when it had none.
+export async function applyPreference(
+  session: InstanceSession,
+  current: SwitchedPreference,
+  value: string,
+): Promise<SwitchedPreference> {
+  if (current.sysId !== "") {
+    await session.writer.update("sys_user_preference", current.sysId, { value }, session.signal);
+    return current;
+  }
+  const { user, name } = current;
+  const created = await session.writer.insert(
+    "sys_user_preference",
+    { user, name, value },
+    session.signal,
+  );
+  return { ...current, sysId: created["sys_id"] ?? "" };
+}
+
 export async function switchPreference(
   session: InstanceSession,
   user: string,
   name: string,
   value: string,
 ): Promise<SwitchedPreference> {
-  const existing = await first(session, "sys_user_preference", `user=${user}^name=${name}`, [
-    "sys_id",
-    "value",
-  ]);
-  if (existing !== null) {
-    const sysId = existing["sys_id"] ?? "";
-    await session.writer.update("sys_user_preference", sysId, { value }, session.signal);
-    return { sysId, user, name, previousValue: existing["value"] ?? "" };
-  }
-  const created = await session.writer.insert(
-    "sys_user_preference",
-    { user, name, value },
-    session.signal,
-  );
-  // A preference that did not exist is restored as empty: the platform then uses the default.
-  return { sysId: created["sys_id"] ?? "", user, name, previousValue: "" };
+  return applyPreference(session, await currentPreference(session, user, name), value);
 }
 
 // Puts a preference back. The instance may replace the row while push runs: it is then found
@@ -127,9 +146,7 @@ export async function restorePreference(
   preference: SwitchedPreference,
 ): Promise<void> {
   const value = { value: preference.previousValue };
-  try {
-    await session.writer.update("sys_user_preference", preference.sysId, value, session.signal);
-  } catch (error) {
+  const findAndRestore = async (error: unknown) => {
     const query = `user=${preference.user}^name=${preference.name}`;
     const row = await first(session, "sys_user_preference", query, ["sys_id"]);
     if (row === null) {
@@ -139,6 +156,16 @@ export async function restorePreference(
       throw error;
     }
     await session.writer.update("sys_user_preference", row["sys_id"] ?? "", value, session.signal);
+  };
+  // Journaled before its row was created: the row, if the switch made one, is found by name.
+  if (preference.sysId === "") {
+    await findAndRestore(null);
+    return;
+  }
+  try {
+    await session.writer.update("sys_user_preference", preference.sysId, value, session.signal);
+  } catch (error) {
+    await findAndRestore(error);
   }
 }
 

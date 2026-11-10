@@ -44,6 +44,7 @@ import type {
   TableStatistics,
   ValidateDependencies,
   WorkspaceFiles,
+  WorkspaceLock,
   WorkspaceStore,
 } from "@snagentic/core";
 import type { z } from "zod";
@@ -152,6 +153,8 @@ export interface UseCaseContext {
   // Where push journals its progress (.snagentic/<name>/push-journal.json).
   readonly pushJournal: (root: string, instance: InstanceName) => PushJournalStore;
   readonly installJournal: (root: string, instance: InstanceName) => InstallJournal;
+  // The instance's workspace lock (.snagentic/<name>/workspace.lock), taken by executeUseCase.
+  readonly workspaceLock: (root: string, instance: InstanceName) => WorkspaceLock;
   // Text files inside the workspace (the agent pack).
   readonly workspaceFiles: WorkspaceFiles;
   // New files a use case writes for the person, such as an export; never overwrites.
@@ -202,6 +205,9 @@ export interface UseCaseFlags {
   readonly readOnly: boolean;
   readonly destructive: boolean;
   readonly requiresDevelopmentInstance: boolean;
+  // A write use case with an instance input holds the instance's workspace lock (REL-03).
+  // False only for one that changes neither the workspace nor the instance (the keychain).
+  readonly locksWorkspace?: false;
 }
 
 export interface UseCase<

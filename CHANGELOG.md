@@ -35,6 +35,16 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   `ledgerCommit: null` and a warning with the command that commits the ledger. A failed git
   command is now an expected error (`git-command-failed`) with git's message and a hint, not
   "a bug in snagentic" (spec 014, F5).
+- Two commands that change the same instance from one workspace (an agent's push through MCP
+  and a person's pull in a terminal) no longer interleave. Every command that writes the mirror,
+  a workspace branch or the instance (push, pull, integrate, adopt, take-over, accelerator add,
+  install and load, plugins activate, apps install) holds `.snagentic/<instance>/workspace.lock`;
+  a second one stops at once with `workspace-locked`, naming the command that holds it, its
+  process and when it started. A lock left by a process that ended on the same machine is taken
+  over; one from another machine is kept. It replaces the install-only `install.lock`. A pull
+  commits the mirror branch only where it found it (`mirror-moved` otherwise), and push journals
+  a preference's value before it changes it on the instance, so a crash in between still
+  restores it (spec 014, F6).
 
 - A stopped `accelerator install` resumes only the plan the admin approved. The install journal
   now records the approved pack, its version, its modules and a hash of the plan's content apart

@@ -75,7 +75,6 @@ export {
   DataDomainError,
   DataSourceRequiredError,
   InstallBlockedError,
-  InstallLockedError,
   InstallPlanChangedError,
   InstallResumeChangedError,
   InstallResumeUnknownError,

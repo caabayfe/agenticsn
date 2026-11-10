@@ -28,6 +28,7 @@ import { pull } from "../../src/registry/pull";
 import { status } from "../../src/registry/status";
 import type { UseCaseContext } from "../../src/registry/use-case";
 import { FAKE_CONTEXT, TRUSTED_PASSWORD } from "../support/fakes";
+import { TEAM_TIMEOUT } from "../support/team-workspace";
 
 const temporary: string[] = [];
 afterEach(async () => {
@@ -102,78 +103,95 @@ async function fetchedClone(source: string, instance: ReturnType<typeof fakeInst
 const show = (root: string, path: string) =>
   runGitOrThrow(["show", `servicenow-remote/pdi:${path}`], root);
 
+// Two pulls and a clone each: git on the Windows runner has taken over 5 s (run 42875825752).
 describe("the pull state travels with the mirror (ADR-0052)", () => {
-  it("commits the state and catalog with the mirror and keeps neither locally", async () => {
-    const { root, context } = await setup();
-    await executeUseCase(pull, { instance: "pdi" }, context);
-    const state = await show(root, "instances/pdi/pull/state.yaml");
-    expect(state).toContain("watermark: 2026-10-05 12:00:00");
-    expect(state).toContain("pulledBy: admin");
-    expect(state).toContain("snagenticVersion: test");
-    expect(await show(root, "instances/pdi/pull/catalog.yaml")).toContain(
-      "sys_script: sys_metadata",
-    );
-    expect(existsSync(join(root, ".snagentic/pdi/sync-state.json"))).toBe(false);
-    expect(existsSync(join(root, ".snagentic/pdi/catalog.json"))).toBe(false);
-  });
+  it(
+    "commits the state and catalog with the mirror and keeps neither locally",
+    async () => {
+      const { root, context } = await setup();
+      await executeUseCase(pull, { instance: "pdi" }, context);
+      const state = await show(root, "instances/pdi/pull/state.yaml");
+      expect(state).toContain("watermark: 2026-10-05 12:00:00");
+      expect(state).toContain("pulledBy: admin");
+      expect(state).toContain("snagenticVersion: test");
+      expect(await show(root, "instances/pdi/pull/catalog.yaml")).toContain(
+        "sys_script: sys_metadata",
+      );
+      expect(existsSync(join(root, ".snagentic/pdi/sync-state.json"))).toBe(false);
+      expect(existsSync(join(root, ".snagentic/pdi/catalog.json"))).toBe(false);
+    },
+    TEAM_TIMEOUT,
+  );
 
-  it("continues incrementally in a clone that never pulled, from the fetched mirror", async () => {
-    const first = await setup();
-    await executeUseCase(pull, { instance: "pdi" }, first.context);
-    const clone = await fetchedClone(first.root, first.instance);
-    const rule = first.instance.tables["sys_script"]?.[0];
-    Object.assign(rule ?? {}, { script: "changed();", sys_updated_on: "2026-10-05 12:30:00" });
-    const later = { ...clone.context, clock: () => new Date("2026-10-05T13:00:00Z") };
-    const { output } = await executeUseCase(pull, { instance: "pdi" }, later);
-    expect(output).toMatchObject({ mode: "incremental", changed: true, records: 1 });
-    expect(
-      await show(
-        clone.root,
-        "instances/pdi/metadata/global/sys_script/rule--00000000000000000000000000000001.script.js",
-      ),
-    ).toBe("changed();\n");
-    expect(await show(clone.root, "instances/pdi/pull/state.yaml")).toContain(
-      "watermark: 2026-10-05 13:00:00",
-    );
-  });
+  it(
+    "continues incrementally in a clone that never pulled, from the fetched mirror",
+    async () => {
+      const first = await setup();
+      await executeUseCase(pull, { instance: "pdi" }, first.context);
+      const clone = await fetchedClone(first.root, first.instance);
+      const rule = first.instance.tables["sys_script"]?.[0];
+      Object.assign(rule ?? {}, { script: "changed();", sys_updated_on: "2026-10-05 12:30:00" });
+      const later = { ...clone.context, clock: () => new Date("2026-10-05T13:00:00Z") };
+      const { output } = await executeUseCase(pull, { instance: "pdi" }, later);
+      expect(output).toMatchObject({ mode: "incremental", changed: true, records: 1 });
+      expect(
+        await show(
+          clone.root,
+          "instances/pdi/metadata/global/sys_script/rule--00000000000000000000000000000001.script.js",
+        ),
+      ).toBe("changed();\n");
+      expect(await show(clone.root, "instances/pdi/pull/state.yaml")).toContain(
+        "watermark: 2026-10-05 13:00:00",
+      );
+    },
+    TEAM_TIMEOUT,
+  );
 
-  it("moves an earlier version's local state into its next pull commit, without a full pull", async () => {
-    const { root, context } = await setup();
-    await executeUseCase(pull, { instance: "pdi" }, context);
-    const name = InstanceName.parse("pdi");
-    const store = syncStateStore(root, name);
-    const [state, catalog] = [await store.readState(), await store.readCatalog()];
-    const local = join(root, ".snagentic/pdi");
-    await mkdir(local, { recursive: true });
-    await writeFile(join(local, "sync-state.json"), JSON.stringify(state));
-    await writeFile(join(local, "catalog.json"), JSON.stringify(catalog));
-    const older = await GitMirror.open(root, name, "incremental");
-    await older.prepare();
-    await older.remove("instances/pdi", "pull/state.yaml");
-    await older.remove("instances/pdi", "pull/catalog.yaml");
-    await older.finish("a pull by an earlier version");
-    const { output } = await executeUseCase(pull, { instance: "pdi" }, context);
-    expect(output).toMatchObject({ mode: "incremental", records: 0 });
-    expect(await show(root, "instances/pdi/pull/state.yaml")).toContain("pulledBy: admin");
-    expect(await show(root, "instances/pdi/pull/catalog.yaml")).toContain(
-      "sys_script: sys_metadata",
-    );
-    expect(existsSync(join(local, "sync-state.json"))).toBe(false);
-    expect(existsSync(join(local, "catalog.json"))).toBe(false);
-  });
+  it(
+    "moves an earlier version's local state into its next pull commit, without a full pull",
+    async () => {
+      const { root, context } = await setup();
+      await executeUseCase(pull, { instance: "pdi" }, context);
+      const name = InstanceName.parse("pdi");
+      const store = syncStateStore(root, name);
+      const [state, catalog] = [await store.readState(), await store.readCatalog()];
+      const local = join(root, ".snagentic/pdi");
+      await mkdir(local, { recursive: true });
+      await writeFile(join(local, "sync-state.json"), JSON.stringify(state));
+      await writeFile(join(local, "catalog.json"), JSON.stringify(catalog));
+      const older = await GitMirror.open(root, name, "incremental");
+      await older.prepare();
+      await older.remove("instances/pdi", "pull/state.yaml");
+      await older.remove("instances/pdi", "pull/catalog.yaml");
+      await older.finish("a pull by an earlier version");
+      const { output } = await executeUseCase(pull, { instance: "pdi" }, context);
+      expect(output).toMatchObject({ mode: "incremental", records: 0 });
+      expect(await show(root, "instances/pdi/pull/state.yaml")).toContain("pulledBy: admin");
+      expect(await show(root, "instances/pdi/pull/catalog.yaml")).toContain(
+        "sys_script: sys_metadata",
+      );
+      expect(existsSync(join(local, "sync-state.json"))).toBe(false);
+      expect(existsSync(join(local, "catalog.json"))).toBe(false);
+    },
+    TEAM_TIMEOUT,
+  );
 
-  it("makes no commit when nothing changed, and status shows when this clone checked", async () => {
-    const { root, context } = await setup();
-    const first = await executeUseCase(pull, { instance: "pdi" }, context);
-    const later = { ...context, clock: () => new Date("2026-10-05T12:40:00Z") };
-    const idle = await executeUseCase(pull, { instance: "pdi" }, later);
-    expect(idle.output).toMatchObject({ changed: false, commit: first.output["commit"] });
-    const { output } = await executeUseCase(status, {}, later);
-    expect(output["instances"]).toMatchObject([{ lastPull: "2026-10-05 12:40:00" }]);
-    expect(await show(root, "instances/pdi/pull/state.yaml")).toContain(
-      "watermark: 2026-10-05 12:00:00",
-    );
-  });
+  it(
+    "makes no commit when nothing changed, and status shows when this clone checked",
+    async () => {
+      const { root, context } = await setup();
+      const first = await executeUseCase(pull, { instance: "pdi" }, context);
+      const later = { ...context, clock: () => new Date("2026-10-05T12:40:00Z") };
+      const idle = await executeUseCase(pull, { instance: "pdi" }, later);
+      expect(idle.output).toMatchObject({ changed: false, commit: first.output["commit"] });
+      const { output } = await executeUseCase(status, {}, later);
+      expect(output["instances"]).toMatchObject([{ lastPull: "2026-10-05 12:40:00" }]);
+      expect(await show(root, "instances/pdi/pull/state.yaml")).toContain(
+        "watermark: 2026-10-05 12:00:00",
+      );
+    },
+    TEAM_TIMEOUT,
+  );
 });
 
 describe("pull and integrate", () => {

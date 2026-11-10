@@ -2,8 +2,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { runCli } from "../../src/cli/run-cli";
 import { runClaudeHook } from "../../src/hooks/claude-hooks";
+import { hookOutcome } from "../../src/hooks/hook-command";
 import { USE_CASES } from "../../src/registry/registry";
-import { captureIo } from "../support/fakes";
+import { captureIo, FAKE_CONTEXT } from "../support/fakes";
 import { instanceWorkspace } from "../support/instance-workspace";
 
 const finding = (severity: string) => ({
@@ -213,5 +214,33 @@ describe("snagentic hook claude", () => {
     );
     expect(exitCode).toBe(2);
     expect(io.err()).toContain("snagentic adopt");
+  });
+
+  async function hook(event: string, stdin: string, useCases = USE_CASES) {
+    const io = captureIo();
+    const exitCode = await runCli(["hook", "claude", event], useCases, FAKE_CONTEXT, io, {
+      version: "test",
+      serveMcp: async () => {},
+      readStdin: async () => stdin,
+    });
+    return { exitCode, err: io.err() };
+  }
+
+  it("lets the agent go on when the host sends input that is not JSON", async () => {
+    expect(await hook("pre-edit", "not json")).toEqual({ exitCode: 0, err: "" });
+  });
+
+  it("skips, without stopping the agent, when the command it runs is not registered", async () => {
+    const payload = JSON.stringify(edit);
+    const outcome = await hook("pre-edit", payload, []);
+    expect(outcome.exitCode).toBe(0);
+    expect(outcome.err).toContain("snagentic hook skipped: no check command");
+  });
+
+  it("ignores an event it does not know", async () => {
+    const outcome = await hookOutcome("session-start", edit, async () => {
+      throw new Error("must not run");
+    });
+    expect(outcome).toEqual({ exitCode: 0, stdout: "", stderr: "" });
   });
 });

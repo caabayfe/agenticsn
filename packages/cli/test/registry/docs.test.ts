@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { InstanceName, type ProfileStore } from "@snagentic/core";
 import { bunMarkdown } from "../../src/adapters/documentation/bun-markdown";
 import { FsDocumentationSources } from "../../src/adapters/documentation/fs-documentation-sources";
 import { FsMirrorRecords } from "../../src/adapters/documentation/fs-mirror-records";
@@ -151,6 +152,15 @@ describe("snagentic docs", () => {
     expect(docsCheck.render(stale, "text")).toContain("documentation is out of date");
   });
 
+  it("check names a citation of unknown evidence as an error and exits 1", async () => {
+    write(PAGE, readFileSync(join(root, PAGE), "utf8").replace("[E01]", "[E01] [E09]"));
+    const output = await docsCheck.handle({}, context(), run);
+    expect(docsCheck.exitCode(output)).toBe(1);
+    expect(docsCheck.render(output, "text")).toContain(
+      "  error   unknown-citation processes/incident/configure/assign.md E09",
+    );
+  });
+
   it("pin lists evidence whose record is gone and exits 1", async () => {
     rmSync(join(root, RECORD));
     const result = await docsPin.handle({ page: "incident/assign" }, context(), run);
@@ -176,6 +186,36 @@ describe("snagentic docs", () => {
     expect(
       readFileSync(join(root, ".snagentic/site/processes/incident/configure/assign.html"), "utf8"),
     ).toContain("status-changed");
+  });
+
+  it("build links evidence to the instance named in site.yaml, from its profile", async () => {
+    const profiles: ProfileStore = {
+      ...FAKE_CONTEXT.profiles,
+      list: async () => [
+        {
+          name: InstanceName.parse("other"),
+          url: "https://other.service-now.com/",
+          kind: "development",
+          auth: { method: "basic", username: "u" },
+          readOnlyAcknowledged: false,
+        },
+        {
+          name: InstanceName.parse("pdi2"),
+          url: "https://dev2.service-now.com/",
+          kind: "development",
+          auth: { method: "basic", username: "u" },
+          readOnlyAcknowledged: false,
+        },
+      ],
+    };
+    await docsBuild.handle(
+      { audio: false, voice: "none", video: false },
+      { ...context(), profiles },
+      run,
+    );
+    expect(
+      readFileSync(join(root, ".snagentic/site/processes/incident/configure/assign.html"), "utf8"),
+    ).toContain(`href="https://dev2.service-now.com/sys_script.do?sys_id=${RULE}"`);
   });
 
   it("build --video renders each animation and says which it made", async () => {

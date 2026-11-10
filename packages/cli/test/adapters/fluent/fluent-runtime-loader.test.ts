@@ -1,7 +1,8 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import {
   EMBEDDED_FLUENT_ENTRY,
   loadEmbeddedRuntime,
+  warnOnStderr,
 } from "../../../src/adapters/fluent/fluent-runtime-loader";
 import { createFluentRuntime } from "../../../src/adapters/fluent/sdk-runtime";
 
@@ -29,5 +30,15 @@ describe("Fluent runtime loader", () => {
 
   it("names the SDK version unknown when its package.json is not embedded", () => {
     expect(createFluentRuntime(new Map()).sdkVersion).toBe("unknown");
+  });
+
+  it("writes the worker's warnings to standard error, one per line", () => {
+    const write = spyOn(process.stderr, "write").mockImplementation(() => true);
+    try {
+      warnOnStderr("the sandbox did not start the Fluent build worker");
+      expect(write).toHaveBeenCalledWith("the sandbox did not start the Fluent build worker\n");
+    } finally {
+      write.mockRestore();
+    }
   });
 });

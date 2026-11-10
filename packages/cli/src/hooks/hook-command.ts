@@ -5,6 +5,7 @@ import {
   CLAUDE_HOOK_EVENTS,
   type ClaudeHookEvent,
   type HookOutcome,
+  type RunUseCase,
   runClaudeHook,
 } from "./claude-hooks";
 
@@ -17,6 +18,17 @@ function parsed(text: string): unknown {
   } catch {
     return {};
   }
+}
+
+// The command line accepts only the known events; any other leaves the agent alone.
+export async function hookOutcome(
+  event: string,
+  payload: unknown,
+  run: RunUseCase,
+): Promise<HookOutcome> {
+  return isEvent(event)
+    ? runClaudeHook(event, payload, run)
+    : { exitCode: 0, stdout: "", stderr: "" };
 }
 
 // `snagentic hook <host> <event>`: what agent install configures hosts to run.
@@ -43,10 +55,6 @@ export function addHookCommand(
         return (await executeUseCase(useCase, input, context())).output;
       };
       const payload = parsed(await readStdin());
-      done(
-        isEvent(event)
-          ? await runClaudeHook(event, payload, run)
-          : { exitCode: 0, stdout: "", stderr: "" },
-      );
+      done(await hookOutcome(event, payload, run));
     });
 }

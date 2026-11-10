@@ -126,6 +126,33 @@ describe("push's update sets and checks", () => {
     ).rejects.toBeInstanceOf(UpdateSetScopeError);
   });
 
+  it("fails when a switched preference cannot be restored, and keeps it in the journal", async () => {
+    const context = unitSetup({ source: "Edited in source." });
+    const { plan } = await computeUnitPlan(context.deps, QUERY);
+    const update = context.deps.writer.update;
+    const stuck = {
+      ...context.deps,
+      writer: {
+        ...context.deps.writer,
+        update: async (
+          table: string,
+          sysId: string,
+          values: Readonly<Record<string, string>>,
+          signal: AbortSignal,
+        ) => {
+          if (table === "sys_user_preference") throw new Error("preference is read-only");
+          return update(table, sysId, values, signal);
+        },
+      },
+    };
+    await expect(
+      pushUnits(stuck, { ...QUERY, planId: plan.planId, confirm: true }),
+    ).rejects.toThrow("preference is read-only");
+    expect((await context.journal.read())?.preferences).toEqual([
+      expect.objectContaining({ name: "apps.current_app" }),
+    ]);
+  });
+
   it("refuses when the signed-in user is not found", async () => {
     const context = unitSetup({ source: "Edited in source." });
     const { plan } = await computeUnitPlan(context.deps, QUERY);

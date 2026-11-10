@@ -55,4 +55,27 @@ describe("the mirror's schema for the field check", () => {
     await schema.fieldsOf("incident");
     expect(opened).toBe(2);
   });
+
+  it("closes the index it opened, on refresh and when closed", async () => {
+    const closed: number[] = [];
+    let opened = 0;
+    const schema = mirrorSchema(async () => {
+      const deps = await knowledge({});
+      const n = ++opened;
+      return { ...deps, store: { ...deps.store, close: () => closed.push(n) } };
+    });
+    await schema.close();
+    expect(closed).toEqual([]);
+    await schema.fieldsOf("incident");
+    schema.refresh();
+    await schema.fieldsOf("incident");
+    await schema.close();
+    expect(closed).toEqual([1, 2]);
+  });
+
+  it("closes without failing when the index failed to open", async () => {
+    const schema = mirrorSchema(() => Promise.reject(new Error("no index")));
+    await expect(schema.ready()).rejects.toThrow("no index");
+    await schema.close();
+  });
 });

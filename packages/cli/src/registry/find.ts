@@ -1,7 +1,7 @@
 import { find as findRecords } from "@snagentic/core";
 import { z } from "zod";
 import { Freshness, NextCalls } from "./knowledge-schemas";
-import { knowledgeSession } from "./knowledge-session";
+import { withKnowledge } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
 
 export const find = defineUseCase({
@@ -52,16 +52,17 @@ export const find = defineUseCase({
   mcp: true,
   arguments: ["text"],
   async handle(input, context, run) {
-    const deps = await knowledgeSession(context, input.instance, run.progress);
-    const result = await findRecords(deps, {
-      text: input.text,
-      code: input.code,
-      limit: input.limit,
-      ...(input.class === undefined ? {} : { className: input.class }),
-      ...(input.table === undefined ? {} : { table: input.table }),
-      ...(input.scope === undefined ? {} : { scope: input.scope }),
+    return withKnowledge(context, input.instance, run.progress, async (deps) => {
+      const result = await findRecords(deps, {
+        text: input.text,
+        code: input.code,
+        limit: input.limit,
+        ...(input.class === undefined ? {} : { className: input.class }),
+        ...(input.table === undefined ? {} : { table: input.table }),
+        ...(input.scope === undefined ? {} : { scope: input.scope }),
+      });
+      return { instance: deps.instance, ...result };
     });
-    return { instance: deps.instance, ...result };
   },
   render(output) {
     if (output.records.length === 0) {

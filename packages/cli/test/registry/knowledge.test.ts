@@ -62,6 +62,30 @@ async function workspace() {
 }
 
 group("find and describe", () => {
+  it("closes the knowledge index after every call, also when the call fails", async () => {
+    const ws = await workspace();
+    const open: string[] = [];
+    const context = {
+      ...ws.context,
+      knowledge: (root: string, name: InstanceName) => {
+        const opened = ws.context.knowledge(root, name);
+        const id = open.push("open") - 1;
+        const close = opened.store.close.bind(opened.store);
+        opened.store.close = () => {
+          close();
+          open[id] = "closed";
+        };
+        return opened;
+      },
+    };
+    await executeUseCase(describe, { target: "incident" }, context);
+    await executeUseCase(find, { text: "Prioritizer" }, context);
+    await executeUseCase(advise, { intent: "build", tables: ["incident"] }, context);
+    await executeUseCase(describe, { target: "u_nowhere.nothing--x" }, context).catch(() => null);
+    expect(open.length).toBeGreaterThanOrEqual(4);
+    expect(open.every((state) => state === "closed")).toBe(true);
+  });
+
   it("describe lists a table's behavior from the workspace, the instance defaulting to the only one", async () => {
     const { context, instance } = await workspace();
     const { output } = await executeUseCase(describe, { target: "incident" }, context);

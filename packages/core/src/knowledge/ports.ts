@@ -42,6 +42,8 @@ export interface KnowledgeStore {
   // Candidates only: callers confirm exact matches in the files.
   containing(texts: readonly string[], limit: number): Promise<readonly string[]>;
   count(): Promise<number>;
+  // Releases the index's file handles. A long-running MCP server opens one per call.
+  close(): void;
 }
 
 export interface GrepOptions {

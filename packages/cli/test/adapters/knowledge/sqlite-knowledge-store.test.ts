@@ -7,17 +7,21 @@ import type { IndexedRecord } from "@snagentic/core";
 import { SqliteKnowledgeStore } from "../../../src/adapters/knowledge/sqlite-knowledge-store";
 
 const temporary: string[] = [];
+const opened: SqliteKnowledgeStore[] = [];
 afterEach(async () => {
+  // An open SQLite file can't be removed on Windows (EBUSY). Closing twice is harmless.
+  for (const s of opened.splice(0)) {
+    s.close();
+  }
   await Promise.all(temporary.splice(0).map((d) => rm(d, { recursive: true, force: true })));
 });
 
 async function store() {
   const dir = await mkdtemp(join(tmpdir(), "snagentic-knowledge-"));
   temporary.push(dir);
-  return {
-    path: join(dir, "knowledge.sqlite"),
-    store: new SqliteKnowledgeStore(join(dir, "knowledge.sqlite")),
-  };
+  const s = new SqliteKnowledgeStore(join(dir, "knowledge.sqlite"));
+  opened.push(s);
+  return { path: join(dir, "knowledge.sqlite"), store: s };
 }
 
 const record = (base: string, extra: Partial<IndexedRecord> = {}): IndexedRecord => ({

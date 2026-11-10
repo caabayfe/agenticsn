@@ -112,6 +112,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- The knowledge index is closed after every `describe`, `find`, `advise` and accelerator install,
+  also when the call fails. A long-running MCP server no longer keeps a SQLite handle per call,
+  and on Windows the workspace's folders can be removed afterwards (spec 014, follow-up 24).
+
 
 - A push whose ledger commit fails after the push reached the instance (a commit-msg hook that
   needs a ticket key, a pre-commit hook, a lock file) is reported as succeeded: the result has

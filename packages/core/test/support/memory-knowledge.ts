@@ -59,6 +59,7 @@ export function memoryStore(): KnowledgeStore & { readonly records: Map<string, 
         .map(([base]) => base)
         .slice(0, limit),
     count: async () => records.size,
+    close: () => {},
   };
 }
 

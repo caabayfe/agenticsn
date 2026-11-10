@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { fetchTransport } from "../../../src/adapters/servicenow/fetch-transport";
+import { TransportTimeoutError } from "../../../src/adapters/servicenow/http-types";
 import { untrustedServer, withTlsChecksOff } from "../../support/untrusted-tls";
 
 const server = Bun.serve({
@@ -52,6 +53,25 @@ describe("fetchTransport", () => {
     await expect(
       transport({ method: "GET", url: `${server.url}slow`, headers: {} }, LIVE),
     ).rejects.toThrow();
+  });
+
+  it("reports its own timeout as a timeout, so the scheduler can treat it as pressure", async () => {
+    const transport = fetchTransport({ timeoutMs: 20 });
+    const failure = await transport(
+      { method: "GET", url: `${server.url}slow`, headers: {} },
+      LIVE,
+    ).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(TransportTimeoutError);
+  });
+
+  it("reports a cancellation as a cancellation, not a timeout", async () => {
+    const cancellation = new AbortController();
+    const pending = fetchTransport()(
+      { method: "GET", url: `${server.url}slow`, headers: {} },
+      cancellation.signal,
+    ).catch((error: unknown) => error);
+    cancellation.abort();
+    expect(await pending).not.toBeInstanceOf(TransportTimeoutError);
   });
 
   it("checks the certificate even when the environment turns checking off", async () => {

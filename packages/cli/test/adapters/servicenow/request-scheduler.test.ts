@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { ConcurrencyController } from "@snagentic/core";
-import type { HttpResponse, Transport } from "../../../src/adapters/servicenow/http-types";
+import {
+  type HttpResponse,
+  type Transport,
+  TransportTimeoutError,
+} from "../../../src/adapters/servicenow/http-types";
 import { RequestScheduler } from "../../../src/adapters/servicenow/request-scheduler";
 import { fakeClock, GET, response } from "./scheduler-fakes";
 
@@ -196,6 +200,106 @@ describe("RequestScheduler", () => {
       concurrencyLimit: 1,
       peakConcurrency: 2,
       requestMs: 0,
+      timeouts: 0,
     });
+  });
+});
+
+// A clock whose sleeps advance its time, so request spacing can be measured.
+function steppingClock() {
+  let now = 0;
+  const slept: number[] = [];
+  return {
+    slept,
+    now: () => now,
+    random: () => 1,
+    sleep: async (ms: number) => {
+      slept.push(ms);
+      now += ms;
+    },
+  };
+}
+
+describe("RequestScheduler load limits (ADR-0053)", () => {
+  it("counts a timeout as pressure and retries a timed-out read only once", async () => {
+    const controller = new ConcurrencyController({ initial: 4 });
+    const transport = sequence(new TransportTimeoutError(90_000));
+    const scheduler = new RequestScheduler(transport, { clock: fakeClock(), controller });
+    await expect(scheduler.send(GET, LIVE)).rejects.toMatchObject({ code: "request-timed-out" });
+    expect(transport.calls).toBe(2);
+    expect(controller.limit).toBe(1);
+    expect(scheduler.stats()).toMatchObject({ requests: 2, retries: 1, timeouts: 2 });
+  });
+
+  it("leaves a timed-out read to a caller that retries it itself", async () => {
+    const transport = sequence(new TransportTimeoutError(90_000), response(200));
+    const scheduler = new RequestScheduler(transport, { clock: fakeClock() });
+    await expect(scheduler.send({ ...GET, retryTimeout: false }, LIVE)).rejects.toMatchObject({
+      code: "request-timed-out",
+    });
+    expect(transport.calls).toBe(1);
+  });
+
+  it("shares one concurrency limit between every run on the instance", async () => {
+    let active = 0;
+    let peak = 0;
+    const transport: Transport = async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+      return response(200);
+    };
+    const scheduler = new RequestScheduler(transport, { clock: fakeClock() });
+    const runs = [scheduler.run(), scheduler.run(), scheduler.run()];
+    await Promise.all(runs.flatMap((run) => Array.from({ length: 4 }, () => run.send(GET, LIVE))));
+    expect(peak).toBe(2);
+  });
+
+  it("keeps each run's requests and budget apart", async () => {
+    const scheduler = new RequestScheduler(sequence(response(200)), { clock: fakeClock() });
+    const first = scheduler.run({ budget: 1 });
+    const second = scheduler.run({ budget: 1 });
+    await first.send(GET, LIVE);
+    await expect(first.send(GET, LIVE)).rejects.toMatchObject({
+      code: "request-budget-exhausted",
+    });
+    await second.send(GET, LIVE);
+    expect([first.stats().requests, second.stats().requests]).toEqual([1, 1]);
+  });
+
+  it("names the variable that raises the budget", async () => {
+    const scheduler = new RequestScheduler(sequence(response(200)), { clock: fakeClock() });
+    const run = scheduler.run({ budget: 0, budgetVariable: "SNAGENTIC_PDI_REQUEST_BUDGET" });
+    await expect(run.send(GET, LIVE)).rejects.toMatchObject({
+      hint: expect.stringContaining("SNAGENTIC_PDI_REQUEST_BUDGET"),
+    });
+  });
+
+  it("spaces request starts to the requests-per-second limit", async () => {
+    const clock = steppingClock();
+    const scheduler = new RequestScheduler(sequence(response(200)), {
+      clock,
+      requestsPerSecond: 4,
+    });
+    for (let index = 0; index < 3; index += 1) {
+      await scheduler.send(GET, LIVE);
+    }
+    expect(clock.slept).toEqual([250, 250]);
+  });
+
+  it("never runs more at once than the owner's maximum concurrency", async () => {
+    let active = 0;
+    let peak = 0;
+    const transport: Transport = async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+      return response(200);
+    };
+    const scheduler = new RequestScheduler(transport, { clock: fakeClock(), maxConcurrency: 1 });
+    await Promise.all(Array.from({ length: 5 }, () => scheduler.send(GET, LIVE)));
+    expect(peak).toBe(1);
   });
 });

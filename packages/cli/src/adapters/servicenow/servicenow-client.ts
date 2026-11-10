@@ -80,8 +80,9 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
       sysparm_no_count: "true",
       ...(query.allDomains === true ? { sysparm_query_no_domain: "true" } : {}),
     }).toString();
+    const retry = query.retryOnTimeout === false ? { retryTimeout: false } : {};
     const response = await this.scheduler.send(
-      { method: "GET", url: url.href, headers: this.headers },
+      { method: "GET", url: url.href, headers: this.headers, ...retry },
       signal,
     );
     const rows = Rows.safeParse(await this.result(response, `table ${query.table}`));

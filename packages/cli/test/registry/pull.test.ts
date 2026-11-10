@@ -179,7 +179,7 @@ describe("pull and integrate", () => {
   it("pulls an instance into its remote branch, reports the load, and integrates it", async () => {
     const { root, context } = await setup();
     const { output } = await executeUseCase(pull, { instance: "pdi" }, context);
-    expect(output["serverCost"]).toMatchObject({ transactions: expect.any(Number) });
+    expect(output).toMatchObject({ serverCost: null, serverCostRequested: false, timeouts: 0 });
     expect(output).toMatchObject({
       instance: "pdi",
       mode: "full",
@@ -194,6 +194,47 @@ describe("pull and integrate", () => {
     // The record and its script, the three (here empty) inventory files, and the pull state and
     // catalog (ADR-0052).
     expect(integrated.output["changedFiles"]).toBe(7);
+  });
+
+  it("measures the server cost from the transaction log only when asked (ADR-0053)", async () => {
+    const { context, instance } = await setup();
+    let measured = 0;
+    const connection = {
+      ...instance.reader,
+      serverCost: (since: string, signal: AbortSignal) => {
+        measured += 1;
+        return instance.reader.serverCost(since, signal);
+      },
+    };
+    const counting = {
+      ...context,
+      connections: { open: () => connection, openForWrite: () => connection },
+    };
+    await executeUseCase(pull, { instance: "pdi" }, counting);
+    expect(measured).toBe(0);
+    const { output } = await executeUseCase(pull, { instance: "pdi", cost: true }, counting);
+    expect(measured).toBe(1);
+    expect(output).toMatchObject({
+      serverCostRequested: true,
+      serverCost: { transactions: expect.any(Number) },
+    });
+  });
+
+  it("refuses to measure the server cost of a test or production instance", async () => {
+    const { root, context } = await setup();
+    await context.profiles.write(
+      root,
+      createProfile({
+        name: InstanceName.parse("prod"),
+        url: "prod1",
+        username: "reader",
+        kind: "production",
+        acknowledgeReadOnly: true,
+      }),
+    );
+    await expect(
+      executeUseCase(pull, { instance: "prod", cost: true }, context),
+    ).rejects.toMatchObject({ code: "cost-needs-development" });
   });
 
   it("reports a redacted secret by path and pattern, never by value", async () => {
@@ -359,6 +400,8 @@ describe("pull and integrate", () => {
         peakConcurrency: 3,
         requestSeconds: 2.4,
         peakMemoryMb: 120,
+        timeouts: 2,
+        serverCostRequested: true,
         serverCost: {
           transactions: 9,
           responseMs: 21_340,
@@ -378,7 +421,7 @@ describe("pull and integrate", () => {
     );
     expect(text).toContain("pulled pdi (resumed) in 1.5 s -> abcdef1234 on servicenow-remote/pdi");
     expect(text).toContain(
-      "instance load: 9 requests, 1 retries, semaphore wait 5 ms, peak concurrency 3",
+      "instance load: 9 requests, 1 retries, semaphore wait 5 ms, peak concurrency 3, 2 timed out",
     );
     expect(text).toContain(
       "time: catalog 0.1 s, records 1 s, child rows 0.2 s, inventory 0.1 s, commit 0.1 s; 2.4 s in requests; peak memory 120 MB",
@@ -428,6 +471,8 @@ describe("pull and integrate", () => {
       peakConcurrency: 4,
       requestSeconds: 9,
       peakMemoryMb: 80,
+      timeouts: 0,
+      serverCostRequested: false,
       serverCost: null,
     };
     const incremental = {
@@ -470,7 +515,15 @@ describe("pull and integrate", () => {
     const idle = pull.render({ ...base, changed: false, incremental }, "text");
     expect(idle).toStartWith("pdi is up to date (3.2 s)");
     expect(idle).not.toContain("next:");
-    expect(idle).toContain("server cost: unavailable (this user cannot read the transaction log)");
+    expect(idle).not.toContain("server cost");
+    expect(idle).not.toContain("timed out");
+    const unreadableLog = pull.render(
+      { ...base, serverCostRequested: true, changed: false, incremental },
+      "text",
+    );
+    expect(unreadableLog).toContain(
+      "server cost: unavailable (this user cannot read the transaction log)",
+    );
     const lost = pull.render(
       { ...base, changed: false, incremental: { ...incremental, lostRecords: 2 } },
       "text",

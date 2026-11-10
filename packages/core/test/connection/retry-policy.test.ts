@@ -16,6 +16,17 @@ describe("retryDecision", () => {
     expect(retryDecision({ ...base, outcome: { networkError: true } }).retry).toBe(true);
   });
 
+  it("retries a timed-out read at most once (ADR-0053)", () => {
+    const outcome = { networkError: true, timedOut: true };
+    expect(retryDecision({ ...base, outcome }).retry).toBe(true);
+    expect(retryDecision({ ...base, attempt: 2, outcome }).retry).toBe(false);
+  });
+
+  it("leaves a timed-out read to a caller that retries it itself", () => {
+    const outcome = { networkError: true, timedOut: true };
+    expect(retryDecision({ ...base, outcome, retryTimeout: false }).retry).toBe(false);
+  });
+
   it("never retries a write automatically, whatever happened", () => {
     for (const outcome of [{ status: 503 }, { status: 429 }, { networkError: true }]) {
       expect(retryDecision({ ...base, method: "POST", outcome }).retry).toBe(false);

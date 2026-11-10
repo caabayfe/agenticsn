@@ -26,7 +26,7 @@ when the table is stale.
 | [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted (amended by 0018) |
 | [0014](0014-workspace-layout.md) | Synced data lives in a workspace with a standard layout | Accepted (amended by 0017, 0020, 0052) |
 | [0015](0015-yaml-writing-style.md) | YAML writing style | Accepted |
-| [0016](0016-instance-load-and-pagination.md) | Instance load and pagination policy | Accepted |
+| [0016](0016-instance-load-and-pagination.md) | Instance load and pagination policy | Accepted (amended by 0053) |
 | [0017](0017-flat-record-layout-and-full-sync.md) | Flat record layout and full sync by default | Accepted (amended by 0025, 0027) |
 | [0018](0018-update-sets-read-live.md) | Update sets are read live, and exported from reads | Accepted |
 | [0019](0019-engine-served-through-mcp.md) | The engine is served through MCP; the harness only triggers it | Accepted |
@@ -61,6 +61,7 @@ when the table is stale.
 | [0048](0048-store-application-demo-data-on-request.md) | `--demo` is the one demo switch: demo data, demo modules and store applications' demo data | Accepted (amended by 0049) |
 | [0049](0049-demo-modules-turned-on-with-demo.md) | `--demo` turns on the demo modules it installs, on development only, never promoted | Accepted |
 | [0052](0052-the-mirror-carries-its-pull-state.md) | The mirror carries its pull state, so any clone continues a pull from git | Accepted |
+| [0053](0053-instance-owners-set-load-limits.md) | Instance owners set load limits; one scheduler per instance; the cost report is opt-in | Accepted |
 | [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Proposed |
 <!-- adr-index:end -->
 

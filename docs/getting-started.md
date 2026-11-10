@@ -107,12 +107,37 @@ records). It pages carefully and adapts to the instance's load; if interrupted, 
 again and it resumes.
 
 After that, `pull` is incremental: when nothing changed it costs about 22 small requests
-and a few seconds, and it reports the server time it used. Every few days, or when in
+and a few seconds, and it reports the requests it sent. Every few days, or when in
 doubt, compare the mirror with the instance by counts and repair what differs:
 
 ```sh
 snagentic pull dev --verify
 ```
+
+On a development instance, `snagentic pull dev --cost` also reads the server time the run
+used from the instance's transaction log. That read is itself expensive on a busy instance,
+so it runs only when asked, and never on test or production (ADR-0053).
+
+**Instance load.** Every command and agent call in one process shares one request queue per
+instance. By default snagentic sends at most 4 requests at once and 10 per second to a
+development instance, 2 at once and 5 per second to test and production, and at most 20,000
+requests per run. An instance owner can lower these in the committed `instance.yaml`:
+
+```yaml
+load:
+  max_concurrency: 1
+  requests_per_second: 2
+  request_budget: 5000
+```
+
+Values there can only lower the limits; a higher value is ignored, so a commit can never raise
+the load on an instance. Whoever runs the machine or the CI job can also set
+`SNAGENTIC_DEV_MAX_CONCURRENCY`, `SNAGENTIC_DEV_REQUESTS_PER_SECOND` and
+`SNAGENTIC_DEV_REQUEST_BUDGET` (named after the instance, like its credential variables). These
+too only lower concurrency and rate; `SNAGENTIC_DEV_REQUEST_BUDGET` may raise the budget for a
+large instance. A run that reaches its budget stops; run it again and a full pull resumes where
+it stopped. A request that times out slows snagentic down and is retried once (a listing with a
+smaller page).
 
 Records live in a flat layout:
 `instances/dev/metadata/<scope>/<class>/<name>--<sys_id>.yaml`, with scripts and other long

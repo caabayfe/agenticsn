@@ -50,6 +50,13 @@ describe("ServiceNowClient", () => {
     });
   });
 
+  it("passes on that the caller retries a timed-out listing itself", async () => {
+    const { client, sent } = clientWith(async () => response(200, '{"result":[]}'));
+    await client.query({ ...QUERY, retryOnTimeout: false }, LIVE);
+    await client.query(QUERY, LIVE);
+    expect(sent.map((request) => request.retryTimeout)).toEqual([false, undefined]);
+  });
+
   it("reports the scheduler's connection statistics", async () => {
     const { client } = clientWith(async () =>
       response(200, '{"result":[]}', {

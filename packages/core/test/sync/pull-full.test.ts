@@ -26,6 +26,7 @@ const STATS: ConnectionStats = {
   concurrencyLimit: 2,
   peakConcurrency: 2,
   requestMs: 0,
+  timeouts: 0,
 };
 const sid = (n: number) => n.toString(16).padStart(32, "0");
 

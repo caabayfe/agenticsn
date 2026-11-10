@@ -1,6 +1,6 @@
 # 0016. Instance load and pagination policy
 
-- Status: Accepted (claims marked *measure* are validated in milestones M1–M4)
+- Status: Accepted (claims marked *measure* are validated in milestones M1–M4; amended by 0053)
 - Date: 2026-10-05
 - Requirements: ASR-06, ASR-07; new ASR-16
 - Amends: plan `specs/002-v1.0-release` section 4

@@ -23,13 +23,27 @@ export class InstanceHibernatingError extends SnagenticError {
   }
 }
 
+// ADR-0053: every run has a request budget; the instance owner may lower it, and whoever runs
+// the machine may raise it through the environment.
 export class RequestBudgetExhaustedError extends SnagenticError {
-  constructor(budget: number) {
+  constructor(budget: number, variable = "SNAGENTIC_<NAME>_REQUEST_BUDGET") {
     super(
       "request-budget-exhausted",
       "remote",
       `stopped after ${budget} requests, the budget for this run`,
-      "this protects the instance; raise the budget only if the run is expected to be larger",
+      `this protects the instance. Run the command again: a pull resumes where it stopped. If the run is expected to be larger, set ${variable}`,
+    );
+  }
+}
+
+// A request the client abandoned after its timeout, and its one retry (ADR-0053).
+export class RequestTimedOutError extends SnagenticError {
+  constructor(url: string) {
+    super(
+      "request-timed-out",
+      "remote",
+      `${url} did not answer in time, twice; snagentic slowed down and stopped`,
+      "the instance is busy or the request is too large: run the command again later, or lower the load limits in instance.yaml",
     );
   }
 }

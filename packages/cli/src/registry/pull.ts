@@ -10,7 +10,8 @@ import {
   SnagenticError,
 } from "@snagentic/core";
 import { z } from "zod";
-import { PullOutput, renderPull } from "./pull-output";
+import { PullOutput } from "./pull-output";
+import { renderPull } from "./pull-render";
 import { pullFromInstance } from "./pull-session";
 import type { SharedPullOutput } from "./pull-shared-output";
 import { defineUseCase, type RunControl, type UseCaseContext } from "./use-case";
@@ -23,6 +24,19 @@ class PublishNeedsSharedMirrorError extends SnagenticError {
       "usage",
       `--publish pushes to the shared mirror, and ${instance}'s profile names none`,
       `add shared_mirror: { remote: origin } to instances/${instance}/instance.yaml, or pull without --publish`,
+    );
+  }
+}
+
+// ADR-0053: the transaction log is large and its user_agent is not indexed, so measuring a
+// run's cost is itself load; it is done only when asked, and only on development instances.
+class CostNeedsDevelopmentError extends SnagenticError {
+  constructor(instance: string, kind: string) {
+    super(
+      "cost-needs-development",
+      "usage",
+      `--cost reads the transaction log, which is measured only on development instances, and ${instance} is ${kind}`,
+      `run without --cost: snagentic pull ${instance}`,
     );
   }
 }
@@ -43,6 +57,12 @@ const PullInput = z.object({
     .default(false)
     .describe(
       "push the mirror branch to the shared mirror after the pull (the designated puller; fast-forward only)",
+    ),
+  cost: z
+    .boolean()
+    .default(false)
+    .describe(
+      "also measure the run's server cost from the instance's transaction log (development instances only)",
     ),
 });
 type PullInput = z.output<typeof PullInput>;
@@ -88,6 +108,8 @@ function currentOutput(
     requestSeconds: 0,
     seconds: 0,
     peakMemoryMb: 0,
+    timeouts: 0,
+    serverCostRequested: false,
     serverCost: null,
     shared,
   };
@@ -145,6 +167,9 @@ export const pull = defineUseCase({
   async handle(input, context, run) {
     const root = await workspaceRoot(context);
     const profile = await getInstance(root, InstanceName.parse(input.instance), context.profiles);
+    if (input.cost && profile.kind !== "development") {
+      throw new CostNeedsDevelopmentError(profile.name, profile.kind);
+    }
     const setting = profile.sharedMirror;
     if (setting === undefined) {
       if (input.publish) throw new PublishNeedsSharedMirrorError(profile.name);

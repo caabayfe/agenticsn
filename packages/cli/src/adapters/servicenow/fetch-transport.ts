@@ -1,4 +1,4 @@
-import type { Transport } from "./http-types";
+import { type Transport, TransportTimeoutError } from "./http-types";
 
 export interface FetchTransportSettings {
   // A single request never takes longer than this (ServiceNow's own transaction quota
@@ -9,6 +9,7 @@ export interface FetchTransportSettings {
 export function fetchTransport(settings: FetchTransportSettings = {}): Transport {
   const timeoutMs = settings.timeoutMs ?? 90_000;
   return async (request, signal) => {
+    const timeout = AbortSignal.timeout(timeoutMs);
     const response = await fetch(request.url, {
       method: request.method,
       headers: request.headers,
@@ -18,7 +19,10 @@ export function fetchTransport(settings: FetchTransportSettings = {}): Transport
       // Stated here, so NODE_TLS_REJECT_UNAUTHORIZED=0 in the environment can't turn it off and
       // hand the credential to whoever answers.
       tls: { rejectUnauthorized: true },
-      signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
+      signal: AbortSignal.any([signal, timeout]),
+    }).catch((error: unknown) => {
+      // Our own timeout, not the caller's cancellation: the scheduler treats it as pressure.
+      throw timeout.aborted && !signal.aborted ? new TransportTimeoutError(timeoutMs) : error;
     });
     return { status: response.status, headers: response.headers, text: () => response.text() };
   };

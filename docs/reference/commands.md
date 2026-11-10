@@ -109,6 +109,7 @@ Options:
 - `--verify`: also compare the mirror with the instance by counts and repair differences
 - `--now`: pull from the instance even when the shared mirror is younger than its max age
 - `--publish`: push the mirror branch to the shared mirror after the pull (the designated puller; fast-forward only)
+- `--cost`: also measure the run's server cost from the instance's transaction log (development instances only)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -714,6 +715,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `verify` (boolean, optional): also compare the mirror with the instance by counts and repair differences
   - `now` (boolean, optional): pull from the instance even when the shared mirror is younger than its max age
   - `publish` (boolean, optional): push the mirror branch to the shared mirror after the pull (the designated puller; fast-forward only)
+  - `cost` (boolean, optional): also measure the run's server cost from the instance's transaction log (development instances only)
 - `status`: Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet integrated, local changes to synced files, and the team's shared mirror. Never calls the instance; with a shared mirror it runs git fetch. Follow its next.
   - `instance` (string, optional): one instance (default: all)
 - `find`: Find where something lives in the mirrored instance: records by name (business rules, script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. Without text, lists records by class, table or scope. Reads the workspace only. Follow up with describe on a result's path.

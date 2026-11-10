@@ -10,6 +10,7 @@ import {
   InstanceName as InstanceNames,
   type InstanceProfile,
   instancePaths,
+  type LoadSettings,
   maxAgeProblem,
   normalizeInstanceUrl,
   type ProfileStore,
@@ -40,6 +41,15 @@ const ClientId = z.string().refine((value) => clientIdProblem(value) === null, {
   error: (issue) => clientIdProblem(String(issue.input)) ?? "invalid client id",
 });
 
+// ADR-0053: limits an instance owner sets; they can only lower the built-in ones.
+const Limit = z.number().int().positive();
+const LoadFile = z.object({
+  max_concurrency: Limit.optional(),
+  requests_per_second: Limit.optional(),
+  request_budget: Limit.optional(),
+});
+type LoadFile = z.infer<typeof LoadFile>;
+
 const ProfileFile = z.object({
   url: z.string(),
   kind: z.enum(INSTANCE_KINDS),
@@ -67,6 +77,7 @@ const ProfileFile = z.object({
         }),
     })
     .optional(),
+  load: LoadFile.optional(),
 });
 
 type AuthFile = z.infer<typeof ProfileFile>["auth"];
@@ -81,6 +92,26 @@ function authFile(auth: AuthSettings): AuthFile {
   return auth.method === "basic"
     ? { method: auth.method, username: auth.username }
     : { method: auth.method, client_id: auth.clientId, username: auth.username };
+}
+
+function loadFrom(file: LoadFile): LoadSettings {
+  return {
+    ...(file.max_concurrency === undefined ? {} : { maxConcurrency: file.max_concurrency }),
+    ...(file.requests_per_second === undefined
+      ? {}
+      : { requestsPerSecond: file.requests_per_second }),
+    ...(file.request_budget === undefined ? {} : { requestBudget: file.request_budget }),
+  };
+}
+
+function loadFile(load: LoadSettings): LoadFile {
+  return {
+    ...(load.maxConcurrency === undefined ? {} : { max_concurrency: load.maxConcurrency }),
+    ...(load.requestsPerSecond === undefined
+      ? {}
+      : { requests_per_second: load.requestsPerSecond }),
+    ...(load.requestBudget === undefined ? {} : { request_budget: load.requestBudget }),
+  };
 }
 
 export class YamlProfileStore implements ProfileStore {
@@ -119,6 +150,7 @@ export class YamlProfileStore implements ProfileStore {
               maxAgeMinutes: file.data.shared_mirror.max_age_minutes,
             },
           }),
+      ...(file.data.load === undefined ? {} : { load: loadFrom(file.data.load) }),
     };
   }
 
@@ -138,6 +170,7 @@ export class YamlProfileStore implements ProfileStore {
               max_age_minutes: profile.sharedMirror.maxAgeMinutes,
             },
           }),
+      ...(profile.load === undefined ? {} : { load: loadFile(profile.load) }),
     };
     await writeFile(join(root, paths.profile), stringify(file, { sortMapEntries: true }));
   }

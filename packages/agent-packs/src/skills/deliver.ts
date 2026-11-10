@@ -9,7 +9,7 @@ export const DELIVER: Skill = {
     "Test and production instances cannot be written. To build or fix first, use servicenow-build.",
   ].join("\n"),
   steps: [
-    "`status`: when `phase` is not `integrated`, run `pull` and ask the user to run snagentic integrate first.",
+    "`status`: when `phase` is not `integrated`, or `next` is snagentic integrate, ask the user to run `next` first; run `pull` only when `next` says so.",
     "`plan_push` (with `label` if the user named the update set).",
     "Show the plan: each of the `units` (`operation`, `updateName`, its `changes` and the `losses` the load also sets), the `updateSets`, the `gate`, any `collisions` and `problems`.",
     "Once the plan is `ready` and the user approves it: `push` with `instance`, `plan` set to the `planId`, `confirm` true, and `draftPr` true when the user wants a pull request and the branch has none.",

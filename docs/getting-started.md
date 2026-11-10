@@ -121,6 +121,47 @@ fields in files next to them (`….script.js`) and child rows (flow steps, form 
 searching, describing and reviewing. Changes are written as Fluent source (section 7); the hooks,
 `validate` and integrate keep the mirror as pull wrote it.
 
+Each pull commit also carries the state it was pulled with, in `instances/dev/pull/`: the
+watermark, fingerprints and catalog. A clone that has the `servicenow-remote/dev` branch
+continues with an incremental pull, never a full one.
+
+### Team mode: one pull per instance
+
+In a team, one designated puller (a scheduled CI job, signed in as a service account) pulls the
+instance and publishes the mirror branch. Everyone else gets it through git. Name the git remote
+when you add the instance, or add `shared_mirror` to `instance.yaml` and commit it:
+
+```sh
+snagentic instance add dev --url dev12345 --username svc_ci --shared-mirror origin
+```
+
+```yaml
+shared_mirror:
+  remote: origin
+  max_age_minutes: 15   # a pull asks the instance nothing while the mirror is younger
+```
+
+The designated puller runs:
+
+```sh
+snagentic pull dev --publish   # fast-forward only; refused for a user other than the mirror's
+```
+
+Developers run:
+
+```sh
+snagentic status          # the shared mirror's age, and whether it holds pulls you lack
+snagentic integrate dev   # fetches the shared mirror, then merges it
+snagentic pull dev        # continues from the shared mirror; nothing is asked of the
+                          # instance while it is current (--now pulls anyway)
+```
+
+`pull`, `integrate` and `status` call the git remote with your own git credentials. Instance
+secrets never reach git. Protect `servicenow-remote/*` on the git host, so that only the
+designated puller can push it. The mirror shows the instance as that user sees it, so give that
+user read access to everything the team works on. A pull by any other user adds and changes
+records but never removes one just because its own listing left it out.
+
 ## 5. Update sets
 
 Read live from the instance, so always current:

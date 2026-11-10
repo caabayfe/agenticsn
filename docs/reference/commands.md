@@ -118,7 +118,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic integrate <instance> [options]
 ```
 
-Merge the latest pull of an instance into the workspace's current branch. The mirror is read-only, so the instance's copy always wins there; a local edit to it is discarded and named. Reports adopted units the instance changed since they last agreed with source (drift): run adopt --refresh on them before planning.
+Merge the latest pull of an instance into the workspace's current branch, after taking a newer shared mirror from the team's git remote when the profile names one. The mirror is read-only, so the instance's copy always wins there; a local edit to it is discarded and named. Reports adopted units the instance changed since they last agreed with source (drift): run adopt --refresh on them before planning.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 
@@ -130,7 +130,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic status [instance] [options]
 ```
 
-Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet integrated and local changes to synced files. Reads local state only; never calls the instance.
+Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet integrated, local changes to synced files, and the team's shared mirror. Never calls the instance; with a shared mirror it runs git fetch. Follow its next.
 
 Changes the instance: no. MCP tool: `status`.
 
@@ -714,7 +714,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `verify` (boolean, optional): also compare the mirror with the instance by counts and repair differences
   - `now` (boolean, optional): pull from the instance even when the shared mirror is younger than its max age
   - `publish` (boolean, optional): push the mirror branch to the shared mirror after the pull (the designated puller; fast-forward only)
-- `status`: Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet integrated and local changes to synced files. Reads local state only; never calls the instance.
+- `status`: Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet integrated, local changes to synced files, and the team's shared mirror. Never calls the instance; with a shared mirror it runs git fetch. Follow its next.
   - `instance` (string, optional): one instance (default: all)
 - `find`: Find where something lives in the mirrored instance: records by name (business rules, script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. Without text, lists records by class, table or scope. Reads the workspace only. Follow up with describe on a result's path.
   - `text` (string, optional): words of the name, or the text to look for in code; empty lists by class, table or scope

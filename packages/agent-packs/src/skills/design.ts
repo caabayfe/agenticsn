@@ -10,7 +10,7 @@ export const DESIGN: Skill = {
     "servicenow-build.",
   ].join("\n"),
   steps: [
-    "`status`: if `phase` is not `integrated`, or the last pull is old, tell the user and offer `pull`.",
+    "`status`: unless its `next` says the mirror is current, tell the user and offer `next`: integrate brings in what the team's shared mirror holds, and `pull` comes only when the mirror is old.",
     "`describe` each table the request touches (`target`: the table). Note its `behavior` in execution order.",
     "`advise` with `intent` (the user's words), `tables`, and `phase` design.",
     "Present the `ladder`: the options whose `fit` is likely or possible, least custom first, each with its `evidence`.",

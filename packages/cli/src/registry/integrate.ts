@@ -1,4 +1,4 @@
-import { driftedUnits, getInstance, InstanceName } from "@snagentic/core";
+import { continueFromNewest, driftedUnits, getInstance, InstanceName } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
@@ -6,7 +6,8 @@ import { workspaceRoot } from "./workspace-root";
 export const integrate = defineUseCase({
   name: "integrate",
   description:
-    "Merge the latest pull of an instance into the workspace's current branch. The mirror is " +
+    "Merge the latest pull of an instance into the workspace's current branch, after taking a " +
+    "newer shared mirror from the team's git remote when the profile names one. The mirror is " +
     "read-only, so the instance's copy always wins there; a local edit to it is discarded and " +
     "named. Reports adopted units the instance changed since they last agreed with source " +
     "(drift): run adopt --refresh on them before planning.",
@@ -27,7 +28,16 @@ export const integrate = defineUseCase({
   async handle(input, context, run) {
     const root = await workspaceRoot(context);
     const name = InstanceName.parse(input.instance);
-    await getInstance(root, name, context.profiles);
+    const profile = await getInstance(root, name, context.profiles);
+    // ADR-0052 item 6: a team's newer shared mirror is fetched and taken first.
+    if (profile.sharedMirror !== undefined) {
+      run.progress({
+        message: `integrate: fetching the shared mirror from ${profile.sharedMirror.remote}`,
+      });
+      const state = context.syncState(root, name);
+      const deps = { shared: context.sharedMirror, state, now: context.clock };
+      await continueFromNewest(deps, root, name, profile.sharedMirror);
+    }
     const { workspace } = context.authoring(root);
     const ledgers = await Promise.all(
       (await workspace.projects()).map((p) => workspace.readLedger(p)),

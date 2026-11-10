@@ -1,10 +1,23 @@
 import { minutesSince, nextCommand, type SyncPhase, syncPhase } from "../domain/sync-phase";
 import type { MirrorInspector, SyncStateStore } from "../ports";
+import type { SharedMirrorStatus } from "./shared-mirror";
 
 export interface StatusDependencies {
   readonly state: SyncStateStore;
   readonly inspector: MirrorInspector;
   readonly now: () => Date;
+  // The team's shared mirror, as git last fetched it (ADR-0052 item 6).
+  readonly shared?: SharedMirrorStatus;
+}
+
+function sharedFacts(shared: SharedMirrorStatus | undefined, localMinutes: number | null) {
+  if (shared === undefined) return undefined;
+  const ages = [localMinutes, shared.ageMinutes].filter((age): age is number => age !== null);
+  return {
+    ahead: shared.ahead,
+    newestMinutes: ages.length === 0 ? null : Math.min(...ages),
+    maxAgeMinutes: shared.maxAgeMinutes,
+  };
 }
 
 export interface InstanceStatus {
@@ -18,6 +31,7 @@ export interface InstanceStatus {
   readonly remoteCommit: string | null;
   readonly unintegratedPulls: number;
   readonly localChanges: readonly string[];
+  readonly sharedMirror: SharedMirrorStatus | null;
   readonly next: string;
 }
 
@@ -36,12 +50,13 @@ export async function instanceStatus(
     interrupted: checkpoint !== null,
     unintegratedPulls: view.unintegratedPulls,
   });
+  const minutesSinceLastPull = state === null ? null : minutesSince(state.watermark, deps.now());
   return {
     instance,
     phase,
     lastPull: state?.watermark ?? null,
     lastFullPull: state?.lastFullPull ?? null,
-    minutesSinceLastPull: state === null ? null : minutesSince(state.watermark, deps.now()),
+    minutesSinceLastPull,
     interrupted:
       checkpoint === null
         ? null
@@ -49,6 +64,7 @@ export async function instanceStatus(
     remoteCommit: view.remoteCommit,
     unintegratedPulls: view.unintegratedPulls,
     localChanges: view.localChanges,
-    next: nextCommand(phase, instance),
+    sharedMirror: deps.shared ?? null,
+    next: nextCommand(phase, instance, sharedFacts(deps.shared, minutesSinceLastPull)),
   };
 }

@@ -5,6 +5,7 @@ import {
   type InstanceProfile,
   instanceStatus,
   listInstances,
+  sharedMirrorStatus,
 } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase, type UseCaseContext } from "./use-case";
@@ -24,6 +25,17 @@ const InstanceStatusOutput = z.object({
   remoteCommit: z.string().nullable(),
   unintegratedPulls: z.number(),
   localChanges: z.array(z.string()),
+  // The team's shared mirror (ADR-0052), as git fetched it now; null without one.
+  sharedMirror: z
+    .object({
+      remote: z.string(),
+      reachable: z.boolean(),
+      commit: z.string().nullable(),
+      ageMinutes: z.number().nullable(),
+      maxAgeMinutes: z.number(),
+      ahead: z.boolean().describe("it holds pulls this clone lacks: integrate brings them in"),
+    })
+    .nullable(),
   // The plan id of a push that stopped part way: plan and push again to finish it.
   unfinishedPush: z.string().nullable(),
   // The instance's domains besides global, from the operational inventory (ADR-0027): build an
@@ -40,10 +52,18 @@ async function profilesFor(root: string, instance: string | undefined, context: 
 }
 
 async function statusOf(root: string, profile: InstanceProfile, context: UseCaseContext) {
+  const state = context.syncState(root, profile.name);
+  const deps = { state, shared: context.sharedMirror, now: context.clock };
+  const setting = profile.sharedMirror;
+  const shared =
+    setting === undefined
+      ? {}
+      : { shared: await sharedMirrorStatus(deps, root, profile.name, setting) };
   const status = await instanceStatus(root, profile.name, {
-    state: context.syncState(root, profile.name),
+    state,
     inspector: context.inspector,
     now: context.clock,
+    ...shared,
   });
   const journal = await context.pushJournal(root, profile.name).read();
   const domains = ((await context.inventory.read(root, profile.name, "domains")) ?? [])
@@ -84,12 +104,23 @@ function pullLine(status: InstanceStatusOutput): string {
   return `  last pull ${status.lastPull} UTC (${age(status.minutesSinceLastPull)}); last full pull ${status.lastFullPull ?? "never"} UTC`;
 }
 
+function sharedLine(shared: InstanceStatusOutput["sharedMirror"]): string[] {
+  if (shared === null) return [];
+  if (!shared.reachable)
+    return [`  shared mirror on ${shared.remote}: unreachable (git fetch failed)`];
+  if (shared.commit === null) return [`  shared mirror on ${shared.remote}: none yet`];
+  const pulled = shared.ageMinutes === null ? "" : `, pulled ${age(shared.ageMinutes)}`;
+  const ahead = shared.ahead ? "; it holds pulls this clone lacks" : "";
+  return [`  shared mirror on ${shared.remote}: ${shared.commit.slice(0, 10)}${pulled}${ahead}`];
+}
+
 function renderOne(status: InstanceStatusOutput): string {
   const changes = status.localChanges;
   const more = changes.length > SHOWN_CHANGES ? ` (+${changes.length - SHOWN_CHANGES} more)` : "";
   return [
     `${status.instance} (${status.kind}) ${status.url}`,
     pullLine(status),
+    ...sharedLine(status.sharedMirror),
     ...(status.unfinishedPush === null
       ? []
       : [
@@ -112,7 +143,8 @@ export const status = defineUseCase({
   name: "status",
   description:
     "Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet " +
-    "integrated and local changes to synced files. Reads local state only; never calls the instance.",
+    "integrated, local changes to synced files, and the team's shared mirror. Never calls the " +
+    "instance; with a shared mirror it runs git fetch. Follow its next.",
   input: z.object({ instance: z.string().optional().describe("one instance (default: all)") }),
   output: z.object({ instances: z.array(InstanceStatusOutput) }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },

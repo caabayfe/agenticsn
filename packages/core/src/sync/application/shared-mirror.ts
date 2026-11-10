@@ -1,5 +1,6 @@
 import { isCurrent, isLater } from "../domain/pull-state";
-import { PublishRefusedError } from "../domain/shared-mirror-errors";
+import { PublishRefusedError, SharedMirrorUnreachableError } from "../domain/shared-mirror-errors";
+import { minutesSince } from "../domain/sync-phase";
 import type { SharedMirror, SharedTip, SyncState, SyncStateStore } from "../ports";
 
 // The instance profile's shared mirror setting.
@@ -83,4 +84,55 @@ export function checkPublisher(start: SharedStart, instance: string, user: strin
   if (owner !== undefined && owner !== user) {
     throw new PublishRefusedError(instance, user, owner);
   }
+}
+
+export interface SharedMirrorStatus {
+  readonly remote: string;
+  // False when git could not reach the remote; the rest is then unknown.
+  readonly reachable: boolean;
+  readonly commit: string | null;
+  // Minutes since the shared mirror's watermark.
+  readonly ageMinutes: number | null;
+  readonly maxAgeMinutes: number;
+  // The shared mirror holds pulls the local branch lacks: integrate brings them in.
+  readonly ahead: boolean;
+}
+
+// ADR-0052 item 6: how the team's mirror relates to this clone, from git alone.
+export async function sharedMirrorStatus(
+  deps: SharedPullDependencies,
+  root: string,
+  instance: string,
+  setting: SharedPullSetting,
+): Promise<SharedMirrorStatus> {
+  const unknown = { remote: setting.remote, maxAgeMinutes: setting.maxAgeMinutes };
+  let shared: SharedTip | null;
+  try {
+    shared = await deps.shared.fetch(root, instance, setting.remote);
+  } catch (error) {
+    if (error instanceof SharedMirrorUnreachableError) {
+      return { ...unknown, reachable: false, commit: null, ageMinutes: null, ahead: false };
+    }
+    throw error;
+  }
+  const tip = await deps.shared.localTip(root, instance);
+  const newer = await takesShared(
+    deps,
+    root,
+    instance,
+    shared,
+    await deps.state.readState(),
+    false,
+  );
+  const ahead =
+    newer &&
+    shared !== null &&
+    (tip === null || !(await deps.shared.contains(root, tip, shared.commit)));
+  return {
+    ...unknown,
+    reachable: true,
+    commit: shared?.commit ?? null,
+    ageMinutes: shared?.state ? minutesSince(shared.state.watermark, deps.now()) : null,
+    ahead,
+  };
 }

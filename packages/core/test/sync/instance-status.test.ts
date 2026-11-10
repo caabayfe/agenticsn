@@ -64,6 +64,29 @@ describe("instanceStatus", () => {
     });
   });
 
+  it("with a shared mirror, says to integrate what it holds, and to pull only once it is old", async () => {
+    const shared = {
+      remote: "origin",
+      reachable: true,
+      commit: "s1",
+      ageMinutes: 5,
+      maxAgeMinutes: 15,
+      ahead: true,
+    };
+    const never = await instanceStatus("/w", "pdi", { ...deps(null, null), shared });
+    expect(never).toMatchObject({ phase: "never-pulled", next: "snagentic integrate pdi" });
+    const current = { ...shared, ahead: false };
+    const integrated = await instanceStatus("/w", "pdi", {
+      ...deps({ ...PULLED, watermark: "2026-10-06 09:58:00" }, null),
+      shared: current,
+    });
+    expect(integrated.next).toBe("nothing: the mirror is current");
+    const old = { ...current, ageMinutes: 60 };
+    expect((await instanceStatus("/w", "pdi", { ...deps(PULLED, null), shared: old })).next).toBe(
+      "snagentic pull pdi",
+    );
+  });
+
   it("lists local changes to synced files", async () => {
     const view = { remoteCommit: "abc", unintegratedPulls: 0, localChanges: ["a.script.js"] };
     const status = await instanceStatus("/w", "pdi", deps(PULLED, null, view));

@@ -1,8 +1,8 @@
 import {
-  credentialVariable,
   type DevelopmentProfile,
   effectiveLoadLimits,
   type InstanceProfile,
+  instanceVariable,
   type LoadLimits,
   type LoadSettings,
   SnagenticError,
@@ -30,20 +30,15 @@ const VARIABLES = {
   requestBudget: "REQUEST_BUDGET",
 } as const;
 
-// SNAGENTIC_<NAME>_MAX_CONCURRENCY and the like, named after the credential variables
-// (ADR-0020, ADR-0053).
-function variablePrefix(profile: InstanceProfile): string {
-  return credentialVariable(profile).replace(/_PASSWORD$/, "");
-}
-
 export function environmentLoadSettings(
   profile: InstanceProfile,
   environment: Readonly<Record<string, string | undefined>>,
 ): LoadSettings {
-  const prefix = variablePrefix(profile);
   const settings: Record<string, number> = {};
+  // SNAGENTIC_<NAME>_MAX_CONCURRENCY and the like, named after the credential variables
+  // (ADR-0020, ADR-0053).
   for (const [setting, suffix] of Object.entries(VARIABLES)) {
-    const variable = `${prefix}_${suffix}`;
+    const variable = instanceVariable(profile, suffix);
     const value = environment[variable];
     if (value === undefined || value === "") {
       continue;
@@ -92,7 +87,7 @@ export class InstanceConnections {
     });
     return this.scheduler(profile.url, limits).run({
       budget: limits.requestBudget,
-      budgetVariable: `${variablePrefix(profile)}_REQUEST_BUDGET`,
+      budgetVariable: instanceVariable(profile, VARIABLES.requestBudget),
     });
   }
 

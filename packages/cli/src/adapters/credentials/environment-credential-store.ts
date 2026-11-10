@@ -4,6 +4,7 @@ import {
   INSTANCE_KINDS,
   type InstanceKind,
   type InstanceProfile,
+  instanceVariable,
   normalizeInstanceUrl,
   type StoredCredential,
   type TrustedSettings,
@@ -15,13 +16,11 @@ export class EnvironmentCredentialStore implements CredentialStore {
   constructor(private readonly environment: Readonly<Record<string, string | undefined>>) {}
 
   async read(profile: InstanceProfile): Promise<StoredCredential | null> {
-    const variable = credentialVariable(profile);
-    const secret = this.environment[variable];
+    const secret = this.environment[credentialVariable(profile)];
     if (secret === undefined || secret === "") {
       return null;
     }
-    const prefix = variable.replace(/_PASSWORD$/, "");
-    return { secret, source: "environment", trusted: this.pinned(prefix) };
+    return { secret, source: "environment", trusted: this.pinned(profile) };
   }
 
   async write(): Promise<void> {
@@ -32,9 +31,9 @@ export class EnvironmentCredentialStore implements CredentialStore {
     return false;
   }
 
-  private pinned(prefix: string): TrustedSettings | null {
-    const url = this.environment[`${prefix}_URL`] ?? "";
-    const kind = this.environment[`${prefix}_KIND`] ?? "";
+  private pinned(profile: InstanceProfile): TrustedSettings | null {
+    const url = this.environment[instanceVariable(profile, "URL")] ?? "";
+    const kind = this.environment[instanceVariable(profile, "KIND")] ?? "";
     if (!isKind(kind)) {
       return null;
     }

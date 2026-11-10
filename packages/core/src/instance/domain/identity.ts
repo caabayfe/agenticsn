@@ -3,16 +3,16 @@
 import { InvalidInputError } from "../../kernel/errors";
 import { IdentityMismatchError, type UsernameOrigin } from "./errors";
 import {
-  credentialVariable,
   type InstanceProfile,
   instanceHost,
+  instanceVariable,
   type UsernameSource,
   usernameProblem,
 } from "./profile";
 
 // Environment variable that names the user in CI, e.g. SNAGENTIC_ACME_PROD_USERNAME.
 export function usernameVariable(profile: InstanceProfile): string {
-  return credentialVariable(profile).replace(/_PASSWORD$/, "_USERNAME");
+  return instanceVariable(profile, "USERNAME");
 }
 
 export function usernameSource(profile: InstanceProfile): UsernameSource {

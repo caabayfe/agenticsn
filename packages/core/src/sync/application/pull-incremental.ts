@@ -4,6 +4,7 @@ import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domai
 import { changesSince, type FingerprintChange } from "../domain/fingerprint";
 import type { InventorySource } from "../domain/inventory";
 import { CHILD_TABLES } from "../domain/pull-scope";
+import { FIRST_REDACTION_VERSION } from "../domain/redaction-upgrades";
 import type { Fingerprints, SyncState } from "../ports";
 import { detectChanges } from "./detect-changes";
 import { applyChildChanges, type ChildOutcome } from "./incremental-children";
@@ -51,7 +52,9 @@ export interface IncrementalSummary {
   readonly unreadable: readonly string[];
   readonly secretRedactions: readonly SecretRedaction[];
   readonly watermark: string;
-  // The sync state to store once the mirror commit is durable (see completePull).
+  // Nothing moved on the instance and no policy asked for a re-read: the mirror is unchanged.
+  readonly idle: boolean;
+  // The sync state to store once the mirror commit is durable (see recordPull).
   readonly next: SyncState;
 }
 
@@ -67,7 +70,7 @@ function summarize(
   reread: RedactionReread,
   children: ChildOutcome,
   unreadable: readonly string[],
-): Omit<IncrementalSummary, "watermark" | "next" | "inventoryRefreshed"> {
+): Omit<IncrementalSummary, "watermark" | "next" | "inventoryRefreshed" | "idle"> {
   const { records } = step;
   const secretRedactions: SecretRedaction[] = [
     ...records.secretRedactions,
@@ -198,6 +201,20 @@ async function prepareIncremental(
   return { state, catalog: new Catalog(migration.catalog), migration };
 }
 
+// Nothing moved on the instance, and no policy asked to rewrite what the mirror holds.
+function isIdle(
+  state: SyncState,
+  policyVersion: number,
+  run: { readonly verify: boolean; readonly moved: boolean },
+): boolean {
+  return (
+    !run.verify &&
+    !run.moved &&
+    (state.secretScanVersion ?? 0) >= SECRET_SCAN_VERSION &&
+    (state.redactionVersion ?? FIRST_REDACTION_VERSION) === policyVersion
+  );
+}
+
 export async function pullIncremental(
   deps: IncrementalDependencies,
   instance: string,
@@ -244,6 +261,10 @@ export async function pullIncremental(
     ]),
     inventoryRefreshed: stale.map((source) => source.file),
     watermark: startedAt,
+    idle: isIdle(state, deps.policy.version, {
+      verify,
+      moved: summary.changedSources.length + stale.length + reread.tables.length > 0,
+    }),
     next: nextState(
       state,
       deps.policy.version,

@@ -1,4 +1,5 @@
 import type { InstanceName } from "../../kernel/instance-name";
+import { PULL_CATALOG_FILE, PULL_STATE_FILE } from "../../sync/domain/pull-state";
 
 // Paths are relative to the workspace root and always use "/" (ADR-0014).
 export interface InstancePaths {
@@ -7,6 +8,9 @@ export interface InstancePaths {
   readonly metadata: string;
   readonly updateSets: string;
   readonly operational: string;
+  // The state and catalog each mirror commit was pulled with (ADR-0052).
+  readonly pullState: string;
+  readonly pullCatalog: string;
   readonly localState: string;
   // Update set exports by default: inside local state, which the workspace never commits.
   readonly exports: string;
@@ -21,6 +25,8 @@ export function instancePaths(name: InstanceName): InstancePaths {
     metadata: `${root}/metadata`,
     updateSets: `${root}/update-sets`,
     operational: `${root}/operational`,
+    pullState: `${root}/${PULL_STATE_FILE}`,
+    pullCatalog: `${root}/${PULL_CATALOG_FILE}`,
     localState: `.snagentic/${name}`,
     exports: `.snagentic/${name}/exports`,
     remoteBranch: `servicenow-remote/${name}`,

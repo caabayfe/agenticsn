@@ -27,6 +27,19 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   ran. The tests read no global or system git configuration. The tests that drive a real ffmpeg
   or Chrome run in their own CI job; `SNAGENTIC_TEST_MEDIA=skip` or `require` chooses locally
   (spec 014, R1).
+- Every pull commit carries the state it was pulled with (ADR-0052): `instances/<name>/pull/state.yaml`
+  (watermark, fingerprints, inventory signatures, unreadable tables, redaction and secret-scan
+  versions, the instance user that pulled and the snagentic version) and
+  `instances/<name>/pull/catalog.yaml` (the catalog, after the secret scan). A clone or CI runner
+  that fetched `servicenow-remote/<name>` continues with an incremental pull instead of a full one,
+  and `describe`, `adopt` and the knowledge tools read the same catalog on every clone.
+  `.snagentic/<name>/` keeps only what belongs to one clone: the checkpoint of an interrupted pull,
+  indexes, journals and caches. A workspace pulled by an earlier version moves its local state into
+  its next pull commit, without a full pull.
+- An incremental pull that finds nothing new makes no commit; the clone notes the check, and
+  `status` shows it as the last pull.
+- The pull state is read as data: a `state.yaml` or `catalog.yaml` that isn't what a pull writes is
+  refused, naming the file. Agents may not edit `instances/<name>/pull/`.
 
 - The agent pack's shell hook refuses commands that set proxy or certificate variables
   (`HTTPS_PROXY`, `NO_PROXY`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE` and similar). Set them in

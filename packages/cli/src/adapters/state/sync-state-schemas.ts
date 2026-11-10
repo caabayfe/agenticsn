@@ -6,7 +6,8 @@ import {
 } from "@snagentic/core";
 import { z } from "zod";
 
-// The shapes of the files in .snagentic/<name>/, as JsonSyncStateStore writes them. Fields
+// The shapes of the files in .snagentic/<name>/, as JsonSyncStateStore writes them, and of the
+// pull state a mirror commit carries (ADR-0052). Fields
 // added after a file format first shipped are optional, so older files keep loading. Each file
 // keeps fields it doesn't know (z.looseObject), so a file a newer version wrote survives being
 // read and written back by an older one, after `upgrade --to`.
@@ -50,4 +51,17 @@ export const SyncStateFile: z.ZodType<SyncState> = z.looseObject({
   hiddenCounts: z.record(z.string(), z.number()).exactOptional(),
   redactionVersion: z.number().exactOptional(),
   secretScanVersion: z.number().exactOptional(),
+  pulledBy: z.string().exactOptional(),
+  snagenticVersion: z.string().exactOptional(),
+});
+
+// A pull that found nothing new: this clone checked the mirror at `commit`, with this state.
+export interface CheckNote {
+  readonly commit: string;
+  readonly state: SyncState;
+}
+
+export const CheckNoteFile: z.ZodType<CheckNote> = z.looseObject({
+  commit: z.string(),
+  state: SyncStateFile,
 });

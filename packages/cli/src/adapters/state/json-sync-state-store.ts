@@ -1,36 +1,49 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CatalogData, PullCheckpoint, SyncState, SyncStateStore } from "@snagentic/core";
+import type { CatalogData, PullCheckpoint, SyncState } from "@snagentic/core";
 import type { z } from "zod";
 import { serialQueue } from "../serial-queue";
 import { parseStateFile } from "./state-file";
-import { CatalogFile, CheckpointFile, SyncStateFile } from "./sync-state-schemas";
+import {
+  CatalogFile,
+  type CheckNote,
+  CheckNoteFile,
+  CheckpointFile,
+  SyncStateFile,
+} from "./sync-state-schemas";
 
 const FILES = {
   catalog: "catalog.json",
   checkpoint: "pull-checkpoint.json",
+  note: "pull-check.json",
   state: "sync-state.json",
 } as const;
 
 // Removing the file loses nothing that a pull can't rebuild.
 const REBUILD = "run snagentic pull --full to rebuild it";
 
-// JSON files in the instance's local state folder (.snagentic/<name>/). Written through a
+// JSON files in the instance's local state folder (.snagentic/<name>/): the checkpoint of an
+// interrupted pull, the note of the last check that found nothing new, and the state and catalog
+// an earlier version kept here before the mirror carried them (ADR-0052). Written through a
 // temporary file and a rename, so an interrupted write never leaves half a checkpoint.
-export class JsonSyncStateStore implements SyncStateStore {
+export class JsonSyncStateStore {
   // Pull workers checkpoint concurrently; writes are applied one at a time, in order.
   private readonly writes = serialQueue();
   private sequence = 0;
 
   constructor(private readonly directory: string) {}
 
-  readCatalog(): Promise<CatalogData | null> {
+  readLegacyCatalog(): Promise<CatalogData | null> {
     return this.read(FILES.catalog, CatalogFile, REBUILD);
   }
 
-  writeCatalog(data: CatalogData): Promise<void> {
-    return this.write(FILES.catalog, data);
+  readLegacyState(): Promise<SyncState | null> {
+    return this.read(FILES.state, SyncStateFile, REBUILD);
+  }
+
+  hasLegacyState(): boolean {
+    return existsSync(join(this.directory, FILES.state));
   }
 
   readCheckpoint(): Promise<PullCheckpoint | null> {
@@ -46,15 +59,25 @@ export class JsonSyncStateStore implements SyncStateStore {
   }
 
   clearCheckpoint(): Promise<void> {
-    return this.writes.run(() => rm(join(this.directory, FILES.checkpoint), { force: true }));
+    return this.remove(FILES.checkpoint);
   }
 
-  readState(): Promise<SyncState | null> {
-    return this.read(FILES.state, SyncStateFile, REBUILD);
+  readNote(): Promise<CheckNote | null> {
+    return this.read(FILES.note, CheckNoteFile, `delete ${join(this.directory, FILES.note)}`);
   }
 
-  writeState(state: SyncState): Promise<void> {
-    return this.write(FILES.state, state);
+  writeNote(note: CheckNote): Promise<void> {
+    return this.write(FILES.note, note);
+  }
+
+  async forgetLegacy(): Promise<void> {
+    await this.remove(FILES.state);
+    await this.remove(FILES.catalog);
+    await this.remove(FILES.note);
+  }
+
+  private remove(name: string): Promise<void> {
+    return this.writes.run(() => rm(join(this.directory, name), { force: true }));
   }
 
   private async read<T>(name: string, schema: z.ZodType<T>, hint: string): Promise<T | null> {

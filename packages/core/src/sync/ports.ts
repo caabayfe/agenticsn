@@ -43,16 +43,34 @@ export interface SyncState {
   readonly redactionVersion?: number;
   // Existing committed files have been scanned under this ASR-08 policy version (ADR-0035).
   readonly secretScanVersion?: number;
+  // The instance user whose listings the mirror's membership reflects: the user of the full
+  // pull it continues from (ADR-0052 item 4). Absent in state an earlier version wrote.
+  readonly pulledBy?: string;
+  // The snagentic version that wrote this state.
+  readonly snagenticVersion?: string;
 }
 
-// Local, per-instance sync state (.snagentic/<name>/, never committed).
+// The state a pull continues from (ADR-0052): the state and catalog come from the mirror commit,
+// or, for a workspace an earlier version pulled, from .snagentic/<name>/ until its next pull
+// commit carries them. The checkpoint of an interrupted pull belongs to this clone.
 export interface SyncStateStore {
   readCatalog(): Promise<CatalogData | null>;
-  writeCatalog(data: CatalogData): Promise<void>;
+  readState(): Promise<SyncState | null>;
   readCheckpoint(): Promise<PullCheckpoint | null>;
   writeCheckpoint(checkpoint: PullCheckpoint): Promise<void>;
   clearCheckpoint(): Promise<void>;
-  readState(): Promise<SyncState | null>;
+  // True while the state is still the one an earlier version kept in .snagentic/<name>/.
+  heldLocally(): Promise<boolean>;
+  // A pull that found nothing new leaves the mirror commit as it is; this clone remembers that
+  // it checked, with the later watermark, for as long as the mirror stays at that commit.
+  noteUnchanged(state: SyncState): Promise<void>;
+  // Once a pull commit holds the state: drops what an earlier version kept locally.
+  forgetLocalState(): Promise<void>;
+}
+
+// What a pull in progress writes: the state and catalog go into its own mirror commit.
+export interface PullStateStore extends SyncStateStore {
+  writeCatalog(data: CatalogData): Promise<void>;
   writeState(state: SyncState): Promise<void>;
 }
 

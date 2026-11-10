@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -17,7 +18,7 @@ import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
-import { JsonSyncStateStore } from "../../src/adapters/state/json-sync-state-store";
+import { syncStateStore } from "../../src/adapters/state/mirror-sync-state-store";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import { executeUseCase } from "../../src/registry/execute";
 import { integrate } from "../../src/registry/integrate";
@@ -51,8 +52,10 @@ const DATA: Record<string, Row[]> = {
   ],
 };
 
-async function setup(data: Record<string, Row[]> = structuredClone(DATA)) {
-  const instance = fakeInstance(data);
+async function setup(
+  data: Record<string, Row[]> = structuredClone(DATA),
+  instance = fakeInstance(data),
+) {
   const base = await mkdtemp(join(tmpdir(), "snagentic-pull-"));
   temporary.push(base);
   const root = join(base, "w");
@@ -74,7 +77,7 @@ async function setup(data: Record<string, Row[]> = structuredClone(DATA)) {
     profiles,
     credentials: TRUSTED_PASSWORD,
     connections: { open: () => instance.reader, openForWrite: () => instance.reader },
-    syncState: (r, instance) => new JsonSyncStateStore(join(r, instancePaths(instance).localState)),
+    syncState: syncStateStore,
     mirrors: { open: (r, instance, mode) => GitMirror.open(r, instance, mode) },
     integrator: gitIntegrator,
     inspector: gitInspector,
@@ -82,6 +85,93 @@ async function setup(data: Record<string, Row[]> = structuredClone(DATA)) {
   };
   return { root, context, instance };
 }
+
+// Another workspace on the same instance that has only fetched the first one's mirror branch.
+async function fetchedClone(source: string, instance: ReturnType<typeof fakeInstance>) {
+  const clone = await setup(DATA, instance);
+  await runGitOrThrow(
+    ["fetch", "-q", source, "servicenow-remote/pdi:servicenow-remote/pdi"],
+    clone.root,
+  );
+  return clone;
+}
+
+const show = (root: string, path: string) =>
+  runGitOrThrow(["show", `servicenow-remote/pdi:${path}`], root);
+
+describe("the pull state travels with the mirror (ADR-0052)", () => {
+  it("commits the state and catalog with the mirror and keeps neither locally", async () => {
+    const { root, context } = await setup();
+    await executeUseCase(pull, { instance: "pdi" }, context);
+    const state = await show(root, "instances/pdi/pull/state.yaml");
+    expect(state).toContain("watermark: 2026-10-05 12:00:00");
+    expect(state).toContain("pulledBy: admin");
+    expect(state).toContain("snagenticVersion: test");
+    expect(await show(root, "instances/pdi/pull/catalog.yaml")).toContain(
+      "sys_script: sys_metadata",
+    );
+    expect(existsSync(join(root, ".snagentic/pdi/sync-state.json"))).toBe(false);
+    expect(existsSync(join(root, ".snagentic/pdi/catalog.json"))).toBe(false);
+  });
+
+  it("continues incrementally in a clone that never pulled, from the fetched mirror", async () => {
+    const first = await setup();
+    await executeUseCase(pull, { instance: "pdi" }, first.context);
+    const clone = await fetchedClone(first.root, first.instance);
+    const rule = first.instance.tables["sys_script"]?.[0];
+    Object.assign(rule ?? {}, { script: "changed();", sys_updated_on: "2026-10-05 12:30:00" });
+    const later = { ...clone.context, clock: () => new Date("2026-10-05T13:00:00Z") };
+    const { output } = await executeUseCase(pull, { instance: "pdi" }, later);
+    expect(output).toMatchObject({ mode: "incremental", changed: true, records: 1 });
+    expect(
+      await show(
+        clone.root,
+        "instances/pdi/metadata/global/sys_script/rule--00000000000000000000000000000001.script.js",
+      ),
+    ).toBe("changed();\n");
+    expect(await show(clone.root, "instances/pdi/pull/state.yaml")).toContain(
+      "watermark: 2026-10-05 13:00:00",
+    );
+  });
+
+  it("moves an earlier version's local state into its next pull commit, without a full pull", async () => {
+    const { root, context } = await setup();
+    await executeUseCase(pull, { instance: "pdi" }, context);
+    const name = InstanceName.parse("pdi");
+    const store = syncStateStore(root, name);
+    const [state, catalog] = [await store.readState(), await store.readCatalog()];
+    const local = join(root, ".snagentic/pdi");
+    await mkdir(local, { recursive: true });
+    await writeFile(join(local, "sync-state.json"), JSON.stringify(state));
+    await writeFile(join(local, "catalog.json"), JSON.stringify(catalog));
+    const older = await GitMirror.open(root, name, "incremental");
+    await older.prepare();
+    await older.remove("instances/pdi", "pull/state.yaml");
+    await older.remove("instances/pdi", "pull/catalog.yaml");
+    await older.finish("a pull by an earlier version");
+    const { output } = await executeUseCase(pull, { instance: "pdi" }, context);
+    expect(output).toMatchObject({ mode: "incremental", records: 0 });
+    expect(await show(root, "instances/pdi/pull/state.yaml")).toContain("pulledBy: admin");
+    expect(await show(root, "instances/pdi/pull/catalog.yaml")).toContain(
+      "sys_script: sys_metadata",
+    );
+    expect(existsSync(join(local, "sync-state.json"))).toBe(false);
+    expect(existsSync(join(local, "catalog.json"))).toBe(false);
+  });
+
+  it("makes no commit when nothing changed, and status shows when this clone checked", async () => {
+    const { root, context } = await setup();
+    const first = await executeUseCase(pull, { instance: "pdi" }, context);
+    const later = { ...context, clock: () => new Date("2026-10-05T12:40:00Z") };
+    const idle = await executeUseCase(pull, { instance: "pdi" }, later);
+    expect(idle.output).toMatchObject({ changed: false, commit: first.output["commit"] });
+    const { output } = await executeUseCase(status, {}, later);
+    expect(output["instances"]).toMatchObject([{ lastPull: "2026-10-05 12:40:00" }]);
+    expect(await show(root, "instances/pdi/pull/state.yaml")).toContain(
+      "watermark: 2026-10-05 12:00:00",
+    );
+  });
+});
 
 describe("pull and integrate", () => {
   it("pulls an instance into its remote branch, reports the load, and integrates it", async () => {
@@ -99,8 +189,9 @@ describe("pull and integrate", () => {
       await runGitOrThrow(["ls-tree", "-r", "--name-only", "servicenow-remote/pdi"], root),
     ).toContain("rule--00000000000000000000000000000001.script.js");
     const integrated = await executeUseCase(integrate, { instance: "pdi" }, context);
-    // The record and its script, plus the three (here empty) inventory files.
-    expect(integrated.output["changedFiles"]).toBe(5);
+    // The record and its script, the three (here empty) inventory files, and the pull state and
+    // catalog (ADR-0052).
+    expect(integrated.output["changedFiles"]).toBe(7);
   });
 
   it("reports a redacted secret by path and pattern, never by value", async () => {
@@ -141,11 +232,14 @@ describe("pull and integrate", () => {
     await oldMirror.prepare();
     const field = "global/sys_script/rule--00000000000000000000000000000001.script.js";
     await oldMirror.writeText(paths.metadata, field, `const key = '${leaked}';\n`);
-    await oldMirror.finish("old mirror with a secret");
-    const state = new JsonSyncStateStore(join(root, paths.localState));
+    const state = syncStateStore(root, name);
     const stored = await state.readState();
     if (stored === null) throw new Error("the first pull did not store sync state");
-    await state.writeState({ ...stored, secretScanVersion: 0 });
+    await oldMirror.writeDocument(paths.root, "pull/state.yaml", {
+      ...stored,
+      secretScanVersion: 0,
+    });
+    await oldMirror.finish("old mirror with a secret");
 
     const result = await executeUseCase(pull, { instance: "pdi" }, context);
     expect(result.output["secretRedactions"]).toContainEqual({

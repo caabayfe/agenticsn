@@ -40,12 +40,13 @@ const reader = (files: Record<string, Row[]> = FILES) => ({
 });
 const state = (watermark: string | null): SyncStateStore => ({
   readCatalog: async () => null,
-  writeCatalog: async () => {},
   readCheckpoint: async () => null,
   writeCheckpoint: async () => {},
   clearCheckpoint: async () => {},
   readState: async () => (watermark === null ? null : { watermark, lastFullPull: watermark }),
-  writeState: async () => {},
+  heldLocally: async () => false,
+  noteUnchanged: async () => {},
+  forgetLocalState: async () => {},
 });
 
 describe("listPlugins", () => {

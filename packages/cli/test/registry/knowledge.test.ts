@@ -2,6 +2,7 @@ import { afterEach, expect, describe as group, it } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { InstanceName } from "@snagentic/core";
+import { GitMirror } from "../../src/adapters/git/git-mirror";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { toYaml } from "../../src/adapters/yaml/own-style";
 import { advise } from "../../src/registry/advise";
@@ -49,9 +50,14 @@ async function workspace() {
     ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "integrate"],
     ws.root,
   );
-  await ws.context
-    .syncState(ws.root, InstanceName.parse("pdi"))
-    .writeCatalog({ parents: { incident: "task", task: null }, scopes: {}, typedFields: {} });
+  // The catalog comes from the mirror's pull state (ADR-0052), as any clone has it.
+  const mirror = await GitMirror.open(ws.root, InstanceName.parse("pdi"), "fresh");
+  await mirror.writeDocument("instances/pdi", "pull/catalog.yaml", {
+    parents: { incident: "task", task: null },
+    scopes: {},
+    typedFields: {},
+  });
+  await mirror.finish("pull");
   return ws;
 }
 

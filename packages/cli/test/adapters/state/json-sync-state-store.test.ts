@@ -20,15 +20,16 @@ describe("JsonSyncStateStore", () => {
   it("returns nothing before anything was saved", async () => {
     const { store: state } = await store();
     expect([
-      await state.readCatalog(),
+      await state.readLegacyCatalog(),
       await state.readCheckpoint(),
-      await state.readState(),
-    ]).toEqual([null, null, null]);
+      await state.readLegacyState(),
+      await state.readNote(),
+    ]).toEqual([null, null, null, null]);
+    expect(state.hasLegacyState()).toBe(false);
   });
 
-  it("saves and reads back the catalog, the checkpoint and the sync state", async () => {
+  it("saves and reads back the checkpoint and the note of a check", async () => {
     const { store: state } = await store();
-    const catalog = { parents: { a: null }, scopes: {}, typedFields: {} };
     const checkpoint = {
       startedAt: "2026-10-05 12:00:00",
       completedClasses: ["sys_script"],
@@ -36,17 +37,24 @@ describe("JsonSyncStateStore", () => {
       secretScanVersion: 1,
       secretRedactions: [{ path: "instances/pdi/a.yaml", patterns: ["jwt" as const] }],
     };
-    await state.writeCatalog(catalog);
     await state.writeCheckpoint(checkpoint);
-    await state.writeState({
-      watermark: "2026-10-05 12:00:00",
-      lastFullPull: "2026-10-05 12:00:00",
-      secretScanVersion: 1,
-    });
-    expect(await state.readCatalog()).toEqual(catalog);
+    const note = {
+      commit: "abc",
+      state: { watermark: "2026-10-05 12:00:00", lastFullPull: "x", pulledBy: "admin" },
+    };
+    await state.writeNote(note);
     expect(await state.readCheckpoint()).toEqual(checkpoint);
-    expect((await state.readState())?.watermark).toBe("2026-10-05 12:00:00");
-    expect((await state.readState())?.secretScanVersion).toBe(1);
+    expect(await state.readNote()).toEqual(note);
+  });
+
+  it("forgets the state and catalog an earlier version kept here", async () => {
+    const { store: state, directory } = await store();
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, "sync-state.json"), '{"watermark":"w","lastFullPull":"l"}');
+    await writeFile(join(directory, "catalog.json"), '{"parents":{},"scopes":{},"typedFields":{}}');
+    expect(state.hasLegacyState()).toBe(true);
+    await state.forgetLegacy();
+    expect(await readdir(directory)).toEqual([]);
   });
 
   it("clears the checkpoint and leaves no temporary files behind", async () => {
@@ -73,40 +81,28 @@ describe("JsonSyncStateStore", () => {
     await mkdir(directory, { recursive: true });
     const old = { watermark: "2026-10-01 00:00:00", lastFullPull: "2026-10-01 00:00:00" };
     await writeFile(join(directory, "sync-state.json"), `${JSON.stringify(old)}\n`);
-    expect(await state.readState()).toEqual(old);
+    expect(await state.readLegacyState()).toEqual(old);
   });
 
-  it("keeps fields a newer version wrote when it reads and writes the files back", async () => {
+  it("keeps fields a newer version wrote when it reads and writes a checkpoint back", async () => {
     const { store: state, directory } = await store();
     await mkdir(directory, { recursive: true });
     const newer = { addedLater: { kept: true } };
-    const files = {
-      "sync-state.json": { watermark: "w", lastFullPull: "l", ...newer },
-      "pull-checkpoint.json": { startedAt: "s", completedClasses: [], records: 0, ...newer },
-      "catalog.json": { parents: {}, scopes: {}, typedFields: {}, ...newer },
-    };
-    for (const [name, content] of Object.entries(files)) {
-      await writeFile(join(directory, name), `${JSON.stringify(content)}\n`);
-    }
-    const [read, checkpoint, catalog] = [
-      await state.readState(),
-      await state.readCheckpoint(),
-      await state.readCatalog(),
-    ];
-    if (read === null || checkpoint === null || catalog === null) throw new Error("not read");
-    await state.writeState({ ...read, watermark: "w2" });
+    const content = { startedAt: "s", completedClasses: [], records: 0, ...newer };
+    await writeFile(join(directory, "pull-checkpoint.json"), `${JSON.stringify(content)}\n`);
+    const checkpoint = await state.readCheckpoint();
+    if (checkpoint === null) throw new Error("not read");
     await state.writeCheckpoint(checkpoint);
-    await state.writeCatalog(catalog);
-    for (const name of Object.keys(files)) {
-      expect(JSON.parse(await readFile(join(directory, name), "utf8"))).toMatchObject(newer);
-    }
+    const written = await readFile(join(directory, "pull-checkpoint.json"), "utf8");
+    expect(JSON.parse(written)).toMatchObject(newer);
+    expect(await state.readLegacyState()).toBeNull();
   });
 
   it("refuses a state file that is not JSON, naming the file and what to do", async () => {
     const { store: state, directory } = await store();
     await mkdir(directory, { recursive: true });
     await writeFile(join(directory, "sync-state.json"), "{ half a file");
-    const error = await state.readState().catch((caught: unknown) => caught);
+    const error = await state.readLegacyState().catch((caught: unknown) => caught);
     expect(error).toMatchObject({ code: "invalid-state-file", category: "precondition" });
     expect(String(error)).toContain("sync-state.json");
     expect(Reflect.get(Object(error), "hint")).toContain("pull --full");
@@ -128,6 +124,6 @@ describe("JsonSyncStateStore", () => {
     await mkdir(directory, { recursive: true });
     const bad = { parents: { a: null }, scopes: {}, typedFields: { a: { b: 1 } } };
     await writeFile(join(directory, "catalog.json"), JSON.stringify(bad));
-    await expect(state.readCatalog()).rejects.toMatchObject({ code: "invalid-state-file" });
+    await expect(state.readLegacyCatalog()).rejects.toMatchObject({ code: "invalid-state-file" });
   });
 });

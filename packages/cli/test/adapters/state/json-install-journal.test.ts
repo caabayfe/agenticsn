@@ -88,4 +88,13 @@ describe("the install journal (ADR-0038, item 2.5)", () => {
     writeFileSync(join(directory, "install.json"), "not json");
     await expect(journal.read()).rejects.toMatchObject({ code: "invalid-state-file" });
   });
+
+  it("reports a journal it cannot read instead of finding nothing to recover", async () => {
+    const directory = join(mkdtempSync(join(tmpdir(), "install-")), "pdi");
+    // A directory where the file should be: readable as neither missing nor a journal.
+    mkdirSync(join(directory, "install.json"), { recursive: true });
+    const read = new JsonInstallJournal(directory).read();
+    await expect(read).rejects.toMatchObject({ code: "unreadable-state-file" });
+    await expect(new JsonInstallJournal(directory).read()).rejects.toThrow("install.json");
+  });
 });

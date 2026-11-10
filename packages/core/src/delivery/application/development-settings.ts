@@ -1,6 +1,14 @@
 import { TableName } from "../../kernel/table-name";
 import { GLOBAL } from "../domain/batch";
-import { type InstanceSession, restorePreference, switchPreference, userSysId } from "./push-steps";
+import type { SwitchedPreference } from "../ports";
+import {
+  applyPreference,
+  currentPreference,
+  type InstanceSession,
+  restorePreference,
+  restoring,
+  userSysId,
+} from "./push-steps";
 
 // Settings a development instance needs and no update set may carry to test or production, such
 // as ATF test execution (ADR-0047): written in an update set of their own, set to "ignore" once
@@ -35,6 +43,29 @@ async function propertiesOf(session: InstanceSession, names: readonly string[]) 
   );
 }
 
+// Puts back every preference read before its switch, and sets the update set to ignore, trying
+// all of them even after a cancel; the first failure is returned, not thrown.
+async function putBack(
+  session: InstanceSession,
+  switched: readonly SwitchedPreference[],
+  set: string,
+): Promise<unknown> {
+  const cleanup = restoring(session);
+  const steps = [
+    ...[...switched].reverse().map((preference) => () => restorePreference(cleanup, preference)),
+    async () => {
+      await cleanup.writer.update("sys_update_set", set, { state: "ignore" }, cleanup.signal);
+    },
+  ];
+  let failure: unknown = null;
+  for (const step of steps) {
+    await step().catch((error: unknown) => {
+      failure ??= error;
+    });
+  }
+  return failure;
+}
+
 async function writeApart(
   session: InstanceSession,
   username: string,
@@ -52,21 +83,27 @@ async function writeApart(
     },
     session.signal,
   );
-  const switched = [
-    await switchPreference(session, user, "apps.current_app", GLOBAL),
-    await switchPreference(session, user, "sys_update_set", set["sys_id"] ?? ""),
-  ];
+  const setId = set["sys_id"] ?? "";
+  // Each preference is kept before it is switched, so a switch that fails, or whose outcome is
+  // unknown, is put back too.
+  const switched: SwitchedPreference[] = [];
+  const prefer = async (preference: string, value: string) => {
+    const current = await currentPreference(session, user, preference);
+    switched.push(current);
+    switched[switched.length - 1] = await applyPreference(session, current, value);
+  };
+  let failure: unknown = null;
   try {
+    await prefer("apps.current_app", GLOBAL);
+    await prefer("sys_update_set", setId);
     await write();
-  } finally {
-    for (const preference of switched.reverse()) await restorePreference(session, preference);
-    await session.writer.update(
-      "sys_update_set",
-      set["sys_id"] ?? "",
-      { state: "ignore" },
-      session.signal,
-    );
+  } catch (error) {
+    failure = error;
   }
+  const restoreFailure = await putBack(session, switched, setId);
+  // The write's own failure is what the user needs to see first.
+  if (failure !== null) throw failure;
+  if (restoreFailure !== null) throw restoreFailure;
 }
 
 export async function applyDevelopmentSettings(

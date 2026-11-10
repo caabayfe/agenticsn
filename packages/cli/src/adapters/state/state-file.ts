@@ -1,9 +1,35 @@
+import { readFile } from "node:fs/promises";
 import { SnagenticError } from "@snagentic/core";
 import type { z } from "zod";
 
 class InvalidStateFileError extends SnagenticError {
   constructor(path: string, reason: string, hint: string) {
     super("invalid-state-file", "precondition", `${path} is not valid: ${reason}`, hint);
+  }
+}
+
+class UnreadableStateFileError extends SnagenticError {
+  constructor(path: string, reason: string) {
+    super(
+      "unreadable-state-file",
+      "precondition",
+      `${path} could not be read: ${reason}`,
+      `check that you can read ${path} and its folder (permissions, a disk or sync tool holding it), then run the command again`,
+    );
+  }
+}
+
+// A state file's text, or null when there is none. Any other failure to read it stops: a journal
+// that exists but can't be read is not "nothing to recover" (REL2-06).
+export async function readStateText(path: string): Promise<string | null> {
+  try {
+    return await readFile(path, "utf8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
+    throw new UnreadableStateFileError(
+      path,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 

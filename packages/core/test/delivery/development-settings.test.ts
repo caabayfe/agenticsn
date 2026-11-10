@@ -1,6 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { applyDevelopmentSettings, DEMO_SETTINGS_SET, type Row } from "@snagentic/core";
+import {
+  applyDevelopmentSettings,
+  DEMO_SETTINGS_SET,
+  OperationCancelledError,
+  type Row,
+} from "@snagentic/core";
 import { fakeInstance } from "../support/fake-instance";
+import { refusingWhenAborted } from "../support/scheduler-guard";
 
 // Settings a development instance needs and test or production must never get (ADR-0047).
 
@@ -67,5 +73,61 @@ describe("development settings (ADR-0047)", () => {
     const result = await applyDevelopmentSettings(session, "admin", ATF);
     expect(result).toEqual({ changed: [], missing: ["sn_atf.schedule.enabled"] });
     expect(tables["sys_update_set"] ?? []).toEqual([]);
+  });
+
+  it("puts the user's preferences back and sets its update set to ignore when the run is cancelled", async () => {
+    const { tables, session } = instance({ "sn_atf.runner.enabled": "false" });
+    const run = new AbortController();
+    const guarded = refusingWhenAborted(session.reader, session.writer);
+    const writer = {
+      ...guarded.writer,
+      update: async (
+        table: string,
+        sysId: string,
+        values: Record<string, string>,
+        signal: AbortSignal,
+      ) => {
+        if (table === "sys_properties") {
+          run.abort();
+          throw new OperationCancelledError();
+        }
+        return guarded.writer.update(table, sysId, values, signal);
+      },
+    };
+    const cancelled = { reader: guarded.reader, writer, signal: run.signal };
+    await expect(applyDevelopmentSettings(cancelled, "admin", ATF)).rejects.toThrow(
+      OperationCancelledError,
+    );
+    const preference = (name: string) =>
+      tables["sys_user_preference"]?.find((r) => r["name"] === name)?.["value"];
+    expect(preference("sys_update_set")).toBe("mine");
+    expect(preference("apps.current_app")).toBe("x_app");
+    expect(tables["sys_update_set"]?.map((s) => s["state"])).toEqual(["ignore"]);
+  });
+
+  it("puts the current application back when switching the update set fails", async () => {
+    const { tables, session } = instance({ "sn_atf.runner.enabled": "false" });
+    const writer = {
+      ...session.writer,
+      update: async (
+        table: string,
+        sysId: string,
+        values: Record<string, string>,
+        signal: AbortSignal,
+      ) => {
+        if (sysId === "pref1" && values["value"] !== "mine")
+          throw new Error("instance unreachable");
+        return session.writer.update(table, sysId, values, signal);
+      },
+    };
+    await expect(applyDevelopmentSettings({ ...session, writer }, "admin", ATF)).rejects.toThrow(
+      "instance unreachable",
+    );
+    const preference = (name: string) =>
+      tables["sys_user_preference"]?.find((r) => r["name"] === name)?.["value"];
+    expect(preference("apps.current_app")).toBe("x_app");
+    expect(preference("sys_update_set")).toBe("mine");
+    const value = tables["sys_properties"]?.find((r) => r["name"] === "sn_atf.runner.enabled");
+    expect(value?.["value"]).toBe("false");
   });
 });

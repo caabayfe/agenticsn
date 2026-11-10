@@ -64,4 +64,13 @@ describe("the push journal", () => {
     expect(String(error)).toContain("steps.0.state");
     expect(Reflect.get(Object(error), "hint")).toContain("update set");
   });
+
+  it("reports a journal it cannot read instead of finding nothing to recover", async () => {
+    const directory = folder();
+    // A directory where the file should be: readable as neither missing nor a journal.
+    mkdirSync(join(directory, "push-journal.json"));
+    const read = new JsonPushJournalStore(directory).read();
+    await expect(read).rejects.toMatchObject({ code: "unreadable-state-file" });
+    await expect(new JsonPushJournalStore(directory).read()).rejects.toThrow("push-journal.json");
+  });
 });

@@ -1,8 +1,8 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { InstallJournal, InstallRecord } from "@snagentic/core";
 import { z } from "zod";
-import { parseStateFile } from "./state-file";
+import { parseStateFile, readStateText } from "./state-file";
 
 // Fields it doesn't know are kept, for a journal a newer version wrote.
 const InstallFile: z.ZodType<InstallRecord> = z.looseObject({
@@ -39,7 +39,7 @@ export class JsonInstallJournal implements InstallJournal {
   }
 
   async read(): Promise<InstallRecord | null> {
-    const text = await readFile(this.path, "utf8").catch(() => null);
+    const text = await readStateText(this.path);
     return text === null
       ? null
       : parseStateFile(

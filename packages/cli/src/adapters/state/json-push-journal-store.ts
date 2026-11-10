@@ -1,8 +1,8 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { PushJournal, PushJournalStore } from "@snagentic/core";
 import { z } from "zod";
-import { parseStateFile } from "./state-file";
+import { parseStateFile, readStateText } from "./state-file";
 
 const Preference = z.object({
   sysId: z.string(),
@@ -44,7 +44,7 @@ export class JsonPushJournalStore implements PushJournalStore {
   }
 
   async read(): Promise<PushJournal | null> {
-    const text = await readFile(this.path, "utf8").catch(() => null);
+    const text = await readStateText(this.path);
     // The journal is what recovers an interrupted push, so removing it is a person's decision.
     return text === null
       ? null

@@ -1,6 +1,6 @@
 import { InstanceName, pushUnits } from "@snagentic/core";
 import { z } from "zod";
-import { connect } from "./connect";
+import { connectForWrite } from "./connect";
 import { NextCalls } from "./knowledge-schemas";
 import { installerOf, unitPlanDependencies } from "./unit-delivery";
 import { defineUseCase } from "./use-case";
@@ -125,7 +125,7 @@ export const push = defineUseCase({
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
   mcp: true,
   async handle(input, context, run) {
-    const connection = await connect(context, input.instance, run.signal);
+    const connection = await connectForWrite(context, input.instance, run.signal);
     const { root, profile, reader } = connection;
     run.progress({ message: `pushing plan ${input.plan}` });
     const instance = InstanceName.parse(input.instance);

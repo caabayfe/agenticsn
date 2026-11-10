@@ -73,7 +73,7 @@ async function setup(data: Record<string, Row[]> = structuredClone(DATA)) {
     workspaces: new FsWorkspaceStore(),
     profiles,
     credentials: TRUSTED_PASSWORD,
-    connections: { open: () => instance.reader },
+    connections: { open: () => instance.reader, openForWrite: () => instance.reader },
     syncState: (r, instance) => new JsonSyncStateStore(join(r, instancePaths(instance).localState)),
     mirrors: { open: (r, instance, mode) => GitMirror.open(r, instance, mode) },
     integrator: gitIntegrator,

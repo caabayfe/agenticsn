@@ -8,7 +8,7 @@ import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-stor
 import { runCli } from "../../src/cli/run-cli";
 import { USE_CASES } from "../../src/registry/registry";
 import type { UseCaseContext } from "../../src/registry/use-case";
-import { captureIo, FAKE_CONTEXT } from "../support/fakes";
+import { captureIo, connectionsTo, FAKE_CONTEXT } from "../support/fakes";
 
 const temporary: string[] = [];
 afterEach(async () => {
@@ -59,55 +59,52 @@ async function setup() {
         return "typed-secret";
       },
     },
-    connections: {
-      open: () => ({
-        query: async (query) =>
-          String(query.table) === "sys_user_has_role"
-            ? roles
-                .filter(
-                  (role) =>
-                    query.query.includes(`role.name=${role}`) ||
-                    query.query.includes("role.nameIN"),
-                )
-                .map((role) => ({ "role.name": role, sys_id: role }))
-            : [{ sys_id: "u1", user_name: "admin", sys_updated_on: "2026-09-23 20:12:26" }],
-        fingerprint: async () => ({ count: 0, maxUpdatedOn: null }),
-        writer: {
-          insert: async () => ({}),
-          update: async () => ({}),
-        },
-        countBy: async () => new Map(),
-        count: async () => 0,
-        serverCost: async () => {
+    connections: connectionsTo({
+      query: async (query) =>
+        String(query.table) === "sys_user_has_role"
+          ? roles
+              .filter(
+                (role) =>
+                  query.query.includes(`role.name=${role}`) || query.query.includes("role.nameIN"),
+              )
+              .map((role) => ({ "role.name": role, sys_id: role }))
+          : [{ sys_id: "u1", user_name: "admin", sys_updated_on: "2026-09-23 20:12:26" }],
+      fingerprint: async () => ({ count: 0, maxUpdatedOn: null }),
+      writer: {
+        insert: async () => ({}),
+        update: async () => ({}),
+      },
+      countBy: async () => new Map(),
+      count: async () => 0,
+      serverCost: async () => {
+        throw new Error("not used");
+      },
+      plugins: {
+        activate: async () => {
           throw new Error("not used");
         },
-        plugins: {
-          activate: async () => {
-            throw new Error("not used");
-          },
-          progress: async () => {
-            throw new Error("not used");
-          },
+        progress: async () => {
+          throw new Error("not used");
         },
-        apps: {
-          install: async () => {
-            throw new Error("not used");
-          },
-          progress: async () => {
-            throw new Error("not used");
-          },
+      },
+      apps: {
+        install: async () => {
+          throw new Error("not used");
         },
-        stats: () => ({
-          requests: 3,
-          retries: 0,
-          semaphoreWaitMs: 0,
-          transactionIds: [],
-          concurrencyLimit: 2,
-          peakConcurrency: 2,
-          requestMs: 0,
-        }),
+        progress: async () => {
+          throw new Error("not used");
+        },
+      },
+      stats: () => ({
+        requests: 3,
+        retries: 0,
+        semaphoreWaitMs: 0,
+        transactionIds: [],
+        concurrencyLimit: 2,
+        peakConcurrency: 2,
+        requestMs: 0,
       }),
-    },
+    }),
     host: { cwd: join(root, "instances"), home: base, version: "test" },
   };
   const run = async (...argv: string[]) => {

@@ -23,6 +23,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   (`HTTPS_PROXY`, `NO_PROXY`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE` and similar). Set them in
   your own environment, where they keep working.
 
+- One write gate for every change to an instance (ADR-0012, layer 3). The use cases an install
+  runs go through the same checks as any other call. Only a development instance's connection
+  has write ports, and only use cases declared as changing an instance can open one. The
+  ServiceNow adapter also refuses to send a write to a test or production instance.
+
 ### Fixed
 
 - A push whose ledger commit fails after the push reached the instance (a commit-msg hook that

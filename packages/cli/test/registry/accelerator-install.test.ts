@@ -271,7 +271,7 @@ describe("accelerator install (ADR-0038)", () => {
       ...installed.context,
       packs,
       workspaceFiles: fsWorkspaceFiles,
-      connections: { open: () => recording },
+      connections: { open: () => recording, openForWrite: () => recording },
     };
     const input = { pack: "forms", instance: "pdi", demo: true };
     const { output: plan } = await executeUseCase(acceleratorInstall, input, context);

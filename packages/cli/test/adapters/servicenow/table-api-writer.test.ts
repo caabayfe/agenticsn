@@ -1,18 +1,27 @@
 import { describe, expect, it } from "bun:test";
-import { createProfile, InstanceName } from "@snagentic/core";
+import {
+  createProfile,
+  type DevelopmentProfile,
+  ensureDevelopmentInstance,
+  InstanceName,
+} from "@snagentic/core";
 import type { HttpRequest, Transport } from "../../../src/adapters/servicenow/http-types";
 import { RequestScheduler } from "../../../src/adapters/servicenow/request-scheduler";
-import { ServiceNowClient } from "../../../src/adapters/servicenow/servicenow-client";
+import { ServiceNowWriteClient } from "../../../src/adapters/servicenow/servicenow-write-client";
 import { fakeClock, response } from "./scheduler-fakes";
 
 const LIVE = new AbortController().signal;
-const profile = createProfile({
-  name: InstanceName.parse("pdi"),
-  url: "dev312411",
-  username: "admin",
-  kind: "development",
-  acknowledgeReadOnly: false,
-});
+function developmentProfile(): DevelopmentProfile {
+  const profile = createProfile({
+    name: InstanceName.parse("pdi"),
+    url: "dev312411",
+    username: "admin",
+    kind: "development",
+    acknowledgeReadOnly: false,
+  });
+  ensureDevelopmentInstance(profile, "the writer tests");
+  return profile;
+}
 
 function writerWith(reply: (request: HttpRequest) => ReturnType<Transport>) {
   const sent: HttpRequest[] = [];
@@ -20,8 +29,8 @@ function writerWith(reply: (request: HttpRequest) => ReturnType<Transport>) {
     sent.push(request);
     return reply(request);
   };
-  const client = new ServiceNowClient(
-    profile,
+  const client = new ServiceNowWriteClient(
+    developmentProfile(),
     "secret",
     new RequestScheduler(transport, { clock: fakeClock() }),
     "v",

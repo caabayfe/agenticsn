@@ -49,7 +49,7 @@ export async function instanceWorkspace(
     workspaces: new FsWorkspaceStore(),
     profiles,
     credentials: TRUSTED_PASSWORD,
-    connections: { open: () => instance.reader },
+    connections: { open: () => instance.reader, openForWrite: () => instance.reader },
     syncState: (r, name) => new JsonSyncStateStore(join(r, instancePaths(name).localState)),
     mirrors: { open: (r, name, mode) => GitMirror.open(r, name, mode) },
     integrator: gitIntegrator,

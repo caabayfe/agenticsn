@@ -1,6 +1,6 @@
 import { ConfirmationRequiredError, installStoreApp } from "@snagentic/core";
 import { z } from "zod";
-import { connect } from "./connect";
+import { connectForWrite } from "./connect";
 import { defineUseCase } from "./use-case";
 
 // Store applications through the platform's installer (spec 011, I3; ADR-0038, section 4). CLI
@@ -42,7 +42,7 @@ export const appsInstall = defineUseCase({
     if (!input.confirm) {
       throw new ConfirmationRequiredError(`installing ${input.scope}`);
     }
-    const { name, pager, reader } = await connect(context, input.instance, run.signal);
+    const { name, pager, reader } = await connectForWrite(context, input.instance, run.signal);
     const deps = { pager, installer: reader.apps, sleep: context.sleep, now: context.clock };
     const outcome = await installStoreApp(
       deps,

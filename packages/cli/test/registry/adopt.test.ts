@@ -62,7 +62,7 @@ async function workspace(sdk = true) {
   const reader = sdk ? { ...ws.instance.reader, sdkAccess } : ws.instance.reader;
   const context = {
     ...ws.context,
-    connections: { open: () => reader },
+    connections: { open: () => reader, openForWrite: () => reader },
     authoring: () => ({ workspace: new WorkspaceAuthoring(ws.root, runtime), toolchain }),
   };
   return { ...ws, context };

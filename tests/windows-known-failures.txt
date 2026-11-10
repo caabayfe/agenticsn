@@ -4,7 +4,7 @@
 #   tar given a "C:\..." path reads it as a remote host ("Cannot connect to C: resolve failed")
 #   backslash paths where the code or the test expects "/" (docs pages, mirror files, hooks)
 #   fake programs written as "#!/bin/sh" scripts (gh, chrome, voices), not runnable on Windows
-#   replacing a running binary (EFTYPE, uv_spawn), file modes and permissions, line endings
+#   a doubled drive letter resolving the SDK ("D:\\D:\\..."), replacing a running binary (EFTYPE, uv_spawn), file modes and permissions, line endings
 packages/agent-packs/test/pack.test.ts
 packages/cli/test/adapters/accelerators/pack-source-loader.test.ts
 packages/cli/test/adapters/delivery/gh-pull-requests.test.ts
@@ -12,6 +12,7 @@ packages/cli/test/adapters/documentation/census-adapters.test.ts
 packages/cli/test/adapters/documentation/documentation-adapters.test.ts
 packages/cli/test/adapters/documentation/git-documentation-history.test.ts
 packages/cli/test/adapters/documentation/video-adapters.test.ts
+packages/cli/test/adapters/fluent/type-files.test.ts
 packages/cli/test/adapters/fluent/worker-runtime.test.ts
 packages/cli/test/adapters/fluent/workspace-authoring.test.ts
 packages/cli/test/adapters/fluent/workspace-fluent-projects.test.ts

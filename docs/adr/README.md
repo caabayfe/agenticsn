@@ -14,7 +14,7 @@ when the table is stale.
 | [0001](0001-modular-monolith-hexagonal.md) | Modular monolith with hexagonal architecture and bounded contexts | Accepted |
 | [0002](0002-agent-interface-model.md) | Agent interface model: files and CLI first, one small MCP, task-level skills | Accepted (amended by 0011, 0012, 0019, 0026) |
 | [0003](0003-use-case-registry.md) | One use-case registry generates CLI, MCP and hook interfaces | Accepted (amended by 0012) |
-| [0004](0004-deployment-topology.md) | One binary, git as the distribution layer, three operating modes | Accepted (amended by 0011, 0012, 0022, 0052) |
+| [0004](0004-deployment-topology.md) | One binary, git as the distribution layer, three operating modes | Accepted (amended by 0011, 0012, 0022, 0052, 0054) |
 | [0005](0005-typescript-and-bun.md) | TypeScript compiled to a single binary with Bun | Accepted |
 | [0006](0006-governance-model.md) | Governance validates any change source with three rule tiers | Accepted |
 | [0007](0007-disk-format-and-hash-contract.md) | Keep the v1 disk format, mirror branch and hash contract | Accepted (amended by 0014, 0015, 0017) |
@@ -30,7 +30,7 @@ when the table is stale.
 | [0017](0017-flat-record-layout-and-full-sync.md) | Flat record layout and full sync by default | Accepted (amended by 0025, 0027) |
 | [0018](0018-update-sets-read-live.md) | Update sets are read live, and exported from reads | Accepted |
 | [0019](0019-engine-served-through-mcp.md) | The engine is served through MCP; the harness only triggers it | Accepted |
-| [0020](0020-instance-trust-outside-the-repository.md) | Instance kind and address are trusted from outside the repository | Accepted (amended by 0021) |
+| [0020](0020-instance-trust-outside-the-repository.md) | Instance kind and address are trusted from outside the repository | Accepted (amended by 0021, 0054) |
 | [0021](0021-oauth-client-credentials.md) | OAuth client credentials, with checks bound to the authenticated session | Accepted |
 | [0022](0022-pull-requests-through-the-platform-cli.md) | Pull requests are linked and opened through the git platform's CLI | Accepted |
 | [0023](0023-upgrade-and-update-notice.md) | `snagentic upgrade` and an update notice, with no silent self-update | Accepted (amended by 0043) |
@@ -62,7 +62,7 @@ when the table is stale.
 | [0049](0049-demo-modules-turned-on-with-demo.md) | `--demo` turns on the demo modules it installs, on development only, never promoted | Accepted |
 | [0052](0052-the-mirror-carries-its-pull-state.md) | The mirror carries its pull state, so any clone continues a pull from git | Accepted |
 | [0053](0053-instance-owners-set-load-limits.md) | Instance owners set load limits; one scheduler per instance; the cost report is opt-in | Accepted |
-| [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Proposed |
+| [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Accepted |
 <!-- adr-index:end -->
 
 Requirements referenced as `ASR-nn` are in

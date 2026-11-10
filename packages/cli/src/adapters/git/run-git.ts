@@ -1,4 +1,19 @@
+import { SnagenticError } from "@snagentic/core";
 import { childEnvironment } from "../child-environment";
+
+// git refused a command (a hook, a lock file, the repository's state): an expected condition
+// of the user's repository, not a bug in snagentic.
+export class GitCommandFailedError extends SnagenticError {
+  constructor(args: readonly string[], stderr: string) {
+    super(
+      "git-command-failed",
+      "precondition",
+      `git ${args.join(" ")} failed: ${stderr.trim()}`,
+      "fix what git reports (a hook, a lock file such as .git/index.lock, the repository's " +
+        "state), then run the command again",
+    );
+  }
+}
 
 export interface GitResult {
   readonly exitCode: number;
@@ -25,7 +40,7 @@ export async function runGit(args: readonly string[], cwd: string): Promise<GitR
 export async function runGitOrThrow(args: readonly string[], cwd: string): Promise<string> {
   const result = await runGit(args, cwd);
   if (result.exitCode !== 0) {
-    throw new Error(`git ${args.join(" ")} failed: ${result.stderr.trim()}`);
+    throw new GitCommandFailedError(args, result.stderr);
   }
   return result.stdout;
 }
@@ -64,6 +79,6 @@ export async function* gitLines(
     }
   }
   if (!success.includes(await child.exited)) {
-    throw new Error(`git ${args.join(" ")} failed: ${(await stderr).trim()}`);
+    throw new GitCommandFailedError(args, await stderr);
   }
 }

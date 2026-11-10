@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { InstanceName } from "@snagentic/core";
 import { GitDeliveryWorkspace } from "../../../src/adapters/delivery/git-delivery-workspace";
-import { runGitOrThrow } from "../../../src/adapters/git/run-git";
+import { GitCommandFailedError, runGitOrThrow } from "../../../src/adapters/git/run-git";
 
 const META = "instances/pdi/metadata";
 const git = (root: string, ...args: string[]) =>
@@ -55,6 +55,28 @@ describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
     expect(await workspace.commitFiles(["source/global/src/fluent/ensure-m.now.ts"], "again")).toBe(
       first,
     );
+  });
+
+  it("fails a commit a commit-msg hook rejects with git's message and a hint, committing nothing", async () => {
+    const { root, write, workspace } = await repository();
+    // The repository's own hooks path, so a global core.hooksPath cannot bypass the hook.
+    await write(
+      ".hooks/commit-msg",
+      "#!/bin/sh\necho 'commit message needs a ticket key' >&2\nexit 1\n",
+    );
+    await chmod(join(root, ".hooks/commit-msg"), 0o755);
+    await git(root, "config", "core.hooksPath", ".hooks");
+    const before = (await git(root, "rev-parse", "HEAD")).trim();
+    await write("source/x_app/snagentic.ledger.yaml", "x: 1\n");
+    const failed = workspace.commitFiles(["source/x_app/snagentic.ledger.yaml"], "ledger");
+    await expect(failed).rejects.toBeInstanceOf(GitCommandFailedError);
+    await expect(failed).rejects.toMatchObject({
+      code: "git-command-failed",
+      category: "precondition",
+      message: expect.stringContaining("commit message needs a ticket key"),
+      hint: expect.stringContaining("hook"),
+    });
+    expect((await git(root, "rev-parse", "HEAD")).trim()).toBe(before);
   });
 
   it("publishes the branch to origin and sets it as upstream", async () => {

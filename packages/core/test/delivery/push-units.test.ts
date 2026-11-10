@@ -53,6 +53,29 @@ describe("push on built units (ADR-0031 item 4)", () => {
     expect(tables["sys_user_preference"]?.every((p) => p["value"] === "")).toBe(true);
   });
 
+  it("reports a push as succeeded when the ledger commit fails, with the command to commit it", async () => {
+    const { deps, plan, state, authoring, project, journal } = await planned();
+    state.commitFailure = "git commit failed: commit-msg hook: no ticket key";
+    const result = await pushUnits(deps, { ...QUERY, planId: plan.planId, confirm: true });
+    expect(result.units.map((u) => u.applied)).toEqual([true]);
+    expect(result.ledgerCommit).toBeNull();
+    expect(authoring.ledgers.get(project.path)?.get("dev")?.get(SI_UNIT)?.instance).toBe(
+      "2|2026-10-16 12:00:00",
+    );
+    expect(await journal.read()).toBeNull();
+    const message = `chore(snagentic): ledger after push ${plan.planId} to dev`;
+    expect(result.warnings).toEqual([
+      "the push succeeded, but committing the ledger failed (git commit failed: commit-msg hook: no ticket key). " +
+        `Commit it yourself: git add -- source/x_app/snagentic.ledger.yaml && git commit -m "${message}" -- source/x_app/snagentic.ledger.yaml`,
+    ]);
+  });
+
+  it("has no warning when the ledger commit succeeds", async () => {
+    const { deps, plan } = await planned();
+    const result = await pushUnits(deps, { ...QUERY, planId: plan.planId, confirm: true });
+    expect(result.warnings).toEqual([]);
+  });
+
   it("leaves nothing to push afterwards: the ledger says source and instance agree", async () => {
     const { deps, plan } = await planned();
     await pushUnits(deps, { ...QUERY, planId: plan.planId, confirm: true });

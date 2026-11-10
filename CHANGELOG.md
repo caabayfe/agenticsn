@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A push whose ledger commit fails after the push reached the instance (a commit-msg hook that
+  needs a ticket key, a pre-commit hook, a lock file) is reported as succeeded: the result has
+  `ledgerCommit: null` and a warning with the command that commits the ledger. A failed git
+  command is now an expected error (`git-command-failed`) with git's message and a hint, not
+  "a bug in snagentic" (spec 014, F5).
+
 ## [2.19.1] - 2026-11-08
 
 ### Fixed

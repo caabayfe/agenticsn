@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gitLines, runGitOrThrow } from "../../../src/adapters/git/run-git";
+import { GitCommandFailedError, gitLines, runGitOrThrow } from "../../../src/adapters/git/run-git";
 
 async function collect(lines: AsyncIterable<string>): Promise<string[]> {
   const all: string[] = [];
@@ -30,5 +30,17 @@ describe("gitLines", () => {
     await expect(
       collect(gitLines(["rev-parse", "--verify", "no-such-ref"], tmpdir())),
     ).rejects.toThrow(/git rev-parse --verify no-such-ref failed/);
+  });
+});
+
+describe("runGitOrThrow", () => {
+  it("fails with an expected error carrying git's message and a hint, not a bug report", async () => {
+    const failed = runGitOrThrow(["rev-parse", "--verify", "no-such-ref"], tmpdir());
+    await expect(failed).rejects.toBeInstanceOf(GitCommandFailedError);
+    await expect(failed).rejects.toMatchObject({
+      code: "git-command-failed",
+      category: "precondition",
+      message: expect.stringMatching(/^git rev-parse --verify no-such-ref failed: \S/),
+    });
   });
 });

@@ -117,6 +117,7 @@ describe("push (ADR-0031 item 4)", () => {
         notApplied: 2,
         refused: [{ table: "t", reason: "permission denied", records: ["n"], action: "do x" }],
         ledgerCommit: "0123456789abcdef",
+        warnings: [],
         next: [],
       },
       "text",
@@ -131,6 +132,34 @@ describe("push (ADR-0031 item 4)", () => {
       "refused: 1 t record(s), permission denied: do x",
       "ledger committed: 0123456789",
       "0 load(s) not captured, 2 not applied as built: check them on the instance before moving the update set",
+    ]);
+  });
+
+  it("shows a ledger that could not be committed as a warning, not as no change", () => {
+    const set = { name: "snagentic: main", sysId: "b1", created: false, link: "l/b1" };
+    const text = push.render(
+      {
+        instance: "pdi",
+        planId: "p",
+        batch: set,
+        pullRequest: { status: "none" },
+        updateSets: [{ scope: "global", ...set }],
+        units: [],
+        notCaptured: 0,
+        notApplied: 0,
+        refused: [],
+        ledgerCommit: null,
+        warnings: [
+          "the push succeeded, but committing the ledger failed (hook). Commit it yourself: git ...",
+        ],
+        next: [],
+      },
+      "text",
+    );
+    expect(text.split("\n").slice(-3)).toEqual([
+      "ledger not committed",
+      "warning: the push succeeded, but committing the ledger failed (hook). Commit it yourself: git ...",
+      "pushed 0 unit(s)",
     ]);
   });
 });

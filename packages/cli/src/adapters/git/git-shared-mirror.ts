@@ -7,6 +7,7 @@ import {
 } from "@snagentic/core";
 import { pullStateAt } from "../state/mirror-sync-state-store";
 import { moveMirrorBranch } from "./mirror-ref";
+import { checkMirrorCommits } from "./mirror-tree-scope";
 import { runGit, runGitOrThrow } from "./run-git";
 
 const firstLine = (text: string) => text.trim().split("\n")[0] ?? "";
@@ -54,7 +55,12 @@ export const gitSharedMirror: SharedMirror = {
     return result.exitCode === 0;
   },
 
+  // The shared tip becomes this clone's mirror, which every later pull builds on and integrate
+  // merges: it must hold only what a pull writes. The local tip was checked when it arrived (or
+  // written by a pull here), so only what the shared tip changes since then is listed; the whole
+  // tree only when there is no local tip.
   async moveTo(root, instance, move) {
+    await checkMirrorCommits(root, instance, { from: move.expected, to: move.commit });
     await moveMirrorBranch(root, instance, { ref: branchOf(instance), ...move });
   },
 

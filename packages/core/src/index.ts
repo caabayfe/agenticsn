@@ -261,6 +261,11 @@ export {
   type WorkspaceManifest,
 } from "./workspace/domain/manifest";
 export { withMcpServer } from "./workspace/domain/mcp-config";
+export {
+  checkMirrorScope,
+  MirrorScopeError,
+  type MirrorTreeEntry,
+} from "./workspace/domain/mirror-scope";
 export { protectedReason } from "./workspace/domain/protected-paths";
 export type {
   LockHolder,

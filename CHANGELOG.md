@@ -152,6 +152,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   direct dependencies that bring them in. The advisory check reads both from `bun.lock` and fails
   when an advisory hits another version or arrives another way, so a decision can't silently
   outlive the copies it was made about (spec 014, F2).
+- `integrate` takes from `servicenow-remote/<name>` only regular files under the instance's
+  `metadata/`, `operational/` and `pull/` folders, the only files a pull writes. A mirror commit
+  that adds, changes or removes anything else, or holds a link or a submodule, is refused with
+  the paths named, before the branch, index or working tree changes. `pull` and `integrate` refuse
+  to move to a shared mirror tip that holds such paths in the same way (spec 014, 1b-A).
 
 - Update set export applies the ADR-0035 secret scan: an update whose payload holds a
   credential-shaped value is withheld whole and listed with the pattern name, as typed secrets

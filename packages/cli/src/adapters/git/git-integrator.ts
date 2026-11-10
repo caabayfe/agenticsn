@@ -8,6 +8,7 @@ import {
   PULL_FOLDER,
   SnagenticError,
 } from "@snagentic/core";
+import { checkMirrorCommits } from "./mirror-tree-scope";
 import { pulledRecords } from "./pulled-records";
 import { runGit, runGitOrThrow } from "./run-git";
 
@@ -23,9 +24,10 @@ const lines = (text: string): string[] => text.split("\n").filter(Boolean);
 
 async function ensureIntegrable(root: string, instance: string) {
   const paths = instancePaths(InstanceName.parse(instance));
-  if (
-    (await runGit(["rev-parse", "--verify", "--quiet", paths.remoteBranch], root)).exitCode !== 0
-  ) {
+  // The branch is read once: the check, the merge and the instance's copies all use this commit,
+  // whatever moves the branch meanwhile.
+  const resolved = await runGit(["rev-parse", "--verify", "--quiet", paths.remoteBranch], root);
+  if (resolved.exitCode !== 0) {
     throw new NothingPulledError(instance);
   }
   // Only tracked changes in what the mirror owns block a merge. Untracked files (such as
@@ -40,12 +42,12 @@ async function ensureIntegrable(root: string, instance: string) {
       "restore them (git checkout -- instances): the mirror is written only by pull",
     );
   }
-  return { branch: paths.remoteBranch, owned };
+  return { tip: resolved.stdout.trim(), owned };
 }
 
 // A brand-new workspace has no commit yet: start its history from the pull.
-async function startFrom(root: string, branch: string): Promise<IntegrationResult> {
-  await runGitOrThrow(["reset", "-q", branch], root);
+async function startFrom(root: string, tip: string): Promise<IntegrationResult> {
+  await runGitOrThrow(["reset", "-q", tip], root);
   await runGitOrThrow(["checkout", "-q", "--", "."], root);
   const commit = (await runGitOrThrow(["rev-parse", "HEAD"], root)).trim();
   const files = lines(await runGitOrThrow(["ls-tree", "-r", "--name-only", "HEAD"], root));
@@ -93,43 +95,55 @@ function commitRefused(output: string): IntegrationBlockedError {
 
 // After the merge, every mirror file the index holds differently from the instance's copy is a
 // local edit: it takes the instance's copy, or goes when the instance has none.
-async function takeInstance(root: string, branch: string, owned: readonly string[]) {
+async function takeInstance(root: string, tip: string, owned: readonly string[]) {
   const differing = lines(
     await runGitOrThrow(
-      ["diff", "--cached", "--name-only", "--no-renames", branch, "--", ...owned],
+      ["diff", "--cached", "--name-only", "--no-renames", tip, "--", ...owned],
       root,
     ),
   );
   const unmerged = lines(await runGitOrThrow(["diff", "--name-only", "--diff-filter=U"], root));
   const files = [...new Set([...differing, ...unmerged])].sort();
   for (const file of files) {
-    const there = (await runGit(["cat-file", "-e", `${branch}:${file}`], root)).exitCode === 0;
-    if (there) await runGitOrThrow(["checkout", branch, "--", file], root);
+    const there = (await runGit(["cat-file", "-e", `${tip}:${file}`], root)).exitCode === 0;
+    if (there) await runGitOrThrow(["checkout", tip, "--", file], root);
     else await runGitOrThrow(["rm", "-q", "--cached", "--ignore-unmatch", "--", file], root);
   }
   return files;
 }
 
+interface Mirror {
+  readonly tip: string;
+  readonly owned: readonly string[];
+}
+
 async function merge(
   root: string,
   instance: string,
+  { tip, owned }: Mirror,
   before: string,
   options: IntegrationOptions,
 ): Promise<IntegrationResult> {
-  const { branch, owned } = await ensureIntegrable(root, instance);
-  const related = (await runGit(["merge-base", "HEAD", branch], root)).exitCode === 0;
+  const base = await runGit(["merge-base", "HEAD", tip], root);
+  const related = base.exitCode === 0;
+  // Only what the mirror commits since the last integrate changed comes in, and only that is
+  // checked: a mirror commit's parent is always a mirror commit.
+  await checkMirrorCommits(root, instance, {
+    from: related ? base.stdout.trim() : null,
+    to: tip,
+  });
   const configured = (await runGit(["config", "user.email"], root)).stdout.trim() !== "";
   const identity = configured ? [] : FALLBACK_IDENTITY;
   const args = [
     ...identity,
     ...["merge", "--no-ff", "--no-commit", "-m", `snagentic integrate ${instance}`],
     ...(related ? [] : ["--allow-unrelated-histories"]),
-    branch,
+    tip,
   ];
   const attempt = await runGit(args, root);
   const merging = (await runGit(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], root)).exitCode;
   if (attempt.exitCode !== 0 && merging !== 0) throw refused(attempt.stderr);
-  const discarded = await takeInstance(root, branch, owned);
+  const discarded = await takeInstance(root, tip, owned);
   const committed = await runGit([...identity, "commit", "-q", "--no-edit"], root);
   if (committed.exitCode !== 0) throw commitRefused(`${committed.stdout}\n${committed.stderr}`);
   const commit = (await runGitOrThrow(["rev-parse", "HEAD"], root)).trim();
@@ -144,23 +158,25 @@ async function merge(
 }
 
 // `integrate` (ADR-0007, ADR-0031): the instance's copy is merged into the current branch. The
-// mirror is read-only, so the instance's copy always wins there.
+// mirror is read-only, so the instance's copy always wins there. Nothing but the instance's
+// mirrored folders may come in with it (checked before the working tree is touched).
 async function integrate(
   root: string,
   instance: string,
   options: IntegrationOptions = {},
 ): Promise<IntegrationResult> {
-  const { branch } = await ensureIntegrable(root, instance);
+  const mirror = await ensureIntegrable(root, instance);
   const head = await runGit(["rev-parse", "--verify", "--quiet", "HEAD"], root);
   if (head.exitCode !== 0) {
+    await checkMirrorCommits(root, instance, { from: null, to: mirror.tip });
     options.progress?.({ message: "integrate: checking out the pull" });
-    return startFrom(root, branch);
+    return startFrom(root, mirror.tip);
   }
-  if ((await runGit(["merge-base", "--is-ancestor", branch, "HEAD"], root)).exitCode === 0) {
+  if ((await runGit(["merge-base", "--is-ancestor", mirror.tip, "HEAD"], root)).exitCode === 0) {
     return { commit: null, changedFiles: 0, discarded: [], pulled: [] };
   }
   options.progress?.({ message: "integrate: merging the pull" });
-  return merge(root, instance, head.stdout.trim(), options);
+  return merge(root, instance, mirror, head.stdout.trim(), options);
 }
 
 export const gitIntegrator: MirrorIntegrator = { integrate };

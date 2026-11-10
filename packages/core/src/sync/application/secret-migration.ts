@@ -7,6 +7,7 @@ import {
   scanSecrets,
   sortSecretRedactions,
 } from "../../metadata/domain/secret-scan";
+import { PULL_FOLDER } from "../domain/pull-state";
 import type { ExistingMirrorFile } from "../ports";
 
 export const SECRET_SCAN_VERSION = 1;
@@ -108,6 +109,8 @@ export async function migrateExistingSecrets(
   const secretRedactions: SecretRedaction[] = [];
   for await (const file of mirror.existingFiles(root)) {
     signal.throwIfAborted();
+    // The pull state is rewritten by this pull, its catalog scanned below.
+    if (file.path.startsWith(`${PULL_FOLDER}/`)) continue;
     const redaction = await scanMirrorFile(mirror, root, file);
     if (redaction !== null) secretRedactions.push(redaction);
   }

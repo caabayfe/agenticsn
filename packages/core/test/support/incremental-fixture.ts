@@ -4,11 +4,11 @@ import {
   KeysetPager,
   type PullCheckpoint,
   type PullOptions,
+  type PullStateStore,
   pullFull,
   pullIncremental,
   type Row,
   type SyncState,
-  type SyncStateStore,
 } from "@snagentic/core";
 import { fakeInstance } from "./fake-instance";
 import { memoryMirror } from "./memory-mirror";
@@ -93,7 +93,7 @@ function memoryState() {
     checkpoint: PullCheckpoint | null;
     catalog: CatalogData | null;
   } = { state: null, checkpoint: null, catalog: null };
-  const store: SyncStateStore = {
+  const store: PullStateStore = {
     readCatalog: async () => saved.catalog,
     writeCatalog: async (data) => {
       saved.catalog = data;
@@ -109,6 +109,9 @@ function memoryState() {
     writeState: async (value) => {
       saved.state = value;
     },
+    heldLocally: async () => false,
+    noteUnchanged: async () => {},
+    forgetLocalState: async () => {},
   };
   return { store, saved };
 }

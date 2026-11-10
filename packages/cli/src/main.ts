@@ -56,7 +56,7 @@ import { ServiceNowWriteClient } from "./adapters/servicenow/servicenow-write-cl
 import { FileWorkspaceLock } from "./adapters/state/file-workspace-lock";
 import { JsonInstallJournal } from "./adapters/state/json-install-journal";
 import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
-import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
+import { syncStateStore } from "./adapters/state/mirror-sync-state-store";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
 import { ExecutableBinary, installedPath } from "./adapters/upgrade/executable-binary";
 import { GhAttestations } from "./adapters/upgrade/gh-attestations";
@@ -117,8 +117,7 @@ const context: UseCaseContext = {
         versionLine(),
       ),
   },
-  syncState: (root, instance) =>
-    new JsonSyncStateStore(join(root, instancePaths(instance).localState)),
+  syncState: syncStateStore,
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
   integrator: gitIntegrator,
   inspector: gitInspector,

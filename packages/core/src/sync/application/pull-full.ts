@@ -2,7 +2,7 @@ import { Catalog } from "../../metadata/domain/catalog";
 import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domain/secret-scan";
 import { classesToPull } from "../domain/pull-scope";
 import { FIRST_REDACTION_VERSION } from "../domain/redaction-upgrades";
-import type { PullCheckpoint, SyncState, SyncStateStore } from "../ports";
+import type { PullCheckpoint, SyncState } from "../ports";
 import { fetchCatalog } from "./fetch-catalog";
 import { fetchFingerprints } from "./fetch-fingerprints";
 import { pullApplications } from "./pull-applications";
@@ -31,7 +31,7 @@ export interface PullSummary {
   readonly unreadable: readonly string[];
   readonly secretRedactions: readonly SecretRedaction[];
   readonly watermark: string;
-  // The sync state to store once the mirror commit is durable (see completePull).
+  // The sync state to store once the mirror commit is durable (see recordPull).
   readonly next: SyncState;
   // Wall-clock seconds per phase, to see where time goes.
   readonly phaseSeconds: {
@@ -122,8 +122,8 @@ async function prepareFull(
 
 // The first, complete pull of an instance (ADR-0016, ADR-0017). Interrupted pulls resume
 // from their checkpoint; the watermark is the pull's start, so changes made while it ran
-// are picked up by the next incremental pull. The caller commits the mirror, then calls
-// completePull: until then the checkpoint stands and a new run resumes.
+// are picked up by the next incremental pull. The caller records the state into the mirror
+// commit (recordPull), commits, then calls completePull.
 export async function pullFull(
   deps: PullDependencies,
   signal: AbortSignal,
@@ -190,10 +190,4 @@ function phaseClock(now: () => Date): { lap(): number } {
       return seconds;
     },
   };
-}
-
-// Stores the state a pull reached, once its mirror commit is durable.
-export async function completePull(state: SyncStateStore, next: SyncState): Promise<void> {
-  await state.writeState(next);
-  await state.clearCheckpoint();
 }

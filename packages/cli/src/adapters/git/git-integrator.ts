@@ -5,6 +5,7 @@ import {
   instancePaths,
   type MirrorIntegrator,
   NothingPulledError,
+  PULL_FOLDER,
   SnagenticError,
 } from "@snagentic/core";
 import { pulledRecords } from "./pulled-records";
@@ -28,8 +29,9 @@ async function ensureIntegrable(root: string, instance: string) {
     throw new NothingPulledError(instance);
   }
   // Only tracked changes in what the mirror owns block a merge. Untracked files (such as
-  // the instance profile) are kept; git itself refuses to overwrite one on a collision.
-  const owned = [paths.metadata, paths.operational];
+  // the instance profile) are kept; git itself refuses to overwrite one on a collision. The pull
+  // state is the mirror's too (ADR-0052): the instance's copy wins there as well.
+  const owned = [paths.metadata, paths.operational, `${paths.root}/${PULL_FOLDER}`];
   const status = ["status", "--porcelain", "--untracked-files=no", "--", ...owned];
   if ((await runGitOrThrow(status, root)).trim() !== "") {
     throw new IntegrationBlockedError(

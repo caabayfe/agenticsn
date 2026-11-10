@@ -73,6 +73,8 @@ describe("workspace layout", () => {
       metadata: "instances/dev/metadata",
       updateSets: "instances/dev/update-sets",
       operational: "instances/dev/operational",
+      pullState: "instances/dev/pull/state.yaml",
+      pullCatalog: "instances/dev/pull/catalog.yaml",
       localState: ".snagentic/dev",
       exports: ".snagentic/dev/exports",
       remoteBranch: "servicenow-remote/dev",

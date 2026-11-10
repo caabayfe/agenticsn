@@ -2,18 +2,17 @@ import { describe, expect, it } from "bun:test";
 import {
   AccessDeniedError,
   type ConnectionStats,
-  completePull,
   DEFAULT_REDACTION,
   FINGERPRINT_SOURCES,
   type InstanceReader,
   KeysetPager,
   type MirrorWriter,
   type PullCheckpoint,
+  type PullStateStore,
   pullFull,
   type RenderedRecord,
   type Row,
   type SyncState,
-  type SyncStateStore,
   type TableQuery,
 } from "@snagentic/core";
 
@@ -139,7 +138,7 @@ function memoryState(checkpoint: PullCheckpoint | null = null, timeline: string[
     checkpoint,
     catalog: null,
   };
-  const store: SyncStateStore = {
+  const store: PullStateStore = {
     readCatalog: async () => null,
     writeCatalog: async (data) => {
       saved.catalog = data;
@@ -156,6 +155,9 @@ function memoryState(checkpoint: PullCheckpoint | null = null, timeline: string[
     writeState: async (value) => {
       saved.state = value;
     },
+    heldLocally: async () => false,
+    noteUnchanged: async () => {},
+    forgetLocalState: async () => {},
   };
   return { store, saved };
 }
@@ -393,18 +395,5 @@ describe("pullFull", () => {
     const { result, state } = run(instance().reader);
     await result;
     expect(state.saved.catalog).toMatchObject({ parents: { sys_script: "sys_metadata" } });
-  });
-});
-
-describe("completePull", () => {
-  it("stores the reached state and drops the checkpoint", async () => {
-    const state = memoryState({
-      startedAt: "2026-10-05 11:00:00",
-      completedClasses: [],
-      records: 0,
-    });
-    const next = { watermark: "2026-10-05 11:00:00", lastFullPull: "2026-10-05 11:00:00" };
-    await completePull(state.store, next);
-    expect(state.saved).toMatchObject({ state: next, checkpoint: null });
   });
 });

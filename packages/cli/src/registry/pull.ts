@@ -12,8 +12,10 @@ import {
   pullFull,
   pullIncremental,
   rawTimestamp,
+  recordPull,
   resolveSecret,
   SnagenticError,
+  stateInMirror,
   verifyReadOnlyCredential,
 } from "@snagentic/core";
 import { z } from "zod";
@@ -84,15 +86,16 @@ async function openSession(
     pager: new KeysetPager(reader),
     statistics: reader,
     records: mirror,
-    state,
+    state: stateInMirror(state, mirror, paths.root),
     instanceRoot: paths.root,
     metadataRoot: paths.metadata,
     operationalRoot: paths.operational,
-    catalogPath: `${paths.localState}/catalog.json`,
+    catalogPath: paths.pullCatalog,
     policy: DEFAULT_REDACTION,
     now: context.clock,
   };
-  return { name, mode, reader, mirror, deps };
+  const puller = { user: profile.auth.username, version: context.host.version };
+  return { name, mode, reader, mirror, deps, puller };
 }
 
 export const pull = defineUseCase({
@@ -136,25 +139,28 @@ export const pull = defineUseCase({
         serverCost: await measureServerCost(session.reader, since, run.signal),
       };
     };
-    const { deps, mirror, name } = session;
+    const { deps, mirror, name, puller } = session;
     try {
       if (session.mode === "incremental") {
         const summary = await pullIncremental(deps, name, run.signal, memory.progress, {
           verify: input.verify,
         });
         const committing = performance.now();
+        const record = { full: false, idle: summary.idle, puller };
+        const carried = await recordPull(deps.state, summary.next, record);
         const finished = await mirror.finish(
-          `snagentic pull ${name}: changes in ${summary.changedSources.join(", ")}`,
+          `snagentic pull ${name}: changes in ${summary.changedSources.join(", ") || "state"}`,
         );
-        await completePull(deps.state, summary.next);
+        await completePull(deps.state, carried);
         return incrementalOutput(await facts(finished, committing), summary);
       }
       const summary = await pullFull(deps, run.signal, memory.progress);
       const committing = performance.now();
+      await recordPull(deps.state, summary.next, { full: true, idle: false, puller });
       const finished = await mirror.finish(
         `snagentic pull ${name}: full (${summary.records} records, ${summary.childRows} child rows)`,
       );
-      await completePull(deps.state, summary.next);
+      await completePull(deps.state, true);
       return fullOutput(await facts(finished, committing), summary);
     } catch (error) {
       await mirror.abort();

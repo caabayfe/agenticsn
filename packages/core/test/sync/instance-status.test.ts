@@ -14,12 +14,13 @@ const NO_VIEW: MirrorView = { remoteCommit: null, unintegratedPulls: 0, localCha
 function deps(state: SyncState | null, checkpoint: PullCheckpoint | null, view = NO_VIEW) {
   const store: SyncStateStore = {
     readCatalog: async () => null,
-    writeCatalog: async () => {},
     readCheckpoint: async () => checkpoint,
     writeCheckpoint: async () => {},
     clearCheckpoint: async () => {},
     readState: async () => state,
-    writeState: async () => {},
+    heldLocally: async () => false,
+    noteUnchanged: async () => {},
+    forgetLocalState: async () => {},
   };
   return { state: store, inspector: { inspect: async () => view }, now: () => NOW };
 }

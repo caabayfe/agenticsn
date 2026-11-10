@@ -17,7 +17,7 @@ import { GitMirrorFiles } from "../../src/adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "../../src/adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
 import { JsonPushJournalStore } from "../../src/adapters/state/json-push-journal-store";
-import { JsonSyncStateStore } from "../../src/adapters/state/json-sync-state-store";
+import { syncStateStore } from "../../src/adapters/state/mirror-sync-state-store";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import type { UseCaseContext } from "../../src/registry/use-case";
 import { FAKE_CONTEXT, TRUSTED_PASSWORD } from "./fakes";
@@ -50,7 +50,7 @@ export async function instanceWorkspace(
     profiles,
     credentials: TRUSTED_PASSWORD,
     connections: { open: () => instance.reader, openForWrite: () => instance.reader },
-    syncState: (r, name) => new JsonSyncStateStore(join(r, instancePaths(name).localState)),
+    syncState: syncStateStore,
     mirrors: { open: (r, name, mode) => GitMirror.open(r, name, mode) },
     integrator: gitIntegrator,
     inspector: gitInspector,

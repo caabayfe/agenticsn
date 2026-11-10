@@ -140,7 +140,7 @@ export {
   type PullProgress,
   rawTimestamp,
 } from "./sync/application/pull-dependencies";
-export { completePull, type PullSummary, pullFull } from "./sync/application/pull-full";
+export { type PullSummary, pullFull } from "./sync/application/pull-full";
 export {
   FullPullRequiredError,
   type IncrementalSummary,
@@ -242,9 +242,11 @@ export type {
   MirrorView,
   MirrorWriter,
   PullCheckpoint,
+  PullStateStore,
   SyncState,
   SyncStateStore,
 } from "./sync/ports";
+export * from "./sync/shared-index";
 export * from "./updatesets/index";
 export * from "./upgrade/index";
 export { VERSION } from "./version";

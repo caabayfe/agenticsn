@@ -23,6 +23,9 @@ export function protectedReason(path: string): string | null {
   if (/^instances\/[^/]+\/metadata\//.test(clean)) {
     return "the mirror is the instance as last pulled, written only by pull (ADR-0031): adopt the record with snagentic adopt, then edit its source under source/<scope>/";
   }
+  if (/^instances\/[^/]+\/pull\//.test(clean)) {
+    return "the state and catalog each pull commits with the mirror (ADR-0052), written only by pull";
+  }
   if (/^source\/[^/]+\/snagentic\.ledger\.yaml$/.test(clean)) {
     return "the ledger records what the instance held when it last agreed with source; adopt and push write it";
   }

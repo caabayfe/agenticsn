@@ -9,6 +9,7 @@ const PROTECTED = [
   // The mirror is the instance as last pulled, and the ledgers record what it held: pull,
   // adopt and push write them (ADR-0031, ADR-0033).
   "instances/*/metadata/**",
+  "instances/*/pull/**",
   "source/*/snagentic.ledger.yaml",
   "instances/*/instance.yaml",
   "snagentic.yaml",

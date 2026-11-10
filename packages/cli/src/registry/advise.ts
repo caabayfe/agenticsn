@@ -1,7 +1,7 @@
 import { advise as adviseOn } from "@snagentic/core";
 import { z } from "zod";
 import { BehaviorItems, Freshness, NextCalls } from "./knowledge-schemas";
-import { knowledgeSession } from "./knowledge-session";
+import { withKnowledge } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
 
 const Strings = z.array(z.string()).readonly();
@@ -118,14 +118,15 @@ export const advise = defineUseCase({
   mcp: true,
   arguments: ["intent"],
   async handle(input, context, run) {
-    const deps = await knowledgeSession(context, input.instance, run.progress);
-    const advice = await adviseOn(deps, {
-      intent: input.intent,
-      targets: input.tables,
-      phase: input.phase,
-      classes: input.classes,
+    return withKnowledge(context, input.instance, run.progress, async (deps) => {
+      const advice = await adviseOn(deps, {
+        intent: input.intent,
+        targets: input.tables,
+        phase: input.phase,
+        classes: input.classes,
+      });
+      return { instance: deps.instance, ...advice };
     });
-    return { instance: deps.instance, ...advice };
   },
   render: (output) => render(output),
   exitCode: () => 0,

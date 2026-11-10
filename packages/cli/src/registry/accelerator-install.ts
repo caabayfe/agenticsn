@@ -101,54 +101,60 @@ export const acceleratorInstall = defineUseCase({
     const connection = await connectForWrite(context, input.instance, run.signal);
     const { root, profile, reader, pager } = connection;
     const name = InstanceName.parse(input.instance);
-    const result = await installPack(
-      {
-        packs: context.packs,
-        inventory: context.inventory,
-        workspace: context.packWorkspace(root, name),
-        templates: context.dataTemplates,
-        schema: mirrorSchema(() => knowledgeSession(context, String(name), run.progress)),
-        updateSets: {
-          open: (signal) =>
-            openUpdateSets({ pager, statistics: reader, now: context.clock }, signal),
+    // The field check opens the knowledge index; it is closed whatever the install does.
+    const schema = mirrorSchema(() => knowledgeSession(context, String(name), run.progress));
+    try {
+      const result = await installPack(
+        {
+          packs: context.packs,
+          inventory: context.inventory,
+          workspace: context.packWorkspace(root, name),
+          templates: context.dataTemplates,
+          schema,
+          updateSets: {
+            open: (signal) =>
+              openUpdateSets({ pager, statistics: reader, now: context.clock }, signal),
+          },
+          // The store's offer for the pack's applications, read live (spec 011, I3).
+          catalog: { available: (scopes, signal) => storeOffers(pager, scopes, signal) },
+          steps: {
+            ...installSteps(
+              context,
+              { root, instance: name, pack: input.pack },
+              callerFor(context, run),
+            ),
+            ...connectedSteps(connection),
+          },
+          journal: context.installJournal(root, name),
+          now: context.clock,
+          progress: (event) => run.progress(installProgress(event)),
         },
-        // The store's offer for the pack's applications, read live (spec 011, I3).
-        catalog: { available: (scopes, signal) => storeOffers(pager, scopes, signal) },
-        steps: {
-          ...installSteps(
-            context,
-            { root, instance: name, pack: input.pack },
-            callerFor(context, run),
-          ),
-          ...connectedSteps(connection),
+        {
+          ...selectionOf(input),
+          pack: input.pack,
+          instance: { root, name: String(name), kind: profile.kind },
+          source: dataSourceOf(input, context.host.cwd),
+          snagentic: VERSION,
+          signal: run.signal,
+          ...(input.domain === undefined ? {} : { domain: input.domain }),
+          ...(input.confirm === undefined ? {} : { confirm: input.confirm }),
         },
-        journal: context.installJournal(root, name),
-        now: context.clock,
-        progress: (event) => run.progress(installProgress(event)),
-      },
-      {
-        ...selectionOf(input),
-        pack: input.pack,
-        instance: { root, name: String(name), kind: profile.kind },
-        source: dataSourceOf(input, context.host.cwd),
-        snagentic: VERSION,
-        signal: run.signal,
-        ...(input.domain === undefined ? {} : { domain: input.domain }),
-        ...(input.confirm === undefined ? {} : { confirm: input.confirm }),
-      },
-    );
-    return {
-      planId: result.plan.planId,
-      planPath: result.planPath,
-      reportPath: result.reportPath,
-      problems: result.plan.problems,
-      warnings: result.plan.warnings,
-      modules: result.plan.modules.map((m) => m.id),
-      steps: result.steps,
-      stopped: result.stopped,
-      commit: result.commit,
-      ...installView(result.plan),
-    };
+      );
+      return {
+        planId: result.plan.planId,
+        planPath: result.planPath,
+        reportPath: result.reportPath,
+        problems: result.plan.problems,
+        warnings: result.plan.warnings,
+        modules: result.plan.modules.map((m) => m.id),
+        steps: result.steps,
+        stopped: result.stopped,
+        commit: result.commit,
+        ...installView(result.plan),
+      };
+    } finally {
+      await schema.close();
+    }
   },
   render(output) {
     return output.reportPath === null ? renderPlan(output) : renderRun(output);

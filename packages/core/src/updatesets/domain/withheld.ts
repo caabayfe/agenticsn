@@ -1,6 +1,7 @@
 import type { Catalog } from "../../metadata/domain/catalog";
 import { deniedAncestor, secretFields } from "../../metadata/domain/field-rules";
 import { SECRET_PROPERTY_NAME } from "../../metadata/domain/redaction";
+import { scanSecrets } from "../../metadata/domain/secret-scan";
 
 // Secrets never reach disk, and an export is written to disk: an update whose payload holds
 // one is left out whole. Blanking the value instead would import as an empty secret and
@@ -28,7 +29,19 @@ export function payloadTable(payload: string): string | undefined {
   return NAMED_TABLE.exec(payload)?.[1] ?? FIRST_ELEMENT.exec(payload)?.[1];
 }
 
+// The class rules first, then the value scan pull and adopt apply (ADR-0035): a credential
+// shape anywhere in the payload withholds the update. The reason names the pattern, never the
+// value.
 export function withheldReason(payload: string, catalog: Catalog): string | null {
+  const reason = classReason(payload, catalog);
+  if (reason !== null) return reason;
+  const { patterns } = scanSecrets(payload);
+  return patterns.length === 0
+    ? null
+    : `it holds a value shaped like a secret (${patterns.join(", ")})`;
+}
+
+function classReason(payload: string, catalog: Catalog): string | null {
   const table = payloadTable(payload);
   if (table === undefined) return "snagentic could not read the class of the record";
   if (NOT_CLASSES.has(table)) return null;

@@ -1,5 +1,5 @@
 import { isAbsolute, join } from "node:path";
-import { ExportFileExistsError, exportUpdateSet, slug } from "@snagentic/core";
+import { ExportFileExistsError, exportUpdateSet, instancePaths, slug } from "@snagentic/core";
 import { z } from "zod";
 import { connect } from "./connect";
 import { defineUseCase } from "./use-case";
@@ -13,7 +13,13 @@ export const updateSetsExport = defineUseCase({
   input: z.object({
     instance: z.string(),
     id: z.string().describe("the update set's sys_id"),
-    output: z.string().optional().describe("file to write (default: <name>--<sys_id>.xml here)"),
+    output: z
+      .string()
+      .optional()
+      .describe(
+        "file to write (default: .snagentic/<instance>/exports/<name>--<sys_id>.xml in the " +
+          "workspace, which git ignores)",
+      ),
   }),
   output: z.object({
     instance: z.string(),
@@ -30,11 +36,19 @@ export const updateSetsExport = defineUseCase({
   mcp: false,
   arguments: ["instance", "id"],
   async handle(input, context, run) {
-    const { name, profile, pager, reader } = await connect(context, input.instance, run.signal);
+    const { root, name, profile, pager, reader } = await connect(
+      context,
+      input.instance,
+      run.signal,
+    );
     const deps = { pager, statistics: reader, now: context.clock };
     const exported = await exportUpdateSet(deps, name, input.id, profile.auth.username, run.signal);
-    const file = input.output ?? `${slug(exported.name)}--${exported.sysId}.xml`;
-    const path = isAbsolute(file) ? file : join(context.host.cwd, file);
+    const path =
+      input.output === undefined
+        ? join(root, instancePaths(name).exports, `${slug(exported.name)}--${exported.sysId}.xml`)
+        : isAbsolute(input.output)
+          ? input.output
+          : join(context.host.cwd, input.output);
     if ((await context.files.create(path, exported.xml)) === "exists") {
       throw new ExportFileExistsError(path);
     }

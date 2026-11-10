@@ -17,6 +17,8 @@ const catalog = new Catalog({
     ssh_credentials: "discovery_credentials",
     ssh_private_key_credentials: "ssh_credentials",
     sys_data_source: "sys_metadata",
+    sys_rest_message_headers: "sys_metadata",
+    sys_soap_message_parameters: "sys_metadata",
   },
   scopes: {},
   typedFields: { sys_data_source: { jdbc_password: "password2" } },
@@ -78,5 +80,52 @@ describe("update payloads withheld from an export", () => {
     ] as const) {
       expect(withheld(table, body)).toBeNull();
     }
+  });
+
+  // Credential-shaped values, built at runtime so the repository never holds one.
+  const jwt = [
+    "eyJ" + "hbGciOiJIUzI1NiJ9",
+    "eyJzdWIiOiIx" + "MjM0NTY3ODkwIn0",
+    "dBjftJeZ4CVP" + "mB92K27uhbUJU1p1r",
+  ].join(".");
+  const github = "gh" + "p_" + "0123456789abcdefghij" + "klmnopqrstuvwxyz";
+  const aws = "AK" + "IA" + "IOSFODNN7" + "EXAMPLE";
+
+  // ADR-0035: the value scan pull and adopt apply holds for export too.
+  it("withholds an update whose payload holds a credential-shaped value, naming the pattern only", () => {
+    for (const [table, body, pattern, value] of [
+      [
+        "sys_rest_message_headers",
+        `<name>Authorization</name><value>Bearer ${jwt}</value>`,
+        "jwt",
+        jwt,
+      ],
+      [
+        "sys_script_include",
+        `<script><![CDATA[var t = "${github}";]]></script>`,
+        "github-token",
+        github,
+      ],
+      [
+        "sys_soap_message_parameters",
+        `<name>key</name><value>${aws}</value>`,
+        "aws-access-key-id",
+        aws,
+      ],
+    ] as const) {
+      const reason = withheld(table, body);
+      expect([table, reason]).toEqual([
+        table,
+        `it holds a value shaped like a secret (${pattern})`,
+      ]);
+      expect(reason).not.toContain(value);
+    }
+  });
+
+  it("scans composite updates too", () => {
+    const bare = `<?xml version="1.0"?><record_update><sys_choice_set name="incident"><label>${github}</label></sys_choice_set></record_update>`;
+    expect(withheldReason(bare, catalog)).toBe(
+      "it holds a value shaped like a secret (github-token)",
+    );
   });
 });

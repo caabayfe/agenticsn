@@ -128,6 +128,10 @@ snagentic update-sets collisions dev            # records held by two open sets 
 snagentic update-sets export dev <sys_id>       # ServiceNow "Export to XML" format
 ```
 
+An export goes to `.snagentic/<instance>/exports/` unless you pass `--output`, so it is never
+committed by accident. Updates whose payload holds a secret, or a value shaped like one, are left
+out and listed: move them by hand.
+
 ## 6. Plugins
 
 ```sh

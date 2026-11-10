@@ -40,7 +40,7 @@ const update = (sys_id: string, updateSet: string, by: string): Row => ({
   sys_updated_on: "2026-10-05 10:00:00",
 });
 
-async function workspace() {
+async function workspace(extra: readonly Row[] = []) {
   const ws = await instanceWorkspace({
     sys_update_set: [set(MINE, "Incident tweaks", "alice"), set(THEIRS, "Bob's fix", "bob")],
     sys_update_xml: [
@@ -52,6 +52,7 @@ async function workspace() {
         target_name: "x.api_key",
         payload: '<record_update table="sys_properties"><name>x.api_key</name></record_update>',
       },
+      ...extra,
     ],
     sys_scope: [{ sys_id: "global", name: "Global", scope: "global", version: "" }],
     // The export reads the classes of what it exports, to withhold credentials.
@@ -96,20 +97,48 @@ describe("update-sets commands", () => {
     );
   });
 
-  it("writes the export next to the person by default, named after the set", async () => {
+  // Local state is never committed, so a default export can't reach git by accident.
+  it("writes the export to the instance's local state by default, named after the set", async () => {
     const { context, root, written } = await workspace();
     const { output } = await executeUseCase(
       updateSetsExport,
       { instance: "pdi", id: MINE },
       context,
     );
-    const path = join(root, `incident-tweaks--${MINE}.xml`);
+    const path = join(root, ".snagentic/pdi/exports", `incident-tweaks--${MINE}.xml`);
     expect(output).toMatchObject({ name: "Incident tweaks", updates: 1, path });
     expect(written.get(path)).toContain('<sys_remote_update_set action="INSERT_OR_UPDATE">');
     expect(updateSetsExport.render(output as never, "text")).toBe(
       `exported "Incident tweaks" (1 updates, ${output["bytes"]} bytes) to ${path}\n` +
         "withheld sys_properties_k (x.api_key): it sets a secret-like property; move it by hand",
     );
+  });
+
+  it("withholds an update whose payload holds a credential-shaped value, and never writes it", async () => {
+    const token = "gh" + "p_" + "0123456789abcdefghij" + "klmnopqrstuvwxyz";
+    const { context, written } = await workspace([
+      {
+        ...update("u4", MINE, "alice"),
+        name: "sys_script_c0ffee2",
+        target_name: "Call GitHub",
+        payload: `<record_update table="sys_script"><sys_script><script>var t = "${token}";</script></sys_script></record_update>`,
+      },
+    ]);
+    const { output } = await executeUseCase(
+      updateSetsExport,
+      { instance: "pdi", id: MINE },
+      context,
+    );
+    expect(output).toMatchObject({ updates: 1 });
+    expect(output["withheld"]).toContainEqual({
+      name: "sys_script_c0ffee2",
+      target: "Call GitHub",
+      reason: "it holds a value shaped like a secret (github-token)",
+    });
+    const rendered = updateSetsExport.render(output as never, "text");
+    for (const text of [...written.values(), JSON.stringify(output), rendered]) {
+      expect(text).not.toContain(token);
+    }
   });
 
   it("writes the export where asked", async () => {

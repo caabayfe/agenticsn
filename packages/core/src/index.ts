@@ -37,6 +37,7 @@ export type {
 export * from "./delivery/index";
 export * from "./documentation/index";
 export { checkAgentPack } from "./environment/application/check-agent-pack";
+export { checkMcpConfigs } from "./environment/application/check-mcp-configs";
 export { runDoctor } from "./environment/application/run-doctor";
 export { runInstanceChecks } from "./environment/application/run-instance-checks";
 export {
@@ -46,6 +47,12 @@ export {
   type DoctorReport,
   summarizeChecks,
 } from "./environment/domain/check";
+export {
+  networkCheck,
+  PROXY_VARIABLES,
+  RUNTIME_VARIABLES,
+  TRUST_VARIABLES,
+} from "./environment/domain/network";
 export type { EnvironmentProbe } from "./environment/ports";
 export * from "./governance/index";
 export * from "./instance/index";

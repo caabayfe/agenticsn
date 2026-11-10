@@ -45,6 +45,7 @@ import { GitMirrorState } from "./adapters/governance/git-mirror-state";
 import { keychainProbe } from "./adapters/keychain-probe";
 import { GitMirrorFiles } from "./adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "./adapters/knowledge/sqlite-knowledge-store";
+import { networkProbe } from "./adapters/network-probe";
 import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
 import { fetchTransport } from "./adapters/servicenow/fetch-transport";
@@ -89,7 +90,13 @@ process.on("SIGINT", () => {
 const workspaceOverride = process.env["SNAGENTIC_WORKSPACE"];
 const releases = new GitHubReleases({ userAgent: `snagentic/${VERSION}` });
 const context: UseCaseContext = {
-  environmentProbes: [gitProbe(), keychainProbe(), searchIndexProbe(), fluentProbe()],
+  environmentProbes: [
+    gitProbe(),
+    keychainProbe(),
+    searchIndexProbe(),
+    fluentProbe(),
+    networkProbe(),
+  ],
   workspaces: new FsWorkspaceStore(),
   profiles: new YamlProfileStore(),
   credentials: new LayeredCredentialStore(

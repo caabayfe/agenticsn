@@ -674,7 +674,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic doctor [options]
 ```
 
-Check that snagentic can work: git, OS keychain and search index on this machine, and, with --instance, credentials, connection, roles and timestamp handling of an instance.
+Check that snagentic can work: git, OS keychain, search index and the proxy and extra certificates in effect on this machine, and, with --instance, credentials, connection, roles and timestamp handling of an instance.
 
 Changes the instance: no. MCP tool: none.
 

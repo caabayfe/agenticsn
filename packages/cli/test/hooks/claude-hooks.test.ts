@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { join } from "node:path";
+import { PROXY_VARIABLES, RUNTIME_VARIABLES, TRUST_VARIABLES } from "@snagentic/core";
 import { runCli } from "../../src/cli/run-cli";
 import { runClaudeHook } from "../../src/hooks/claude-hooks";
 import { hookOutcome } from "../../src/hooks/hook-command";
@@ -162,10 +163,27 @@ describe("pre-shell hook", () => {
       "export BUN_OPTIONS='--preload ./x.ts'",
       "env NODE_OPTIONS=--require=./x.js snagentic pull",
       "NODE_TLS_REJECT_UNAUTHORIZED=0 snagentic pull --instance pdi",
+      // These send instance traffic through another host, or trust other certificates.
+      "HTTPS_PROXY=http://127.0.0.1:8080 snagentic pull --instance pdi",
+      "export https_proxy=http://127.0.0.1:8080",
+      "env ALL_PROXY=socks5://127.0.0.1:1080 snagentic mcp",
+      "export no_proxy= && snagentic pull",
+      "NODE_EXTRA_CA_CERTS=./ca.pem snagentic pull",
+      "export SSL_CERT_FILE=/tmp/ca.pem",
+      "SSL_CERT_DIR=/tmp/certs snagentic pull",
+      "NODE_USE_SYSTEM_CA=1 snagentic pull",
     ]) {
       const outcome = await runClaudeHook("pre-shell", shell(command), never);
       expect([command, outcome.exitCode]).toEqual([command, 2]);
       expect(outcome.stderr).toStartWith("snagentic:");
+    }
+  });
+
+  it("refuses setting every variable doctor reports as network or runtime", async () => {
+    const names = [...PROXY_VARIABLES, ...TRUST_VARIABLES, ...RUNTIME_VARIABLES];
+    for (const name of [...names, ...PROXY_VARIABLES.map((n) => n.toLowerCase())]) {
+      const outcome = await runClaudeHook("pre-shell", shell(`${name}=x snagentic pull`), never);
+      expect([name, outcome.exitCode]).toEqual([name, 2]);
     }
   });
 
@@ -174,6 +192,8 @@ describe("pre-shell hook", () => {
       shell("bun test"),
       shell("git commit -m 'curly braces'"),
       shell("snagentic pull --instance pdi"),
+      shell("echo $HTTPS_PROXY"),
+      shell("MY_HTTPS_PROXY_NOTE=x bun test"),
       shell("curl https://example.com", "Read"),
       {},
     ]) {

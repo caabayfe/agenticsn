@@ -1,7 +1,9 @@
+import { MCP_CONFIGS } from "@snagentic/agent-packs";
 import {
   CHECK_STATUSES,
   type Check,
   checkAgentPack,
+  checkMcpConfigs,
   EXIT_CODES,
   getInstance,
   InstanceName,
@@ -42,7 +44,11 @@ async function instanceChecks(
 // Checks of the workspace doctor runs in; none outside a workspace.
 async function workspaceChecks(context: UseCaseContext): Promise<Check[]> {
   try {
-    return [await checkAgentPack(context.workspaceFiles, await workspaceRoot(context), VERSION)];
+    const root = await workspaceRoot(context);
+    return [
+      await checkAgentPack(context.workspaceFiles, root, VERSION),
+      await checkMcpConfigs(context.workspaceFiles, root, MCP_CONFIGS),
+    ];
   } catch (error) {
     if (error instanceof WorkspaceNotFoundError) {
       return [];
@@ -61,8 +67,9 @@ function renderCheck(check: Check, width: number): string[] {
 export const doctor = defineUseCase({
   name: "doctor",
   description:
-    "Check that snagentic can work: git, OS keychain and search index on this machine, and, " +
-    "with --instance, credentials, connection, roles and timestamp handling of an instance.",
+    "Check that snagentic can work: git, OS keychain, search index and the proxy and extra " +
+    "certificates in effect on this machine, and, with --instance, credentials, connection, " +
+    "roles and timestamp handling of an instance.",
   input: z.object({
     instance: z.string().optional().describe("also check this instance of the workspace"),
   }),

@@ -1,6 +1,6 @@
 import type { Row } from "../kernel/row";
+import type { TableFingerprint } from "../kernel/table-fingerprint";
 import type { TableName } from "../kernel/table-name";
-import type { TableFingerprint } from "../sync/domain/fingerprint";
 
 export type { Row } from "../kernel/row";
 

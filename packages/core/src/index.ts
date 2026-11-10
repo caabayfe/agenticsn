@@ -258,6 +258,7 @@ export {
   installAgentPack,
 } from "./workspace/application/install-agent-pack";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";
+export { withWorkspaceLock } from "./workspace/application/with-workspace-lock";
 export {
   installedPackVersion,
   withAgentsImport,
@@ -269,6 +270,7 @@ export {
   NestedRepositoryError,
   WorkspaceExistsError,
   WorkspaceLayoutError,
+  WorkspaceLockedError,
   WorkspaceNotFoundError,
 } from "./workspace/domain/errors";
 export {
@@ -288,4 +290,9 @@ export {
 } from "./workspace/domain/manifest";
 export { withMcpServer } from "./workspace/domain/mcp-config";
 export { protectedReason } from "./workspace/domain/protected-paths";
-export type { WorkspaceFiles, WorkspaceStore } from "./workspace/ports";
+export type {
+  LockHolder,
+  WorkspaceFiles,
+  WorkspaceLock,
+  WorkspaceStore,
+} from "./workspace/ports";

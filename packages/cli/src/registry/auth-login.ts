@@ -25,7 +25,13 @@ export const authLogin = defineUseCase({
     kind: z.enum(INSTANCE_KINDS),
     stored: z.literal("keychain"),
   }),
-  flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
+  flags: {
+    readOnly: false,
+    destructive: false,
+    requiresDevelopmentInstance: false,
+    // Changes only the keychain, so it may run while a push holds the instance.
+    locksWorkspace: false,
+  },
   // Secrets never pass through an agent.
   mcp: false,
   arguments: ["instance"],

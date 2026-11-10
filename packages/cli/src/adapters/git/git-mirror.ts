@@ -7,7 +7,6 @@ import type {
   RenderedRecord,
 } from "@snagentic/core";
 import { instancePaths } from "@snagentic/core";
-import { childEnvironment } from "../child-environment";
 import { serialQueue } from "../serial-queue";
 import { toYaml } from "../yaml/own-style";
 import { childRowOwners, countChildRows } from "./child-row-files";
@@ -15,15 +14,10 @@ import { FastImport, fastImportPath } from "./fast-import";
 import { removeTemporaryPacks } from "./git-pack-cleanup";
 import { existingMirrorFiles } from "./git-tree-files";
 import { MirrorIndex } from "./mirror-index";
+import { commitMirrorTree, moveMirrorBranch } from "./mirror-ref";
 import { gitLines, runGit, runGitOrThrow } from "./run-git";
 
 const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
-const IDENTITY = {
-  GIT_AUTHOR_NAME: "snagentic",
-  GIT_AUTHOR_EMAIL: "snagentic@localhost",
-  GIT_COMMITTER_NAME: "snagentic",
-  GIT_COMMITTER_EMAIL: "snagentic@localhost",
-};
 
 async function revParse(repository: string, ref: string): Promise<string | null> {
   const result = await runGit(["rev-parse", "--verify", "--quiet", ref], repository);
@@ -50,6 +44,9 @@ export class GitMirror implements IncrementalMirror {
     private readonly stream: FastImport,
     private readonly startFrom: string | null,
     private readonly mode: MirrorMode,
+    // The branch's tip when the pull started: its commit's parent, and where the branch must
+    // still be when it finishes.
+    private readonly base: string | null,
   ) {}
 
   static async open(
@@ -59,10 +56,12 @@ export class GitMirror implements IncrementalMirror {
   ): Promise<GitMirror> {
     const progress = GitMirror.progressRef(instance);
     const start = await GitMirror.startOf(repository, instance, mode);
+    const base = await revParse(repository, GitMirror.remoteBranch(instance));
     if (mode !== "resume") {
       await runGit(["update-ref", "-d", progress], repository);
     }
-    const mirror = new GitMirror(repository, instance, FastImport.start(repository), start, mode);
+    const stream = FastImport.start(repository);
+    const mirror = new GitMirror(repository, instance, stream, start, mode, base);
     // A full pull needs the tree at once to resume; an incremental pull reads it only once it
     // knows something changed.
     if (mode !== "incremental") {
@@ -232,7 +231,7 @@ export class GitMirror implements IncrementalMirror {
     const ref = GitMirror.progressRef(this.instance);
     const progress = await revParse(this.repository, ref);
     const branch = GitMirror.remoteBranch(this.instance);
-    const parent = await revParse(this.repository, branch);
+    const parent = this.base;
     if (
       this.mode === "incremental" &&
       (progress === null || (await this.sameTree(progress, parent)))
@@ -244,8 +243,12 @@ export class GitMirror implements IncrementalMirror {
       progress === null
         ? EMPTY_TREE
         : (await runGitOrThrow(["rev-parse", `${progress}^{tree}`], this.repository)).trim();
-    const commit = await this.commitTree(tree, parent, message);
-    await runGitOrThrow(["update-ref", branch, commit], this.repository);
+    const commit = await commitMirrorTree(this.repository, { tree, parent, message });
+    await moveMirrorBranch(this.repository, this.instance, {
+      ref: branch,
+      commit,
+      expected: parent,
+    });
     await runGit(["update-ref", "-d", ref], this.repository);
     await this.compact();
     return { commit, created: true };
@@ -277,20 +280,5 @@ export class GitMirror implements IncrementalMirror {
     const mark = await this.stream.blob(content);
     this.pending.push(`M 100644 ${mark} ${fastImportPath(path)}\n`);
     this.index.add(path);
-  }
-
-  private async commitTree(tree: string, parent: string | null, message: string): Promise<string> {
-    const args = ["commit-tree", tree, ...(parent === null ? [] : ["-p", parent]), "-m", message];
-    const child = Bun.spawn(["git", ...args], {
-      cwd: this.repository,
-      stdout: "pipe",
-      stderr: "pipe",
-      env: childEnvironment(IDENTITY),
-    });
-    const [out, code] = await Promise.all([new Response(child.stdout).text(), child.exited]);
-    if (code !== 0) {
-      throw new Error(`git commit-tree failed: ${await new Response(child.stderr).text()}`);
-    }
-    return out.trim();
   }
 }

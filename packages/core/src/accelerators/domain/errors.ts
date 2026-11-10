@@ -126,17 +126,6 @@ export class InstallBlockedError extends SnagenticError {
   }
 }
 
-export class InstallLockedError extends SnagenticError {
-  constructor(instance: string) {
-    super(
-      "install-locked",
-      "precondition",
-      `another install is running on ${instance}`,
-      "wait for it to finish; if none is running, remove .snagentic/<instance>/install.lock",
-    );
-  }
-}
-
 // A step of a running install stopped: the run records it and writes the report (ADR-0038).
 // Caught by the run, never shown on its own.
 export class InstallStepStoppedError extends SnagenticError {

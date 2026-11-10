@@ -4,7 +4,6 @@ import {
   formFieldId,
   InstallBlockedError,
   type InstallJournal,
-  InstallLockedError,
   InstallPlanChangedError,
   type InstallProgress,
   type InstallSteps,
@@ -796,14 +795,6 @@ describe("running an install (ADR-0038, item 2)", () => {
     const plan = await planInstall(ready, QUERY);
     await installPack(ready, { ...QUERY, confirm: plan.planId });
     expect(calls.filter((c) => c.startsWith("plan"))).toEqual(["plan itsm 0.1.0 upgrade"]);
-  });
-
-  it("refuses to run while another install holds the instance's lock", async () => {
-    const { journal } = memoryJournal(null, true);
-    const plan = await planInstall(deps(READY), QUERY);
-    await expect(
-      installPack(deps(READY, { journal }), { ...QUERY, confirm: plan.planId }),
-    ).rejects.toBeInstanceOf(InstallLockedError);
   });
 });
 

@@ -42,8 +42,6 @@ async function installing(data: Parameters<typeof instanceWorkspace>[0] = {}) {
         read: async () => null,
         write: async () => {},
         clear: async () => {},
-        lock: async () => true,
-        unlock: async () => {},
       }),
       workspaceFiles: {
         read: async () => null,

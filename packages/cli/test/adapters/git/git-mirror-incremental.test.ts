@@ -218,4 +218,38 @@ describe("GitMirror in incremental mode", () => {
       /servicenow-remote\/pdi/,
     );
   });
+
+  it("refuses to finish when another pull moved the mirror branch while it ran", async () => {
+    const repo = await pulled();
+    const mirror = await GitMirror.open(repo, PDI, "incremental");
+    await mirror.prepare();
+    await mirror.write(ROOT, record(1, "One", "changed();"));
+    const tip = (await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], repo)).trim();
+    const other = (
+      await runGitOrThrow(["commit-tree", `${tip}^{tree}`, "-p", tip, "-m", "other pull"], repo)
+    ).trim();
+    await runGitOrThrow(["update-ref", "refs/heads/servicenow-remote/pdi", other, tip], repo);
+    const error = await mirror.finish("incremental").catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: "mirror-moved", category: "precondition" });
+    expect(String(Reflect.get(Object(error), "hint"))).toContain("snagentic pull pdi");
+    expect((await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], repo)).trim()).toBe(other);
+  });
+
+  it("refuses to finish a first pull when another pull created the branch meanwhile", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "snagentic-incremental-"));
+    temporary.push(repo);
+    await runGitOrThrow(["init", "-q", "-b", "main"], repo);
+    const first = await GitMirror.open(repo, PDI, "fresh");
+    await first.write(ROOT, record(1, "One", "one();"));
+    const other = await pulled();
+    const otherTip = (await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], other)).trim();
+    await runGitOrThrow(
+      ["fetch", "-q", other, "servicenow-remote/pdi:servicenow-remote/pdi"],
+      repo,
+    );
+    await expect(first.finish("full")).rejects.toMatchObject({ code: "mirror-moved" });
+    expect((await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], repo)).trim()).toBe(
+      otherTip,
+    );
+  });
 });

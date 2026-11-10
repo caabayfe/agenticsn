@@ -21,6 +21,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   refuses fetches, continues from the newer commit and tries once more, so two publishers can't
   split the branch's history. `git fetch` and `git push` use the developer's own git credentials;
   instance secrets never reach git.
+- Git-only developers in team mode: `integrate` first takes a newer shared mirror from the git
+  remote. `status` reports the shared mirror's age and whether it holds pulls this clone lacks. Its
+  `next` suggests `integrate` for those, and `pull` only once the mirror is older than its max
+  age. The design and deliver skills follow `status`'s `next` instead of offering a pull because
+  this clone never pulled. Getting started has a short team-mode section.
 
 ### Changed
 

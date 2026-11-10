@@ -23,6 +23,35 @@ import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-stor
 import type { UseCaseContext } from "../../src/registry/use-case";
 import { FAKE_CONTEXT, TRUSTED_PASSWORD } from "./fakes";
 
+// What plan-push and push use beyond the mirror, as the CLI wires it.
+export const DELIVERY_ADAPTERS: Pick<
+  UseCaseContext,
+  "workspaceFiles" | "delivery" | "pullRequests" | "governance"
+> = {
+  workspaceFiles: fsWorkspaceFiles,
+  delivery: (r, name) => new GitDeliveryWorkspace(r, name),
+  // Tests never reach a git platform.
+  pullRequests: () => ({
+    find: async () => ({ kind: "unavailable", reason: "no git platform in tests" }),
+    defaultBranch: async () => null,
+    openDraft: async () => {
+      throw new Error("no git platform in tests");
+    },
+  }),
+  governance: (r, name, options = {}) => ({
+    mirror: new GitMirrorState(
+      r,
+      instancePaths(name).metadata,
+      instancePaths(name).remoteBranch,
+      options,
+    ),
+    checker: new EslintScriptChecker(),
+    // Use-case tests build in-process; builds through the worker (ADR-0044) are tested with the
+    // adapters and validate.
+    fluent: new WorkspaceFluentProjects(r, loadInProcessRuntime, options),
+  }),
+};
+
 // A real workspace with a "pdi" development profile, connected to an in-memory instance.
 // Files written by use cases are captured instead of written.
 export async function instanceWorkspace(
@@ -61,29 +90,8 @@ export async function instanceWorkspace(
       store: new SqliteKnowledgeStore(join(r, instancePaths(name).localState, "knowledge.sqlite")),
       files: new GitMirrorFiles(r, instancePaths(name).metadata),
     }),
-    workspaceFiles: fsWorkspaceFiles,
-    delivery: (r, name) => new GitDeliveryWorkspace(r, name),
-    // Tests never reach a git platform.
-    pullRequests: () => ({
-      find: async () => ({ kind: "unavailable", reason: "no git platform in tests" }),
-      defaultBranch: async () => null,
-      openDraft: async () => {
-        throw new Error("no git platform in tests");
-      },
-    }),
     pushJournal: (r, name) => new JsonPushJournalStore(join(r, instancePaths(name).localState)),
-    governance: (r, name, options = {}) => ({
-      mirror: new GitMirrorState(
-        r,
-        instancePaths(name).metadata,
-        instancePaths(name).remoteBranch,
-        options,
-      ),
-      checker: new EslintScriptChecker(),
-      // Use-case tests build in-process; builds through the worker (ADR-0044) are tested with the
-      // adapters and validate.
-      fluent: new WorkspaceFluentProjects(r, loadInProcessRuntime, options),
-    }),
+    ...DELIVERY_ADAPTERS,
     files: {
       create: async (path, content) => {
         if (written.has(path)) {

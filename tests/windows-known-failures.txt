@@ -24,6 +24,7 @@ packages/cli/test/adapters/upgrade/executable-binary.test.ts
 packages/cli/test/adapters/upgrade/gh-attestations.test.ts
 packages/cli/test/adapters/upgrade/json-update-check-store.test.ts
 packages/cli/test/adapters/workspace/fs-workspace-store.test.ts
+packages/cli/test/e2e/team-mirror-push.test.ts
 packages/cli/test/hooks/claude-hooks.test.ts
 packages/cli/test/registry/accelerator-install.test.ts
 packages/cli/test/registry/agent-install.test.ts

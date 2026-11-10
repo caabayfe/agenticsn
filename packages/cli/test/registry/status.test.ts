@@ -21,6 +21,7 @@ const BASE = {
   remoteCommit: "abc",
   unintegratedPulls: 0,
   localChanges: [],
+  sharedMirror: null,
   unfinishedPush: null,
   domains: [],
   next: "snagentic pull pdi",
@@ -34,6 +35,29 @@ describe("status rendering", () => {
     );
     expect(text).toContain(`domains: Default (${"d".repeat(32)})`);
     expect(status.render({ instances: [BASE] }, "text")).not.toContain("domains:");
+  });
+
+  it("shows the team's shared mirror: its age, whether it is ahead, or that git can't reach it", () => {
+    const shared = {
+      remote: "origin",
+      reachable: true,
+      commit: "0123456789abcdef",
+      ageMinutes: 5,
+      maxAgeMinutes: 15,
+      ahead: true,
+    };
+    const ahead = status.render({ instances: [{ ...BASE, sharedMirror: shared }] }, "text");
+    expect(ahead).toContain(
+      "shared mirror on origin: 0123456789, pulled 5 min ago; it holds pulls this clone lacks",
+    );
+    const none = { ...shared, commit: null, ageMinutes: null, ahead: false };
+    expect(status.render({ instances: [{ ...BASE, sharedMirror: none }] }, "text")).toContain(
+      "shared mirror on origin: none yet",
+    );
+    const gone = { ...none, reachable: false };
+    expect(status.render({ instances: [{ ...BASE, sharedMirror: gone }] }, "text")).toContain(
+      "unreachable",
+    );
   });
 
   it("shows freshness, pending pulls and the next step", () => {

@@ -45,7 +45,7 @@ Two days of quality work on the 13 demo steps ran under the owner's approval for
 and activations. Each step was measured against an answer key, fixed, and retested. The method and
 the scores are in [70-quality-plan.md](70-quality-plan.md). The evidence and revert steps are in
 [evidence/quality-2026-10-28](../evidence/quality-2026-10-28/). The demo runs from
-[08-demo-script.md](../08-demo-script.md).
+[the demo script](https://github.com/caabayfe/sn-accelerators/blob/main/docs/autonomous-it/demo/demo-script.md).
 
 **Average: 6.0 to about 9.2 of 12** (12 rescored steps, Q09 per ticket). Top quality is 10 or more, in 5 of 5 runs, in both languages.
 No step has passed the full gate yet: every score below comes from one or two runs.
@@ -185,7 +185,7 @@ gantt
    Spanish and English, scored on the 6 criteria. A step that falls below 10 in any run goes back to
    its fix list.
 4. **Housekeeping:** end the QA chats (R21); switch the test user back to the Default update set.
-5. **Rehearse** [the demo script](../08-demo-script.md) end to end, including its preparation list.
+5. **Rehearse** [the demo script](https://github.com/caabayfe/sn-accelerators/blob/main/docs/autonomous-it/demo/demo-script.md) end to end, including its preparation list.
 
 ### Sprint 0, 2 to 13 November
 
@@ -254,7 +254,7 @@ Extends "Now to 1 November" above.
 | W1.2 | **Done 29 Oct, 11.** **B4** as a persona with an Event Management role (decision P2-1): rule created inactive, Create Incident action linked, replay count right, a second run returns "already exists" | All four checks; score 10 or more | S |
 | W1.3 | **B7 done 29 Oct, 5 of 5.** **B7 and Q05** with fresh alert events, plus the OOB comparison for Q05 that was skipped. Without B7 the incident gets the alert text and no note. Still open: the 5-run Q05 analysis gate, which waits for B5 | B7 note on 5 of 5 incidents; OOB score recorded | S |
 | W1.4 | **B5:** Global copy of the alert analysis agent with time to full, dependency direction and Spanish notes (depends on decision 4) | Q05 at 11 or more | S |
-| W1.5 | Rehearse the [demo script](../08-demo-script.md) with the builds | No step below 10 | S |
+| W1.5 | Rehearse the [demo script](https://github.com/caabayfe/sn-accelerators/blob/main/docs/autonomous-it/demo/demo-script.md) with the builds | No step below 10 | S |
 
 ### W2. Data readiness check (2 to 6 November)
 

@@ -304,17 +304,17 @@ git commit -m "Add the snagentic agent pack"
 ```
 
 That is the whole setup. It adds short instructions to `AGENTS.md` (your own text there is
-kept), five workflow skills in `.agents/skills` (and `.claude/skills`, where Claude Code
+kept), six workflow skills in `.agents/skills` (and `.claude/skills`, where Claude Code
 looks), and registers the MCP server for **Claude Code** (`.mcp.json`) and **GitHub Copilot in
 VS Code** (`.vscode/mcp.json`), next to any servers you already have there. Claude Code asks
 each user once to approve the project's server; VS Code shows it in the MCP server list.
 
 The skills are `servicenow-design` (agree a design before editing), `servicenow-build` (adopt,
-edit the Fluent source, then `validate` until clean), `servicenow-review`, `servicenow-explain` and
-`servicenow-deliver` (plan, approval, push). Run `agent install` again after upgrading
+edit the Fluent source, then `validate` until clean), `servicenow-review`, `servicenow-explain`,
+`servicenow-deliver` (plan, approval, push) and `servicenow-document` (process documentation). Run `agent install` again after upgrading
 snagentic; `doctor` warns when the pack is from another version. In Claude Code the workflows
 are also slash commands: `/mcp__snagentic__design`, `/mcp__snagentic__review`,
-`/mcp__snagentic__explain`, `/mcp__snagentic__deliver`.
+`/mcp__snagentic__explain`, `/mcp__snagentic__deliver`, `/mcp__snagentic__document`.
 
 ### Choosing the agent host
 

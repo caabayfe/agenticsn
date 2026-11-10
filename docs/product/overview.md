@@ -1,12 +1,14 @@
 # snagentic: product overview
 
-*For stakeholders and decision makers. Version 1.2.0, October 2026.*
+*For stakeholders and decision makers. Covers snagentic 2.x; each release is in the
+[changelog](../../CHANGELOG.md).*
 
 ## In one sentence
 
 snagentic lets ServiceNow teams build with the coding agents developers already use (Claude
 Code, GitHub Copilot, Codex, Cursor), working on the instance as files in git, with platform
-guardrails enforced in code and delivery limited to development instances.
+guardrails enforced in code and delivery limited to development instances. Changes are written
+as Fluent, the ServiceNow SDK's TypeScript.
 
 ## The problem
 
@@ -28,10 +30,10 @@ snagentic is one small binary that connects an instance, git and the coding agen
 
 ```mermaid
 flowchart LR
-    SN[(ServiceNow<br/>instance)] -- "pull: incremental,<br/>low load" --> WS[git workspace<br/>every metadata record<br/>as files]
+    SN[(ServiceNow<br/>instance)] -- "pull: incremental,<br/>low load" --> WS[git workspace<br/>read-only mirror of<br/>every metadata record]
     WS --> AG[Coding agent<br/>+ developer]
     AG -- "find · describe · advise" --> WS
-    AG -- edit files --> V{validate<br/>24 rules}
+    AG -- "adopt, then edit<br/>Fluent source" --> V{validate<br/>41 rules}
     V -- clean --> P[plan-push<br/>diff + gate + collisions]
     P -- "user approves" --> PU[push]
     PU -- "development only,<br/>own update set" --> SN
@@ -39,7 +41,8 @@ flowchart LR
 
 1. **Mirror.** `pull` copies every metadata record (business rules, script includes, client
    scripts, UI policies, ACLs, flows, layouts, tables and fields, more than 2,000 classes) into
-   a git repository with a readable, stable layout. Later pulls bring only what changed.
+   a git repository with a readable, stable layout. Later pulls bring only what changed. The
+   mirror is read-only.
 2. **Understand.** `find` locates anything in milliseconds. `describe` explains a table's
    behavior *in execution order*, from client scripts and UI policies to business rules
    before, after and async, notifications and ACLs, including what it inherits. It also shows
@@ -47,16 +50,22 @@ flowchart LR
 3. **Advise.** Before building, `advise` turns a request ("notify the manager on P1",
    "make this field mandatory") into the platform's options, least custom first, with
    evidence of what already exists on those tables.
-4. **Validate.** `validate` checks a change against 24 platform rules for security,
+4. **Author.** `adopt` brings the records to change into Fluent source, where the agent and the
+   developer edit them. New work is written there too.
+5. **Validate.** `validate` checks a change against 41 platform rules for security,
    performance, upgradability, manageability and user experience. It reports only what the
    change introduced, so legacy findings don't drown real ones.
-5. **Deliver.** `plan-push` shows exactly what would change, runs the gate and detects
-   records held in someone else's open update set. `push` writes that reviewed plan, and only
-   that plan, into an update set named after the branch on a **development** instance, then
-   verifies that each write was captured.
+6. **Deliver.** `plan-push` shows exactly what would change, runs the gate and detects
+   records held in someone else's open update set. `push` loads that reviewed plan, and only
+   that plan, the way the platform records it, into an update set on a **development**
+   instance, then verifies that each load was captured.
 
-The agent gets all of this through one MCP server (12 tools), five workflow skills (design,
-build, review, explain, deliver) and short instructions. `snagentic agent install` installs
+Two larger workflows build on these steps. **Accelerators** are versioned content packs,
+installed by a plan a platform admin reads first. **Verified documentation** is a site whose
+pages are anchored to the mirror, so a change shows which sentences it makes stale.
+
+The agent gets all of this through one MCP server (13 tools), six workflow skills (design,
+build, review, explain, deliver, document) and short instructions. `snagentic agent install` installs
 them and registers the MCP server for Claude Code and GitHub Copilot in VS Code; the team
 commits the result so everyone gets the same setup.
 
@@ -85,7 +94,7 @@ commits the result so everyone gets the same setup.
 > **Agent** (uses `servicenow-design`, then `advise`): The least custom option is a UI policy
 > on incident with the condition priority = 1. A data policy would also enforce it on
 > imports and APIs. A client script would be a last resort. Shall I build the UI policy?
-> *(after approval it edits the files, runs `validate` until clean, shows the plan, and
+> *(after approval it edits the Fluent source, runs `validate` until clean, shows the plan, and
 > pushes once you confirm)*
 
 ## Proven on a real instance
@@ -132,21 +141,24 @@ never passes through a snagentic service: there isn't one.
 | Version | Scope | Status |
 |---|---|---|
 | 1.0 | Full and incremental sync to git, update sets, plugins, MCP server | Released 2026-10-06 |
-| **1.1** | **Knowledge (`find`, `describe`), `advise`, `validate` with 24 rules, agent pack and hooks, plan and push to development** | **This release** |
-| 1.2 | Table model, references and impact analysis, instance audit reports | Planned |
-| 1.3 | Update-set validation before promotion, CI templates (GitHub Actions, GitLab, Azure DevOps), optional promotion guard on test and production | Planned |
-| Later | Read-only production troubleshooting; premium rule packs | Planned |
+| 1.1 | Knowledge (`find`, `describe`), `advise`, `validate`, agent pack and hooks, plan and push to development | Released 2026-10-07 |
+| 1.2 to 1.8 | Credentials bound to their instance, OAuth clients, `upgrade`, ACLs, flows, accelerator packs | Released 2026-10-07 to 2026-10-15 |
+| 2.0 | Changes authored in Fluent; the mirror is read-only | Released 2026-10-17 |
+| 2.1 to 2.19 | Verified documentation, accelerator installs by plan, store applications, secret scanning, security hardening | Released 2026-10-17 to 2026-11-08 |
+| Next | Enterprise readiness: a shared team mirror, load controls an instance owner sets, tests on every platform | Planned |
+| Later | Update-set validation before promotion, CI templates, components-only installs on test and production (ADR-0038, section 5), read-only production troubleshooting, premium rule packs | Planned |
 
-## Known limits in 1.1
+## Known limits
 
 - Binaries aren't code-signed yet; macOS and Windows warn on first run.
 - Host hooks are wired for Claude Code. Other agents use the same CLI and MCP tools, with the
   pre-commit hook and the push gate as enforcement.
-- Push doesn't delete records; deactivate them instead (`active: false`).
+- Nothing writes to test or production yet. Components-only installs there are decided
+  (ADR-0038, section 5) but not built.
 - `describe` doesn't yet list flows and workflows triggered by a table, or business rules on
   the global table.
-- Validation runs on local changes; validating an update set built in the browser comes
-  in 1.3.
+- Validation runs on local changes; validating an update set built in the browser is
+  planned.
 - Supported platforms: macOS on Apple silicon, Linux x64 and arm64, Windows x64.
 
 ## Open business decisions

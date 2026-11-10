@@ -14,7 +14,7 @@
     "verify": "bun run typecheck && bun run lint && bun run arch && bun run size && bun test --coverage",
     "build": "bun scripts/build.ts",
     "size": "bun scripts/check-size.ts",
-    "docs": "bun scripts/command-reference.ts"
+    "docs": "bun scripts/command-reference.ts && bun scripts/adr-index.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.4",

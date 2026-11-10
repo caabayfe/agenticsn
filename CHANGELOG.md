@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- The ADR index in `docs/adr/README.md` is generated from each record's title, status line and
+  `Amends` field (`bun run docs`); a test fails when it is stale. It lists the accepted decisions
+  not built yet, such as components-only installs on test and production (ADR-0038, section 5).
+- The product documents, the README and getting started quote rule, MCP tool and skill counts
+  checked against the code by a test, and describe 2.x (spec 014, F9).
+
 ### Fixed
 
 - A push whose ledger commit fails after the push reached the instance (a commit-msg hook that

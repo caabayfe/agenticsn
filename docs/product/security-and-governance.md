@@ -1,6 +1,6 @@
 # snagentic: security and governance
 
-*For security, architecture and platform reviewers. Version 1.2.0.*
+*For security, architecture and platform reviewers. Covers snagentic 2.x.*
 
 This document explains where instance data goes, how credentials are handled, what can
 write to ServiceNow, and which controls are enforced in code rather than left to an agent.
@@ -42,7 +42,8 @@ a date or time format or a time zone; it isn't private; its name doesn't look li
 the value has the shape of its type (ADR-0034). Every other value, strings and passwords
 included, is redacted.
 
-Redaction happens before anything is written. A field that was redacted can't be pushed back;
+Pulls also scan what they write for high-confidence secrets and redact them, and `adopt`
+refuses a record that carries one (ADR-0035). Redaction happens before anything is written. A field that was redacted can't be pushed back;
 the plan tells the user to set it on the instance. An update set export leaves out the updates
 that would set a secret, and lists them so they can be moved by hand.
 
@@ -80,7 +81,7 @@ Every instance profile has a kind: `development`, `test` or `production`
 | | development | test, production |
 |---|---|---|
 | Pull, status, update sets (read) | yes | yes |
-| `push`, `plugins activate` | yes, gated | **not registered**: the commands and MCP tools don't exist for these instances |
+| `push`, `adopt`, `plugins activate`, `apps install`, `accelerator install` | yes, gated | **not registered**: the commands and MCP tools don't exist for these instances |
 | Credential requirement | normal developer roles | must hold `snc_read_only`; checked **before every connection**, refused otherwise |
 | Adding the profile | — | needs an explicit `--acknowledge-read-only` |
 
@@ -89,8 +90,9 @@ flow execution, cache flushes or impersonation.
 
 ## The write path
 
-Only `push` (and plugin activation) writes to an instance, and only to a development
-instance. A push needs every one of these:
+Only development instances are written: by `push`, by plugin and store application
+activation, and by accelerator installs, which run the same push for each module. A push needs
+every one of these:
 
 1. **A plan id** from `plan-push`, bound to the exact content of the workspace. If anything
    changes after planning, the push is refused.
@@ -107,7 +109,8 @@ instance. A push needs every one of these:
 
 The push writes into its own update set, `snagentic: <branch> [<scope>]`, restores the user's
 current update set afterwards, journals each step before writing, verifies each write was
-captured, and never retries a write automatically. Push doesn't delete records.
+captured, and never retries a write automatically. It deletes only what the source deletes
+(`Now.del`), and the plan lists each deletion.
 
 ## Enforcement layers
 
@@ -115,15 +118,15 @@ Skills and instructions guide an agent; **they never count as enforcement**
 ([ADR-0011](../adr/0011-enforcement-layers.md)). Guarantees come from code, credentials, git
 and CI:
 
-| # | Layer | What it stops | 1.1 |
+| # | Layer | What it stops | Status |
 |---|---|---|---|
 | 1 | Host hooks: refuse edits to protected files (including the hook settings themselves), `check` after each edit, `validate` before the agent ends its turn | Agent mistakes, immediately | Claude Code, Copilot CLI |
 | 2 | Host permission rules and a shell hook: deny direct HTTP to the instance, deny skipping git hooks, ask before every operation that writes to an instance or can't be undone | The agent working around snagentic | Claude Code; Copilot CLI (shell hook, no `ask`) |
 | 3 | Push gate (above) | Unvalidated pushes through the tool | **Yes** |
 | 4 | Git pre-commit hook running `validate` | Bad commits | **Yes** |
-| 5 | Git server branch protection and CI checks | Anything merged, whoever wrote it | 1.3 (templates) |
-| 6 | Credential isolation: in governed mode only CI can write | Every direct-API bypass | 1.3 |
-| 7 | Update-set validation in CI before promotion | Browser-built work promoted through CI | 1.3 |
+| 5 | Git server branch protection and CI checks | Anything merged, whoever wrote it | Planned (CI templates) |
+| 6 | Credential isolation: in governed mode only CI can write | Every direct-API bypass | Planned |
+| 7 | Update-set validation in CI before promotion | Browser-built work promoted through CI | Planned |
 | 8 | ServiceNow roles, checked by `doctor`; `snc_read_only` for test and production | What a credential can do at all | **Yes** |
 | 9 | Optional promotion guard app on test and production | Everything, including manual promotion | Planned |
 
@@ -136,7 +139,7 @@ with `chat.useClaudeHooks` enabled, and the Copilot cloud agent doesn't run them
 
 ## Guardrail content
 
-`validate` applies 24 rules, each with an id, severity, rationale and remediation, in five
+`validate` applies 41 rules, each with an id, severity, rationale and remediation, in five
 categories:
 
 - **Security**, for example no dynamic code evaluation, no credentials in scripts, no
@@ -176,3 +179,5 @@ pull with no changes costs 22 requests and 3.2 s of server time.
   troubleshooting features are built.
 - Hooks for VS Code without `chat.useClaudeHooks`, the Copilot cloud agent and Codex.
 - Code signing.
+- Components-only installs on test and production (ADR-0038, section 5) are accepted but not
+  built. Until they are, snagentic writes to no test or production instance.

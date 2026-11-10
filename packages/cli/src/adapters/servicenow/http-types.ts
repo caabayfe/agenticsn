@@ -13,6 +13,9 @@ export interface HttpResponse {
   readonly status: number;
   readonly headers: { get(name: string): string | null };
   text(): Promise<string>;
+  // Set by the scheduler: how long the request itself took, from sending it to reading the last
+  // byte of its body, without the wait for a slot or the rate limit (PERF2-05).
+  readonly elapsedMs?: number;
 }
 
 // The transport gave up waiting for an answer (its own timeout, not a cancellation).

@@ -18,6 +18,9 @@ export interface TableQuery {
   // False when the caller retries a timed-out request itself (the pager, with a smaller page),
   // so the connection does not retry it too (ADR-0053).
   readonly retryOnTimeout?: boolean;
+  // Told how long the request itself took, from sending it to reading its body, without the
+  // wait for a slot or the rate limit: the pager sizes pages on server time (PERF2-05).
+  readonly onRequestTime?: (milliseconds: number) => void;
 }
 
 export interface ConnectionStats {

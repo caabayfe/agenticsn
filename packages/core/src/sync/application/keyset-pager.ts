@@ -26,6 +26,12 @@ export interface PagerSettings {
   readonly now?: () => number;
 }
 
+interface PageTimer {
+  readonly report: (milliseconds: number) => void;
+  readonly answered: () => void;
+  durationMs(): number;
+}
+
 const CURSOR_FIELDS = {
   snapshot: ["sys_id"],
   "change-feed": ["sys_id", "sys_updated_on"],
@@ -59,6 +65,23 @@ export class KeysetPager {
     this.now = settings.now ?? (() => performance.now());
   }
 
+  // Times one page. The connection reports the request's own time; a reader that doesn't is
+  // timed from the call to its answer. Never the consumer's time with the rows (PERF2-05).
+  private timing(): PageTimer {
+    const started = this.now();
+    let answeredAt = started;
+    let reported: number | null = null;
+    return {
+      report: (milliseconds) => {
+        reported = milliseconds;
+      },
+      answered: () => {
+        answeredAt = this.now();
+      },
+      durationMs: () => reported ?? answeredAt - started,
+    };
+  }
+
   async *rows(listing: KeysetListing, signal: AbortSignal): AsyncGenerator<Row> {
     requireCursorFields(listing);
     let cursor: Cursor | null = null;
@@ -69,8 +92,8 @@ export class KeysetPager {
       if (signal.aborted) {
         throw new OperationCancelledError();
       }
-      const started = this.now();
-      const page = await this.page(listing, cursor, size, signal, timedOut);
+      const timing = this.timing();
+      const page = await this.page(listing, cursor, size, signal, timedOut, timing);
       if (page === "retry-smaller" || page === "timed-out") {
         timedOut ||= page === "timed-out";
         size = nextPageSize(size, { durationMs: 0, cancelled: true });
@@ -85,11 +108,11 @@ export class KeysetPager {
       if (cursor !== null && sameCursor(next, cursor)) {
         throw new PaginationStalledError(listing.table);
       }
+      if (this.settings.adaptive !== false) {
+        size = nextPageSize(size, { durationMs: timing.durationMs() });
+      }
       yield* page;
       cursor = next;
-      if (this.settings.adaptive !== false) {
-        size = nextPageSize(size, { durationMs: this.now() - started });
-      }
     }
   }
 
@@ -99,21 +122,25 @@ export class KeysetPager {
     size: number,
     signal: AbortSignal,
     timedOutBefore: boolean,
+    timing: PageTimer,
   ): Promise<readonly Row[] | "retry-smaller" | "timed-out"> {
     try {
       const query = keysetQuery(listing, cursor);
       const domains = listing.allDomains === true ? { allDomains: true } : {};
-      return await this.reader.query(
-        {
-          table: listing.table,
-          query,
-          fields: listing.fields,
-          limit: size,
-          ...domains,
-          retryOnTimeout: false,
-        },
-        signal,
-      );
+      return await this.reader
+        .query(
+          {
+            table: listing.table,
+            query,
+            fields: listing.fields,
+            limit: size,
+            ...domains,
+            retryOnTimeout: false,
+            onRequestTime: timing.report,
+          },
+          signal,
+        )
+        .finally(timing.answered);
     } catch (error) {
       if (isQuotaCancellation(error) && size > PAGE_SIZE.min) {
         return "retry-smaller";

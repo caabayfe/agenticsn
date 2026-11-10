@@ -325,4 +325,41 @@ describe("KeysetPager", () => {
     });
     expect(sizes).toEqual([800, 400, 200]);
   });
+
+  it("does not count the time the consumer spends on the rows as server time", async () => {
+    const sizes: number[] = [];
+    let now = 0;
+    const fast: InstanceReader = {
+      query: async (query) => {
+        sizes.push(query.limit);
+        return sizes.length < 3 ? [{ sys_id: id(sizes.length), sys_updated_on: second(1) }] : [];
+      },
+      stats: () => STATS,
+    };
+    const pager = new KeysetPager(fast, { initialPageSize: 800, now: () => now });
+    for await (const _ of pager.rows({ ...SPEC, kind: "snapshot", base: "" }, LIVE)) {
+      now += 6000;
+    }
+    expect(sizes).toEqual([800, 1000, 1000]);
+  });
+
+  it("measures only the request itself when the connection reports it, not the queue before it", async () => {
+    const sizes: number[] = [];
+    let now = 0;
+    const queued: InstanceReader = {
+      query: async (query) => {
+        sizes.push(query.limit);
+        now += 6000;
+        query.onRequestTime?.(200);
+        return sizes.length < 3 ? [{ sys_id: id(sizes.length), sys_updated_on: second(1) }] : [];
+      },
+      stats: () => STATS,
+    };
+    await collect(new KeysetPager(queued, { initialPageSize: 800, now: () => now }), {
+      ...SPEC,
+      kind: "snapshot",
+      base: "",
+    });
+    expect(sizes).toEqual([800, 1000, 1000]);
+  });
 });

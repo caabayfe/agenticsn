@@ -18,6 +18,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   not built yet, such as components-only installs on test and production (ADR-0038, section 5).
 - The product documents, the README and getting started quote rule, MCP tool and skill counts
   checked against the code by a test, and describe 2.x (spec 014, F9).
+- The test suite also runs on macOS and Windows in CI, with a check that the macOS sandbox tests
+  ran. The tests read no global or system git configuration. The tests that drive a real ffmpeg
+  or Chrome run in their own CI job; `SNAGENTIC_TEST_MEDIA=skip` or `require` chooses locally
+  (spec 014, R1).
 
 - The agent pack's shell hook refuses commands that set proxy or certificate variables
   (`HTTPS_PROXY`, `NO_PROXY`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE` and similar). Set them in

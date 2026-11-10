@@ -11,7 +11,7 @@ import {
 } from "@snagentic/core";
 import { gitIntegrator } from "../../../src/adapters/git/git-integrator";
 import { GitMirror } from "../../../src/adapters/git/git-mirror";
-import { runGitOrThrow } from "../../../src/adapters/git/run-git";
+import { runGit, runGitOrThrow } from "../../../src/adapters/git/run-git";
 import { FsWorkspaceStore } from "../../../src/adapters/workspace/fs-workspace-store";
 
 const temporary: string[] = [];
@@ -97,6 +97,10 @@ describe("GitIntegrator", () => {
 
   it("starts the history from the pull in a repository without any commit", async () => {
     const root = await workspace();
+    // The workspace turns on core.fsmonitor on macOS and Windows; where git has the daemon (not
+    // Apple's git), it can still be writing into .git while the test removes it, and the new
+    // repository then failed with "bad object refs/heads/main" on the macOS runner. Stop it first.
+    await runGit(["fsmonitor--daemon", "stop"], root);
     await rm(join(root, ".git"), { recursive: true, force: true });
     await runGitOrThrow(["init", "-q", "-b", "main"], root);
     await pullScript(root, "one();");

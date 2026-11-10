@@ -8,9 +8,14 @@ import { FsAudioAssets } from "../../../src/adapters/documentation/fs-audio-asse
 import { mediaTools, piperLocation } from "../../../src/adapters/documentation/media-tools";
 import { runTool, toolAvailable } from "../../../src/adapters/documentation/run-tool";
 import { CachedVoice, PiperVoice, SystemVoice } from "../../../src/adapters/documentation/voices";
+import { mediaTestsRun } from "../../support/media-tests";
 
-// Media programs are optional on a machine: these tests run where they are installed.
-const HAS_FFMPEG = await toolAvailable(["ffmpeg", "-hide_banner", "-version"]);
+// Media programs are optional on a machine: these tests run where they are installed, and
+// SNAGENTIC_TEST_MEDIA moves them to their own CI job (spec 014, R1).
+const HAS_FFMPEG = mediaTestsRun(
+  "ffmpeg",
+  await toolAvailable(["ffmpeg", "-hide_banner", "-version"]),
+);
 const HAS_SAY = process.platform === "darwin" && existsSync("/usr/bin/say");
 const PIPER = piperLocation(process.env, process.env["HOME"] ?? "");
 const signal = new AbortController().signal;

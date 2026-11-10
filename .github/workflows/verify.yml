@@ -16,6 +16,77 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # The tests that drive a real ffmpeg or Chrome run in the media job below (spec 014, R1).
+      SNAGENTIC_TEST_MEDIA: skip
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: typecheck, lint, architecture rules, file sizes
+        run: bun run typecheck && bun run lint && bun run arch && bun run size
+      # `bun run verify`'s tests, with the media adapters' coverage left to the media job.
+      - name: tests with coverage
+        run: bun test --config=bunfig.no-media.toml --coverage
+
+  # The test suite on the other platforms the binary ships for (spec 014, R1). Coverage is
+  # measured once, on Linux, above.
+  tests:
+    name: tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      SNAGENTIC_TEST_MEDIA: skip
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: tests
+        if: runner.os != 'Windows'
+        run: bun test
+      # Every test file except the ones listed as known Windows failures, each a follow-up.
+      - name: tests (without the known Windows failures)
+        if: runner.os == 'Windows'
+        run: |
+          ignore=()
+          while read -r path; do
+            [[ -z "$path" || "$path" == \#* ]] || ignore+=("--path-ignore-patterns=$path")
+          done < <(tr -d '\r' < tests/windows-known-failures.txt)
+          bun test "${ignore[@]}"
+      # Reported, not gating: shows which listed files now pass and can leave the list.
+      - name: the known Windows failures
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        run: bun test $(grep -v '^#' tests/windows-known-failures.txt | tr -d '\r')
+      # The Fluent worker's macOS sandbox (ADR-0044) is tested only on macOS: fail if its tests
+      # were filtered or skipped away rather than run.
+      - name: the macOS sandbox tests ran
+        if: runner.os == 'macOS'
+        run: |
+          out=$(bun test packages/cli/test/adapters/fluent/worker-runtime.test.ts -t "the macOS sandbox" 2>&1)
+          echo "$out"
+          grep -Eq '^ *[1-9][0-9]* pass$' <<<"$out"
+
+  # The tests that drive a real ffmpeg and Chrome: slow and dependent on the runner image, so
+  # they are reported here instead of failing the gating job (spec 014, R1). The whole suite,
+  # with bunfig.toml's coverage, as `bun run verify` runs it on a machine with the programs.
+  media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Fail, rather than skip, when the runner lacks a program.
+      SNAGENTIC_TEST_MEDIA: require
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -32,5 +103,5 @@ jobs:
       - name: ffmpeg
         timeout-minutes: 3
         run: scripts/ci/ffmpeg.sh "$HOME/.cache/snagentic-ffmpeg"
-      - name: typecheck, lint, architecture rules, tests with coverage
-        run: bun run verify
+      - name: tests with coverage, media included
+        run: bun test --coverage

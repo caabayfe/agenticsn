@@ -1,0 +1,37 @@
+# Test files that fail on Windows (spec 014, R1: 67 tests in 28 files on the first runs). The
+# Windows CI leg runs every other test file and reports these in a step that does not gate; each
+# line is a follow-up, not an accepted skip. Remove a line once its file passes on Windows.
+# Causes seen:
+#   tar given a "C:\..." path reads it as a remote host ("Cannot connect to C: resolve failed")
+#   backslash paths where the code or the test expects "/" (docs pages, mirror files, hooks)
+#   fake programs written as "#!/bin/sh" scripts (gh, chrome, voices), not runnable on Windows
+#   a doubled drive letter when resolving the SDK's type files ("D:\D:\...")
+#   replacing a running binary (EFTYPE, uv_spawn), file modes and permissions
+packages/cli/test/adapters/accelerators/pack-source-loader.test.ts
+packages/cli/test/adapters/delivery/gh-pull-requests.test.ts
+packages/cli/test/adapters/documentation/census-adapters.test.ts
+packages/cli/test/adapters/documentation/documentation-adapters.test.ts
+packages/cli/test/adapters/documentation/git-documentation-history.test.ts
+packages/cli/test/adapters/documentation/video-adapters.test.ts
+packages/cli/test/adapters/fluent/type-files.test.ts
+packages/cli/test/adapters/fluent/worker-runtime.test.ts
+packages/cli/test/adapters/fluent/workspace-authoring.test.ts
+packages/cli/test/adapters/fluent/workspace-fluent-projects.test.ts
+packages/cli/test/adapters/fs/create-text-file.test.ts
+packages/cli/test/adapters/knowledge/sqlite-knowledge-store.test.ts
+packages/cli/test/adapters/records/flat-record-store.test.ts
+packages/cli/test/adapters/upgrade/executable-binary.test.ts
+packages/cli/test/adapters/upgrade/gh-attestations.test.ts
+packages/cli/test/adapters/upgrade/json-update-check-store.test.ts
+packages/cli/test/adapters/workspace/fs-workspace-store.test.ts
+packages/cli/test/hooks/claude-hooks.test.ts
+packages/cli/test/registry/accelerator-install.test.ts
+packages/cli/test/registry/agent-install.test.ts
+packages/cli/test/registry/check.test.ts
+packages/cli/test/registry/docs.test.ts
+packages/cli/test/registry/install-steps.test.ts
+packages/cli/test/registry/knowledge.test.ts
+packages/cli/test/registry/plan-push.test.ts
+packages/cli/test/registry/push.test.ts
+packages/cli/test/registry/validate.test.ts
+tests/architecture/type-assertions.test.ts

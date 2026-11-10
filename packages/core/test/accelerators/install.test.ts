@@ -9,6 +9,7 @@ import {
   type InstallProgress,
   type InstallSteps,
   type InventoryReader,
+  installApproval,
   installPack,
   installPlanDocument,
   type ListState,
@@ -891,7 +892,12 @@ describe("an upgrade over the pack's earlier update sets still in progress", () 
       detail: "",
       seconds: 1,
     };
-    const { journal } = memoryJournal({ planId: plan.planId, startedAt: "t", steps: [done] });
+    const { journal } = memoryJournal({
+      planId: plan.planId,
+      startedAt: "t",
+      steps: [done],
+      approved: installApproval(plan),
+    });
     await installPack({ ...ready, journal }, { ...QUERY, confirm: plan.planId });
     expect(calls.some((c) => c.startsWith("complete"))).toBe(false);
   });

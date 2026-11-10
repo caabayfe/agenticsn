@@ -90,6 +90,31 @@ export class InstallPlanChangedError extends SnagenticError {
   }
 }
 
+// A resume runs the plan the admin approved: a pack that changed since makes it another plan.
+export class InstallResumeChangedError extends SnagenticError {
+  constructor(changes: readonly string[]) {
+    super(
+      "install-resume-changed",
+      "precondition",
+      `the stopped install cannot resume: since its plan was approved, ${changes.join("; ")}`,
+      "the pack changed since the plan was approved: run accelerator install again without --confirm to get a new plan, get it approved, then confirm its id",
+    );
+  }
+}
+
+// A journal an older version wrote does not say which pack it approved, so a resume cannot
+// check it still runs the approved plan.
+export class InstallResumeUnknownError extends SnagenticError {
+  constructor(planId: string) {
+    super(
+      "install-resume-unknown",
+      "precondition",
+      `the stopped install ${planId} was journaled by an older snagentic, which did not record the approved pack: it cannot resume safely`,
+      "run accelerator install again without --confirm to get a new plan, get it approved, then confirm its id: modules the instance already holds as built are skipped",
+    );
+  }
+}
+
 export class InstallBlockedError extends SnagenticError {
   constructor(problems: readonly string[]) {
     super(

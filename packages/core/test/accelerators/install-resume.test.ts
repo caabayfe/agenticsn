@@ -2,8 +2,10 @@ import { describe, expect, it } from "bun:test";
 import {
   type ActivationProgress,
   ActivationStateUnknownError,
+  type InstallPlan,
   type InstallRecord,
   type InstallSteps,
+  installApproval,
   installPack,
   planInstall,
   StoreAppInstallStateUnknownError,
@@ -79,8 +81,9 @@ function deps(steps: InstallSteps, journal = memoryJournal().journal) {
 }
 
 // A journal where the install of sn_dex stopped with its outcome unknown.
-const lostInstall = (planId: string): InstallRecord => ({
-  planId,
+const lostInstall = (plan: InstallPlan): InstallRecord => ({
+  planId: plan.planId,
+  approved: installApproval(plan),
   startedAt: "2026-11-03T10:00:00.000Z",
   steps: [
     { step: "activate com.snc.pa", outcome: "done", detail: "active after 3 s", seconds: 3 },
@@ -126,7 +129,7 @@ describe("resuming an install whose component outcome was lost (spec 011, I3 c)"
   it("reads the lost outcome first, and goes on without asking again when it succeeded", async () => {
     const { steps, calls } = fakeSteps({ progress: [progress("successful")] });
     const plan = await planInstall(deps(steps), QUERY);
-    const { journal } = memoryJournal(lostInstall(plan.planId));
+    const { journal } = memoryJournal(lostInstall(plan));
     const result = await installPack(deps(steps, journal), { ...QUERY, confirm: plan.planId });
     expect(result.stopped).toBeNull();
     expect(calls.slice(0, 2)).toEqual(["progress prog9", "refresh"]);
@@ -141,7 +144,7 @@ describe("resuming an install whose component outcome was lost (spec 011, I3 c)"
   it("stops again, asking nothing, while the lost install is still running", async () => {
     const { steps, calls } = fakeSteps({ progress: [progress("running")] });
     const plan = await planInstall(deps(steps), QUERY);
-    const { journal, state } = memoryJournal(lostInstall(plan.planId));
+    const { journal, state } = memoryJournal(lostInstall(plan));
     const result = await installPack(deps(steps, journal), { ...QUERY, confirm: plan.planId });
     // Only the report is committed: nothing is asked of the instance again.
     expect(calls).toEqual(["progress prog9", "commit 2"]);
@@ -156,7 +159,7 @@ describe("resuming an install whose component outcome was lost (spec 011, I3 c)"
   it("stops with the failure the instance states, and lets the next run ask again", async () => {
     const { steps, calls } = fakeSteps({ progress: [progress("failed", "Unable to download")] });
     const plan = await planInstall(deps(steps), QUERY);
-    const { journal, state } = memoryJournal(lostInstall(plan.planId));
+    const { journal, state } = memoryJournal(lostInstall(plan));
     const result = await installPack(deps(steps, journal), { ...QUERY, confirm: plan.planId });
     // Only the report is committed: nothing is asked of the instance again.
     expect(calls).toEqual(["progress prog9", "commit 2"]);

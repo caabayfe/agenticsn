@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import {
   collectTypeFiles,
@@ -6,7 +7,8 @@ import {
   encodeTypeFiles,
 } from "../../../src/adapters/fluent/type-files";
 
-const CLI_PACKAGE = new URL("../../..", import.meta.url).pathname;
+// A file path, not the URL's pathname: on Windows that is "/D:/...", which resolves to "D:\D:\...".
+const CLI_PACKAGE = fileURLToPath(new URL("../../..", import.meta.url));
 
 describe("Fluent type files", () => {
   const files = collectTypeFiles(CLI_PACKAGE);

@@ -73,6 +73,12 @@ Windows (PowerShell):
 irm https://github.com/caabayfe/agenticsn/releases/latest/download/install.ps1 | iex
 ```
 
+Windows is a **preview**. Pull, integrate, plan-push, push, validate and check pass their tests
+there. Known limits: `snagentic docs` can't read its pages, the Fluent SDK worker runs without
+a sandbox, and the tests of the knowledge tools (`find`, `describe`, `advise`), `upgrade`, the
+Copilot CLI hook and accelerator installs don't pass on Windows yet. The test files that still
+fail there are listed in [`tests/windows-known-failures.txt`](tests/windows-known-failures.txt).
+
 One self-contained binary; its only prerequisite is `git`. The installers check SHA-256 sums.
 The binaries aren't signed yet, so Gatekeeper and SmartScreen may warn on first run.
 

@@ -59,8 +59,11 @@ export const FLUENT_SOURCE_DIR = "source";
 
 // A path under source/<scope>/, relative to the workspace, or null for any other path. A `.`,
 // `..` or empty segment is refused, so `source/..` can't name the workspace or anything above it.
-export function fluentSourcePath(workspace: string, path: string): string | null {
-  let relative = path.startsWith(`${workspace}/`) ? path.slice(workspace.length + 1) : path;
+// Windows paths are read with / separators: snagentic names workspace files with / everywhere.
+export function fluentSourcePath(workspace: string, given: string): string | null {
+  const root = workspace.replaceAll("\\", "/");
+  const path = given.replaceAll("\\", "/");
+  let relative = path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
   relative = relative.startsWith("./") ? relative.slice(2) : relative;
   const [top, ...rest] = (relative.endsWith("/") ? relative.slice(0, -1) : relative).split("/");
   const plain = rest.length > 0 && rest.every((s) => s !== "" && s !== "." && s !== "..");

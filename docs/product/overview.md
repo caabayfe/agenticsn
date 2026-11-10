@@ -159,7 +159,12 @@ never passes through a snagentic service: there isn't one.
   the global table.
 - Validation runs on local changes; validating an update set built in the browser is
   planned.
-- Supported platforms: macOS on Apple silicon, Linux x64 and arm64, Windows x64.
+- Supported platforms: macOS on Apple silicon, Linux x64 and arm64. Windows x64 is a
+  preview: pull, integrate, plan-push, push, validate and check pass their tests there.
+  `snagentic docs` can't read its pages, the Fluent SDK worker runs without a sandbox, and the
+  tests of the knowledge tools, `upgrade`, the Copilot CLI hook and accelerator installs don't
+  pass on Windows yet. The test files that still fail there are listed in
+  `tests/windows-known-failures.txt`.
 
 ## Open business decisions
 

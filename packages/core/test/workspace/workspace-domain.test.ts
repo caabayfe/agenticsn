@@ -53,6 +53,11 @@ describe("workspace layout", () => {
     );
     expect(fluentSourcePath("/w", "/w/source/x_app")).toBe("source/x_app");
     expect(fluentSourcePath("/w", "./source/x_app/")).toBe("source/x_app/");
+    // Windows: a path with \ separators, under a workspace given with them, is the same path.
+    expect(fluentSourcePath("C:\\w", "C:\\w\\source\\x_app\\src\\a.js")).toBe(
+      "source/x_app/src/a.js",
+    );
+    expect(fluentSourcePath("C:\\w", "source\\..\\x")).toBeNull();
     for (const path of [
       "source/..",
       "source/../x",

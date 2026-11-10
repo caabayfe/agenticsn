@@ -1,4 +1,4 @@
-import { relative, resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import { checkFiles } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
@@ -22,7 +22,10 @@ export const check = defineUseCase({
   arguments: ["paths"],
   async handle(input, context) {
     const root = await workspaceRoot(context);
-    const paths = input.paths.map((path) => relative(root, resolve(context.host.cwd, path)));
+    // Workspace paths use / on every platform; relative() gives \ on Windows.
+    const paths = input.paths.map((path) =>
+      relative(root, resolve(context.host.cwd, path)).split(sep).join("/"),
+    );
     return checkFiles({ paths });
   },
   render(output) {

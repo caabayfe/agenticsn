@@ -27,6 +27,8 @@ function fakeStore(options: {
     create: async (directory, manifest) => {
       created.push({ directory, manifest });
     },
+    repositoryTuning: async () => null,
+    tuneRepository: async () => {},
   };
   return { store, created };
 }

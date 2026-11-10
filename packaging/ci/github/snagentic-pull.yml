@@ -11,13 +11,21 @@
 #     with the workflow's own token.
 # The kind below must match instances/dev/instance.yaml. Keep the URL and kind here, in the CI
 # configuration, never only in the repository (ADR-0020).
+#
+# Set the shared mirror's max age to at least twice the schedule below. A mirror is already a
+# few minutes old when it is published (the pull's run time, the queue, GitHub's late start of
+# scheduled runs), so with a max age equal to the schedule every developer's pull would ask the
+# instance for part of every cycle. For this 15-minute schedule, in instances/dev/instance.yaml:
+#   shared_mirror:
+#     remote: origin
+#     max_age_minutes: 30
 
 name: snagentic pull (dev)
 
 on:
   schedule:
-    # Every 15 minutes, the default shared_mirror max_age_minutes: developers' own pulls inside
-    # that age ask the instance nothing.
+    # Every 15 minutes: half the max age above, so developers' own pulls ask the instance
+    # nothing even when a run starts late.
     - cron: "*/15 * * * *"
   workflow_dispatch:
 
@@ -42,9 +50,31 @@ jobs:
       SNAGENTIC_DEV_URL: ${{ vars.SNAGENTIC_DEV_URL }}
       SNAGENTIC_DEV_KIND: development
     steps:
+      # Only the files the pull reads from the working tree: the workspace manifest, the
+      # instance's profile and .gitignore. The default branch holds the integrated mirror (GBs on
+      # a large instance), and the pull never reads it: it writes the mirror branch with git
+      # plumbing. One commit, and no file contents outside these (blobless).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ssh-key: ${{ secrets.SNAGENTIC_MIRROR_DEPLOY_KEY }}
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /snagentic.yaml
+            /.gitignore
+            /instances/dev/instance.yaml
+      # The mirror branch's last commit, with its files: the pull reads them (its state, and the
+      # records it compares), and a blobless fetch would download each one in its own request.
+      # Unsetting the filter makes the pull's own fetches (a newer tip after a refused publish)
+      # take whole commits too. One commit, not the branch's history. Nothing on the first run.
+      - name: fetch the mirror branch
+        run: |
+          git config --unset remote.origin.partialclonefilter
+          if git ls-remote --exit-code --heads origin servicenow-remote/dev; then
+            git fetch --no-tags --depth 1 origin \
+              +refs/heads/servicenow-remote/dev:refs/remotes/origin/servicenow-remote/dev
+          fi
       - name: install snagentic
         env:
           # The release this template came with. Raise it on purpose, after reading the changelog.

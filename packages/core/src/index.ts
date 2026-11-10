@@ -8,6 +8,7 @@ export * from "./delivery/index";
 export * from "./documentation/index";
 export { checkAgentPack } from "./environment/application/check-agent-pack";
 export { checkMcpConfigs } from "./environment/application/check-mcp-configs";
+export { checkRepositoryTuning } from "./environment/application/check-repository-tuning";
 export { runDoctor } from "./environment/application/run-doctor";
 export { runInstanceChecks } from "./environment/application/run-instance-checks";
 export {
@@ -240,6 +241,7 @@ export {
   installAgentPack,
 } from "./workspace/application/install-agent-pack";
 export { type LocatedWorkspace, locateWorkspace } from "./workspace/application/locate-workspace";
+export { applyRepositoryTuning } from "./workspace/application/tune-repository";
 export { withWorkspaceLock } from "./workspace/application/with-workspace-lock";
 export {
   installedPackVersion,
@@ -278,6 +280,7 @@ export {
   type MirrorTreeEntry,
 } from "./workspace/domain/mirror-scope";
 export { protectedReason } from "./workspace/domain/protected-paths";
+export type { RepositorySetting } from "./workspace/domain/repository-tuning";
 export type {
   LockHolder,
   WorkspaceFiles,

@@ -1,4 +1,5 @@
 import type { WorkspaceManifest } from "./domain/manifest";
+import type { RepositorySetting } from "./domain/repository-tuning";
 
 export interface WorkspaceStore {
   // The directory itself first, then each parent up to the file-system root.
@@ -9,6 +10,14 @@ export interface WorkspaceStore {
   isEmptyOrMissing(directory: string): Promise<boolean>;
   // Writes the manifest and .gitignore, initializes and tunes the git repository.
   create(directory: string, manifest: WorkspaceManifest): Promise<void>;
+  // The large-repository settings for this machine, with the value git resolves for each;
+  // null when the directory is not in a git repository.
+  repositoryTuning(directory: string): Promise<readonly RepositorySetting[] | null>;
+  // Sets them in the repository's own config (git config --local), never the global one.
+  tuneRepository(
+    directory: string,
+    settings: readonly Pick<RepositorySetting, "key" | "value">[],
+  ): Promise<void>;
 }
 
 // Text files in a workspace, by absolute path.

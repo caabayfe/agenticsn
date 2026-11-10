@@ -19,7 +19,7 @@ interface Step {
   readonly uses?: string;
   readonly run?: string;
   readonly env?: Record<string, string>;
-  readonly with?: Record<string, string>;
+  readonly with?: Record<string, string | number | boolean>;
 }
 interface Job {
   readonly permissions?: Record<string, string>;
@@ -104,9 +104,43 @@ describe("CI templates (spec 014, T2)", () => {
       }
     });
 
-    it(`${file} runs one pull of an instance at a time, on the default max age`, () => {
+    it(`${file} runs one pull of an instance at a time`, () => {
       expect(workflow.concurrency?.group).toMatch(/^snagentic-pull-[a-z0-9-]+$/);
-      expect(workflow.on.schedule?.map((entry) => entry.cron)).toEqual(["*/15 * * * *"]);
+    });
+
+    // Spec 014, PERF2-02: a mirror is minutes old when published and scheduled runs start late,
+    // so a max age equal to the schedule sent developers' pulls to the instance every cycle.
+    it(`${file} documents a max age of at least twice its schedule`, () => {
+      const crons = workflow.on.schedule?.map((entry) => entry.cron) ?? [];
+      expect(crons).toHaveLength(1);
+      const every = Number(/^\*\/(\d+) \* \* \* \*$/.exec(crons[0] ?? "")?.[1]);
+      const maxAge = Number(/max_age_minutes: (\d+)/.exec(text)?.[1]);
+      expect(every).toBeGreaterThan(0);
+      expect(maxAge).toBeGreaterThanOrEqual(2 * every);
+      const guide = readFileSync(join(ROOT, "docs/guides/team-mode.md"), "utf8");
+      for (const [, minutes] of guide.matchAll(/max_age_minutes: (\d+)/g)) {
+        expect(Number(minutes)).toBeGreaterThanOrEqual(2 * every);
+      }
+    });
+
+    // Spec 014, PERF2-04: the default branch holds the integrated mirror, which the pull never
+    // reads; checking it out took minutes on a large instance, every run.
+    it(`${file} checks out one blobless commit, with only the files the pull reads`, () => {
+      const checkout = steps(workflow).find((step) => step.uses?.startsWith("actions/checkout@"));
+      const options = checkout?.with ?? {};
+      expect(options["fetch-depth"]).toBe(1);
+      expect(options["filter"]).toBe("blob:none");
+      expect(options["sparse-checkout-cone-mode"]).toBe(false);
+      const patterns = `${options["sparse-checkout"]}`.trim().split("\n");
+      expect(
+        patterns.map((line) => line.replace(/^\/instances\/[a-z0-9-]+\//, "/instances/<name>/")),
+      ).toEqual(["/snagentic.yaml", "/.gitignore", "/instances/<name>/instance.yaml"]);
+      const all = steps(workflow);
+      const fetch = all.find((step) => (step.run ?? "").includes("git fetch"));
+      expect(fetch?.run).toContain("--unset remote.origin.partialclonefilter");
+      expect(fetch?.run).toMatch(/git fetch --no-tags --depth 1 origin/);
+      const pull = all.findIndex((step) => (step.run ?? "").includes("snagentic pull"));
+      expect(all.indexOf(fetch ?? {})).toBeLessThan(pull);
     });
 
     it(`${file} installs the release it ships with, and requires its provenance`, () => {
@@ -125,7 +159,7 @@ describe("CI templates (spec 014, T2)", () => {
       const cache = caches[0]?.with ?? {};
       expect(cache["path"]).toMatch(/^\.snagentic\/[a-z0-9-]+\/trust\.json$/);
       expect(cache["key"]).toMatch(/^snagentic-trust-[a-z0-9-]+-\$\{\{ github\.run_id \}\}$/);
-      expect(`${cache["key"]}`.startsWith(cache["restore-keys"] ?? "-")).toBe(true);
+      expect(`${cache["key"]}`.startsWith(String(cache["restore-keys"] ?? "-"))).toBe(true);
       const all = steps(workflow);
       const pull = all.findIndex((step) => (step.run ?? "").includes("snagentic pull"));
       expect(all.indexOf(caches[0] ?? {})).toBeLessThan(pull);

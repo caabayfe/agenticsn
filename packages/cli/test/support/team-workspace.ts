@@ -72,13 +72,20 @@ export async function team(data: Record<string, Row[]>) {
   // profile, which names the first member). Every other member signs in as `username` through
   // its clone's identity, or SNAGENTIC_PDI_USERNAME (ADR-0054); instance.yaml stays as committed.
   // `at` is the clock, as an ISO time.
-  const member = async (username = "svc_ci", via: "clone" | "environment" = "clone") => {
+  // `checkout` makes the clone another way than `git clone` (as a CI runner does).
+  const member = async (
+    username = "svc_ci",
+    via: "clone" | "environment" = "clone",
+    checkout?: (origin: string, root: string) => Promise<void>,
+  ) => {
     count += 1;
     const root = join(base, `w${count}`);
     roots.push(root);
     if (count === 1) {
       await new FsWorkspaceStore().create(root, { layout: 2, createdWith: "test" });
       await runGitOrThrow(["remote", "add", "origin", origin], root);
+    } else if (checkout !== undefined) {
+      await checkout(origin, root);
     } else {
       await runGitOrThrow(["clone", "-q", origin, root], base);
     }

@@ -19,12 +19,11 @@ This is a clean rebuild of `../snagentic` (v1). v1 is a **reference for algorith
 fixtures and ServiceNow behavior, not code to copy**. v1 failed through scope creep and
 mixed layers; don't repeat that.
 
-**Status:** v1.0.0 was released on 2026-10-06 (`specs/002-v1.0-release/plan.md`). Since then:
-knowledge, governance, the agent pack and delivery (1.1, specs 003 and 004); ACLs through an
-elevated session (1.4, ADR-0024); choices, layouts and scoped applications from files (1.5,
-ADR-0025); domains (ADR-0027, spec 006). The product story is in `README.md` and
-`docs/product/`. User documentation: `docs/getting-started.md` and the generated
-`docs/reference/commands.md` (`bun run docs` regenerates it; a test fails when it is stale).
+**Status:** v1.0.0 was released on 2026-10-06; 2.0 moved authoring to Fluent (ADR-0031). Each
+release since is in `CHANGELOG.md`; the decisions and their status are in `docs/adr/README.md`.
+The product story is in `README.md` and `docs/product/`. User documentation:
+`docs/getting-started.md` and the generated `docs/reference/commands.md`. `bun run docs`
+regenerates the command reference and the ADR index; a test fails when either is stale.
 
 **Live testing on a PDI:** build a release candidate with `bun run build` and run it from
 `dist/snagentic` in the PDI's workspace. macOS asks for keychain access again after every
@@ -69,13 +68,16 @@ packages/
   core/src/
     kernel/            SysId, TableName, Scope, canonical text + hash, base errors
     metadata/          Artifact, ArtifactType registry, Snapshot, ChangeSet
-    sync/              domain/ application/ ports.ts   (pull, integrate, plan, push)
-    knowledge/         domain/ application/ ports.ts   (model, graph, search, audit)
-    governance/        domain/ application/ ports.ts   (rules, gate, waivers, reports)
-    adapters/          servicenow/ git/ fs/ sqlite/ keyring/
-  rules-basic/         free rule pack: one folder per rule, with spec tests
+    <context>/         domain/ application/ ports.ts, one folder per bounded context:
+                       sync (pull, integrate), knowledge (find, describe), advice (rules,
+                       guidance), governance (validate, gate, waivers), authoring (adopt,
+                       Fluent source), delivery (plan, push), updatesets, plugins,
+                       accelerators, documentation, instance, connection, environment,
+                       workspace, upgrade
+  rules-basic/         free rule pack: ESLint script checks, one file per category
   agent-packs/         skills, instructions, hooks, rendered per host
   cli/src/
+    adapters/          ports implemented: servicenow/ git/ fs/ fluent/ credentials/ ...
     registry/          use cases: zod schemas + handler (single source of truth)
     cli/ mcp/ hooks/   generated interfaces, no logic
 docs/adr/  docs/architecture/
@@ -110,7 +112,7 @@ Choosing the test:
 | Code | Test with |
 |---|---|
 | Domain logic | Unit tests; `fast-check` for properties (round-trips, hashing, diffs) |
-| Use cases | In-memory fake ports in `packages/core/test/fakes/` |
+| Use cases | In-memory fake ports in `packages/core/test/support/` |
 | Adapters | The shared contract suite for that port; HTTP via `msw`; git against temporary repositories |
 | Disk format, agent output, SARIF | Golden files |
 | Never in default tests | Real network, real credentials, live instances |

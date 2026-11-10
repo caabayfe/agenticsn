@@ -17,6 +17,7 @@ import { syncStateStore } from "../../src/adapters/state/mirror-sync-state-store
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import type { UseCaseContext } from "../../src/registry/use-case";
 import { FAKE_CONTEXT, TRUSTED_PASSWORD } from "./fakes";
+import { DELIVERY_ADAPTERS } from "./instance-workspace";
 
 const IDENTITY = ["-c", "user.name=t", "-c", "user.email=t@t"];
 
@@ -44,6 +45,7 @@ export async function team(data: Record<string, Row[]>) {
       store: new SqliteKnowledgeStore(join(r, instancePaths(name).localState, "knowledge.sqlite")),
       files: new GitMirrorFiles(r, instancePaths(name).metadata),
     }),
+    ...DELIVERY_ADAPTERS,
     pushJournal: (r, name) => new JsonPushJournalStore(join(r, instancePaths(name).localState)),
     clock: () => new Date(at),
     host: { cwd: root, home: base, version: "test" },

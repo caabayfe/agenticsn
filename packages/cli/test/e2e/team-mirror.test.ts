@@ -1,4 +1,4 @@
-import { afterEach, expect, describe as group, it } from "bun:test";
+import { afterEach, expect, describe as group, it, setDefaultTimeout } from "bun:test";
 import { InstanceName, type Row } from "@snagentic/core";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { describe } from "../../src/registry/describe";
@@ -6,7 +6,9 @@ import { executeUseCase } from "../../src/registry/execute";
 import { integrate } from "../../src/registry/integrate";
 import { pull } from "../../src/registry/pull";
 import { status } from "../../src/registry/status";
-import { team } from "../support/team-workspace";
+import { TEAM_TIMEOUT, team } from "../support/team-workspace";
+
+setDefaultTimeout(TEAM_TIMEOUT);
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {

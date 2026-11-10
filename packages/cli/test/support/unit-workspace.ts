@@ -8,9 +8,11 @@ import {
   unitDigest,
   withEntries,
 } from "@snagentic/core";
+import type { fakeInstance } from "../../../core/test/support/fake-instance";
 import { builtUnitOf } from "../../src/adapters/fluent/built-units";
 import { WorkspaceAuthoring } from "../../src/adapters/fluent/workspace-authoring";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
+import type { UseCaseContext } from "../../src/registry/use-case";
 import { instanceWorkspace } from "./instance-workspace";
 
 // A workspace whose Fluent source (source/x_2222332_s11) adopted the S11 script include from an
@@ -34,8 +36,13 @@ const runtime = async () => ({
   transform: async () => ({ success: false as const, message: "unused" }),
 });
 
-// fluent/load on the in-memory instance: each file applied as built, recorded in the set.
-function installer(tables: Record<string, Row[]>, loads: string[]): FluentInstaller {
+// fluent/load on the in-memory instance: each file applied as built, recorded in the set by the
+// user signed in.
+function installer(
+  tables: Record<string, Row[]>,
+  loads: string[],
+  username: string,
+): FluentInstaller {
   return {
     load: async (_scopeId, files, updateSet) => {
       for (const file of files) {
@@ -54,7 +61,7 @@ function installer(tables: Record<string, Row[]>, loads: string[]): FluentInstal
             sys_id: `x${updates.length}`,
             name: unit.updateName,
             update_set: updateSet,
-            sys_updated_by: "admin",
+            sys_updated_by: username,
           },
         ];
       }
@@ -77,18 +84,17 @@ declare global {
 const git = (root: string, ...args: string[]) =>
   runGitOrThrow(["-c", "user.name=t", "-c", "user.email=t@t", ...args], root);
 
-export async function unitWorkspace(options: {
-  readonly source: string;
-  readonly instance: string;
-}) {
-  const tables: Record<string, Row[]> = {
-    sys_user: [{ sys_id: "u1", user_name: "admin" }],
+// The instance rows the S11 workspace adopted from, as `username` sees them; `description` is the
+// script include's on the instance.
+export function s11Tables(description: string, username = "admin"): Record<string, Row[]> {
+  return {
+    sys_user: [{ sys_id: "u1", user_name: username }],
     sys_update_set: [],
     sys_update_xml: [],
     sys_user_preference: [],
     sys_script_include: [
       {
-        ...builtUnitOf(SI_FILE, builtXml(options.instance)).head.fields,
+        ...builtUnitOf(SI_FILE, builtXml(description)).head.fields,
         sys_class_name: "sys_script_include",
         sys_scope: SCOPE.sysId,
         sys_mod_count: "1",
@@ -98,7 +104,20 @@ export async function unitWorkspace(options: {
       },
     ],
   };
-  const ws = await instanceWorkspace(tables);
+}
+
+// Adopts the S11 script include into a workspace already connected to an instance holding
+// s11Tables: the project, its ledger and source (`source` is the description edited in it),
+// committed. The context it returns builds with the SDK's own file and loads into the instance.
+export async function adoptS11(
+  ws: {
+    readonly root: string;
+    readonly context: UseCaseContext;
+    readonly instance: Pick<ReturnType<typeof fakeInstance>, "tables" | "reader">;
+  },
+  options: { readonly source: string; readonly instance: string; readonly username?: string },
+) {
+  const tables = ws.instance.tables;
   const authoring = new WorkspaceAuthoring(ws.root, runtime);
   const project = await authoring.scaffold(SCOPE);
   const adopted = builtUnitOf(SI_FILE, builtXml(options.instance));
@@ -121,20 +140,23 @@ export async function unitWorkspace(options: {
     draftTransform: async () => ({ ok: false, message: "unused" }),
   };
   const loads: string[] = [];
-  const reader = { ...ws.instance.reader, fluent: installer(tables, loads) };
-  const context = {
+  const fluent = installer(tables, loads, options.username ?? "admin");
+  const reader = { ...ws.instance.reader, fluent };
+  const context: UseCaseContext = {
     ...ws.context,
     connections: { open: () => reader, openForWrite: () => reader },
     authoring: () => ({ workspace: authoring, toolchain }),
   };
-  return {
-    ...ws,
-    context,
-    tables,
-    loads,
-    project,
-    git: (...args: string[]) => git(ws.root, ...args),
-  };
+  return { context, tables, loads, project };
+}
+
+export async function unitWorkspace(options: {
+  readonly source: string;
+  readonly instance: string;
+}) {
+  const ws = await instanceWorkspace(s11Tables(options.instance));
+  const adopted = await adoptS11(ws, options);
+  return { ...ws, ...adopted, git: (...args: string[]) => git(ws.root, ...args) };
 }
 
 // A test that plans against this workspace builds, validates and reads a real git repository;

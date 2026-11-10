@@ -19,6 +19,7 @@ interface Step {
   readonly uses?: string;
   readonly run?: string;
   readonly env?: Record<string, string>;
+  readonly with?: Record<string, string>;
 }
 interface Job {
   readonly permissions?: Record<string, string>;
@@ -116,6 +117,20 @@ describe("CI templates (spec 014, T2)", () => {
       expect(install?.run).toContain('grep -q "provenance verified"');
     });
 
+    // Spec 014, SEC2-03: a stateless runner keeps the digest of the catalog it read, so it
+    // doesn't read the instance's catalog again on every run. Only that file is cached.
+    it(`${file} keeps only the catalog digest across runs, the newest restored`, () => {
+      const caches = steps(workflow).filter((step) => step.uses?.startsWith("actions/cache@"));
+      expect(caches).toHaveLength(1);
+      const cache = caches[0]?.with ?? {};
+      expect(cache["path"]).toMatch(/^\.snagentic\/[a-z0-9-]+\/trust\.json$/);
+      expect(cache["key"]).toMatch(/^snagentic-trust-[a-z0-9-]+-\$\{\{ github\.run_id \}\}$/);
+      expect(`${cache["key"]}`.startsWith(cache["restore-keys"] ?? "-")).toBe(true);
+      const all = steps(workflow);
+      const pull = all.findIndex((step) => (step.run ?? "").includes("snagentic pull"));
+      expect(all.indexOf(caches[0] ?? {})).toBeLessThan(pull);
+    });
+
     it(`${file} takes the secret from secrets and pins it with the url and kind (ADR-0020)`, () => {
       const env = Object.values(workflow.jobs).find((job) => job.env !== undefined)?.env ?? {};
       const password = Object.keys(env).find((name) => /^SNAGENTIC_\w+_PASSWORD$/.test(name));
@@ -125,7 +140,12 @@ describe("CI templates (spec 014, T2)", () => {
       expect(env[`${prefix}_URL`]).toBeDefined();
       expect(env[`${prefix}_KIND`]).toMatch(/^(development|test|production)$/);
       const secretLike = [...text.matchAll(/^\s*([\w-]*(?:PASSWORD|SECRET|KEY|key)):\s*(.+)$/gm)];
+      // actions/cache names its cache id `key`: that value is checked above, not a secret.
+      const cacheKeys = steps(workflow).flatMap((step) =>
+        step.uses?.startsWith("actions/cache@") === true ? [step.with?.["key"]] : [],
+      );
       for (const [, name, value] of secretLike) {
+        if (name === "key" && cacheKeys.includes(value)) continue;
         expect(value, name).toMatch(/^\$\{\{ secrets\.\w+ \}\}$/);
       }
     });

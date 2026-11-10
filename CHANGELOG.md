@@ -153,7 +153,9 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   clone read the same catalog itself (noted in `.snagentic/<name>/trust.json`), so which fields are
   passwords and which classes hold credentials always comes from the instance. A secret scan or
   redaction version above the binary's own is treated as not applied: the mirror is scanned and
-  re-read again (spec 014, SEC2-03).
+  re-read again. The scheduled pull template keeps `trust.json`, which holds only a digest, across
+  runs with `actions/cache`, so the CI puller reads the catalog again only when the dictionary
+  changes (spec 014, SEC2-03).
 - The agent hooks also refuse setting `SNAGENTIC_<NAME>_USERNAME`, and adding or deleting
   keychain items (`security add-generic-password`, `security delete-generic-password`,
   `secret-tool store`, `secret-tool clear`), so an agent can't choose which user's credentials

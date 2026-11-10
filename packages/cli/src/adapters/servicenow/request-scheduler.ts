@@ -70,10 +70,11 @@ export class RequestScheduler {
   private readonly slots: SlotQueue;
   private readonly own: RunMeter;
   private nextStart = 0;
+  private requestsPerSecond: number | undefined;
 
   constructor(
     private readonly transport: Transport,
-    private readonly settings: SchedulerSettings = {},
+    settings: SchedulerSettings = {},
   ) {
     this.controller =
       settings.controller ??
@@ -81,8 +82,17 @@ export class RequestScheduler {
         settings.maxConcurrency === undefined ? {} : { max: settings.maxConcurrency },
       );
     this.clock = settings.clock ?? SYSTEM_CLOCK;
+    this.requestsPerSecond = settings.requestsPerSecond;
     this.slots = new SlotQueue(() => this.controller.limit);
     this.own = this.meter(settings.budget === undefined ? {} : { budget: settings.budget });
+  }
+
+  // New limits for every run, the ones going included, so an instance keeps one scheduler when
+  // its limits change (ADR-0053).
+  reconfigure(limits: { readonly maxConcurrency: number; readonly requestsPerSecond?: number }) {
+    this.controller.limitTo(limits.maxConcurrency);
+    this.requestsPerSecond = limits.requestsPerSecond;
+    this.slots.admit();
   }
 
   send(request: HttpRequest, signal: AbortSignal): Promise<HttpResponse> {
@@ -186,7 +196,7 @@ export class RequestScheduler {
 
   // Spaces request starts to the requests-per-second limit, across every run.
   private async pace(signal: AbortSignal): Promise<void> {
-    const perSecond = this.settings.requestsPerSecond;
+    const perSecond = this.requestsPerSecond;
     if (perSecond === undefined) {
       return;
     }

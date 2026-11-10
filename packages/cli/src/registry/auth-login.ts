@@ -42,8 +42,6 @@ export const authLogin = defineUseCase({
     readOnly: false,
     destructive: false,
     requiresDevelopmentInstance: false,
-    // Changes only the keychain, so it may run while a push holds the instance.
-    locksWorkspace: false,
   },
   // Secrets never pass through an agent.
   mcp: false,

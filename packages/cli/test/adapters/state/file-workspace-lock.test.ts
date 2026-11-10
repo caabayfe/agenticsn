@@ -87,6 +87,19 @@ describe("the workspace lock file (REL-03)", () => {
     });
   });
 
+  it("stops with the file and the next action when the lock cannot be read, not as no lock", async () => {
+    const at = directory();
+    // A lock path that exists but is no file: reading it fails with something other than
+    // "not found".
+    mkdirSync(join(at, "workspace.lock"), { recursive: true });
+    const lock = new FileWorkspaceLock(at);
+    await expect(lock.acquire("push", STARTED)).rejects.toMatchObject({
+      code: "unreadable-state-file",
+      hint: expect.stringContaining("workspace.lock"),
+    });
+    await expect(lock.release()).rejects.toMatchObject({ code: "unreadable-state-file" });
+  });
+
   it("gives back a lock another command took over after it was judged stale", async () => {
     const at = directory();
     mkdirSync(at, { recursive: true });

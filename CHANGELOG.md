@@ -129,6 +129,16 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   a preference's value before it changes it on the instance, so a crash in between still
   restores it (spec 014, F6).
 
+- Every command that isn't read-only now holds a lock, not only those with an `instance` input.
+  `instance add`, `instance remove`, `auth login` and `auth logout` hold their instance's lock,
+  so a profile or credential no longer changes under a running pull or push. `agent install`,
+  `docs build`, `docs pin`, `docs video`, `fluent-keys` and `upgrade` (inside a workspace) hold
+  the workspace's own `.snagentic/workspace.lock`, one at a time. `docs serve` holds it only
+  while it builds. A lock file that exists but can't be read stops with `unreadable-state-file`
+  instead of counting as no lock. Editing an instance's load limits while an MCP server runs
+  updates its one request scheduler, instead of starting a second one next to it. The team-mode
+  guide explains why two pushes signed in as the same user must not overlap (spec 014, 1b-I).
+
 - A stopped `accelerator install` resumes only the plan the admin approved. The install journal
   now records the approved pack, its version, its modules and a hash of the plan's content apart
   from the instance; a resume refuses (`install-resume-changed`) when any of them changed, and

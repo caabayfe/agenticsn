@@ -96,12 +96,17 @@ export class InstanceConnections {
     });
   }
 
-  // Limits changed since the scheduler was made (instance.yaml edited while an MCP server
-  // runs): later connections get a scheduler with the new limits.
+  // One scheduler per instance, keyed by its address only: when its limits change (instance.yaml
+  // edited while an MCP server runs), the scheduler takes them, runs already going included, so
+  // two schedulers never talk to the instance at once.
   private scheduler(url: string, limits: LoadLimits): RequestScheduler {
     const key = `${limits.maxConcurrency}/${limits.requestsPerSecond}`;
     const pooled = this.schedulers.get(url);
-    if (pooled !== undefined && pooled.limits === key) {
+    if (pooled !== undefined) {
+      if (pooled.limits !== key) {
+        pooled.scheduler.reconfigure(limits);
+        this.schedulers.set(url, { limits: key, scheduler: pooled.scheduler });
+      }
       return pooled.scheduler;
     }
     const scheduler = new RequestScheduler(this.settings.transport, {

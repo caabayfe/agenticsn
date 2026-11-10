@@ -17,6 +17,10 @@ export interface InstancePaths {
   readonly remoteBranch: string;
 }
 
+// The workspace's local state, never committed: each instance's under <dir>/<name>/, and the
+// workspace's own lock (an instance name has no ".", so workspace.lock is never an instance).
+export const LOCAL_STATE_DIR = ".snagentic";
+
 export function instancePaths(name: InstanceName): InstancePaths {
   const root = `instances/${name}`;
   return {
@@ -27,7 +31,7 @@ export function instancePaths(name: InstanceName): InstancePaths {
     operational: `${root}/operational`,
     pullState: `${root}/${PULL_STATE_FILE}`,
     pullCatalog: `${root}/${PULL_CATALOG_FILE}`,
-    localState: `.snagentic/${name}`,
+    localState: `${LOCAL_STATE_DIR}/${name}`,
     exports: `.snagentic/${name}/exports`,
     remoteBranch: `servicenow-remote/${name}`,
   };

@@ -25,7 +25,13 @@ export const init = defineUseCase({
     layout: z.number(),
     nextSteps: z.array(z.string()),
   }),
-  flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
+  flags: {
+    readOnly: false,
+    destructive: false,
+    requiresDevelopmentInstance: false,
+    // It creates the workspace: there is none to lock yet, and it needs an empty folder.
+    lock: "none",
+  },
   mcp: false,
   arguments: ["path"],
   async handle(input, context) {

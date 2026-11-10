@@ -12,7 +12,13 @@ export const instanceRemove = defineUseCase({
     forgetCredentials: z.boolean().default(false).describe("also delete its stored credentials"),
   }),
   output: z.object({ removed: z.string(), credentialsRemoved: z.boolean() }),
-  flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: false },
+  flags: {
+    readOnly: false,
+    destructive: true,
+    requiresDevelopmentInstance: false,
+    // The instance's own lock: its profile and credentials change under a pull or push otherwise.
+    lock: { instance: "name" },
+  },
   mcp: false,
   arguments: ["name"],
   async handle(input, context) {

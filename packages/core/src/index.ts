@@ -261,6 +261,7 @@ export {
   GITIGNORE,
   type InstancePaths,
   instancePaths,
+  LOCAL_STATE_DIR,
   metadataPath,
 } from "./workspace/domain/layout";
 export {

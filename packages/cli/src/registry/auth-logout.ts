@@ -20,8 +20,6 @@ export const authLogout = defineUseCase({
     readOnly: false,
     destructive: true,
     requiresDevelopmentInstance: false,
-    // Changes only the keychain, so it may run while a push holds the instance.
-    locksWorkspace: false,
   },
   mcp: false,
   arguments: ["instance"],

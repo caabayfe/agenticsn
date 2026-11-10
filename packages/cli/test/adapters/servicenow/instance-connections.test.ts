@@ -119,6 +119,29 @@ describe("InstanceConnections (ADR-0053)", () => {
     });
   });
 
+  it("keeps one scheduler for an instance when its limits change while runs are going", async () => {
+    const probe = concurrencyProbe();
+    const pool = connections(probe.transport);
+    const before = pool.open(profileOf("pdi"), "s");
+    const after = pool.open({ ...profileOf("pdi"), load: { maxConcurrency: 1 } }, "s");
+    await Promise.all([
+      ...Array.from({ length: 4 }, () => before.query(QUERY, LIVE)),
+      ...Array.from({ length: 4 }, () => after.query(QUERY, LIVE)),
+    ]);
+    expect(probe.peak.get("pdi.service-now.com")).toBe(1);
+  });
+
+  it("lets a later run raise an instance's limits, regained by healthy responses", async () => {
+    const probe = concurrencyProbe();
+    const pool = connections(probe.transport);
+    const lowered = pool.open({ ...profileOf("pdi"), load: { maxConcurrency: 1 } }, "s");
+    await lowered.query(QUERY, LIVE);
+    const raised = pool.open(profileOf("pdi"), "s");
+    for (let healthy = 0; healthy < 20; healthy += 1) await raised.query(QUERY, LIVE);
+    await Promise.all(Array.from({ length: 4 }, () => raised.query(QUERY, LIVE)));
+    expect(probe.peak.get("pdi.service-now.com")).toBe(2);
+  });
+
   it("lets the environment lower concurrency on an instance", async () => {
     const probe = concurrencyProbe();
     const pool = connections(probe.transport, { SNAGENTIC_PDI_MAX_CONCURRENCY: "1" });

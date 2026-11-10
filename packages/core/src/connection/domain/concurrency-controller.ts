@@ -20,7 +20,7 @@ export class ConcurrencyController {
   private current: number;
   private streak = 0;
   private readonly min: number;
-  private readonly max: number;
+  private max: number;
   private readonly healthyStreak: number;
   private readonly threshold: number;
 
@@ -35,6 +35,13 @@ export class ConcurrencyController {
 
   get limit(): number {
     return this.current;
+  }
+
+  // An owner's new ceiling, taken while requests run (instance.yaml edited under an MCP server):
+  // a lower one applies at once, a higher one is reached by the usual healthy streaks.
+  limitTo(max: number): void {
+    this.max = max;
+    this.current = Math.min(this.current, max);
   }
 
   observe(signal: ResponseSignal): void {

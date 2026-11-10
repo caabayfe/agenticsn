@@ -246,4 +246,15 @@ export interface InstallRecord {
   readonly planId: string;
   readonly startedAt: string;
   readonly steps: readonly InstallStepRecord[];
+  // What identifies the approved plan apart from the instance: a resume refuses when it changed.
+  // Absent from journals written by 2.19 and earlier (spec 014, F7).
+  readonly approved?: InstallApproval;
+}
+
+// The approved plan's pack, version and modules, and a hash of its instance-independent content.
+export interface InstallApproval {
+  readonly pack: string;
+  readonly version: string;
+  readonly modules: readonly string[];
+  readonly content: string;
 }

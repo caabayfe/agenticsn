@@ -17,6 +17,16 @@ const InstallFile: z.ZodType<InstallRecord> = z.looseObject({
       progressId: z.string().exactOptional(),
     }),
   ),
+  // Absent from journals written by 2.19 and earlier: the install then refuses to resume them
+  // (spec 014, F7).
+  approved: z
+    .object({
+      pack: z.string(),
+      version: z.string(),
+      modules: z.array(z.string()),
+      content: z.string(),
+    })
+    .exactOptional(),
 });
 
 // .snagentic/<name>/install.json, replaced atomically like the push journal, and

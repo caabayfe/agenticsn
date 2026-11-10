@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { resolve } from "node:path";
-import { InstallPlanChangedError } from "@snagentic/core";
+import { type InstallApproval, InstallPlanChangedError, type InstallRecord } from "@snagentic/core";
 import { CsvDataTemplates } from "../../src/adapters/accelerators/csv-data-templates";
 import { DirectoryPackSource } from "../../src/adapters/accelerators/directory-pack-source";
 import { fsWorkspaceFiles } from "../../src/adapters/fs/fs-workspace-files";
@@ -55,6 +55,26 @@ async function installing(data: Parameters<typeof instanceWorkspace>[0] = {}) {
       },
     },
   };
+}
+
+// What a confirmed run of the same input records as approved, on a workspace of its own.
+async function approvedFor(input: Record<string, unknown>): Promise<InstallApproval> {
+  const other = await installing();
+  const records: InstallRecord[] = [];
+  const context = {
+    ...other.context,
+    workspaceFiles: fsWorkspaceFiles,
+    installJournal: () => ({
+      ...other.context.installJournal(),
+      write: async (record: InstallRecord) => {
+        records.push(record);
+      },
+    }),
+  };
+  await executeUseCase(acceleratorInstall, input, context);
+  const approved = records[0]?.approved;
+  if (approved === undefined) throw new Error("the confirmed run journaled no approved pack");
+  return approved;
 }
 
 describe("accelerator install (ADR-0038)", () => {
@@ -157,6 +177,7 @@ describe("accelerator install (ADR-0038)", () => {
     const planId = (plan as { planId: string }).planId;
     const lost = {
       planId,
+      approved: await approvedFor({ ...input, confirm: planId }),
       startedAt: "2026-11-03T10:00:00.000Z",
       steps: [
         {

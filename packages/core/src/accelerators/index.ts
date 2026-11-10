@@ -77,6 +77,8 @@ export {
   InstallBlockedError,
   InstallLockedError,
   InstallPlanChangedError,
+  InstallResumeChangedError,
+  InstallResumeUnknownError,
   InvalidPackError,
   LoadConfirmationRequiredError,
   PackNotAddableError,
@@ -84,9 +86,11 @@ export {
   TemplatesInvalidError,
   TrackedDataError,
 } from "./domain/errors";
+export { installApproval } from "./domain/install-approval";
 export { installPlanDocument, installReportDocument } from "./domain/install-document";
 export {
   type ComponentAction,
+  type InstallApproval,
   type InstallPlan,
   type InstallRecord,
   type InstallStepRecord,

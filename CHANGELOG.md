@@ -20,6 +20,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   command is now an expected error (`git-command-failed`) with git's message and a hint, not
   "a bug in snagentic" (spec 014, F5).
 
+- A stopped `accelerator install` resumes only the plan the admin approved. The install journal
+  now records the approved pack, its version, its modules and a hash of the plan's content apart
+  from the instance; a resume refuses (`install-resume-changed`) when any of them changed, and
+  refuses on blocking problems like a first run. A journal written by 2.19 and earlier names no
+  approved pack, so its resume refuses (`install-resume-unknown`): plan again and confirm the new
+  id (spec 014, F7).
+
 ## [2.19.1] - 2026-11-08
 
 ### Fixed

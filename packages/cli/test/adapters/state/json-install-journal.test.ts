@@ -36,6 +36,38 @@ describe("the install journal and lock (ADR-0038, item 2.5)", () => {
     expect((await journal.read())?.steps[0]).toEqual(lost);
   });
 
+  it("keeps the approved pack, version, modules and content hash a resume checks (spec 014, F7)", async () => {
+    const journal = fresh();
+    const approved = {
+      pack: "itsm",
+      version: "0.17.2",
+      modules: ["foundation", "incident"],
+      content: "a".repeat(64),
+    };
+    await journal.write({ planId: "p", startedAt: "s", steps: [], approved });
+    expect((await journal.read())?.approved).toEqual(approved);
+  });
+
+  it("reads a journal an older version wrote, without the approved pack", async () => {
+    const directory = join(mkdtempSync(join(tmpdir(), "install-")), "pdi");
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      join(directory, "install.json"),
+      JSON.stringify({ planId: "p", startedAt: "s", steps: [] }),
+    );
+    const record = await new JsonInstallJournal(directory).read();
+    expect(record?.planId).toBe("p");
+    expect(record?.approved).toBeUndefined();
+  });
+
+  it("refuses a journal whose approved pack is malformed", async () => {
+    const directory = join(mkdtempSync(join(tmpdir(), "install-")), "pdi");
+    mkdirSync(directory, { recursive: true });
+    const record = { planId: "p", startedAt: "s", steps: [], approved: { pack: "itsm" } };
+    writeFileSync(join(directory, "install.json"), JSON.stringify(record));
+    await expect(new JsonInstallJournal(directory).read()).rejects.toThrow();
+  });
+
   it("keeps fields a newer version wrote", async () => {
     const directory = join(mkdtempSync(join(tmpdir(), "install-")), "pdi");
     mkdirSync(directory, { recursive: true });

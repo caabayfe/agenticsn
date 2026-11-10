@@ -2,8 +2,11 @@ import {
   InstallBlockedError,
   InstallLockedError,
   InstallPlanChangedError,
+  InstallResumeChangedError,
+  InstallResumeUnknownError,
   InstallStepStoppedError,
 } from "../domain/errors";
+import { approvalChanges, installApproval } from "../domain/install-approval";
 import { installPlanDocument, installReportDocument } from "../domain/install-document";
 import type { InstallPlan, InstallRecord, InstallStepRecord } from "../domain/install-plan";
 import type { RowProblem } from "../domain/row-problems";
@@ -177,16 +180,33 @@ export async function installPack(
   if (query.confirm === undefined) return base;
   if (!resuming && query.confirm !== plan.planId)
     throw new InstallPlanChangedError(query.confirm, plan.planId);
-  if (!resuming && plan.problems.length > 0) throw new InstallBlockedError(plan.problems);
+  if (plan.problems.length > 0) throw new InstallBlockedError(plan.problems);
+  if (resuming) checkResume(journal, plan);
   if (!(await deps.journal.lock())) throw new InstallLockedError(plan.instance.name);
   try {
     const start = resuming
       ? journal
-      : { planId: plan.planId, startedAt: deps.now().toISOString(), steps: [] };
+      : {
+          planId: plan.planId,
+          startedAt: deps.now().toISOString(),
+          steps: [],
+          approved: installApproval(plan),
+        };
     return await run(deps, plan, query, { folder, planPath }, start);
   } finally {
     await deps.journal.unlock();
   }
+}
+
+// A resume runs the plan computed now, not the one approved: their ids differ once the stopped
+// run changed the instance, which is expected, so it compares what the admin approved apart from
+// the instance (spec 014, F7). Blocking problems still refuse it: whatever their cause, the plan
+// it would run cannot be installed. Instance drift that leaves no problem (a plugin active now, a
+// field there now) still resumes.
+function checkResume(journal: InstallRecord, plan: InstallPlan) {
+  if (journal.approved === undefined) throw new InstallResumeUnknownError(journal.planId);
+  const changes = approvalChanges(journal.approved, installApproval(plan));
+  if (changes.length > 0) throw new InstallResumeChangedError(changes);
 }
 
 async function run(

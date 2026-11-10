@@ -265,7 +265,9 @@ export async function verifyAndRepairRecords(
 ): Promise<VerifiedRecords> {
   progress({ message: "verifying records" });
   const found = await verifyRecords(deps, catalog, previous, signal);
-  const applied = await applyWithCatalog(deps, catalog, found.changes, signal, progress);
+  // Records this user's count does not list are not deletions (ADR-0052 item 4).
+  const changes = deps.absence === "keep" ? { ...found.changes, deleted: [] } : found.changes;
+  const applied = await applyWithCatalog(deps, catalog, changes, signal, progress);
   // What the mirror cannot hold is remembered with the hidden rows, so the next verification
   // does not list the same parts again for it.
   const gaps: Record<string, number> = { ...found.listedHidden };

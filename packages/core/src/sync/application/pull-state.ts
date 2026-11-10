@@ -40,6 +40,9 @@ export interface PullRun {
   readonly full: boolean;
   // An incremental pull that found nothing to change in the mirror.
   readonly idle: boolean;
+  // The pull publishes to the shared mirror: its commit carries the later watermark even when
+  // nothing changed, so the team's pulls inside maxAge ask the instance nothing (ADR-0052).
+  readonly publish?: boolean;
   readonly puller: Puller;
 }
 
@@ -52,7 +55,7 @@ export async function recordPull(
   run: PullRun,
 ): Promise<boolean> {
   const signed = signedState(next, run);
-  if (run.idle && !run.full && !(await state.heldLocally())) {
+  if (run.idle && !run.full && run.publish !== true && !(await state.heldLocally())) {
     await state.noteUnchanged(signed);
     return false;
   }

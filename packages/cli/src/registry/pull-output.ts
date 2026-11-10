@@ -6,10 +6,12 @@ import {
   type ServerCost,
 } from "@snagentic/core";
 import { z } from "zod";
+import { renderCurrent, SharedPullOutput, sharedLines } from "./pull-shared-output";
 
 export const PullOutput = z.object({
   instance: z.string(),
-  mode: z.enum(["full", "incremental"]),
+  // current: the shared mirror was younger than maxAge, and the instance was not asked.
+  mode: z.enum(["full", "incremental", "current"]),
   resumed: z.boolean(),
   // The tip of servicenow-remote/<name>; unchanged when an incremental pull found nothing.
   commit: z.string(),
@@ -92,6 +94,7 @@ export const PullOutput = z.object({
         .nullable(),
     })
     .optional(),
+  shared: SharedPullOutput.optional(),
 });
 export type PullOutput = z.output<typeof PullOutput>;
 
@@ -281,6 +284,7 @@ function renderIncremental(
 }
 
 export function renderPull(output: PullOutput): string {
+  if (output.mode === "current") return renderCurrent(output.instance, output.shared);
   const lines = output.incremental
     ? renderIncremental(output, output.incremental)
     : output.full
@@ -290,6 +294,7 @@ export function renderPull(output: PullOutput): string {
   return [
     ...lines,
     `  not readable by this user: ${unreadable}`,
+    ...sharedLines(output.shared),
     ...(output.changed ? [`next: snagentic integrate ${output.instance}`] : []),
   ].join("\n");
 }

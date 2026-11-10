@@ -11,6 +11,7 @@ import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { gitInventoryReader } from "../../src/adapters/git/git-inventory-reader";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
+import { gitSharedMirror } from "../../src/adapters/git/git-shared-mirror";
 import { EslintScriptChecker } from "../../src/adapters/governance/eslint-script-checker";
 import { GitMirrorState } from "../../src/adapters/governance/git-mirror-state";
 import { GitMirrorFiles } from "../../src/adapters/knowledge/git-mirror-files";
@@ -51,6 +52,7 @@ export async function instanceWorkspace(
     credentials: TRUSTED_PASSWORD,
     connections: { open: () => instance.reader, openForWrite: () => instance.reader },
     syncState: syncStateStore,
+    sharedMirror: gitSharedMirror,
     mirrors: { open: (r, name, mode) => GitMirror.open(r, name, mode) },
     integrator: gitIntegrator,
     inspector: gitInspector,

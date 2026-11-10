@@ -166,3 +166,30 @@ export interface MirrorView {
 export interface MirrorInspector {
   inspect(root: string, instance: string): Promise<MirrorView>;
 }
+
+// The tip of servicenow-remote/<name> on the team's git remote (ADR-0052).
+export interface SharedTip {
+  readonly commit: string;
+  // Null when the commit carries no pull state (an earlier version pushed it).
+  readonly state: SyncState | null;
+}
+
+// The team's copy of the mirror branch on a git remote, reached with the developer's own git
+// credentials. Instance secrets never reach git.
+export interface SharedMirror {
+  // Fetches servicenow-remote/<name>; null when the remote has no such branch yet.
+  fetch(root: string, instance: string, remote: string): Promise<SharedTip | null>;
+  // The tip of the local servicenow-remote/<name>.
+  localTip(root: string, instance: string): Promise<string | null>;
+  // True when `descendant` is `ancestor` or contains it in its history.
+  contains(root: string, descendant: string, ancestor: string): Promise<boolean>;
+  // Moves the local servicenow-remote/<name> to `commit`.
+  moveTo(root: string, instance: string, commit: string): Promise<void>;
+  // Pushes `commit` as servicenow-remote/<name>, fast-forward only.
+  publish(
+    root: string,
+    instance: string,
+    remote: string,
+    commit: string,
+  ): Promise<"published" | "rejected">;
+}

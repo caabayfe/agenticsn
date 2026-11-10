@@ -4,7 +4,9 @@ import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domai
 import { changesSince, type FingerprintChange } from "../domain/fingerprint";
 import type { InventorySource } from "../domain/inventory";
 import { CHILD_TABLES } from "../domain/pull-scope";
+import { aheadOfClock } from "../domain/pull-state";
 import { FIRST_REDACTION_VERSION } from "../domain/redaction-upgrades";
+import { FutureWatermarkError } from "../domain/shared-mirror-errors";
 import type { Fingerprints, SyncState } from "../ports";
 import { detectChanges } from "./detect-changes";
 import { applyChildChanges, type ChildOutcome } from "./incremental-children";
@@ -115,8 +117,9 @@ async function applicationsIfMoved(
   stale: readonly { readonly table: string }[],
   signal: AbortSignal,
 ) {
+  const remove = deps.absence === "keep" ? undefined : deps.records;
   return stale.some((source) => source.table === "sys_scope")
-    ? pullApplications(deps, catalog, signal, deps.records)
+    ? pullApplications(deps, catalog, signal, remove)
     : { applications: 0, unreadable: [], secretRedactions: [] };
 }
 
@@ -201,6 +204,18 @@ async function prepareIncremental(
   return { state, catalog: new Catalog(migration.catalog), migration };
 }
 
+// The instance has answered by now: a watermark ahead of its clock would hide changes.
+function refuseFutureWatermark(
+  deps: IncrementalDependencies,
+  state: SyncState,
+  instance: string,
+): void {
+  const clock = deps.instanceTime?.() ?? null;
+  if (clock !== null && aheadOfClock(state.watermark, clock)) {
+    throw new FutureWatermarkError(instance, state.watermark);
+  }
+}
+
 // Nothing moved on the instance, and no policy asked to rewrite what the mirror holds.
 function isIdle(
   state: SyncState,
@@ -232,6 +247,7 @@ export async function pullIncremental(
     verify,
     signal,
   );
+  refuseFutureWatermark(deps, state, instance);
   const since = changesSince(state.watermark);
   const run = {
     state,

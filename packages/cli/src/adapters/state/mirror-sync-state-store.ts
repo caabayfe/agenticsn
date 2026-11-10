@@ -25,6 +25,27 @@ function parsed<T>(label: string, text: string, schema: z.ZodType<T>, hint: stri
   return checkStateValue(label, raw, schema, hint);
 }
 
+const fullPullHint = (instance: string) =>
+  `run snagentic pull ${instance} --full to write it again`;
+
+async function show(repository: string, commit: string, path: string): Promise<string | null> {
+  const result = await runGit(["show", `${commit}:${path}`], repository);
+  return result.exitCode === 0 ? result.stdout : null;
+}
+
+// The pull state a mirror commit carries, checked; null when it carries none.
+export async function pullStateAt(
+  repository: string,
+  commit: string,
+  instance: InstanceName,
+): Promise<SyncState | null> {
+  const path = instancePaths(instance).pullState;
+  const text = await show(repository, commit, path);
+  return text === null
+    ? null
+    : parsed(`${commit}:${path}`, text, SyncStateFile, fullPullHint(instance));
+}
+
 // The pull state of an instance (ADR-0052): read from the tip of servicenow-remote/<name>, which
 // any clone has once it fetched the branch. A workspace an earlier version pulled has it in
 // .snagentic/<name>/ until its next pull commit carries it. The checkpoint, and the note of a
@@ -39,7 +60,7 @@ export class MirrorSyncStateStore implements SyncStateStore {
     private readonly local: JsonSyncStateStore,
   ) {
     this.paths = instancePaths(instance);
-    this.hint = `run snagentic pull ${instance} --full to write it again`;
+    this.hint = fullPullHint(instance);
   }
 
   async readState(): Promise<SyncState | null> {
@@ -91,9 +112,8 @@ export class MirrorSyncStateStore implements SyncStateStore {
     return result.exitCode === 0 ? result.stdout.trim() : null;
   }
 
-  private async show(commit: string, path: string): Promise<string | null> {
-    const result = await runGit(["show", `${commit}:${path}`], this.repository);
-    return result.exitCode === 0 ? result.stdout : null;
+  private show(commit: string, path: string): Promise<string | null> {
+    return show(this.repository, commit, path);
   }
 }
 

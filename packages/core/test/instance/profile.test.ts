@@ -91,6 +91,28 @@ describe("createProfile", () => {
     ).toThrow(expect.objectContaining({ code: "invalid-input" }));
   });
 
+  it("names a shared mirror remote with the default max age, and refuses one git reads as an option", () => {
+    expect(
+      createProfile({
+        ...base,
+        kind: "development",
+        acknowledgeReadOnly: false,
+        sharedMirrorRemote: "origin",
+      }).sharedMirror,
+    ).toEqual({
+      remote: "origin",
+      maxAgeMinutes: 15,
+    });
+    expect(() =>
+      createProfile({
+        ...base,
+        kind: "development",
+        acknowledgeReadOnly: false,
+        sharedMirrorRemote: "-x",
+      }),
+    ).toThrow(/git remote name/);
+  });
+
   it("rejects an empty username", () => {
     expect(() =>
       createProfile({ ...base, username: " ", kind: "development", acknowledgeReadOnly: false }),

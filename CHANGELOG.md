@@ -10,6 +10,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   credentials in a proxy address hidden, and fails when a committed MCP config gives snagentic's
   server a proxy, certificate or runtime variable (`mcp-config`).
 - Guide: [network: proxies and corporate certificates](docs/guides/network.md).
+- A shared mirror for teams (ADR-0052). `instance add --shared-mirror origin` (or
+  `shared_mirror: { remote: origin, max_age_minutes: 15 }` in `instance.yaml`) names the git remote
+  that holds the team's `servicenow-remote/<name>`. `pull` then fetches it and continues from
+  whichever of it and the local branch has the later watermark, moving the local branch to it. While
+  that mirror is younger than `max_age_minutes` (15 by default), `pull` asks the instance nothing;
+  `--now` pulls anyway.
+- `pull --publish` pushes the mirror branch to the shared mirror, fast-forward only. It is refused
+  when the shared state names another instance user, unless the branch is new. A push the remote
+  refuses fetches, continues from the newer commit and tries once more, so two publishers can't
+  split the branch's history. `git fetch` and `git push` use the developer's own git credentials;
+  instance secrets never reach git.
 
 ### Changed
 
@@ -40,6 +51,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   `status` shows it as the last pull.
 - The pull state is read as data: a `state.yaml` or `catalog.yaml` that isn't what a pull writes is
   refused, naming the file. Agents may not edit `instances/<name>/pull/`.
+- The state names the instance user whose full pull the mirror reflects. A pull by another user adds
+  and changes records, and removes only what the instance's own deletion records name: never a
+  file because that user's listing (or `--verify` count) left it out.
+- A pull refuses a state whose watermark is later than the instance's own clock (from its responses'
+  `Date` header), because it would hide changes.
 
 - The agent pack's shell hook refuses commands that set proxy or certificate variables
   (`HTTPS_PROXY`, `NO_PROXY`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE` and similar). Set them in

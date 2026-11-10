@@ -85,6 +85,39 @@ describe("YamlProfileStore", () => {
     await expect(store.read(root, pdi.name)).rejects.toMatchObject({ code: "invalid-profile" });
   });
 
+  it("writes and reads the shared mirror a team pulls from (ADR-0052)", async () => {
+    const root = await workspace();
+    const team = createProfile({
+      name: InstanceName.parse("pdi"),
+      url: "dev312411",
+      username: "admin",
+      kind: "development",
+      acknowledgeReadOnly: false,
+      sharedMirrorRemote: "origin",
+    });
+    await store.write(root, team);
+    const text = await readFile(join(root, "instances/pdi/instance.yaml"), "utf8");
+    expect(text).toContain("shared_mirror:\n  max_age_minutes: 15\n  remote: origin\n");
+    expect(await store.read(root, team.name)).toEqual({
+      ...pdi,
+      sharedMirror: { remote: "origin", maxAgeMinutes: 15 },
+    });
+  });
+
+  it("refuses a hand-edited shared mirror git could read as an option or a path", async () => {
+    const root = await workspace();
+    await mkdir(join(root, "instances/pdi"), { recursive: true });
+    for (const remote of ["--upload-pack=x", "../elsewhere", "a b"]) {
+      const yaml = `url: https://dev1.service-now.com\nkind: development\nauth:\n  method: basic\n  username: admin\nshared_mirror:\n  remote: '${remote}'\n`;
+      await writeFile(join(root, "instances/pdi/instance.yaml"), yaml);
+      await expect(store.read(root, pdi.name)).rejects.toMatchObject({ code: "invalid-profile" });
+    }
+    const late =
+      "url: https://dev1.service-now.com\nkind: development\nauth:\n  method: basic\n  username: admin\nshared_mirror:\n  remote: origin\n  max_age_minutes: 2.5\n";
+    await writeFile(join(root, "instances/pdi/instance.yaml"), late);
+    await expect(store.read(root, pdi.name)).rejects.toMatchObject({ code: "invalid-profile" });
+  });
+
   it("returns nothing for a missing profile or an empty workspace", async () => {
     const root = await workspace();
     expect(await store.read(root, pdi.name)).toBeNull();

@@ -183,6 +183,8 @@ export function fakeInstance(
 ) {
   const queries: TableQuery[] = [];
   const fingerprints: string[] = [];
+  // The instance's clock, as its responses' Date header gives it; none unless a test sets it.
+  const clock: { time: number | null } = { time: null };
   // Plugin activations started, by plugin id. Activations succeed at once unless told otherwise.
   const activations: string[] = [];
   // Store application installs started, as "<scope> <version>". They succeed at once.
@@ -266,6 +268,7 @@ export function fakeInstance(
       semaphoreWaitMs: 0,
     }),
     stats: () => STATS,
+    instanceTime: () => clock.time,
     apps: {
       install: async (scope: string, version: string, demoData: boolean) => {
         installs.push(`${scope} ${version}${demoData ? " with demo data" : ""}`);
@@ -305,5 +308,16 @@ export function fakeInstance(
       }),
     },
   };
-  return { reader, queries, fingerprints, counted, tables, activations, installs, writes, writer };
+  return {
+    reader,
+    queries,
+    fingerprints,
+    counted,
+    tables,
+    activations,
+    installs,
+    writes,
+    writer,
+    clock,
+  };
 }

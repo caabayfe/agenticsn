@@ -65,6 +65,15 @@ describe("ServiceNowClient", () => {
     });
   });
 
+  it("reads the instance's clock from the Date header of its latest response", async () => {
+    const { client } = clientWith(async () =>
+      response(200, '{"result":[]}', { Date: "Tue, 10 Nov 2026 12:00:00 GMT" }),
+    );
+    expect(client.instanceTime()).toBeNull();
+    await client.query(QUERY, LIVE);
+    expect(client.instanceTime()).toBe(Date.parse("2026-11-10T12:00:00Z"));
+  });
+
   it("downloads whole records without a field list when asked for all fields", async () => {
     const { client, sent } = clientWith(async () => response(200, '{"result":[]}'));
     await client.query({ ...QUERY, fields: "all" }, LIVE);

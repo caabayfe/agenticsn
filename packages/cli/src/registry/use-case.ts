@@ -38,6 +38,7 @@ import type {
   ReleaseSource,
   SdkAccess,
   ServerCostReader,
+  SharedMirror,
   SiteOutput,
   StoreAppInstaller,
   SyncStateStore,
@@ -106,6 +107,8 @@ export interface UseCaseContext {
   readonly connections: ConnectionFactory;
   // Per-instance local sync state (.snagentic/<name>/) and the git mirror of a workspace.
   readonly syncState: (root: string, instance: InstanceName) => SyncStateStore;
+  // The team's copy of the mirror branch on a git remote (ADR-0052).
+  readonly sharedMirror: SharedMirror;
   readonly mirrors: {
     open(root: string, instance: InstanceName, mode: MirrorMode): Promise<IncrementalMirror>;
   };

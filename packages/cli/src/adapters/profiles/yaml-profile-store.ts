@@ -4,13 +4,16 @@ import { join } from "node:path";
 import {
   type AuthSettings,
   clientIdProblem,
+  DEFAULT_MAX_AGE_MINUTES,
   INSTANCE_KINDS,
   type InstanceName,
   InstanceName as InstanceNames,
   type InstanceProfile,
   instancePaths,
+  maxAgeProblem,
   normalizeInstanceUrl,
   type ProfileStore,
+  remoteProblem,
   SnagenticError,
   usernameProblem,
 } from "@snagentic/core";
@@ -49,6 +52,21 @@ const ProfileFile = z.object({
     }),
   ]),
   read_only_acknowledged: z.boolean().default(false),
+  // ADR-0052: the git remote holding the team's mirror, and how old it may be before a pull asks
+  // the instance.
+  shared_mirror: z
+    .object({
+      remote: z.string().refine((value) => remoteProblem(value) === null, {
+        error: (issue) => remoteProblem(String(issue.input)) ?? "invalid remote",
+      }),
+      max_age_minutes: z
+        .number()
+        .default(DEFAULT_MAX_AGE_MINUTES)
+        .refine((value) => maxAgeProblem(value) === null, {
+          error: (issue) => maxAgeProblem(Number(issue.input)) ?? "invalid max age",
+        }),
+    })
+    .optional(),
 });
 
 type AuthFile = z.infer<typeof ProfileFile>["auth"];
@@ -93,6 +111,14 @@ export class YamlProfileStore implements ProfileStore {
       kind: file.data.kind,
       auth: authFrom(file.data.auth),
       readOnlyAcknowledged: file.data.read_only_acknowledged,
+      ...(file.data.shared_mirror === undefined
+        ? {}
+        : {
+            sharedMirror: {
+              remote: file.data.shared_mirror.remote,
+              maxAgeMinutes: file.data.shared_mirror.max_age_minutes,
+            },
+          }),
     };
   }
 
@@ -104,6 +130,14 @@ export class YamlProfileStore implements ProfileStore {
       kind: profile.kind,
       auth: authFile(profile.auth),
       read_only_acknowledged: profile.readOnlyAcknowledged,
+      ...(profile.sharedMirror === undefined
+        ? {}
+        : {
+            shared_mirror: {
+              remote: profile.sharedMirror.remote,
+              max_age_minutes: profile.sharedMirror.maxAgeMinutes,
+            },
+          }),
     };
     await writeFile(join(root, paths.profile), stringify(file, { sortMapEntries: true }));
   }

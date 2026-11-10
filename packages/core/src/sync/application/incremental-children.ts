@@ -52,7 +52,11 @@ async function store(
       });
     }
     totals.childFiles += 1;
-  } else if (deps.records.filesOf(deps.metadataRoot, base).includes(path)) {
+  } else if (
+    deps.absence !== "keep" &&
+    deps.records.filesOf(deps.metadataRoot, base).includes(path)
+  ) {
+    // No rows listed: removed only for the user whose listings the mirror reflects (ADR-0052).
     await deps.records.remove(deps.metadataRoot, path);
     totals.removedChildFiles += 1;
   }

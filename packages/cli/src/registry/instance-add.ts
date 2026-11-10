@@ -30,6 +30,12 @@ export const instanceAdd = defineUseCase({
       .boolean()
       .default(false)
       .describe("confirm that a test or production credential is read-only"),
+    sharedMirror: z
+      .string()
+      .optional()
+      .describe(
+        "git remote that holds the team's mirror branch (team mode, e.g. origin): pulls continue from it",
+      ),
   }),
   output: z.object({
     name: z.string(),
@@ -43,10 +49,11 @@ export const instanceAdd = defineUseCase({
   arguments: ["name"],
   async handle(input, context) {
     const root = await workspaceRoot(context);
-    const { clientId, ...rest } = input;
+    const { clientId, sharedMirror, ...rest } = input;
     const profile = createProfile({
       ...rest,
       ...(clientId === undefined ? {} : { clientId }),
+      ...(sharedMirror === undefined ? {} : { sharedMirrorRemote: sharedMirror }),
       name: InstanceName.parse(input.name),
     });
     await addInstance(root, profile, context.profiles);

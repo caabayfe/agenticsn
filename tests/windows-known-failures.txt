@@ -23,9 +23,7 @@ packages/cli/test/adapters/workspace/fs-workspace-store.test.ts
 packages/cli/test/hooks/claude-hooks.test.ts
 packages/cli/test/registry/accelerator-install.test.ts
 packages/cli/test/registry/agent-install.test.ts
-packages/cli/test/registry/check.test.ts
 packages/cli/test/registry/docs.test.ts
 packages/cli/test/registry/install-steps.test.ts
 packages/cli/test/registry/knowledge.test.ts
-packages/cli/test/registry/validate.test.ts
 tests/architecture/type-assertions.test.ts

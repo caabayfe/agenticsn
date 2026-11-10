@@ -1,5 +1,5 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import {
   FLUENT_KEYS_FILE,
   FLUENT_SOURCE_DIR,
@@ -48,12 +48,16 @@ async function deletesIn(directory: string): Promise<string[]> {
   return names;
 }
 
-// The project's script files (.js), by project-relative path: what Now.include reads.
+// The project's script files (.js), by project-relative path with / separators (readdir gives
+// \ on Windows): what Now.include reads.
 async function scriptsIn(project: string): Promise<Map<string, string>> {
   const names = await readdir(join(project, "src"), { recursive: true }).catch(() => []);
   const scripts = new Map<string, string>();
   for (const name of names.filter((n) => n.endsWith(".js")).sort()) {
-    scripts.set(`src/${name}`, (await readText(join(project, "src", name))) ?? "");
+    scripts.set(
+      `src/${name.split(sep).join("/")}`,
+      (await readText(join(project, "src", name))) ?? "",
+    );
   }
   return scripts;
 }

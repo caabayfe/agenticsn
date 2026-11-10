@@ -463,6 +463,36 @@ describe("accelerator install (ADR-0038)", () => {
     expect(acceleratorInstall.exitCode({ ...run, stopped: null })).toBe(0);
   });
 
+  it("names the modules left out because the instance refused a component, apart from those left to install", () => {
+    const step = (name: string, outcome: "done" | "skipped" | "stopped") => ({
+      step: name,
+      outcome,
+      detail: "d",
+      seconds: 60,
+    });
+    const stopped = step("module incident-analytics", "stopped");
+    const steps = [
+      step("install sn_adv 9.4.2", "skipped"),
+      step("skip module major-incident", "skipped"),
+      step("module foundation", "done"),
+      stopped,
+    ];
+    const run = { ...VIEW, reportPath: "report.md", steps, stopped, commit: "c" };
+    expect(acceleratorInstall.render(run, "text").split("\n").slice(-7, -2)).toEqual([
+      "Stopped at module incident-analytics, 4 min so far.",
+      "1 of 4 module(s) installed; still to install (3):",
+      "  incident-core, incident-problem, incident-analytics",
+      "Left out (1), the instance refused a component they need: major-incident",
+      "  run the install again once the instance is entitled",
+    ]);
+    const finished = { ...run, steps: steps.slice(0, 3), stopped: null };
+    expect(acceleratorInstall.render(finished, "text").split("\n").slice(-3)).toEqual([
+      "Installed in 3 min. Report: report.md",
+      "Left out (1), the instance refused a component they need: major-incident",
+      "  run the install again once the instance is entitled",
+    ]);
+  });
+
   it("counts the modules installed before and in earlier runs, and names those left", () => {
     const step = (name: string, outcome: "done" | "skipped" | "stopped", seconds = 60) => ({
       step: name,

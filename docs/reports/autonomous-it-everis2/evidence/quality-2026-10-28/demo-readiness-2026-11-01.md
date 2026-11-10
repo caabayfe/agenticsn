@@ -35,7 +35,7 @@ presenter's sheet. Runs as the persona Analista AIT (ES) by impersonation, unles
 
 ## Fix Script 1, end-to-end run (17:48 instance time)
 
-Saved on the instance (same SHA-256 as `build/demo-1-prepare-fix-script.js` at 3058407), recorded in
+Saved on the instance (same SHA-256 as `build/demo-1-prepare-fix-script.js` at 3058407, since moved to [sn-accelerators](https://github.com/caabayfe/sn-accelerators/blob/main/docs/autonomous-it/demo/demo-1-prepare-fix-script.js)), recorded in
 update set `AIT-P2-demo-prep`, run from the form with "Proceed":
 
 | Line | Result |

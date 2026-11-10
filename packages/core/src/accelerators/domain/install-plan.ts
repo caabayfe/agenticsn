@@ -35,6 +35,8 @@ export interface PlannedModule {
   readonly id: string;
   // Names the module's update sets ("snagentic: <label>", one child per scope).
   readonly label: string;
+  // The selected modules it depends on: skipped with them when the instance refuses a component.
+  readonly dependsOn: readonly string[];
   // Workspace paths of the Fluent source the module writes.
   readonly files: readonly string[];
   // Out-of-box records the module customizes: listed for the admin, flagged for upgrades.

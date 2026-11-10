@@ -159,11 +159,34 @@ function delivered(step: InstallView["steps"][number]): string[] {
   return [];
 }
 
+const SKIP = "skip module ";
+
+// The modules the run left out because the instance refused a component they need, unless a
+// resumed run delivered them after all.
+function leftOut(view: InstallView): string[] {
+  const installed = new Set(view.steps.flatMap(delivered));
+  return view.steps
+    .filter((s) => s.step.startsWith(SKIP))
+    .map((s) => s.step.slice(SKIP.length))
+    .filter((m) => !installed.has(m));
+}
+
+function leftOutLines(view: InstallView): string[] {
+  const out = leftOut(view);
+  if (out.length === 0) return [];
+  return [
+    `Left out (${out.length}), the instance refused a component they need: ${out.join(", ")}`,
+    "  run the install again once the instance is entitled",
+  ];
+}
+
 // How far a stopped run got, and the modules it has still to install.
 function pending(view: InstallView): string[] {
   const installed = new Set(view.steps.flatMap(delivered));
-  const left = view.modules.filter((m) => !installed.has(m));
-  const count = `${view.modules.length - left.length} of ${view.modules.length} module(s) installed`;
+  const out = new Set(leftOut(view));
+  const modules = view.modules.filter((m) => !out.has(m));
+  const left = modules.filter((m) => !installed.has(m));
+  const count = `${modules.length - left.length} of ${modules.length} module(s) installed`;
   if (left.length === 0) return [`${count}; the steps after them are left`];
   return [`${count}; still to install (${left.length}):`, ...wrapped(left, "  ", ", ")];
 }
@@ -178,10 +201,11 @@ export function renderRun(view: InstallView): string {
     ...view.steps.flatMap((s) => stepLines(s, width)),
     "",
     ...(view.stopped === null
-      ? [`Installed in ${total} min. Report: ${view.reportPath ?? ""}`]
+      ? [`Installed in ${total} min. Report: ${view.reportPath ?? ""}`, ...leftOutLines(view)]
       : [
           `Stopped at ${view.stopped.step}, ${total} min so far.`,
           ...pending(view),
+          ...leftOutLines(view),
           "Fix it, then run the same command to resume.",
           `Report: ${view.reportPath ?? ""}`,
         ]),

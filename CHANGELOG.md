@@ -13,6 +13,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Changed
 
+- CI and release binaries are built and verified with Bun 1.4.4 (was 1.4.2), the version
+  developers run. `.bun-version` is the single source of truth: every workflow reads it, and
+  `bun run verify` (and the build jobs) fail with the install command when another Bun version
+  runs, because coverage counts and compiled binaries differ between Bun patch releases
+  (spec 014, B1).
 - The ADR index in `docs/adr/README.md` is generated from each record's title, status line and
   `Amends` field (`bun run docs`); a test fails when it is stale. It lists the accepted decisions
   not built yet, such as components-only installs on test and production (ADR-0038, section 5).

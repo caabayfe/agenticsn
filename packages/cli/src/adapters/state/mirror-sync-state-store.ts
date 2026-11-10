@@ -3,6 +3,7 @@ import {
   type CatalogData,
   type InstanceName,
   instancePaths,
+  type LocalTrust,
   type PullCheckpoint,
   type SyncState,
   type SyncStateStore,
@@ -92,6 +93,15 @@ export class MirrorSyncStateStore implements SyncStateStore {
 
   forgetLocalState(): Promise<void> {
     return this.local.forgetLegacy();
+  }
+
+  // Kept by this clone, never in the mirror commit: a commit is data, not trust (SEC2-03).
+  readTrust(): Promise<LocalTrust> {
+    return this.local.readTrust();
+  }
+
+  noteTrust(trust: LocalTrust): Promise<void> {
+    return this.local.noteTrust(trust);
   }
 
   readCheckpoint(): Promise<PullCheckpoint | null> {

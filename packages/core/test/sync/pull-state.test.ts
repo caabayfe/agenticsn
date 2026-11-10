@@ -42,6 +42,8 @@ function localStore(options: { state?: SyncState; legacy?: boolean } = {}) {
     forgetLocalState: async () => {
       calls.push("forget local state");
     },
+    readTrust: async () => ({}),
+    noteTrust: async () => {},
   };
   return { store, calls, checkpoint: () => checkpoint };
 }

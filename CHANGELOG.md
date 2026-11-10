@@ -142,6 +142,18 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Security
 
+- Pull, adopt and update set export treat an outbound REST or SOAP header or parameter whose name
+  marks a credential (`Authorization`, an API key, a token, a password) as a secret field: pull
+  leaves its value out of the mirror and names it as redacted, and export withholds the update.
+  Values made only of `${variable}` substitutions are kept. The secret scan version moves to 2, so
+  the first pull after upgrading rewrites such values an earlier version committed and reports
+  them as `credential-value` (spec 014, SEC2-02).
+- A pull no longer relies on the catalog in the mirror commit for redaction. Before it writes
+  anything it read from the instance, it reads the catalog from the instance again unless this
+  clone read the same catalog itself (noted in `.snagentic/<name>/trust.json`), so which fields are
+  passwords and which classes hold credentials always comes from the instance. A secret scan or
+  redaction version above the binary's own is treated as not applied: the mirror is scanned and
+  re-read again (spec 014, SEC2-03).
 - The agent hooks also refuse setting `SNAGENTIC_<NAME>_USERNAME`, and adding or deleting
   keychain items (`security add-generic-password`, `security delete-generic-password`,
   `secret-tool store`, `secret-tool clear`), so an agent can't choose which user's credentials

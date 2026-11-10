@@ -57,6 +57,10 @@ export {
 } from "./metadata/domain/artifact";
 export { Catalog, type CatalogData } from "./metadata/domain/catalog";
 export {
+  holdsCredentialValue,
+  withoutCredentialValue,
+} from "./metadata/domain/credential-values";
+export {
   deniedAncestor,
   fileFields,
   isDeniedClass,
@@ -127,6 +131,11 @@ export {
   type SecretMigrationResult,
   scanCatalogSecrets,
 } from "./sync/application/secret-migration";
+export {
+  catalogDigest,
+  fetchTrustedCatalog,
+  trustedCatalog,
+} from "./sync/application/trusted-catalog";
 export { NothingPulledError, PaginationStalledError } from "./sync/domain/errors";
 export {
   changesSince,
@@ -204,6 +213,7 @@ export type {
   IncrementalMirror,
   IntegrationOptions,
   IntegrationResult,
+  LocalTrust,
   MirrorInspector,
   MirrorIntegrator,
   MirrorMode,

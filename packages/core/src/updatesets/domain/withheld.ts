@@ -1,4 +1,5 @@
 import type { Catalog } from "../../metadata/domain/catalog";
+import { holdsCredentialValue } from "../../metadata/domain/credential-values";
 import { deniedAncestor, secretFields } from "../../metadata/domain/field-rules";
 import { SECRET_PROPERTY_NAME } from "../../metadata/domain/redaction";
 import { scanSecrets } from "../../metadata/domain/secret-scan";
@@ -22,8 +23,11 @@ const NOT_CLASSES: ReadonlySet<string> = new Set([
 const element = (payload: string, name: string): string | undefined =>
   new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`).exec(payload)?.[1];
 
+const unwrapped = (value: string | undefined): string | undefined =>
+  value?.replace(/^<!\[CDATA\[|\]\]>$/g, "");
+
 const filled = (value: string | undefined): boolean =>
-  value !== undefined && value.replace(/^<!\[CDATA\[|\]\]>$/g, "").trim() !== "";
+  value !== undefined && (unwrapped(value) ?? "").trim() !== "";
 
 export function payloadTable(payload: string): string | undefined {
   return NAMED_TABLE.exec(payload)?.[1] ?? FIRST_ELEMENT.exec(payload)?.[1];
@@ -55,6 +59,11 @@ function classReason(payload: string, catalog: Catalog): string | null {
     return `it sets the secret field ${secret}`;
   }
   const property = element(payload, "name") ?? "";
+  if (
+    holdsCredentialValue(catalog, table, unwrapped(property), unwrapped(element(payload, "value")))
+  ) {
+    return "it sets the value of a credential header or parameter";
+  }
   if (
     table === "sys_properties" &&
     (SECRET_PROPERTY_NAME.test(property) || SECRET_TYPE.test(payload))

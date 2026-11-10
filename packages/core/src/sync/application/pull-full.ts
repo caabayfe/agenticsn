@@ -3,18 +3,14 @@ import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domai
 import { classesToPull } from "../domain/pull-scope";
 import { FIRST_REDACTION_VERSION } from "../domain/redaction-upgrades";
 import type { PullCheckpoint, SyncState } from "../ports";
-import { fetchCatalog } from "./fetch-catalog";
 import { fetchFingerprints } from "./fetch-fingerprints";
 import { pullApplications } from "./pull-applications";
 import { pullChildren } from "./pull-children";
 import { type PullDependencies, type PullProgress, rawTimestamp } from "./pull-dependencies";
 import { inventorySignatures, pullOperational } from "./pull-operational";
 import { pullRecords } from "./pull-records";
-import {
-  migrateExistingSecrets,
-  SECRET_SCAN_VERSION,
-  scanCatalogSecrets,
-} from "./secret-migration";
+import { migrateExistingSecrets, SECRET_SCAN_VERSION } from "./secret-migration";
+import { fetchTrustedCatalog } from "./trusted-catalog";
 
 export interface PullSummary {
   readonly classes: number;
@@ -87,7 +83,7 @@ async function prepareFull(
   progress: (event: PullProgress) => void,
   catalogSeconds: () => number,
 ) {
-  const scanned = scanCatalogSecrets(await fetchCatalog(deps.pager, signal, progress));
+  const scanned = await fetchTrustedCatalog(deps, signal, progress);
   const seconds = catalogSeconds();
   await deps.state.writeCatalog(scanned.catalog);
   let checkpoint = await startCheckpoint(deps, signal);
@@ -100,7 +96,7 @@ async function prepareFull(
     checkpoint,
     signal,
   );
-  if ((checkpoint.secretScanVersion ?? 0) < SECRET_SCAN_VERSION) {
+  if (checkpoint.secretScanVersion !== SECRET_SCAN_VERSION) {
     await deps.records.checkpoint();
     checkpoint = {
       ...checkpoint,

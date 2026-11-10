@@ -24,6 +24,8 @@ export function stateInMirror(
     heldLocally: () => store.heldLocally(),
     noteUnchanged: (next) => store.noteUnchanged(next),
     forgetLocalState: () => store.forgetLocalState(),
+    readTrust: () => store.readTrust(),
+    noteTrust: (trust) => store.noteTrust(trust),
     writeCatalog,
     async writeState(next) {
       // A workspace an earlier version pulled kept its catalog locally: this commit carries it.

@@ -3,6 +3,7 @@ import {
   DEFAULT_REDACTION,
   type IncrementalDependencies,
   KeysetPager,
+  type LocalTrust,
   type PullCheckpoint,
   type PullOptions,
   type PullStateStore,
@@ -94,7 +95,8 @@ function memoryState() {
     state: SyncState | null;
     checkpoint: PullCheckpoint | null;
     catalog: CatalogData | null;
-  } = { state: null, checkpoint: null, catalog: null };
+    trust: LocalTrust;
+  } = { state: null, checkpoint: null, catalog: null, trust: {} };
   const store: PullStateStore = {
     readCatalog: async () => saved.catalog,
     writeCatalog: async (data) => {
@@ -114,6 +116,10 @@ function memoryState() {
     heldLocally: async () => false,
     noteUnchanged: async () => {},
     forgetLocalState: async () => {},
+    readTrust: async () => saved.trust,
+    noteTrust: async (trust) => {
+      saved.trust = { ...saved.trust, ...trust };
+    },
   };
   return { store, saved };
 }

@@ -1,6 +1,7 @@
 import { redactSecrets } from "../../kernel/redact";
 import type { Row } from "../../kernel/row";
 import type { Catalog } from "./catalog";
+import { CREDENTIAL_VALUE_FIELD, holdsCredentialValue } from "./credential-values";
 import { secretFields } from "./field-rules";
 
 export interface RedactionPolicy {
@@ -76,6 +77,9 @@ export function fieldsToRedact(
   }
   if (table === "sys_properties" && propertyValueVerdict(row, policy) === "kept") {
     redact.delete("value");
+  }
+  if (holdsCredentialValue(catalog, table, row["name"], row[CREDENTIAL_VALUE_FIELD])) {
+    redact.add(CREDENTIAL_VALUE_FIELD);
   }
   return redact;
 }

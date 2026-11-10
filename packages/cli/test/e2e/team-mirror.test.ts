@@ -98,8 +98,9 @@ group("a team on one shared mirror", () => {
     expect(own.output).toMatchObject({ mode: "incremental", records: 1 });
     const delta = tables(t.instance.queries);
     expect(delta.length).toBeLessThan(fullRequests / 2);
-    expect(delta).not.toContain("sys_db_object");
-    expect(delta).not.toContain("sys_dictionary");
+    // The catalog a commit carries is data, not trust (spec 014, SEC2-03): before it writes what
+    // it pulled, a clone reads the instance's catalog once if it never read that catalog itself.
+    expect(delta).toContain("sys_dictionary");
 
     // A runner that starts empty continues incrementally from the fetched branch, and publishes.
     const runner = await t.member("svc_ci");
@@ -114,7 +115,7 @@ group("a team on one shared mirror", () => {
       records: 1,
       shared: { from: "shared", published: true },
     });
-    expect(tables(t.instance.queries)).not.toContain("sys_db_object");
+    expect(tables(t.instance.queries).length).toBeLessThan(fullRequests / 2);
 
     // The shared branch has one line of history: the full pull, then the runner's.
     const history = await runGitOrThrow(

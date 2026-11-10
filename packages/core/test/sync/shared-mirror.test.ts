@@ -52,6 +52,8 @@ function world(options: {
     heldLocally: async () => false,
     noteUnchanged: async () => {},
     forgetLocalState: async () => {},
+    readTrust: async () => ({}),
+    noteTrust: async () => {},
   };
   const deps = { shared, state, now: () => NOW };
   return { deps, tip: () => tip, checkpoint: () => checkpoint };

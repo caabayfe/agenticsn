@@ -1,11 +1,10 @@
 import { Catalog } from "../../metadata/domain/catalog";
 import type { SecretRedaction } from "../../metadata/domain/secret-scan";
 import { needsNewCatalog, type RecordChanges } from "../domain/record-changes";
-import { fetchCatalog } from "./fetch-catalog";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { applyRecordChanges, type RecordOutcome } from "./incremental-records";
 import type { PullProgress } from "./pull-dependencies";
-import { scanCatalogSecrets } from "./secret-migration";
+import { fetchTrustedCatalog } from "./trusted-catalog";
 
 export interface AppliedChanges {
   readonly catalog: Catalog;
@@ -26,8 +25,7 @@ export async function applyWithCatalog(
   let catalogSecretRedactions: readonly SecretRedaction[] = [];
   const catalogRefreshed = needsNewCatalog(changes, catalog);
   if (catalogRefreshed) {
-    const data = await fetchCatalog(deps.pager, signal, progress);
-    const scanned = scanCatalogSecrets(data);
+    const scanned = await fetchTrustedCatalog(deps, signal, progress);
     await deps.state.writeCatalog(scanned.catalog);
     current = new Catalog(scanned.catalog);
     if (scanned.patterns.length > 0) {

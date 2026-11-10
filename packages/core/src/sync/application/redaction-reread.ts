@@ -26,7 +26,10 @@ export async function rereadForRedaction(
   catalog: Catalog,
   signal: AbortSignal,
 ): Promise<RedactionReread> {
-  const from = state.redactionVersion ?? FIRST_REDACTION_VERSION;
+  // A version above this binary's policy isn't one it applied: it re-reads from the first
+  // (spec 014, SEC2-03).
+  const recorded = state.redactionVersion ?? FIRST_REDACTION_VERSION;
+  const from = recorded > deps.policy.version ? FIRST_REDACTION_VERSION : recorded;
   const rereads = rereadsBetween(from, deps.policy.version);
   const mirrored = new Set(classesToPull(catalog));
   const unreadable: string[] = [];

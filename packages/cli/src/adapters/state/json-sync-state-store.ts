@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { CatalogData, PullCheckpoint, SyncState } from "@snagentic/core";
+import type { CatalogData, LocalTrust, PullCheckpoint, SyncState } from "@snagentic/core";
 import type { z } from "zod";
 import { serialQueue } from "../serial-queue";
 import { parseStateFile } from "./state-file";
@@ -11,6 +11,7 @@ import {
   CheckNoteFile,
   CheckpointFile,
   SyncStateFile,
+  TrustFile,
 } from "./sync-state-schemas";
 
 const FILES = {
@@ -18,13 +19,15 @@ const FILES = {
   checkpoint: "pull-checkpoint.json",
   note: "pull-check.json",
   state: "sync-state.json",
+  trust: "trust.json",
 } as const;
 
 // Removing the file loses nothing that a pull can't rebuild.
 const REBUILD = "run snagentic pull --full to rebuild it";
 
 // JSON files in the instance's local state folder (.snagentic/<name>/): the checkpoint of an
-// interrupted pull, the note of the last check that found nothing new, and the state and catalog
+// interrupted pull, the note of the last check that found nothing new, what this clone verified
+// itself (trust.json, spec 014 SEC2-03), and the state and catalog
 // an earlier version kept here before the mirror carried them (ADR-0052). Written through a
 // temporary file and a rename, so an interrupted write never leaves half a checkpoint.
 export class JsonSyncStateStore {
@@ -70,6 +73,20 @@ export class JsonSyncStateStore {
     return this.write(FILES.note, note);
   }
 
+  async readTrust(): Promise<LocalTrust> {
+    return (
+      (await this.read(FILES.trust, TrustFile, `delete ${join(this.directory, FILES.trust)}`)) ?? {}
+    );
+  }
+
+  // Read and written inside one queued step, so concurrent notes never lose each other's part.
+  noteTrust(trust: LocalTrust): Promise<void> {
+    return this.writes.run(async () => {
+      const merged = { ...(await this.readTrust()), ...trust };
+      await this.writeNow(FILES.trust, merged);
+    });
+  }
+
   async forgetLegacy(): Promise<void> {
     await this.remove(FILES.state);
     await this.remove(FILES.catalog);
@@ -88,14 +105,15 @@ export class JsonSyncStateStore {
   }
 
   private write(name: string, value: unknown): Promise<void> {
-    const content = `${JSON.stringify(value)}\n`;
-    return this.writes.run(async () => {
-      await mkdir(this.directory, { recursive: true });
-      const path = join(this.directory, name);
-      this.sequence += 1;
-      const temporary = `${path}.${process.pid}.${this.sequence}.tmp`;
-      await writeFile(temporary, content);
-      await rename(temporary, path);
-    });
+    return this.writes.run(() => this.writeNow(name, value));
+  }
+
+  private async writeNow(name: string, value: unknown): Promise<void> {
+    await mkdir(this.directory, { recursive: true });
+    const path = join(this.directory, name);
+    this.sequence += 1;
+    const temporary = `${path}.${process.pid}.${this.sequence}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(value)}\n`);
+    await rename(temporary, path);
   }
 }

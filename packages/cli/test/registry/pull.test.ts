@@ -9,6 +9,7 @@ import {
   InstanceName,
   instancePaths,
   type Row,
+  SECRET_SCAN_VERSION,
   withEntries,
 } from "@snagentic/core";
 import { fakeInstance } from "../../../core/test/support/fake-instance";
@@ -290,10 +291,29 @@ describe("pull and integrate", () => {
       patterns: ["aws-access-key-id"],
     });
     expect(JSON.stringify(result.output)).not.toContain(leaked);
-    expect((await state.readState())?.secretScanVersion).toBe(1);
+    expect((await state.readState())?.secretScanVersion).toBe(SECRET_SCAN_VERSION);
     expect(
       await runGitOrThrow(["show", `${paths.remoteBranch}:${paths.metadata}/${field}`], root),
     ).toBe("const key = '[redacted:aws-access-key-id]';\n");
+  });
+
+  // Spec 014, SEC2-03: a mirror commit may come from anyone who can push the mirror branch.
+  it("redacts with the instance's catalog when the mirror's is not the one this clone read", async () => {
+    const { root, context, instance } = await setup();
+    await executeUseCase(pull, { instance: "pdi" }, context);
+    const name = InstanceName.parse("pdi");
+    const paths = instancePaths(name);
+    const state = syncStateStore(root, name);
+    const read = await state.readCatalog();
+    if (read === null) throw new Error("the first pull did not store the catalog");
+    const pushed = await GitMirror.open(root, name, "incremental");
+    await pushed.prepare();
+    await pushed.writeDocument(paths.root, "pull/catalog.yaml", { ...read, typedFields: {} });
+    await pushed.finish("a catalog this clone did not read");
+    const rule = instance.tables["sys_script"]?.[0];
+    Object.assign(rule ?? {}, { script: "changed();", sys_updated_on: "2026-10-05 12:30:00" });
+    await executeUseCase(pull, { instance: "pdi" }, context);
+    expect(await state.readCatalog()).toEqual(read);
   });
 
   it("pulls only what changed after the first pull, and reports when nothing did", async () => {

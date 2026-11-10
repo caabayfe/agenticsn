@@ -47,6 +47,17 @@ describe("JsonSyncStateStore", () => {
     expect(await state.readNote()).toEqual(note);
   });
 
+  // Spec 014, SEC2-03: what this clone verified itself stays in this clone, past a pull commit.
+  it("keeps what this clone verified itself, apart from the state a commit carries", async () => {
+    const { store: state, directory } = await store();
+    expect(await state.readTrust()).toEqual({});
+    await Promise.all([state.noteTrust({ catalogDigest: "a" }), state.noteTrust({})]);
+    expect(await state.readTrust()).toEqual({ catalogDigest: "a" });
+    await state.forgetLegacy();
+    expect(await state.readTrust()).toEqual({ catalogDigest: "a" });
+    expect(await readdir(directory)).toEqual(["trust.json"]);
+  });
+
   it("forgets the state and catalog an earlier version kept here", async () => {
     const { store: state, directory } = await store();
     await mkdir(directory, { recursive: true });

@@ -47,6 +47,8 @@ const state = (watermark: string | null): SyncStateStore => ({
   heldLocally: async () => false,
   noteUnchanged: async () => {},
   forgetLocalState: async () => {},
+  readTrust: async () => ({}),
+  noteTrust: async () => {},
 });
 
 describe("listPlugins", () => {

@@ -112,6 +112,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- `describe`, `find` and `advise` refresh the knowledge index with one `git status` over the
+  workspace, which git serves from its untracked cache, instead of a diff plus an untracked-file
+  listing over the mirror folder. A no-change refresh of a 240,000-file mirror went from 1.00 s
+  to 0.44 s (spec 014, PERF2-03).
 - The knowledge index is closed after every `describe`, `find`, `advise` and accelerator install,
   also when the call fails. A long-running MCP server no longer keeps a SQLite handle per call,
   and on Windows the workspace's folders can be removed afterwards (spec 014, follow-up 24).

@@ -32,8 +32,8 @@ const entryRecord = (sysId: string, list: string, position: number): UnitRecord 
 });
 
 const ENTRIES = [
-  { sysId: "e".repeat(31) + "1", list: "task_sla.task" },
-  { sysId: "e".repeat(31) + "2", list: "problem_task.problem" },
+  { sysId: `${"e".repeat(31)}1`, list: "task_sla.task" },
+  { sysId: `${"e".repeat(31)}2`, list: "problem_task.problem" },
 ];
 
 const composite = (lists = ENTRIES): BuiltUnit => ({
@@ -102,7 +102,7 @@ describe("a related list the SDK now builds whole (ADR-0046)", () => {
   });
 
   it("loads a changed list whose every part the branch held, unchanged since", async () => {
-    const added = [...ENTRIES, { sysId: "e".repeat(31) + "3", list: "task_ci.task" }];
+    const added = [...ENTRIES, { sysId: `${"e".repeat(31)}3`, list: "task_ci.task" }];
     const { deps } = setup({ built: [composite(added)] });
     const { plan } = await computeUnitPlan(deps, QUERY);
     expect(plan.problems).toEqual([]);
@@ -110,7 +110,7 @@ describe("a related list the SDK now builds whole (ADR-0046)", () => {
   });
 
   it("refuses a changed list when someone saved one of its entries since", async () => {
-    const added = [...ENTRIES, { sysId: "e".repeat(31) + "3", list: "task_ci.task" }];
+    const added = [...ENTRIES, { sysId: `${"e".repeat(31)}3`, list: "task_ci.task" }];
     const { deps, tables } = setup({ built: [composite(added)] });
     const [first, second] = ENTRIES;
     tables["sys_ui_related_list_entry"] = [

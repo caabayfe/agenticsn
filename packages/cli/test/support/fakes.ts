@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import {
   type CredentialStore,
   EMPTY_LEDGER,

@@ -159,7 +159,8 @@ describe("planUnit on a column whose source gives no max length", () => {
       [],
       VERSION,
     );
-  const known = (built: ReturnType<typeof column>) => entry({ build: "before", instance: VERSION });
+  const known = (_built: ReturnType<typeof column>) =>
+    entry({ build: "before", instance: VERSION });
 
   it("refuses the change, naming the maxLength the platform needs", () => {
     const built = column({ max_length: "" });

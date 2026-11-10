@@ -10,7 +10,8 @@ and [ADR-0052](../adr/0052-the-mirror-carries-its-pull-state.md) (the shared mir
   pulls the instance and publishes `servicenow-remote/<name>` to the team's git remote.
 - **Everyone else gets the mirror through git.** `integrate` and `status` fetch it. A
   developer's own `pull` asks the instance nothing while the mirror is younger than its max
-  age (15 minutes by default).
+  age. Set the max age to at least twice the job's schedule: 30 minutes for the template's
+  15-minute schedule.
 - **Only the puller can push the mirror branch.** Protect `servicenow-remote/*` on the git host.
 - **The mirror shows the instance as the puller sees it.** Give that account read access to
   everything the team works on.
@@ -34,22 +35,32 @@ branch's history: a refused push fetches, continues from the newer commit and tr
 
 ### 1. Name the shared mirror
 
-In the workspace repository, add the instance with the remote that holds the team's mirror,
-and commit `instance.yaml`:
+In the workspace repository, add the instance with the remote that holds the team's mirror:
 
 ```sh
 snagentic instance add dev --url dev12345 --username svc_snagentic --kind development \
   --shared-mirror origin
-git add instances/dev/instance.yaml && git commit -m "add dev"
 ```
 
-Or add it to an existing `instances/dev/instance.yaml`:
+Then set the max age in `instances/dev/instance.yaml` (or add the whole setting to an existing
+one), and commit it:
 
 ```yaml
 shared_mirror:
   remote: origin
-  max_age_minutes: 15   # a pull asks the instance nothing while the mirror is younger
+  max_age_minutes: 30   # a pull asks the instance nothing while the mirror is younger
 ```
+
+```sh
+git add instances/dev/instance.yaml && git commit -m "add dev"
+```
+
+**Why twice the schedule.** `instance add` writes 15 minutes. With the template's 15-minute
+schedule, that is too short. A mirror is already a few minutes old when it's published: the
+pull's own run time, the queue, and GitHub starting scheduled runs late, often by minutes. With
+a max age equal to the schedule, the mirror is older than its max age for part of every cycle,
+and every developer's `pull` in that window asks the instance. Keep `max_age_minutes` at least
+twice the schedule: 30 for every 15 minutes, 60 for every 30.
 
 `--username` names the puller's service account. Developers sign in as themselves without
 changing it: see [who signs in](#who-signs-in).
@@ -92,7 +103,14 @@ with `instance.yaml` ([credentials](credentials.md#in-ci-and-on-servers)).
 
 The template:
 
-- runs every 15 minutes, the default max age, and on demand;
+- runs every 15 minutes, half the 30-minute max age above, and on demand;
+- checks out one commit of the default branch, blobless and sparse: only `snagentic.yaml`,
+  `.gitignore` and `instances/dev/instance.yaml`. The default branch holds the integrated
+  mirror, gigabytes on a large instance, and the pull never reads it, because it writes the
+  mirror branch with git plumbing;
+- fetches the last commit of `servicenow-remote/dev` with its files, not the branch's history.
+  The pull reads the mirror's files (its state, and the records it compares); a blobless fetch
+  would download each file in its own request;
 - runs one pull of the instance at a time (`concurrency`), and never cancels one halfway;
 - grants no permissions by default, and `contents: write` only to the job that publishes;
 - pins every action by commit SHA;
@@ -164,6 +182,19 @@ snagentic pull dev           # only when status suggests it: the mirror is older
 
 Your agent's skills follow `status`. An agent doesn't offer a pull just because your clone
 never pulled.
+
+### Git settings for a large mirror
+
+`snagentic init` tunes git for repositories with hundreds of thousands of files:
+`feature.manyFiles`, `core.untrackedCache` and, on macOS and Windows, `core.fsmonitor`. A
+`git clone` doesn't copy a repository's settings, so a teammate's clone and the CI runner start
+without them, and `git status` on a large mirror is several times slower.
+
+- `snagentic doctor` reports a clone that lacks them (`git-tuning`).
+- The first `integrate` or `pull` in a clone sets them, and says so. These are the commands
+  that write the mirror into the clone, so they're the first ones whose speed depends on it.
+- Only in the clone's own `.git/config`, never your global git configuration, and only
+  settings that have no value yet. A value you set yourself, in any scope, even `false`, stays.
 
 ## Who signs in
 

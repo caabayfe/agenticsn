@@ -39,6 +39,8 @@ const NO_WORKSPACES: WorkspaceStore = {
   isInsideGitRepository: async () => false,
   isEmptyOrMissing: async () => true,
   create: async () => {},
+  repositoryTuning: async () => null,
+  tuneRepository: async () => {},
 };
 
 const NO_PROFILES: ProfileStore = {

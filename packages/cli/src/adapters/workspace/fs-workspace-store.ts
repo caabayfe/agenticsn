@@ -4,17 +4,26 @@ import { dirname, join, resolve } from "node:path";
 import {
   GITIGNORE,
   MANIFEST_FILE,
+  type RepositorySetting,
   type WorkspaceManifest,
   type WorkspaceStore,
 } from "@snagentic/core";
 import { parse, stringify } from "yaml";
 import { runGit, runGitOrThrow } from "../git/run-git";
 
-// git settings for repositories with hundreds of thousands of files.
-const LARGE_REPOSITORY_SETTINGS: readonly (readonly [string, string])[] = [
-  ["feature.manyFiles", "true"],
-  ["core.untrackedCache", "true"],
-];
+type Setting = Pick<RepositorySetting, "key" | "value">;
+
+// git settings for repositories with hundreds of thousands of files. git's built-in
+// file-system monitor exists only on macOS and Windows.
+function largeRepositorySettings(): readonly Setting[] {
+  const settings = [
+    { key: "feature.manyFiles", value: "true" },
+    { key: "core.untrackedCache", value: "true" },
+  ];
+  return process.platform === "darwin" || process.platform === "win32"
+    ? [...settings, { key: "core.fsmonitor", value: "true" }]
+    : settings;
+}
 
 function nearestExisting(directory: string): string {
   let current = resolve(directory);
@@ -62,12 +71,7 @@ export class FsWorkspaceStore implements WorkspaceStore {
     await writeFile(join(directory, MANIFEST_FILE), stringify(file, { sortMapEntries: true }));
     await writeFile(join(directory, ".gitignore"), GITIGNORE);
     await runGitOrThrow(["init", "-q", "-b", "main"], directory);
-    for (const [key, value] of LARGE_REPOSITORY_SETTINGS) {
-      await runGitOrThrow(["config", key, value], directory);
-    }
-    if (process.platform === "darwin" || process.platform === "win32") {
-      await runGitOrThrow(["config", "core.fsmonitor", "true"], directory);
-    }
+    await this.tuneRepository(directory, largeRepositorySettings());
     // The directory was empty: everything in it is the workspace's own (ADR-0014).
     await runGitOrThrow(["add", "-A"], directory);
     const configured = (await runGit(["config", "user.email"], directory)).stdout.trim() !== "";
@@ -75,5 +79,24 @@ export class FsWorkspaceStore implements WorkspaceStore {
       ? []
       : ["-c", "user.name=snagentic", "-c", "user.email=snagentic@localhost"];
     await runGitOrThrow([...identity, "commit", "-q", "-m", "snagentic init"], directory);
+  }
+
+  async repositoryTuning(directory: string): Promise<readonly RepositorySetting[] | null> {
+    if (!(await this.isInsideGitRepository(directory))) {
+      return null;
+    }
+    return Promise.all(
+      largeRepositorySettings().map(async (setting) => {
+        // Exit code 1 means unset in every scope.
+        const result = await runGit(["config", "--get", setting.key], directory);
+        return { ...setting, current: result.exitCode === 0 ? result.stdout.trim() : null };
+      }),
+    );
+  }
+
+  async tuneRepository(directory: string, settings: readonly Setting[]): Promise<void> {
+    for (const { key, value } of settings) {
+      await runGitOrThrow(["config", "--local", key, value], directory);
+    }
   }
 }

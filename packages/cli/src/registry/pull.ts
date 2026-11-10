@@ -16,7 +16,7 @@ import { renderPull } from "./pull-render";
 import { pullFromInstance } from "./pull-session";
 import type { SharedPullOutput } from "./pull-shared-output";
 import { defineUseCase, type RunControl, type UseCaseContext } from "./use-case";
-import { workspaceRoot } from "./workspace-root";
+import { tuneClone, workspaceRoot } from "./workspace-root";
 
 class PublishNeedsSharedMirrorError extends SnagenticError {
   constructor(instance: string) {
@@ -172,6 +172,7 @@ export const pull = defineUseCase({
       throw new CostNeedsDevelopmentError(profile.name, profile.kind);
     }
     run.progress({ message: `pulling ${profile.name} as ${actingAs(profile)}` });
+    await tuneClone(context, root, run);
     const setting = profile.sharedMirror;
     if (setting === undefined) {
       if (input.publish) throw new PublishNeedsSharedMirrorError(profile.name);

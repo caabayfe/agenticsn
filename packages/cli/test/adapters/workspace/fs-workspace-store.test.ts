@@ -73,4 +73,33 @@ describe("FsWorkspaceStore", () => {
     expect(ancestors.slice(0, 3)).toEqual([join(root, "a", "b"), join(root, "a"), root]);
     expect(ancestors.at(-1)).toBe("/");
   });
+
+  // Spec 014, PERF2-04: a teammate's `git clone` of the workspace gets none of init's tuning.
+  it("reports a plain clone's missing tuning, then sets it in the clone's own config", async () => {
+    const root = join(await scratch(), "acme");
+    await store.create(root, manifestFor("snagentic test"));
+    const clone = join(await scratch(), "clone");
+    await runGit(["clone", "-q", root, clone], root);
+    await runGit(["config", "--local", "core.untrackedCache", "false"], clone);
+    const before = await store.repositoryTuning(clone);
+    expect(before?.find((s) => s.key === "feature.manyFiles")?.current ?? null).toBeNull();
+    expect(before?.find((s) => s.key === "core.untrackedCache")?.current).toBe("false");
+    await store.tuneRepository(clone, [{ key: "feature.manyFiles", value: "true" }]);
+    const local = await runGit(["config", "--local", "--get", "feature.manyFiles"], clone);
+    expect(local.stdout.trim()).toBe("true");
+    const after = await store.repositoryTuning(clone);
+    expect(after?.find((s) => s.key === "feature.manyFiles")?.current).toBe("true");
+  });
+
+  it("init's own repository has every setting it reports", async () => {
+    const root = join(await scratch(), "acme");
+    await store.create(root, manifestFor("snagentic test"));
+    const settings = (await store.repositoryTuning(root)) ?? [];
+    expect(settings.length).toBeGreaterThan(1);
+    expect(settings.every((setting) => setting.current !== null)).toBe(true);
+  });
+
+  it("reports no tuning for a folder outside any git repository", async () => {
+    expect(await store.repositoryTuning(await scratch())).toBeNull();
+  });
 });

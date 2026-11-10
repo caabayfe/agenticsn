@@ -45,6 +45,16 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   came from. An OAuth client is unchanged (ADR-0021). The team-mode guide's "Who signs in" replaces
   the local-edit stopgap (spec 014, I1).
 
+- Any clone of a workspace gets the large-repository git settings that only `init` set before
+  (`feature.manyFiles`, `core.untrackedCache`, `core.fsmonitor` on macOS and Windows): the first
+  `integrate` or `pull` sets the ones with no value yet, in the clone's own config, never the global
+  one, and `doctor` reports a clone without them (`git-tuning`) (spec 014, 1b-H).
+- The scheduled-pull CI template checks out one blobless, sparse commit of the default branch
+  (only the files the pull reads) and fetches only the mirror branch's last commit, with its
+  files, instead of checking out the whole integrated mirror every run. It and the team-mode guide
+  set `max_age_minutes: 30`, twice the 15-minute schedule, so developers' pulls don't reach the
+  instance when a scheduled run starts late (spec 014, 1b-H).
+
 ### Changed
 
 - CI and release binaries are built and verified with Bun 1.4.4 (was 1.4.2), the version

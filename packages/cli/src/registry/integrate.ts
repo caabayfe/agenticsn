@@ -1,7 +1,7 @@
 import { continueFromNewest, driftedUnits, getInstance, InstanceName } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
-import { workspaceRoot } from "./workspace-root";
+import { tuneClone, workspaceRoot } from "./workspace-root";
 
 export const integrate = defineUseCase({
   name: "integrate",
@@ -27,6 +27,7 @@ export const integrate = defineUseCase({
   arguments: ["instance"],
   async handle(input, context, run) {
     const root = await workspaceRoot(context);
+    await tuneClone(context, root, run);
     const name = InstanceName.parse(input.instance);
     const profile = await getInstance(root, name, context.profiles);
     // ADR-0052 item 6: a team's newer shared mirror is fetched and taken first.

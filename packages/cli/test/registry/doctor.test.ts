@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { join } from "node:path";
+import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import { doctor } from "../../src/registry/doctor";
 import { executeUseCase } from "../../src/registry/execute";
 import { FAKE_CONTEXT, fakeProbe } from "../support/fakes";
@@ -28,7 +29,24 @@ describe("doctor use case", () => {
       expect.objectContaining({ name: "git" }),
       expect.objectContaining({ name: "agent-pack", status: "warn" }),
       expect.objectContaining({ name: "mcp-config", status: "ok" }),
+      expect.objectContaining({ name: "git-tuning", status: "ok" }),
     ]);
+    expect(exitCode).toBe(0);
+  });
+
+  // Spec 014, PERF2-04: a teammate's plain git clone lacks init's large-repository tuning.
+  it("warns when the workspace clone lacks the large-repository git settings", async () => {
+    const ws = await instanceWorkspace({});
+    cleanups.push(ws.cleanup);
+    // A real store whose repository reports one setting unset, as after a plain git clone.
+    const workspaces = Object.assign(new FsWorkspaceStore(), {
+      repositoryTuning: async () => [{ key: "feature.manyFiles", value: "true", current: null }],
+    });
+    const context = { ...ws.context, workspaces, environmentProbes: [fakeProbe("git", "ok")] };
+    const { output, exitCode } = await executeUseCase(doctor, {}, context);
+    expect(output["checks"]).toContainEqual(
+      expect.objectContaining({ name: "git-tuning", status: "warn" }),
+    );
     expect(exitCode).toBe(0);
   });
 

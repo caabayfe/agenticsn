@@ -166,7 +166,7 @@ snagentic instance add dev --url dev12345 --username svc_ci --shared-mirror orig
 ```yaml
 shared_mirror:
   remote: origin
-  max_age_minutes: 15   # a pull asks the instance nothing while the mirror is younger
+  max_age_minutes: 30   # at least twice the puller's schedule (every 15 minutes in the template)
 ```
 
 The designated puller runs:

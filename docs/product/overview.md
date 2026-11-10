@@ -160,10 +160,10 @@ never passes through a snagentic service: there isn't one.
 - Validation runs on local changes; validating an update set built in the browser is
   planned.
 - Supported platforms: macOS on Apple silicon, Linux x64 and arm64. Windows x64 is a
-  preview: pull, integrate, plan-push, push, validate and check pass their tests there.
-  `snagentic docs` can't read its pages, the Fluent SDK worker runs without a sandbox, and the
-  tests of the knowledge tools, `upgrade`, the Copilot CLI hook and accelerator installs don't
-  pass on Windows yet. The test files that still fail there are listed in
+  preview: every command's tests pass on the Windows CI runner, but the Fluent SDK worker runs
+  there without a sandbox (it holds no credential; ADR-0055 proposes one), no developer has yet
+  run it end to end against an instance on Windows, and the Windows Credential Manager doesn't
+  ask before a program reads the stored secret. Test files that still fail there are listed in
   `tests/windows-known-failures.txt`.
 
 ## Open business decisions

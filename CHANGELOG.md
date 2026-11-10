@@ -135,6 +135,18 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Windows: `snagentic docs` read no page (paths with `\`), the documentation census named scopes
+  with a file path, and mirror record bases mixed `\` and `/`, which split domain records into
+  the wrong buckets. Workspace paths use `/` on every platform.
+- Windows: `install.ps1` stopped every install with "does not match SHA256SUMS" (the sums file
+  was read as bytes), and could not reinstall over a running `snagentic.exe`. `upgrade` was
+  refused while a binary moved aside by the previous upgrade still ran (an MCP server).
+- Windows: `init` and doctor's repository tuning set `core.longpaths`, so git checks out mirror
+  records deeper than 260 characters.
+- Windows: a new file is never written through a dangling link (Windows has no `O_NOFOLLOW`).
+- The Fluent build reports a worker program that can't be found as "did not start" (and falls
+  back from a missing sandbox) instead of failing with the spawn error.
+
 
 
 - A push whose ledger commit fails after the push reached the instance (a commit-msg hook that

@@ -50,6 +50,14 @@ export interface SyncState {
   readonly snagenticVersion?: string;
 }
 
+// What this clone established itself, never read from git (spec 014, SEC2-03). A mirror commit
+// may come from anyone who can push the mirror branch, so its catalog is data: which fields are
+// passwords and which classes hold credentials comes from what this clone read from the instance.
+export interface LocalTrust {
+  // The digest of the catalog this clone last read from the instance (catalogDigest).
+  readonly catalogDigest?: string;
+}
+
 // The state a pull continues from (ADR-0052): the state and catalog come from the mirror commit,
 // or, for a workspace an earlier version pulled, from .snagentic/<name>/ until its next pull
 // commit carries them. The checkpoint of an interrupted pull belongs to this clone.
@@ -66,6 +74,9 @@ export interface SyncStateStore {
   noteUnchanged(state: SyncState): Promise<void>;
   // Once a pull commit holds the state: drops what an earlier version kept locally.
   forgetLocalState(): Promise<void>;
+  // What this clone verified itself; {} when nothing. noteTrust merges into it.
+  readTrust(): Promise<LocalTrust>;
+  noteTrust(trust: LocalTrust): Promise<void>;
 }
 
 // What a pull in progress writes: the state and catalog go into its own mirror commit.

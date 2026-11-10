@@ -1,12 +1,12 @@
 import { SnagenticError } from "../../kernel/errors";
-import { Catalog } from "../../metadata/domain/catalog";
+import { Catalog, type CatalogData } from "../../metadata/domain/catalog";
 import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domain/secret-scan";
 import { changesSince, type FingerprintChange } from "../domain/fingerprint";
 import type { InventorySource } from "../domain/inventory";
 import { CHILD_TABLES } from "../domain/pull-scope";
 import type { Fingerprints, SyncState } from "../ports";
 import { detectChanges } from "./detect-changes";
-import { isIdle, refuseFutureWatermark } from "./incremental-checks";
+import { isIdle, refuseFutureWatermark, writesInstanceData } from "./incremental-checks";
 import { applyChildChanges, type ChildOutcome } from "./incremental-children";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { type RecordStep, recordPhase } from "./incremental-record-phase";
@@ -16,6 +16,7 @@ import { type PullProgress, rawTimestamp } from "./pull-dependencies";
 import { pullOperational } from "./pull-operational";
 import type { RedactionReread } from "./redaction-reread";
 import { migrateExistingSecrets, SECRET_SCAN_VERSION } from "./secret-migration";
+import { trustedCatalog } from "./trusted-catalog";
 import type { RecordVerification, VerifiedRecords } from "./verify-records";
 
 export class FullPullRequiredError extends SnagenticError {
@@ -201,7 +202,29 @@ async function prepareIncremental(
     signal,
   );
   if (migration.catalogChanged) await deps.state.writeCatalog(migration.catalog);
-  return { state, catalog: new Catalog(migration.catalog), migration };
+  return { state, stored: migration.catalog, migration };
+}
+
+// The catalog this pull redacts with, once the instance has said what changed: only a pull that
+// writes instance data needs one this clone can rely on (spec 014, SEC2-03).
+async function catalogForRun(
+  deps: IncrementalDependencies,
+  stored: CatalogData,
+  run: {
+    readonly state: SyncState;
+    readonly verify: boolean;
+    readonly changes: ReadonlyMap<string, FingerprintChange>;
+    readonly stale: number;
+  },
+  signal: AbortSignal,
+  progress: (event: PullProgress) => void,
+) {
+  const read = writesInstanceData(run.state, deps.policy.version, run)
+    ? await trustedCatalog(deps, stored, signal, progress)
+    : { catalog: stored, patterns: [], changed: false };
+  const secretRedactions: SecretRedaction[] =
+    read.patterns.length > 0 ? [{ path: deps.catalogPath, patterns: read.patterns }] : [];
+  return { catalog: new Catalog(read.catalog), changed: read.changed, secretRedactions };
 }
 
 export async function pullIncremental(
@@ -211,7 +234,7 @@ export async function pullIncremental(
   progress: (event: PullProgress) => void = () => {},
   options: PullOptions = {},
 ): Promise<IncrementalSummary> {
-  const { state, catalog, migration } = await prepareIncremental(deps, instance, signal);
+  const { state, stored, migration } = await prepareIncremental(deps, instance, signal);
   const verify = options.verify === true;
   const startedAt = rawTimestamp(deps.now());
   progress({ message: "checking for changes" });
@@ -222,10 +245,12 @@ export async function pullIncremental(
     signal,
   );
   refuseFutureWatermark(deps, state, instance);
+  const scope = { state, verify, changes, stale: stale.length };
+  const trusted = await catalogForRun(deps, stored, scope, signal, progress);
   const since = changesSince(state.watermark);
   const run = {
     state,
-    catalog,
+    catalog: trusted.catalog,
     fingerprints: current.fingerprints,
     change: changes.get("sys_metadata") ?? "changed",
     window: { since, previous: state.watermark, current: startedAt },
@@ -237,18 +262,18 @@ export async function pullIncremental(
   const rest = await pullBesideRecords(deps, records, { state, changes, stale, since }, signal);
   const unreadable = [...current.unreadable, ...records.unreadable, ...rest.unreadable];
   const summary = summarize(fingerprintChanges, step, verified, reread, rest.children, unreadable);
+  const rewritten = trusted.changed || migration.secretRedactions.length > 0;
   return {
     ...summary,
-    secretRedactions: sortSecretRedactions([
-      ...migration.secretRedactions,
-      ...summary.secretRedactions,
-      ...rest.secretRedactions,
-    ]),
+    catalogRefreshed: summary.catalogRefreshed || trusted.changed,
+    secretRedactions: sortSecretRedactions(
+      [migration, trusted, summary, rest].flatMap((part) => part.secretRedactions),
+    ),
     inventoryRefreshed: stale.map((source) => source.file),
     watermark: startedAt,
     idle: isIdle(state, deps.policy.version, {
       verify,
-      moved: summary.changedSources.length + stale.length + reread.tables.length > 0,
+      moved: rewritten || summary.changedSources.length + stale.length + reread.tables.length > 0,
     }),
     next: nextState(
       state,

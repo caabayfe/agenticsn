@@ -1,5 +1,6 @@
 import {
   type CatalogData,
+  type LocalTrust,
   type PullCheckpoint,
   SECRET_PATTERN_IDS,
   type SyncState,
@@ -53,6 +54,11 @@ export const SyncStateFile: z.ZodType<SyncState> = z.looseObject({
   secretScanVersion: z.number().exactOptional(),
   pulledBy: z.string().exactOptional(),
   snagenticVersion: z.string().exactOptional(),
+});
+
+// What this clone verified itself (spec 014, SEC2-03).
+export const TrustFile: z.ZodType<LocalTrust> = z.looseObject({
+  catalogDigest: z.string().exactOptional(),
 });
 
 // A pull that found nothing new: this clone checked the mirror at `commit`, with this state.

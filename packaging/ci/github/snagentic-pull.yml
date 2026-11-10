@@ -57,6 +57,15 @@ jobs:
           # Refuse a binary whose provenance was not checked.
           grep -q "provenance verified" "$RUNNER_TEMP/install.log"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # The digest of the last catalog this job read from the instance, and nothing else: no
+      # credential, no instance data. With it, a run reads the catalog again only when the
+      # dictionary changed; without it (first run, evicted cache), each run that writes reads it
+      # once (spec 014, SEC2-03). One entry per run; the newest is restored.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .snagentic/dev/trust.json
+          key: snagentic-trust-dev-${{ github.run_id }}
+          restore-keys: snagentic-trust-dev-
       # --now: the designated puller always asks the instance, even when the last scheduled pull
       # is a little younger than the max age.
       - name: pull and publish

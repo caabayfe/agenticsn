@@ -9,6 +9,8 @@ export const SECRET_PATTERN_IDS = [
   "google-api-key",
   "url-credentials",
   "jwt",
+  // Not a value shape: the value of a header or parameter whose name marks a credential.
+  "credential-value",
 ] as const;
 
 export type SecretPatternId = (typeof SECRET_PATTERN_IDS)[number];

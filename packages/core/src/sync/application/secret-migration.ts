@@ -1,4 +1,5 @@
-import type { CatalogData } from "../../metadata/domain/catalog";
+import { Catalog, type CatalogData } from "../../metadata/domain/catalog";
+import { withoutCredentialValue } from "../../metadata/domain/credential-values";
 import {
   SECRET_PATTERN_IDS,
   type SecretPatternId,
@@ -10,7 +11,8 @@ import {
 import { PULL_FOLDER } from "../domain/pull-state";
 import type { ExistingMirrorFile } from "../ports";
 
-export const SECRET_SCAN_VERSION = 1;
+// 2: values of credential headers and parameters (spec 014, SEC2-02).
+export const SECRET_SCAN_VERSION = 2;
 
 export interface ExistingSecretMigrationMirror {
   existingFiles(root: string): AsyncIterable<ExistingMirrorFile>;
@@ -72,14 +74,18 @@ async function scanMirrorFile(
   mirror: ExistingSecretMigrationMirror,
   root: string,
   file: ExistingMirrorFile,
+  catalog: Catalog,
 ): Promise<SecretRedaction | null> {
   const scannedPath = scanSecrets(file.path);
   if (file.kind === "document") {
-    const scanned = scanDocumentSecrets(file.document);
-    const patterns = ordered(new Set([...scannedPath.patterns, ...scanned.patterns]));
+    const withheld = withoutCredentialValue(file.document, catalog);
+    const scanned = scanDocumentSecrets(withheld ?? file.document);
+    const found = new Set([...scannedPath.patterns, ...scanned.patterns]);
+    if (withheld !== null) found.add("credential-value");
+    const patterns = ordered(found);
     if (patterns.length === 0) return null;
     if (scannedPath.text !== file.path) await mirror.move(root, file.path, scannedPath.text);
-    if (scanned.patterns.length > 0) {
+    if (scanned.patterns.length > 0 || withheld !== null) {
       await mirror.writeDocument(root, scannedPath.text, scanned.document);
     }
     return { path: `${root}/${scannedPath.text}`, patterns };
@@ -102,16 +108,18 @@ export async function migrateExistingSecrets(
   state: SecretMigrationState,
   signal: AbortSignal,
 ): Promise<SecretMigrationResult> {
-  if ((state.secretScanVersion ?? 0) >= SECRET_SCAN_VERSION) {
+  // A version above this binary's own isn't one it applied: it scans (spec 014, SEC2-03).
+  if (state.secretScanVersion === SECRET_SCAN_VERSION) {
     return { catalog, catalogChanged: false, secretRedactions: [] };
   }
   signal.throwIfAborted();
+  const classes = new Catalog(catalog);
   const secretRedactions: SecretRedaction[] = [];
   for await (const file of mirror.existingFiles(root)) {
     signal.throwIfAborted();
     // The pull state is rewritten by this pull, its catalog scanned below.
     if (file.path.startsWith(`${PULL_FOLDER}/`)) continue;
-    const redaction = await scanMirrorFile(mirror, root, file);
+    const redaction = await scanMirrorFile(mirror, root, file, classes);
     if (redaction !== null) secretRedactions.push(redaction);
   }
   const scannedCatalog = scanCatalogSecrets(catalog);

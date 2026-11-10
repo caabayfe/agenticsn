@@ -98,8 +98,24 @@ The template:
 - pins every action by commit SHA;
 - installs a pinned snagentic version, and fails unless the install script verified its build
   provenance ([ADR-0043](../adr/0043-upgrade-and-installers-verify-build-provenance.md));
+- keeps `.snagentic/dev/trust.json` across runs with `actions/cache` (below);
 - runs `snagentic pull dev --now --publish`. `--now` makes the scheduled pull always ask the
   instance, even when the last one is a little younger than the max age.
+
+**Why the job caches `trust.json`.** A pull doesn't rely on the catalog in the mirror commit for
+redaction: anyone who can push the mirror branch could edit it. Which fields are passwords and
+which classes hold credentials comes from a catalog the clone read from the instance itself. The
+clone keeps only that catalog's digest, in `.snagentic/<name>/trust.json`. The file holds a hash,
+no credential and no instance data, and it's the only file the job caches. Each run saves a new
+entry and restores the newest one.
+
+Without the cache, for example on the first run or after GitHub evicts the entry, the job reads
+the catalog from the instance once, the first time a run has something to write. Runs that find
+nothing new read nothing more. The catalog read lists every class, every scope and the
+dictionary rows typed as script, HTML, CSS, XML, JSON or password. It doesn't list the whole
+dictionary. Each list takes one request per page (500 to 1,000 rows, fewer when the instance is
+slow), plus one empty page. That is about 17 requests on a PDI, and 25 to 45 on an instance with
+about a million metadata records (10,000 classes, 1,000 scopes, 6,000 typed fields).
 
 Raise `SNAGENTIC_VERSION` on purpose, after reading the changelog. Use the same version on the
 developers' machines.

@@ -121,6 +121,62 @@ describe("existing mirror secret migration", () => {
     expect(source.listed()).toBe(0);
   });
 
+  // Spec 014, SEC2-03: a version above this binary's own isn't one it applied.
+  it("scans again when the recorded version is above its own", async () => {
+    const source = mirror([]);
+    await migrateExistingSecrets(
+      source.port,
+      "instances/pdi",
+      ".snagentic/pdi/catalog.json",
+      CATALOG,
+      { secretScanVersion: SECRET_SCAN_VERSION + 97 },
+      new AbortController().signal,
+    );
+    expect(source.listed()).toBe(1);
+  });
+
+  // Spec 014, SEC2-02: values an earlier version wrote are taken out of the committed files.
+  it("rewrites a committed credential header without its value, and reports it", async () => {
+    const value = "placeholder-not-a-credential";
+    const record = (name: string) => ({
+      _meta: {
+        sys_class_name: "sys_rest_message_headers",
+        sys_id: "0123456789abcdef0123456789abcdef",
+        scope: "global",
+        hash: "stale",
+        hash_version: 1,
+      },
+      name,
+      value,
+    });
+    const path = "metadata/global/sys_rest_message_headers/authorization--1.yaml";
+    const source = mirror([
+      { kind: "document", path, document: record("Authorization") },
+      {
+        kind: "document",
+        path: "metadata/global/sys_rest_message_headers/accept--2.yaml",
+        document: record("Accept"),
+      },
+    ]);
+    const result = await migrateExistingSecrets(
+      source.port,
+      "instances/pdi",
+      ".snagentic/pdi/catalog.json",
+      { ...CATALOG, parents: { sys_metadata: null, sys_rest_message_headers: "sys_metadata" } },
+      { secretScanVersion: SECRET_SCAN_VERSION - 1 },
+      new AbortController().signal,
+    );
+    expect(source.documents).toHaveLength(1);
+    expect(source.documents[0]).toMatchObject({
+      path,
+      document: { _meta: { redacted: ["value"] }, name: "Authorization" },
+    });
+    expect(JSON.stringify(source.documents)).not.toContain(value);
+    expect(result.secretRedactions).toEqual([
+      { path: `instances/pdi/${path}`, patterns: ["credential-value"] },
+    ]);
+  });
+
   it("sanitizes a secret-shaped committed path without reporting the original", async () => {
     const leaked = "AKIAIOSFODNN7EXAMPLE";
     const source = mirror([{ kind: "text", path: `metadata/${leaked}.js`, text: "safe();\n" }]);

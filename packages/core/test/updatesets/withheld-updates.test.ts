@@ -94,12 +94,7 @@ describe("update payloads withheld from an export", () => {
   // ADR-0035: the value scan pull and adopt apply holds for export too.
   it("withholds an update whose payload holds a credential-shaped value, naming the pattern only", () => {
     for (const [table, body, pattern, value] of [
-      [
-        "sys_rest_message_headers",
-        `<name>Authorization</name><value>Bearer ${jwt}</value>`,
-        "jwt",
-        jwt,
-      ],
+      ["sys_rest_message_headers", `<name>X-Correlation</name><value>${jwt}</value>`, "jwt", jwt],
       [
         "sys_script_include",
         `<script><![CDATA[var t = "${github}";]]></script>`,
@@ -119,6 +114,31 @@ describe("update payloads withheld from an export", () => {
         `it holds a value shaped like a secret (${pattern})`,
       ]);
       expect(reason).not.toContain(value);
+    }
+  });
+
+  // Spec 014, SEC2-02: the header name that marks a credential is in another element.
+  it("withholds a header or parameter whose name marks a credential and whose value is set", () => {
+    const value = "placeholder-not-a-credential";
+    for (const [table, name] of [
+      ["sys_rest_message_headers", "Authorization"],
+      ["sys_rest_message_headers", "x-api-key"],
+      ["sys_soap_message_parameters", "access_key"],
+    ] as const) {
+      const reason = withheld(table, `<name>${name}</name><value><![CDATA[${value}]]></value>`);
+      expect([table, name, reason]).toEqual([
+        table,
+        name,
+        "it sets the value of a credential header or parameter",
+      ]);
+    }
+    for (const body of [
+      "<name>Accept</name><value>application/json</value>",
+      "<name>Authorization</name><value/>",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: a ServiceNow variable substitution
+      "<name>Authorization</name><value>Bearer ${token}</value>",
+    ]) {
+      expect(withheld("sys_rest_message_headers", body)).toBeNull();
     }
   });
 

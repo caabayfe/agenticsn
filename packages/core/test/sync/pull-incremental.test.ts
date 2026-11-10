@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { FINGERPRINT_SOURCES } from "@snagentic/core";
+import { FINGERPRINT_SOURCES, SECRET_SCAN_VERSION } from "@snagentic/core";
 import { CHANGED, FLOW, pulledInstance, RULE, sid, touch } from "../support/incremental-fixture";
 
 describe("pullIncremental: nothing changed", () => {
@@ -47,7 +47,7 @@ describe("pullIncremental: nothing changed", () => {
       path: `meta/${RULE}.script.js`,
       patterns: ["aws-access-key-id"],
     });
-    expect(summary.next.secretScanVersion).toBe(1);
+    expect(summary.next.secretScanVersion).toBe(SECRET_SCAN_VERSION);
     expect(state.saved.state?.secretScanVersion).toBe(0);
   });
 

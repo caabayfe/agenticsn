@@ -21,6 +21,8 @@ function deps(state: SyncState | null, checkpoint: PullCheckpoint | null, view =
     heldLocally: async () => false,
     noteUnchanged: async () => {},
     forgetLocalState: async () => {},
+    readTrust: async () => ({}),
+    noteTrust: async () => {},
   };
   return { state: store, inspector: { inspect: async () => view }, now: () => NOW };
 }

@@ -12,6 +12,7 @@ import {
   pullFull,
   type RenderedRecord,
   type Row,
+  SECRET_SCAN_VERSION,
   type SyncState,
   type TableQuery,
 } from "@snagentic/core";
@@ -160,6 +161,8 @@ function memoryState(checkpoint: PullCheckpoint | null = null, timeline: string[
     heldLocally: async () => false,
     noteUnchanged: async () => {},
     forgetLocalState: async () => {},
+    readTrust: async () => ({}),
+    noteTrust: async () => {},
   };
   return { store, saved };
 }
@@ -294,7 +297,7 @@ describe("pullFull", () => {
       inventory: {},
       unreadable: [],
       redactionVersion: 1,
-      secretScanVersion: 1,
+      secretScanVersion: SECRET_SCAN_VERSION,
     });
   });
 

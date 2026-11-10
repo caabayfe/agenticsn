@@ -136,6 +136,8 @@ const state: PullStateStore = {
   heldLocally: async () => false,
   noteUnchanged: async () => {},
   forgetLocalState: async () => {},
+  readTrust: async () => ({}),
+  noteTrust: async () => {},
 };
 
 describe("child rows in a full pull (PERF-07)", () => {

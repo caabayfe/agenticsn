@@ -48,20 +48,42 @@ export class GitMirrorFiles implements MirrorFiles {
             ["diff", "--name-only", "--no-renames", commit, "HEAD", "--", this.root],
             this.workspace,
           );
-    const edited = await runGitOrThrow(
-      ["diff", "--name-only", "--no-renames", "HEAD", "--", this.root],
-      this.workspace,
-    );
-    const added = await runGitOrThrow(
-      ["ls-files", "--others", "--exclude-standard", "--", this.root],
-      this.workspace,
-    );
     return {
       committed: lines(committed).map((path) => this.relative(path)),
-      dirty: [...new Set([...lines(edited), ...lines(added)])]
-        .map((path) => this.relative(path))
-        .sort(),
+      dirty: await this.edited(),
     };
+  }
+
+  // Files that differ from HEAD (staged or not, deleted, untracked), from one `git status`.
+  // It has no pathspec, because git skips its untracked cache when given one, and it runs in
+  // git's default mode, the one the user's own `git status` caches (PERF2-03). A new untracked
+  // folder is listed as the folder: its files are listed from that folder alone.
+  private async edited(): Promise<string[]> {
+    const status = await runGitOrThrow(
+      ["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=normal"],
+      this.workspace,
+    );
+    const inside = `${this.root}/`;
+    const paths = status
+      .split("\0")
+      .map((entry) => entry.slice(3))
+      // A folder above the mirror (instances/ before the first commit) holds it.
+      .filter((path) => path.startsWith(inside) || (path.endsWith("/") && inside.startsWith(path)));
+    const folders = paths.filter((path) => path.endsWith("/"));
+    const files = paths.filter((path) => !path.endsWith("/"));
+    if (folders.length > 0) {
+      // Past a hundred folders, the whole mirror: one argument instead of thousands.
+      const within =
+        folders.length > 100 || folders.some((folder) => inside.startsWith(folder))
+          ? [this.root]
+          : folders;
+      const listed = await runGitOrThrow(
+        ["ls-files", "-z", "--others", "--exclude-standard", "--", ...within],
+        this.workspace,
+      );
+      files.push(...listed.split("\0").filter(Boolean));
+    }
+    return [...new Set(files.map((path) => this.relative(path)))].sort();
   }
 
   async readDocument(base: string) {

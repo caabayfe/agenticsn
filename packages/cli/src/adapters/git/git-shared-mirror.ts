@@ -56,9 +56,11 @@ export const gitSharedMirror: SharedMirror = {
   },
 
   // The shared tip becomes this clone's mirror, which every later pull builds on and integrate
-  // merges: its whole tree must be what a pull writes.
+  // merges: it must hold only what a pull writes. The local tip was checked when it arrived (or
+  // written by a pull here), so only what the shared tip changes since then is listed; the whole
+  // tree only when there is no local tip.
   async moveTo(root, instance, move) {
-    await checkMirrorCommits(root, instance, { from: null, to: move.commit });
+    await checkMirrorCommits(root, instance, { from: move.expected, to: move.commit });
     await moveMirrorBranch(root, instance, { ref: branchOf(instance), ...move });
   },
 

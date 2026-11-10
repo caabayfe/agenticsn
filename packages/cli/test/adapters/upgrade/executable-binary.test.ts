@@ -33,8 +33,11 @@ describe("ExecutableBinary (ADR-0023)", () => {
   it(
     "swaps in a new binary once it runs and reports the expected version",
     async () => {
-      const { path } = await installed();
-      const binary = new ExecutableBinary(path, "darwin");
+      // The release binary as this platform names it: Windows runs only a file named .exe.
+      const { path } = await installed(
+        process.platform === "win32" ? "snagentic.exe" : "snagentic",
+      );
+      const binary = new ExecutableBinary(path);
       await binary.replace(await script("1.3.0"), "1.3.0");
       expect(await readFile(path, "utf8")).toContain("snagentic 1.3.0");
       // Windows has no mode bits; the run below shows the binary starts there.

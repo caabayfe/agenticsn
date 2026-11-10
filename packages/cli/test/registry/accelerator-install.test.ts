@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { type InstallApproval, InstallPlanChangedError, type InstallRecord } from "@snagentic/core";
 import { CsvDataTemplates } from "../../src/adapters/accelerators/csv-data-templates";
 import { DirectoryPackSource } from "../../src/adapters/accelerators/directory-pack-source";
@@ -91,7 +91,7 @@ describe("accelerator install (ADR-0038)", () => {
     });
     const planId = (output as { planId: string }).planId;
     expect(written).toEqual([
-      expect.stringContaining(`accelerators/installs/pdi/minimal-${planId}/plan.md`),
+      expect.stringContaining(join("accelerators/installs/pdi", `minimal-${planId}`, "plan.md")),
     ]);
     const text = acceleratorInstall.render(output as never, "text");
     expect(text).toContain(`--confirm ${planId}`);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { Glob } from "bun";
 import ts from "typescript";
 
@@ -93,7 +93,8 @@ function productAssertions(): Record<string, string[]> {
   for (const path of new Glob("packages/*/src/**/*.ts").scanSync(ROOT)) {
     const found = assertionsOf(path, readFileSync(join(ROOT, path), "utf8"));
     if (found.length > 0) {
-      byFile[path] = found;
+      // The allow-list names files with / separators; the glob gives \ on Windows.
+      byFile[path.split(sep).join("/")] = found;
     }
   }
   return byFile;

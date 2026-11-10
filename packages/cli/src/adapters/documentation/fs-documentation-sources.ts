@@ -10,6 +10,7 @@ import {
   type ThemeFile,
 } from "@snagentic/core";
 import { isMap, isSeq, parse, parseDocument } from "yaml";
+import { scanPosix } from "../fs/posix-paths";
 
 const FOLDER = "documentation";
 
@@ -45,7 +46,7 @@ async function list(root: string, pattern: string): Promise<string[]> {
     return [];
   }
   const found: string[] = [];
-  for await (const path of new Bun.Glob(pattern).scan({ cwd: root })) {
+  for await (const path of scanPosix(pattern, root)) {
     found.push(path);
   }
   return found.sort();

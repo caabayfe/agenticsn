@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { join } from "node:path";
 import { InstanceName } from "@snagentic/core";
 import { type CallUseCase, installSteps } from "../../src/registry/install-steps";
 import type { UseCaseContext } from "../../src/registry/use-case";
@@ -198,7 +199,7 @@ describe("an install's steps are the existing use cases (ADR-0038, item 2)", () 
         },
       ],
     ]);
-    expect(written).toEqual([["/w/accelerators/installs/pdi/x/plan.md", "# plan"]]);
+    expect(written).toEqual([[join("/w", "accelerators/installs/pdi/x/plan.md"), "# plan"]]);
     expect(await steps.readFile("accelerators/installs/pdi/x/plan.md")).toBe("# plan");
     expect(await steps.readFile("accelerators/installs/pdi/x/none.md")).toBeNull();
     expect(commits).toEqual([[["accelerators/installs/pdi/x/plan.md"], "install"]]);

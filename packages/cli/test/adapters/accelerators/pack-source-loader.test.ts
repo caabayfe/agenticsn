@@ -34,7 +34,7 @@ describe("workspace pack paths (ADR-0038, item 7)", () => {
     await writeFile(join(root, "snagentic.yaml"), "accelerators:\n  paths: [elsewhere]\n");
     expect(await workspacePackRoots(join(workspace, "source", "x_app"))).toEqual([
       join(root, "packs"),
-      "/opt/packs",
+      resolve("/opt/packs"),
       join(workspace, "local"),
     ]);
   });

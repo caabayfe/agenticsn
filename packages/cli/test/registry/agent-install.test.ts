@@ -46,8 +46,12 @@ describe("agent install", () => {
     );
     expect(copilotHooks.version).toBe(1);
     const hook = join(ws.root, ".git/hooks/pre-commit");
-    expect(await readFile(hook, "utf8")).toContain("snagentic validate");
-    expect((await stat(hook)).mode & 0o111).not.toBe(0);
+    const script = await readFile(hook, "utf8");
+    expect(script).toContain("snagentic validate");
+    // git runs a hook that is executable; Git for Windows, which has no mode bits, runs it with
+    // the interpreter its first line names.
+    expect(script.startsWith("#!/bin/sh\n")).toBe(true);
+    if (process.platform !== "win32") expect((await stat(hook)).mode & 0o111).not.toBe(0);
     expect(agentInstall.render(output as never, "text")).toContain("commit these files");
   });
 

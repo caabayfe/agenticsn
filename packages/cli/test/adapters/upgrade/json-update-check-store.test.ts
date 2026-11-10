@@ -34,8 +34,11 @@ describe("JsonUpdateCheckStore", () => {
     expect(updateCheckFile({ XDG_CACHE_HOME: "/c" }, "/home/a", "linux")).toBe(
       "/c/snagentic/update-check.json",
     );
-    expect(updateCheckFile({ LOCALAPPDATA: "/l" }, "/h", "win32")).toBe(
-      join("/l", "snagentic", "update-check.json"),
+    expect(updateCheckFile({ LOCALAPPDATA: "C:\\l" }, "C:\\h", "win32")).toBe(
+      "C:\\l\\snagentic\\update-check.json",
+    );
+    expect(updateCheckFile({}, "C:\\h", "win32")).toBe(
+      "C:\\h\\AppData\\Local\\snagentic\\update-check.json",
     );
   });
 });

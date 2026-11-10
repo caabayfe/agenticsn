@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { RecordStore, RenderedRecord, StoredRecord } from "@snagentic/core";
+import { posixPath } from "../fs/posix-paths";
 import { fromYamlStrings, toYaml } from "../yaml/own-style";
 import { groupRecordFiles, type RecordFiles } from "./record-files";
 
@@ -16,6 +17,7 @@ async function* directories(root: string): AsyncGenerator<string> {
   }
 }
 
+// Record bases use / on every platform (ADR-0017), as core renders and splits them.
 // Writes are not atomic on purpose: a full pull writes hundreds of thousands of files, and
 // a torn write is detected by the hash stored in every record (ADR-0017).
 export class FlatRecordStore implements RecordStore {
@@ -50,7 +52,7 @@ export class FlatRecordStore implements RecordStore {
       const names = (await readdir(directory, { withFileTypes: true }))
         .filter((e) => e.isFile())
         .map((e) => e.name);
-      const relative = directory === root ? "" : `${directory.slice(root.length + 1)}/`;
+      const relative = directory === root ? "" : `${posixPath(directory.slice(root.length + 1))}/`;
       for (const leaf of groupRecordFiles(names).keys()) {
         yield `${relative}${leaf}`;
       }
@@ -85,7 +87,7 @@ export class FlatRecordStore implements RecordStore {
       const names = (await readdir(directory, { withFileTypes: true }))
         .filter((e) => e.isFile())
         .map((e) => e.name);
-      const relative = directory === root ? "." : directory.slice(root.length + 1);
+      const relative = directory === root ? "." : posixPath(directory.slice(root.length + 1));
       const groups = [...groupRecordFiles(names).values()];
       for (let index = 0; index < groups.length; index += READ_CONCURRENCY) {
         const batch = groups.slice(index, index + READ_CONCURRENCY);

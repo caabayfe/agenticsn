@@ -28,6 +28,12 @@ describe("createTextFile", () => {
   it("reports other failures", async () => {
     const dir = await mkdtemp(join(tmpdir(), "create-"));
     dirs.push(dir);
+    await writeFile(join(dir, "file"), "");
+    await expect(createTextFile(join(dir, "file/sub/x.xml"), "x")).rejects.toMatchObject({
+      code: "ENOTDIR",
+    });
+    // Windows has no mode bits to lock a folder with.
+    if (process.platform === "win32") return;
     await mkdir(join(dir, "locked"));
     await chmod(join(dir, "locked"), 0o500);
     await expect(createTextFile(join(dir, "locked/x.xml"), "x")).rejects.toMatchObject({

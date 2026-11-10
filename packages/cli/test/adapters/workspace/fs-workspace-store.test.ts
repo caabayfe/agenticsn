@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, parse } from "node:path";
 import { manifestFor } from "@snagentic/core";
 import { runGit } from "../../../src/adapters/git/run-git";
 import { FsWorkspaceStore } from "../../../src/adapters/workspace/fs-workspace-store";
@@ -32,6 +32,13 @@ describe("FsWorkspaceStore", () => {
     expect(manyFiles.stdout.trim()).toBe("true");
     const branch = await runGit(["symbolic-ref", "--short", "HEAD"], root);
     expect(branch.stdout.trim()).toBe("main");
+  });
+
+  it("on Windows lets git check out mirror paths longer than 260 characters", async () => {
+    const root = join(await scratch(), "acme");
+    await new FsWorkspaceStore("win32").create(root, manifestFor("snagentic test"));
+    const longPaths = await runGit(["config", "--get", "core.longpaths"], root);
+    expect(longPaths.stdout.trim()).toBe("true");
   });
 
   it("records the workspace files in a first commit, so git status starts clean", async () => {
@@ -71,7 +78,7 @@ describe("FsWorkspaceStore", () => {
     await mkdir(join(root, "a", "b"), { recursive: true });
     const ancestors = store.ancestorsOf(join(root, "a", "b"));
     expect(ancestors.slice(0, 3)).toEqual([join(root, "a", "b"), join(root, "a"), root]);
-    expect(ancestors.at(-1)).toBe("/");
+    expect(ancestors.at(-1)).toBe(parse(root).root);
   });
 
   // Spec 014, PERF2-04: a teammate's `git clone` of the workspace gets none of init's tuning.

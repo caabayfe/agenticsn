@@ -1,6 +1,6 @@
 # 0053. Instance owners set load limits; one scheduler per instance; the cost report is opt-in
 
-- Status: Proposed (2026-11-10, for the product owner)
+- Status: Accepted (2026-11-10)
 - Date: 2026-11-10
 - Requirements: G1, G2, ASR-16
 - Amends: 0016, section 4 (load governance) and its appendix "Server cost, measured by every pull"

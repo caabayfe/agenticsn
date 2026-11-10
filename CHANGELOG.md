@@ -40,6 +40,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   when an advisory hits another version or arrives another way, so a decision can't silently
   outlive the copies it was made about (spec 014, F2).
 
+- Update set export applies the ADR-0035 secret scan: an update whose payload holds a
+  credential-shaped value is withheld whole and listed with the pattern name, as typed secrets
+  already were. By default an export is now written to `.snagentic/<instance>/exports/`, which
+  the workspace never commits; `--output` still writes where you choose.
+
 ## [2.19.1] - 2026-11-08
 
 ### Fixed

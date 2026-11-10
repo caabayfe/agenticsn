@@ -74,6 +74,7 @@ describe("workspace layout", () => {
       updateSets: "instances/dev/update-sets",
       operational: "instances/dev/operational",
       localState: ".snagentic/dev",
+      exports: ".snagentic/dev/exports",
       remoteBranch: "servicenow-remote/dev",
     });
   });

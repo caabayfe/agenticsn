@@ -379,7 +379,7 @@ Changes the instance: no. MCP tool: none.
 
 Options:
 
-- `--output <value>`: file to write (default: <name>--<sys_id>.xml here)
+- `--output <value>`: file to write (default: .snagentic/<instance>/exports/<name>--<sys_id>.xml in the workspace, which git ignores)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 

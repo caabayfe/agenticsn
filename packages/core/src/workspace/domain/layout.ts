@@ -8,6 +8,8 @@ export interface InstancePaths {
   readonly updateSets: string;
   readonly operational: string;
   readonly localState: string;
+  // Update set exports by default: inside local state, which the workspace never commits.
+  readonly exports: string;
   readonly remoteBranch: string;
 }
 
@@ -20,6 +22,7 @@ export function instancePaths(name: InstanceName): InstancePaths {
     updateSets: `${root}/update-sets`,
     operational: `${root}/operational`,
     localState: `.snagentic/${name}`,
+    exports: `.snagentic/${name}/exports`,
     remoteBranch: `servicenow-remote/${name}`,
   };
 }

@@ -2,11 +2,13 @@ import { describe, expect, it } from "bun:test";
 import {
   computeUnitPlan,
   FlowPublishFailedError,
+  OperationCancelledError,
   PlanChangedError,
   PushConfirmationRequiredError,
   pushUnits,
   RecordChangedOnInstanceError,
 } from "@snagentic/core";
+import { refusingWhenAborted } from "../support/scheduler-guard";
 import { QUERY, SCOPE_ID, SI_UNIT, saveOnInstance, unitSetup } from "./unit-fixture";
 
 async function planned(options: Parameters<typeof unitSetup>[0] = { source: "Edited in source." }) {
@@ -293,5 +295,34 @@ describe("push on built units: deletions, flows, global, recovery", () => {
       context.tables["sys_user_preference"]?.find((p) => p["sys_id"] === "p1")?.["value"],
     ).toBe("global");
     expect(await context.journal.read()).toBeNull();
+  });
+
+  it("puts back the user's current application and update set when the push is cancelled", async () => {
+    const context = unitSetup({ source: "Edited in source." });
+    context.tables["sys_user_preference"] = [
+      { sys_id: "p1", user: "u1", name: "apps.current_app", value: "x_old" },
+      { sys_id: "p2", user: "u1", name: "sys_update_set", value: "mine" },
+    ];
+    const { plan } = await computeUnitPlan(context.deps, QUERY);
+    const run = new AbortController();
+    const cancelled = {
+      ...context.deps,
+      ...refusingWhenAborted(context.deps.reader, context.deps.writer),
+      signal: run.signal,
+      installer: {
+        ...context.deps.installer,
+        load: async () => {
+          run.abort();
+          throw new OperationCancelledError();
+        },
+      },
+    };
+    const push = pushUnits(cancelled, { ...QUERY, planId: plan.planId, confirm: true });
+    await expect(push).rejects.toThrow(OperationCancelledError);
+    const preference = (name: string) =>
+      context.tables["sys_user_preference"]?.find((p) => p["name"] === name)?.["value"];
+    expect(preference("apps.current_app")).toBe("x_old");
+    expect(preference("sys_update_set")).toBe("mine");
+    expect((await context.journal.read())?.preferences).toEqual([]);
   });
 });

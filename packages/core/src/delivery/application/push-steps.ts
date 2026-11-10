@@ -13,6 +13,16 @@ export interface InstanceSession {
 
 const OPEN = "in progress";
 
+// After Ctrl-C or an MCP cancel the run's signal is aborted, and the scheduler sends nothing
+// with it: putting the user's preferences back would never reach the instance (REL2-02). The
+// cleanup gets a signal of its own with a short deadline instead, and still goes through the
+// scheduler.
+export const RESTORE_DEADLINE_MS = 30_000;
+
+export function restoring(session: InstanceSession): InstanceSession {
+  return { ...session, signal: AbortSignal.timeout(RESTORE_DEADLINE_MS) };
+}
+
 async function first(
   session: InstanceSession,
   table: string,
@@ -128,15 +138,6 @@ export async function applyPreference(
     session.signal,
   );
   return { ...current, sysId: created["sys_id"] ?? "" };
-}
-
-export async function switchPreference(
-  session: InstanceSession,
-  user: string,
-  name: string,
-  value: string,
-): Promise<SwitchedPreference> {
-  return applyPreference(session, await currentPreference(session, user, name), value);
 }
 
 // Puts a preference back. The instance may replace the row while push runs: it is then found

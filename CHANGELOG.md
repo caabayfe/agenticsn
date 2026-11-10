@@ -112,6 +112,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Cancelling a push or an install (Ctrl-C, or an MCP cancel) now puts back your current update
+  set and current application. The restores used the cancelled run's signal, so they were never
+  sent; they now have their own 30-second deadline, still through the request scheduler. Writing
+  the development-only settings also puts back the current application when switching the update
+  set fails, and still sets its update set to ignore. A push or install journal that exists but
+  can't be read stops with `unreadable-state-file` and a hint, instead of reading as "nothing to
+  recover" (spec 014, 1b-D).
 - A push whose ledger commit fails after the push reached the instance (a commit-msg hook that
   needs a ticket key, a pre-commit hook, a lock file) is reported as succeeded: the result has
   `ledgerCommit: null` and a warning with the command that commits the ledger. A failed git

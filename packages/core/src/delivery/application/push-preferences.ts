@@ -4,6 +4,7 @@ import {
   currentPreference,
   type InstanceSession,
   restorePreference,
+  restoring,
 } from "./push-steps";
 
 // Makes `value` the user's preference `name`, journaled so it is restored even after a crash:
@@ -29,16 +30,17 @@ export async function switchFor(
 }
 
 // Restores each preference, trying all of them. What is restored leaves the journal; what is
-// not stays there for the next push to restore.
+// not stays there for the next push to restore. It runs even when the push was cancelled.
 export async function settle(
   session: InstanceSession,
   journal: { current: PushJournal },
   save: (preferences: readonly SwitchedPreference[]) => Promise<void>,
 ): Promise<void> {
+  const cleanup = restoring(session);
   const failures: unknown[] = [];
   for (const preference of [...journal.current.preferences].reverse()) {
     try {
-      await restorePreference(session, preference);
+      await restorePreference(cleanup, preference);
       await save(journal.current.preferences.filter((p) => p !== preference));
     } catch (error) {
       failures.push(error);

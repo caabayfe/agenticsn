@@ -37,7 +37,8 @@ describe("ExecutableBinary (ADR-0023)", () => {
       const binary = new ExecutableBinary(path, "darwin");
       await binary.replace(await script("1.3.0"), "1.3.0");
       expect(await readFile(path, "utf8")).toContain("snagentic 1.3.0");
-      expect((await stat(path)).mode & 0o111).not.toBe(0);
+      // Windows has no mode bits; the run below shows the binary starts there.
+      if (process.platform !== "win32") expect((await stat(path)).mode & 0o111).not.toBe(0);
       const ran = await binary.run(["agent", "install"], tmpdir());
       expect(ran).toMatchObject({
         exitCode: 0,

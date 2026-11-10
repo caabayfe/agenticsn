@@ -186,7 +186,7 @@ describe("sharedMirrorStatus (ADR-0052 item 6)", () => {
       local: { commit: "l1", state: at("2026-11-10 10:00:00", "dev") },
       shared: { commit: "s2", state: at("2026-11-10 11:50:00") },
     });
-    expect(await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING)).toEqual({
+    expect(await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING, "svc_ci")).toEqual({
       remote: "origin",
       maxAgeMinutes: 15,
       reachable: true,
@@ -194,6 +194,8 @@ describe("sharedMirrorStatus (ADR-0052 item 6)", () => {
       ageMinutes: 10,
       ahead: true,
       current: true,
+      publisher: "svc_ci",
+      stale: false,
     });
     expect(w.tip()).toBe("l1");
   });
@@ -204,7 +206,7 @@ describe("sharedMirrorStatus (ADR-0052 item 6)", () => {
       shared: { commit: "s1", state: at("2026-11-10 10:00:00") },
       history: { l2: ["s1"] },
     });
-    expect(await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING)).toMatchObject({
+    expect(await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING, "svc_ci")).toMatchObject({
       ahead: false,
       current: false,
     });
@@ -213,7 +215,7 @@ describe("sharedMirrorStatus (ADR-0052 item 6)", () => {
   it("is not ahead of a local branch at the shared tip itself", async () => {
     const state = at("2026-11-10 11:55:00");
     const w = world({ local: { commit: "s1", state }, shared: { commit: "s1", state } });
-    expect(await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING)).toMatchObject({
+    expect(await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING, "svc_ci")).toMatchObject({
       ahead: false,
       current: true,
     });
@@ -222,7 +224,7 @@ describe("sharedMirrorStatus (ADR-0052 item 6)", () => {
   it("calls a watermark ahead of the clock not current, as pull does (QUAL2-04)", async () => {
     const future = { commit: "s1", state: at("2026-11-10 13:00:00") };
     const w = world({ local: null, shared: future });
-    const status = await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING);
+    const status = await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING, "svc_ci");
     expect(status).toMatchObject({ ageMinutes: 0, current: false });
     const start = await continueFromNewest(
       world({ local: null, shared: future }).deps,
@@ -247,10 +249,27 @@ describe("sharedMirrorStatus (ADR-0052 item 6)", () => {
         },
       },
     };
-    expect(await sharedMirrorStatus(deps, "/w", "pdi", SETTING)).toMatchObject({
+    expect(await sharedMirrorStatus(deps, "/w", "pdi", SETTING, "svc_ci")).toMatchObject({
       reachable: false,
       ahead: false,
       current: true,
+      publisher: null,
+      stale: false,
+    });
+  });
+
+  it("calls a mirror older than its max age stale for a user who does not publish it (ADR-0052 A2)", async () => {
+    const old = { commit: "s1", state: at("2026-11-10 11:00:00") };
+    const developer = world({ local: { commit: "s1", state: old.state }, shared: old });
+    expect(await sharedMirrorStatus(developer.deps, "/w", "pdi", SETTING, "jdoe")).toMatchObject({
+      current: false,
+      publisher: "svc_ci",
+      stale: true,
+    });
+    const publisher = world({ local: { commit: "s1", state: old.state }, shared: old });
+    expect(await sharedMirrorStatus(publisher.deps, "/w", "pdi", SETTING, "svc_ci")).toMatchObject({
+      current: false,
+      stale: false,
     });
   });
 });

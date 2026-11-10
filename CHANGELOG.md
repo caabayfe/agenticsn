@@ -11,11 +11,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   server a proxy, certificate or runtime variable (`mcp-config`).
 - Guide: [network: proxies and corporate certificates](docs/guides/network.md).
 - A shared mirror for teams (ADR-0052). `instance add --shared-mirror origin` (or
-  `shared_mirror: { remote: origin, max_age_minutes: 15 }` in `instance.yaml`) names the git remote
+  `shared_mirror: { remote: origin, max_age_minutes: 30 }` in `instance.yaml`) names the git remote
   that holds the team's `servicenow-remote/<name>`. `pull` then fetches it and continues from
   whichever of it and the local branch has the later watermark, moving the local branch to it. While
-  that mirror is younger than `max_age_minutes` (15 by default), `pull` asks the instance nothing;
-  `--now` pulls anyway.
+  that mirror is younger than `max_age_minutes` (30 by default, twice the CI template's schedule),
+  `pull` asks the instance nothing; `--now` pulls anyway.
 - `pull --publish` pushes the mirror branch to the shared mirror, fast-forward only. It is refused
   when the shared state names another instance user, unless the branch is new. A push the remote
   refuses fetches, continues from the newer commit and tries once more, so two publishers can't
@@ -49,6 +49,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   (`feature.manyFiles`, `core.untrackedCache`, `core.fsmonitor` on macOS and Windows): the first
   `integrate` or `pull` sets the ones with no value yet, in the clone's own config, never the global
   one, and `doctor` reports a clone without them (`git-tuning`) (spec 014, 1b-H).
+- A stale shared mirror waits for its puller (ADR-0052, amendment A2; spec 014, 1b-K). In team
+  mode, a `pull` by a user other than the one the shared mirror's state names, when the mirror is
+  older than `max_age_minutes`, asks the instance nothing unless `--now` is given (`--full` and
+  `--verify` need it too): it takes the shared mirror, reports mode `stale` with the mirror's age
+  and publisher, and says how to get fresher data. The publisher, a mirror that names no
+  publisher, and solo mode are unchanged. `status` reports the shared mirror's `publisher` and
+  `stale`, and its `next` says to wait for the publisher's next scheduled pull or to run
+  `pull --now`. The design and deliver skills pull with `--now` only when the user asks. One late
+  or failed scheduled run no longer turns every developer into a puller.
 - The scheduled-pull CI template checks out one blobless, sparse commit of the default branch
   (only the files the pull reads) and fetches only the mirror branch's last commit, with its
   files, instead of checking out the whole integrated mirror every run. It and the team-mode guide

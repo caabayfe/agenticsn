@@ -24,15 +24,30 @@ export function syncPhase(facts: SyncFacts): SyncPhase {
 export interface SharedFacts {
   readonly ahead: boolean;
   readonly current: boolean;
+  // ADR-0052 A2: older than its max age and published by another user, so this clone's pull
+  // takes it as it is unless --now asks.
+  readonly stale?: boolean;
+  readonly publisher?: string | null;
+  readonly ageMinutes?: number | null;
+  readonly maxAgeMinutes?: number;
 }
 
 export const NOTHING_TO_DO = "nothing: the mirror is current";
 
+// The way to fresher data than a stale shared mirror: its publisher's next pull, or --now.
+function staleNext(instance: string, shared: SharedFacts): string {
+  const age = `${shared.ageMinutes ?? "?"} min old, max ${shared.maxAgeMinutes ?? "?"}`;
+  return `nothing yet: the shared mirror is stale (${age}); wait for ${shared.publisher ?? "its publisher"}'s next scheduled pull, or run snagentic pull ${instance} --now`;
+}
+
 export function nextCommand(phase: SyncPhase, instance: string, shared?: SharedFacts): string {
   const integrate = `snagentic integrate ${instance}`;
   const pull = `snagentic pull ${instance}`;
-  if (phase === "interrupted") return pull;
+  const stale = shared?.stale === true;
+  // Only --now resumes a developer's interrupted pull while the mirror is stale.
+  if (phase === "interrupted") return stale ? `${pull} --now` : pull;
   if (shared?.ahead === true || phase === "not-integrated") return integrate;
+  if (stale) return staleNext(instance, shared);
   return shared?.current === true ? NOTHING_TO_DO : pull;
 }
 

@@ -75,6 +75,8 @@ describe("instanceStatus", () => {
       maxAgeMinutes: 15,
       ahead: true,
       current: true,
+      publisher: "svc_ci",
+      stale: false,
     };
     const never = await instanceStatus("/w", "pdi", { ...deps(null, null), shared });
     expect(never).toMatchObject({ phase: "never-pulled", next: "snagentic integrate pdi" });
@@ -87,6 +89,10 @@ describe("instanceStatus", () => {
     const old = { ...current, ageMinutes: 60, current: false };
     expect((await instanceStatus("/w", "pdi", { ...deps(PULLED, null), shared: old })).next).toBe(
       "snagentic pull pdi",
+    );
+    const stale = { ...old, stale: true };
+    expect((await instanceStatus("/w", "pdi", { ...deps(PULLED, null), shared: stale })).next).toBe(
+      "nothing yet: the shared mirror is stale (60 min old, max 15); wait for svc_ci's next scheduled pull, or run snagentic pull pdi --now",
     );
   });
 

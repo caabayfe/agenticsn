@@ -91,9 +91,6 @@ An accepted decision is not always built yet. These parts wait for a plan step:
   (`install --components-only`, a separate installer credential, the parity check). Not built:
   `install` runs on development instances only.
 - **ADR-0042:** the `inactive` ensure rule. `related_list` and `form_field` are built.
-- **ADR-0052, amendment A2:** in team mode, a non-publisher's pull outside maxAge reaches the
-  instance only with `--now`, and the default `max_age_minutes` is at least twice the schedule.
-  Not built: a pull outside maxAge still goes to the instance, and the default is 15 minutes.
 
 ## Template
 

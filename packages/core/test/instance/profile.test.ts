@@ -102,7 +102,7 @@ describe("createProfile", () => {
       }).sharedMirror,
     ).toEqual({
       remote: "origin",
-      maxAgeMinutes: 15,
+      maxAgeMinutes: 30,
     });
     expect(() =>
       createProfile({

@@ -10,8 +10,9 @@ and [ADR-0052](../adr/0052-the-mirror-carries-its-pull-state.md) (the shared mir
   pulls the instance and publishes `servicenow-remote/<name>` to the team's git remote.
 - **Everyone else gets the mirror through git.** `integrate` and `status` fetch it. A
   developer's own `pull` asks the instance nothing while the mirror is younger than its max
-  age. Set the max age to at least twice the job's schedule: 30 minutes for the template's
-  15-minute schedule.
+  age, and, when it is older, waits for the puller unless `--now` asks. The max age is 30
+  minutes by default: twice the template's 15-minute schedule. Keep it at least twice the
+  job's schedule.
 - **Only the puller can push the mirror branch.** Protect `servicenow-remote/*` on the git host.
 - **The mirror shows the instance as the puller sees it.** Give that account read access to
   everything the team works on.
@@ -26,7 +27,15 @@ A pull with a shared mirror:
 
 1. fetches `servicenow-remote/<name>` from the remote;
 2. continues from whichever of the local and the shared branch was pulled later;
-3. asks the instance nothing if that mirror is younger than `max_age_minutes`.
+3. asks the instance nothing if that mirror is younger than `max_age_minutes`;
+4. when it is older, and another user published it, asks the instance nothing either, unless
+   `--now` is given: the mirror is **stale**, and the puller's next run is what refreshes it
+   ([ADR-0052, A2](../adr/0052-the-mirror-carries-its-pull-state.md#a2-developer-pulls-outside-maxage-accepted-2026-11-10-built)).
+   The puller itself, and a mirror that names no puller yet, pull from the instance as before.
+
+So the instance sees one puller, whatever the team's size. If the scheduled pull is late or
+failing, developers see a stale mirror, and `status` says so, instead of each of them starting
+to pull on their own.
 
 `pull --publish` then pushes the result, fast-forward only. Two publishers can't split the
 branch's history: a refused push fetches, continues from the newer commit and tries once more.
@@ -55,12 +64,12 @@ shared_mirror:
 git add instances/dev/instance.yaml && git commit -m "add dev"
 ```
 
-**Why twice the schedule.** `instance add` writes 15 minutes. With the template's 15-minute
-schedule, that is too short. A mirror is already a few minutes old when it's published: the
-pull's own run time, the queue, and GitHub starting scheduled runs late, often by minutes. With
-a max age equal to the schedule, the mirror is older than its max age for part of every cycle,
-and every developer's `pull` in that window asks the instance. Keep `max_age_minutes` at least
-twice the schedule: 30 for every 15 minutes, 60 for every 30.
+**Why twice the schedule.** `instance add` writes 30 minutes, twice the template's 15-minute
+schedule. A mirror is already a few minutes old when it's published: the pull's own run time,
+the queue, and GitHub starting scheduled runs late, often by minutes. With a max age equal to
+the schedule, the mirror would be stale for part of every cycle, and developers would see a
+"stale" `status` after every late run. Keep `max_age_minutes` at least twice the schedule: 30
+for every 15 minutes, 60 for every 30. Then a stale mirror means a scheduled run was missed.
 
 `--username` names the puller's service account. Developers sign in as themselves without
 changing it: see [who signs in](#who-signs-in).
@@ -172,12 +181,17 @@ Then:
 ```sh
 snagentic status             # the shared mirror's age, and whether it holds pulls you lack
 snagentic integrate dev      # fetches the shared mirror, then merges it into your branch
-snagentic pull dev           # only when status suggests it: the mirror is older than max age
+snagentic pull dev           # takes the shared mirror; asks the instance only as status says
 ```
 
-- `status` suggests `integrate` when the shared mirror is ahead of your branch, and `pull` only
-  when the mirror is older than its max age.
+- `status` suggests `integrate` when the shared mirror is ahead of your branch.
 - A `pull` inside the max age sends no request to the instance. `--now` pulls anyway.
+- When the shared mirror is older than its max age, `status` calls it **stale** and names its
+  puller, and `next` says to wait for the puller's next scheduled run, or to run
+  `snagentic pull dev --now`. A `pull` without `--now` takes the stale mirror as it is and asks
+  the instance nothing (mode `stale`); `--full` and `--verify` need `--now` too. Use `--now`
+  when you need data newer than the mirror, and tell whoever runs the scheduled job if it stays
+  stale.
 - Never use `--publish` on your own machine. Publishing is the scheduled job's work.
 - `pull`, `integrate` and `status` call the git remote with your own git credentials. Instance
   secrets never reach git.
@@ -265,6 +279,7 @@ So:
 
 | Code | Meaning | What to do |
 |---|---|---|
+| `status` says stale | The scheduled pull hasn't published for longer than `max_age_minutes` | Check the scheduled job's runs. Meanwhile, `pull --now` asks the instance yourself |
 | `publish-rejected` | The remote refused the mirror branch twice: another pull published in between | Run the pull again. Pushes are fast-forward only, so nothing was lost. If it repeats, check that only one job pulls this instance |
 | `publish-refused` | The shared mirror was written by another instance user | Publish only from the scheduled job, signed in as the puller. On your machine, pull without `--publish` |
 | `publish-needs-shared-mirror` | `--publish` on a profile without `shared_mirror` | Add `shared_mirror` to `instance.yaml`, or pull without `--publish` |

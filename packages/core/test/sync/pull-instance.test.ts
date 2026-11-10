@@ -18,11 +18,11 @@ const NOW = new Date("2026-11-10T12:00:00Z");
 const RUN = { signal: LIVE, progress: () => {} };
 const REQUEST = { full: false, verify: false, publish: false, cost: false, now: false };
 
-const profileOf = (kind: InstanceKind = "development", shared = true) =>
+const profileOf = (kind: InstanceKind = "development", shared = true, username = "svc_ci") =>
   createProfile({
     name: InstanceName.parse("pdi"),
     url: "dev1",
-    username: "svc_ci",
+    username,
     kind,
     acknowledgeReadOnly: kind !== "development",
     ...(shared ? { sharedMirrorRemote: "origin" } : {}),
@@ -100,6 +100,16 @@ function clone(shared: SharedTip | null, pushes: ("published" | "rejected")[] = 
 }
 
 const young = { commit: "s1", state: { watermark: "2026-11-10 11:55:00", lastFullPull: "x" } };
+// Published by the scheduled pull an hour ago: older than the default max age of 30 minutes.
+const stale = {
+  commit: "s1",
+  state: { watermark: "2026-11-10 11:00:00", lastFullPull: "x", pulledBy: "svc_ci" },
+};
+const developer = () => profileOf("development", true, "jdoe");
+// The pull connected and went on to an incremental pull from the shared state, which this fake
+// clone cannot finish: it holds no catalog. The connection is what these tests are about.
+const reachesInstance = (pull: Promise<unknown>) =>
+  expect(pull).rejects.toMatchObject({ code: "full-pull-required" });
 
 describe("pullInstance (ADR-0052)", () => {
   it("asks the instance nothing while the shared mirror is younger than its max age", async () => {
@@ -153,5 +163,60 @@ describe("pullInstance (ADR-0052)", () => {
       pullInstance(refused.ports, "/w", profileOf(), request, RUN),
     ).rejects.toMatchObject({ code: "publish-rejected" });
     expect(refused.seen.connections).toBe(2);
+  });
+});
+
+describe("pullInstance: a stale shared mirror (ADR-0052 A2)", () => {
+  it("takes the stale mirror for a developer who is not its publisher, asking the instance nothing", async () => {
+    const { ports, seen } = clone(stale);
+    const outcome = await pullInstance(ports, "/w", developer(), REQUEST, RUN);
+    expect(outcome).toMatchObject({
+      mode: "stale",
+      commit: "s1",
+      publisher: "svc_ci",
+      shared: { published: false, start: { from: "shared", current: false } },
+    });
+    expect(seen.connections).toBe(0);
+  });
+
+  it("asks the instance nothing without --now, even for --full or --verify", async () => {
+    const { ports, seen } = clone(stale);
+    for (const flags of [{ full: true }, { verify: true }]) {
+      const request = { ...REQUEST, ...flags };
+      expect(await pullInstance(ports, "/w", developer(), request, RUN)).toMatchObject({
+        mode: "stale",
+      });
+    }
+    expect(seen.connections).toBe(0);
+  });
+
+  it("pulls from the instance with --now", async () => {
+    const { ports, seen } = clone(stale);
+    const request = { ...REQUEST, now: true };
+    await reachesInstance(pullInstance(ports, "/w", developer(), request, RUN));
+    expect(seen.connections).toBe(1);
+  });
+
+  it("leaves the publisher's own pull unchanged: it reaches the instance", async () => {
+    const { ports, seen } = clone(stale);
+    await reachesInstance(pullInstance(ports, "/w", profileOf(), REQUEST, RUN));
+    expect(seen.connections).toBe(1);
+  });
+
+  it("keeps today's behaviour for a shared mirror that names no publisher", async () => {
+    const unnamed = {
+      commit: "s1",
+      state: { watermark: "2026-11-10 11:00:00", lastFullPull: "x" },
+    };
+    const { ports, seen } = clone(unnamed);
+    await reachesInstance(pullInstance(ports, "/w", developer(), REQUEST, RUN));
+    expect(seen.connections).toBe(1);
+  });
+
+  it("leaves solo mode unchanged: without a shared mirror a pull reaches the instance", async () => {
+    const { ports, seen } = clone(stale);
+    const solo = profileOf("development", false, "jdoe");
+    expect(await pullInstance(ports, "/w", solo, REQUEST, RUN)).toMatchObject({ mode: "full" });
+    expect(seen.connections).toBe(1);
   });
 });

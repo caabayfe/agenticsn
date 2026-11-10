@@ -10,6 +10,8 @@ export const SharedPullOutput = z.object({
   // Minutes since the watermark the pull continued from.
   ageMinutes: z.number().nullable(),
   maxAgeMinutes: z.number(),
+  // The instance user the shared mirror's state names: the one who publishes it.
+  publisher: z.string().nullable(),
   published: z.boolean(),
 });
 export type SharedPullOutput = z.output<typeof SharedPullOutput>;
@@ -22,6 +24,18 @@ export function sharedLines(shared: SharedPullOutput | undefined): string[] {
       : `  continued from this clone's mirror; shared mirror on ${shared.remote}: ${shared.sharedCommit?.slice(0, 10) ?? "none yet"}`,
     ...(shared.published ? [`  published servicenow-remote to ${shared.remote}`] : []),
   ];
+}
+
+// Older than maxAge and published by another user: nothing was asked of the instance (A2).
+export function renderStale(instance: string, shared: SharedPullOutput | undefined): string {
+  const age = shared?.ageMinutes ?? 0;
+  return [
+    `${instance}: the shared mirror is stale (pulled ${age} min ago, max ${shared?.maxAgeMinutes ?? 0}); nothing was asked of the instance`,
+    `  the scheduled pull by its publisher, ${shared?.publisher ?? "?"}, looks late`,
+    ...sharedLines(shared),
+    `  for fresher data: wait for the scheduled pull, or run snagentic pull ${instance} --now`,
+    `next: snagentic integrate ${instance}`,
+  ].join("\n");
 }
 
 // A mirror younger than maxAge: nothing was asked of the instance.

@@ -45,6 +45,8 @@ describe("status rendering", () => {
       ageMinutes: 5,
       maxAgeMinutes: 15,
       ahead: true,
+      publisher: "svc_ci",
+      stale: false,
     };
     const ahead = status.render({ instances: [{ ...BASE, sharedMirror: shared }] }, "text");
     expect(ahead).toContain(
@@ -57,6 +59,11 @@ describe("status rendering", () => {
     const gone = { ...none, reachable: false };
     expect(status.render({ instances: [{ ...BASE, sharedMirror: gone }] }, "text")).toContain(
       "unreachable",
+    );
+    // ADR-0052 A2: older than its max age, and published by another user.
+    const stale = { ...shared, ageMinutes: 45, maxAgeMinutes: 30, ahead: false, stale: true };
+    expect(status.render({ instances: [{ ...BASE, sharedMirror: stale }] }, "text")).toContain(
+      "shared mirror on origin: 0123456789, pulled 45 min ago; stale: svc_ci's scheduled pull looks late",
     );
   });
 

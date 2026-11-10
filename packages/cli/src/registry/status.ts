@@ -34,6 +34,12 @@ const InstanceStatusOutput = z.object({
       ageMinutes: z.number().nullable(),
       maxAgeMinutes: z.number(),
       ahead: z.boolean().describe("it holds pulls this clone lacks: integrate brings them in"),
+      publisher: z.string().nullable().describe("the instance user who publishes it"),
+      stale: z
+        .boolean()
+        .describe(
+          "older than its max age and published by another user: pull takes it as it is unless --now",
+        ),
     })
     .nullable(),
   // The plan id of a push that stopped part way: plan and push again to finish it.
@@ -58,7 +64,15 @@ async function statusOf(root: string, profile: InstanceProfile, context: UseCase
   const shared =
     setting === undefined
       ? {}
-      : { shared: await sharedMirrorStatus(deps, root, profile.name, setting) };
+      : {
+          shared: await sharedMirrorStatus(
+            deps,
+            root,
+            profile.name,
+            setting,
+            profile.auth.username,
+          ),
+        };
   const status = await instanceStatus(root, profile.name, {
     state,
     inspector: context.inspector,
@@ -111,7 +125,12 @@ function sharedLine(shared: InstanceStatusOutput["sharedMirror"]): string[] {
   if (shared.commit === null) return [`  shared mirror on ${shared.remote}: none yet`];
   const pulled = shared.ageMinutes === null ? "" : `, pulled ${age(shared.ageMinutes)}`;
   const ahead = shared.ahead ? "; it holds pulls this clone lacks" : "";
-  return [`  shared mirror on ${shared.remote}: ${shared.commit.slice(0, 10)}${pulled}${ahead}`];
+  const stale = shared.stale
+    ? `; stale: ${shared.publisher ?? "its publisher"}'s scheduled pull looks late`
+    : "";
+  return [
+    `  shared mirror on ${shared.remote}: ${shared.commit.slice(0, 10)}${pulled}${ahead}${stale}`,
+  ];
 }
 
 function renderOne(status: InstanceStatusOutput): string {

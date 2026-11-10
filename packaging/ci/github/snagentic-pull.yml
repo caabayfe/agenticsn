@@ -12,10 +12,13 @@
 # The kind below must match instances/dev/instance.yaml. Keep the URL and kind here, in the CI
 # configuration, never only in the repository (ADR-0020).
 #
-# Set the shared mirror's max age to at least twice the schedule below. A mirror is already a
-# few minutes old when it is published (the pull's run time, the queue, GitHub's late start of
-# scheduled runs), so with a max age equal to the schedule every developer's pull would ask the
-# instance for part of every cycle. For this 15-minute schedule, in instances/dev/instance.yaml:
+# This job is the instance's only puller. Keep the shared mirror's max age at least twice the
+# schedule below: 30 minutes (the default) for this 15-minute cron, 60 for every 30 minutes. A
+# mirror is already a few minutes old when it is published (the pull's run time, the queue,
+# GitHub's late start of scheduled runs), so one late run must not make it stale. Past the max
+# age, developers' pulls still ask the instance nothing unless they pass --now: `status` calls
+# the mirror stale and points at this job. A failing job shows up as a stale mirror, not as one
+# puller per developer (ADR-0052, A2). In instances/dev/instance.yaml:
 #   shared_mirror:
 #     remote: origin
 #     max_age_minutes: 30

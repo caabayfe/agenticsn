@@ -1,5 +1,5 @@
 import type { PullOutput } from "./pull-output";
-import { renderCurrent, sharedLines } from "./pull-shared-output";
+import { renderCurrent, renderStale, sharedLines } from "./pull-shared-output";
 
 // The text a person reads after a pull.
 function secretLines(redactions: PullOutput["secretRedactions"]): string[] {
@@ -110,6 +110,7 @@ function renderIncremental(
 
 export function renderPull(output: PullOutput): string {
   if (output.mode === "current") return renderCurrent(output.instance, output.shared);
+  if (output.mode === "stale") return renderStale(output.instance, output.shared);
   const lines = output.incremental
     ? renderIncremental(output, output.incremental)
     : output.full

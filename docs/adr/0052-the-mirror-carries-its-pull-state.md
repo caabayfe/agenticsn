@@ -166,7 +166,7 @@ Item 2 and item 5 gain one precondition:
 A team that deliberately replaces the shared mirror says so to every clone, which then deletes
 that ref once. Branch protection (the team-mode guide) remains the control that prevents it.
 
-### A2. Developer pulls outside maxAge (Accepted, 2026-11-10; not built yet)
+### A2. Developer pulls outside maxAge (Accepted, 2026-11-10; built)
 
 Evidence: spec 014 re-audit, PERF2-02. The CI template pulls every 15 minutes, and the default
 `max_age_minutes` is 15. The watermark is the pull's start time, so a mirror is already "pull
@@ -209,7 +209,29 @@ The options considered:
 
 **Decision: option 3, both.** Accepted by the product owner on 2026-11-10. In team mode, a
 non-publisher's pull outside maxAge reaches the instance only with `--now`, and the default
-`max_age_minutes` rises to at least twice the scheduled interval. It is accepted but not built:
-a follow-up step builds it. Until then, today's behaviour stands. That step also settles the
-"stale" threshold, what `status`'s `next` says when the mirror is stale, and the CI template
-comment that ties its cron to `max_age_minutes` (packaging/ci).
+`max_age_minutes` rises to at least twice the scheduled interval.
+
+**As built** (spec 014, step 1b-K), the open points settled this way:
+
+- **Default.** `max_age_minutes` defaults to 30: twice the CI template's 15-minute schedule.
+  The template and the team-mode guide set 30 explicitly, and say to raise it with the
+  schedule (60 for every 30 minutes).
+- **Stale threshold.** Stale is not a second setting: a shared mirror is stale for a user when
+  it is older than `max_age_minutes` (the same rule that makes it current, from the watermark
+  the next pull would continue from) and its state names another user as the publisher. With
+  the max age at twice the schedule, that is "about two schedule intervals", as option 1 asks:
+  one late run doesn't make it stale, a missed run does. One number keeps `pull` and `status`
+  in agreement.
+- **Who waits.** A user other than the one the shared state names (`pulledBy`). The publisher
+  itself, a mirror that names no one (a new branch, or state from an earlier version), and solo
+  mode keep the earlier rule. Only `--now` reaches the instance: `--full` and `--verify` alone
+  don't, because a developer's full pull is the costliest load A2 caps. The pull reports mode
+  `stale`, the mirror's age and its publisher, and how to get fresher data.
+- **`status`.** The shared mirror gains `publisher` and `stale`. While stale, `next` says
+  `nothing yet: the shared mirror is stale (<age> min old, max <max>); wait for <publisher>'s
+  next scheduled pull, or run snagentic pull <name> --now`. `integrate` still comes first when
+  the shared mirror holds pulls this clone lacks, and an interrupted pull resumes with `--now`.
+  The skills tell the user, and pull with `--now` only when the user asks for fresher data.
+- **CI template.** Its comment ties the cron to `max_age_minutes` (at least twice the
+  schedule) and says what a late or failed run does to developers' pulls. A `doctor` check of
+  the pairing is not built: the CI schedule isn't visible to the CLI.

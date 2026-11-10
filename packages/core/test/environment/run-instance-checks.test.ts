@@ -11,6 +11,7 @@ import {
   runInstanceChecks,
   type StoredCredential,
   type TableQuery,
+  withUsername,
 } from "@snagentic/core";
 
 const LIVE = new AbortController().signal;
@@ -150,9 +151,25 @@ describe("runInstanceChecks", () => {
     expect(checks["roles"]?.status).toBe("unavailable");
   });
 
-  it("reports the signed-in user on success", async () => {
+  it("reports the signed-in user, and where its name came from, on success", async () => {
     const checks = byName(await runInstanceChecks(profile(), PW, reader(HEALTHY), LIVE));
-    expect(checks["connection"]?.detail).toBe("https://dev312411.service-now.com as admin");
+    expect(checks["connection"]?.detail).toBe(
+      "https://dev312411.service-now.com as admin (instance.yaml)",
+    );
+  });
+
+  it("checks the user this clone signs in as (ADR-0054)", async () => {
+    const jdoe = withUsername(profile(), "jdoe", "clone");
+    const answers = { ...HEALTHY, sys_user: [{ ...USER, user_name: "jdoe" }] };
+    const checks = byName(await runInstanceChecks(jdoe, PW, reader(answers), LIVE));
+    expect(checks["connection"]?.detail).toBe(
+      "https://dev312411.service-now.com as jdoe (this clone)",
+    );
+    const asAdmin = byName(await runInstanceChecks(jdoe, PW, reader(HEALTHY), LIVE));
+    expect(asAdmin["connection"]).toMatchObject({
+      status: "fail",
+      detail: expect.stringContaining("this clone's identity names jdoe"),
+    });
   });
 
   it("warns when the user is not an admin", async () => {

@@ -75,9 +75,13 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic auth login <instance> [options]
 ```
 
-Check the password (or OAuth client secret) with the instance, then store it in the OS keychain together with the profile's url and kind; it is used only while they match. Prompts without echo, or reads stdin.
+Check the password (or OAuth client secret) with the instance, then store it in the OS keychain together with the profile's url and kind; it is used only while they match. With --username, sign in as that user and keep it as this clone's identity, whatever instance.yaml names (ADR-0054). Prompts without echo, or reads stdin.
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--username <value>`: sign in as this user, and keep it as this clone's identity
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -87,7 +91,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic auth logout <instance> [options]
 ```
 
-Delete the stored password for an instance from the OS keychain.
+Delete the stored password for an instance from the OS keychain, and this clone's identity for it: the username then comes from instance.yaml again (ADR-0054).
 
 Changes the instance: no (writes only to the workspace). MCP tool: none.
 

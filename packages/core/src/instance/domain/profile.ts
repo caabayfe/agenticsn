@@ -38,6 +38,10 @@ export interface LoadSettings {
   readonly requestBudget?: number;
 }
 
+// ADR-0054: where auth.username came from. "environment": SNAGENTIC_<NAME>_USERNAME; "clone":
+// the identity auth login --username stored for this clone; "profile" (or absent): instance.yaml.
+export type UsernameSource = "environment" | "clone" | "profile";
+
 export interface InstanceProfile {
   readonly name: InstanceName;
   readonly url: string;
@@ -47,6 +51,8 @@ export interface InstanceProfile {
   readonly sharedMirror?: SharedMirrorSetting;
   // From instance.yaml's `load:` block, when it has one.
   readonly load?: LoadSettings;
+  // Set only when the username isn't the one instance.yaml names; never written to the file.
+  readonly usernameSource?: UsernameSource;
 }
 
 // A profile proved to be of a development instance (ADR-0012 layer 3): the only kind a write

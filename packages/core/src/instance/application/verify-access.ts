@@ -2,7 +2,8 @@ import type { InstanceReader } from "../../connection/ports";
 import { SnagenticError } from "../../kernel/errors";
 import { SESSION_USER } from "../../kernel/session-user";
 import { TableName } from "../../kernel/table-name";
-import { IdentityMismatchError, IdentityUnverifiedError } from "../domain/errors";
+import { IdentityUnverifiedError } from "../domain/errors";
+import { identityMismatch } from "../domain/identity";
 import type { DevelopmentProfile, InstanceProfile } from "../domain/profile";
 
 export class ReadOnlyCredentialRequiredError extends SnagenticError {
@@ -98,7 +99,7 @@ export async function verifySessionIdentity(
     throw new IdentityUnverifiedError(profile.name);
   }
   if (actual !== profile.auth.username) {
-    throw new IdentityMismatchError(profile.name, profile.auth.username, actual);
+    throw identityMismatch(profile, actual);
   }
 }
 

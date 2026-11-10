@@ -51,8 +51,8 @@ shared_mirror:
   max_age_minutes: 15   # a pull asks the instance nothing while the mirror is younger
 ```
 
-`--username` names the puller's service account. See [who signs in](#who-signs-in) for what
-this means for developers today.
+`--username` names the puller's service account. Developers sign in as themselves without
+changing it: see [who signs in](#who-signs-in).
 
 ### 2. Give the puller read access
 
@@ -128,7 +128,7 @@ someone moved back by hand. Branch protection is what stops that.
 Each developer clones the workspace repository and signs in once:
 
 ```sh
-snagentic auth login dev     # see "Who signs in" below
+snagentic auth login dev --username jdoe     # your own user; see "Who signs in" below
 ```
 
 Then:
@@ -152,21 +152,39 @@ never pulled.
 ## Who signs in
 
 ADR-0004 asks each developer to push with their own instance user, so update sets show who made
-each change. Today that doesn't work cleanly, because the user comes from the committed
-`instance.yaml`:
+each change. [ADR-0054](../adr/0054-each-developer-signs-in-as-themselves.md) makes that work
+without touching the committed `instance.yaml`. The username comes from the first of:
 
-- `instance.yaml` holds one `username`. Every clone signs in as that user.
-- The keychain item is named `<username>@<host>`. `auth login` signs in as that username, so a
-  developer's own password is refused (`authentication-failed`).
-- Pushes are attributed to that username, and look for its update sets.
+| Source | Set by | Used for |
+|---|---|---|
+| `SNAGENTIC_<NAME>_USERNAME` | the CI or server configuration | a job that signs in as someone else than `instance.yaml` names |
+| this clone's identity | `snagentic auth login <name> --username <you>` | each developer's clone |
+| `auth.username` in `instance.yaml` | the team, committed | the puller: the scheduled pull, and solo mode |
 
-So, until [ADR-0054](../adr/0054-each-developer-signs-in-as-themselves.md) is decided and built:
+So name the puller's service account in `instance.yaml`, and each developer signs in once as
+themselves:
 
-- Name the puller's service account in `instance.yaml`. That is what the scheduled pull needs.
-- A developer who pushes as themselves changes `username` in their clone only, and logs in
-  again. Don't commit that change: the scheduled pull would then sign in as that developer,
-  with the puller's password, and fail. Pulls from such a clone count as another user's: they
-  add and change records, and never remove one by absence.
+```sh
+snagentic auth login dev --username jdoe    # jdoe's password; stored for jdoe@<host>
+snagentic instance list                     # dev  development  jdoe (this clone)  https://...
+```
+
+- The identity is kept in the OS keychain, next to the password, and bound to the instance's
+  URL and kind like it. It belongs to this clone (its folder) and this instance: another clone,
+  even on the same machine, still uses `instance.yaml` until it logs in. Moving the clone to
+  another folder needs one more `auth login`.
+- One username is used everywhere: the keychain item `jdoe@<host>`, the check that the instance
+  signed in jdoe, the update sets and preferences a push uses, and the user a pull records.
+- `doctor`, `instance list` and the start of `pull` and `push` say who they act as, and where
+  that came from: `environment`, `this clone` or `instance.yaml`.
+- A pull from a developer's clone counts as another user's: it adds and changes records, and
+  never removes one by absence. Only the puller can `--publish`.
+- Changing the identity never releases someone else's password: the password is still found
+  by `<username>@<host>`. A new identity finds nothing until that person logs in.
+- `snagentic auth logout dev` deletes the password and the identity. The clone then signs in
+  as `instance.yaml`'s user again.
+- With an OAuth client ([ADR-0021](../adr/0021-oauth-client-credentials.md)), the user is the
+  client's OAuth Application User, and `--username` doesn't apply.
 - A clone that only reads (status, integrate, describe, search) doesn't need an instance
   login at all.
 

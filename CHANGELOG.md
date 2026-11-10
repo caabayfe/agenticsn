@@ -34,9 +34,16 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   minutes, one run per instance at a time, actions pinned by SHA, `contents: write` only for the
   publishing job, a pinned snagentic version whose build provenance must verify. A test keeps its
   commands and flags in step with the registry.
-- Proposed [ADR-0054](docs/adr/0054-each-developer-signs-in-as-themselves.md): each developer
-  signs in as themselves. Today every clone signs in as the one `username` in the committed
-  `instance.yaml`; the guide documents the stopgap.
+- Each developer signs in as themselves, whatever user the committed `instance.yaml` names
+  ([ADR-0054](docs/adr/0054-each-developer-signs-in-as-themselves.md), accepted). The username
+  comes from `SNAGENTIC_<NAME>_USERNAME`, then this clone's identity, then `instance.yaml`, and
+  that one username is used everywhere: the keychain account, the identity check, push
+  attribution and the user a pull records. `auth login <name> --username <user>` signs in as that
+  user and keeps it as this clone's identity, in the OS keychain next to the password and bound to
+  the URL and kind like it; `auth logout` removes it. `doctor`, `instance list` (new
+  `usernameSource` field) and the start of `pull` and `push` say who they act as and where that
+  came from. An OAuth client is unchanged (ADR-0021). The team-mode guide's "Who signs in" replaces
+  the local-edit stopgap (spec 014, I1).
 
 ### Changed
 
@@ -134,6 +141,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Security
 
+- The agent hooks also refuse setting `SNAGENTIC_<NAME>_USERNAME`, and adding or deleting
+  keychain items (`security add-generic-password`, `security delete-generic-password`,
+  `secret-tool store`, `secret-tool clear`), so an agent can't choose which user's credentials
+  snagentic uses (spec 014, I1).
 - The ServiceNow SDK's own copies of `zod` move to the patched 4.6.7 through a root override, so
   `bun audit` no longer reports a high advisory. The SDK still builds the `doctor` test flow.
 - The advisory register records, for each decision, the installed versions it covers and the

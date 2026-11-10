@@ -141,6 +141,7 @@ describe("instance commands", () => {
           url: "https://dev312411.service-now.com",
           kind: "development",
           username: "admin",
+          usernameSource: "instance.yaml",
         },
       ],
     });
@@ -164,8 +165,8 @@ describe("instance commands", () => {
     );
     expect((await run("instance", "list")).out).toBe(
       [
-        "acme-test  test         ro     https://acmetest.service-now.com",
-        "pdi        development  admin  https://dev312411.service-now.com",
+        "acme-test  test         ro (instance.yaml)     https://acmetest.service-now.com",
+        "pdi        development  admin (instance.yaml)  https://dev312411.service-now.com",
         "",
       ].join("\n"),
     );

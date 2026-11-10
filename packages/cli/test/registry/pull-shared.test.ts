@@ -100,6 +100,39 @@ describe("pull with a shared mirror (ADR-0052)", () => {
     expect(t.instance.queries.length).toBe(before);
   });
 
+  it("records each clone's own user, whatever instance.yaml names (ADR-0054)", async () => {
+    const t = await newTeam();
+    const ci = await t.member("svc_ci");
+    await executeUseCase(pull, { instance: "pdi", publish: true }, ci.at("2026-10-05T12:00:00Z"));
+    const dev = await t.member("dev.one");
+    const events: string[] = [];
+    const progress = {
+      signal: new AbortController().signal,
+      progress: (e: { message: string }) => {
+        events.push(e.message);
+      },
+    };
+    await executeUseCase(
+      pull,
+      { instance: "pdi", now: true },
+      dev.at("2026-10-05T13:00:00Z"),
+      progress,
+    );
+    expect(events[0]).toBe("pulling pdi as dev.one (this clone)");
+    expect(await runGitOrThrow(["status", "--porcelain", "instances"], dev.root)).toBe("");
+    const viaVariable = await t.member("dev.two", "environment");
+    await expect(
+      executeUseCase(
+        pull,
+        { instance: "pdi", publish: true },
+        viaVariable.at("2026-10-05T13:00:00Z"),
+      ),
+    ).rejects.toMatchObject({
+      code: "publish-refused",
+      message: expect.stringContaining("dev.two"),
+    });
+  });
+
   it("never removes a record by absence when another user pulls", async () => {
     const t = await newTeam();
     await executeUseCase(

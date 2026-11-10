@@ -11,6 +11,7 @@ import type {
   FluentInstaller,
   FluentProjects,
   FluentToolchain,
+  IdentityStore,
   ImportSetWriter,
   IncrementalMirror,
   InstalledBinary,
@@ -105,6 +106,8 @@ export interface UseCaseContext {
   readonly workspaces: WorkspaceStore;
   readonly profiles: ProfileStore;
   readonly credentials: CredentialStore;
+  // This clone's identity per instance (ADR-0054); profiles already carry the resolved username.
+  readonly identities: IdentityStore;
   readonly secrets: SecretReader;
   readonly connections: ConnectionFactory;
   // Per-instance local sync state (.snagentic/<name>/) and the git mirror of a workspace.

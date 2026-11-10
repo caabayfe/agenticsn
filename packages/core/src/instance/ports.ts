@@ -17,3 +17,18 @@ export interface CredentialStore {
   write(profile: InstanceProfile, secret: string): Promise<void>;
   remove(profile: InstanceProfile): Promise<boolean>;
 }
+
+// ADR-0054: the user this clone signs in as, set by auth login --username. It lives outside the
+// workspace, in the OS keychain, bound to the profile's url and kind like the secret (ADR-0020);
+// read returns null when there is none, or when the profile no longer matches.
+export interface IdentityStore {
+  read(root: string, profile: InstanceProfile): Promise<string | null>;
+  write(root: string, profile: InstanceProfile, username: string): Promise<void>;
+  remove(root: string, profile: InstanceProfile): Promise<boolean>;
+}
+
+// The sources of the username, before instance.yaml (ADR-0054 item 1).
+export interface UsernameSources {
+  readonly environment: Readonly<Record<string, string | undefined>>;
+  readonly clone: IdentityStore;
+}

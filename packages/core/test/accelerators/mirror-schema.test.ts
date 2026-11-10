@@ -72,4 +72,10 @@ describe("the mirror's schema for the field check", () => {
     await schema.close();
     expect(closed).toEqual([1, 2]);
   });
+
+  it("closes without failing when the index failed to open", async () => {
+    const schema = mirrorSchema(() => Promise.reject(new Error("no index")));
+    await expect(schema.ready()).rejects.toThrow("no index");
+    await schema.close();
+  });
 });

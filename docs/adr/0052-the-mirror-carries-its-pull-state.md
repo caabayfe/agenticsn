@@ -1,6 +1,6 @@
 # 0052. The mirror carries its pull state, so any clone continues a pull from git
 
-- Status: Proposed (2026-11-10, for the product owner)
+- Status: Accepted (2026-11-10)
 - Date: 2026-11-10
 - Requirements: ASR-06, ASR-07, ASR-08, ASR-16
 - Amends: 0004 (team mode: how developers get and refresh the mirror), 0014 (what `.snagentic/`

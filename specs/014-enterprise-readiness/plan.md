@@ -1,6 +1,6 @@
 # 014. Enterprise readiness: plan
 
-- Status: Draft (2026-11-10), for the product owner
+- Status: In progress (2026-11-10). Owner: run stages 0 and 1; ADR-0052 accepted; merge when CI is green; P3 measures on everis2 (read-only); R2 waits for a new PDI
 - Date: 2026-11-10
 - Source: enterprise-readiness audit of `main` 6b458a6 (release 2.19.1), 2026-11-10. It used five
   independent reviews (security, performance, quality, reliability, enterprise readiness), the
@@ -48,7 +48,7 @@ means teams to work: one pull per instance, and everyone else gets the mirror th
 - without the catalog, `describe` loses inheritance and `adopt` builds its secret-field catalog
   from the units' own tables only.
 
-ADR-0052 proposes the fix.
+ADR-0052 (accepted 2026-11-10) is the fix.
 
 ## 3. Decisions for the owner
 

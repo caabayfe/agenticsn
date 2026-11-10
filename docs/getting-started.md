@@ -79,6 +79,9 @@ password is stored together with the instance's URL and kind, and is used only w
 SNAGENTIC_DEV_PASSWORD=...  SNAGENTIC_DEV_URL=dev12345  SNAGENTIC_DEV_KIND=development
 ```
 
+The username comes from `SNAGENTIC_DEV_USERNAME` if set, then this clone's identity (set with
+`auth login dev --username <you>`), then `instance.yaml`; `doctor` and `instance list` say which.
+
 Using an **OAuth client** instead of a password? Add `--client-id <id>` and set `--username`
 to the client's OAuth Application User; `auth login` then asks for the client secret.
 
@@ -172,7 +175,13 @@ The designated puller runs:
 snagentic pull dev --publish   # fast-forward only; refused for a user other than the mirror's
 ```
 
-Developers run:
+Developers sign in once as themselves; `instance.yaml` keeps naming the puller:
+
+```sh
+snagentic auth login dev --username jdoe   # this clone signs in as jdoe from now on
+```
+
+Then they run:
 
 ```sh
 snagentic status          # the shared mirror's age, and whether it holds pulls you lack

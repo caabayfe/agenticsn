@@ -51,6 +51,12 @@ export const CLAUDE_SETTINGS = {
       "Bash(security dump-keychain:*)",
       "Bash(secret-tool lookup:*)",
       "Bash(cmdkey:*)",
+      // The keychain items snagentic reads, the secrets and this clone's identity, are set by a
+      // person with snagentic auth (ADR-0020, ADR-0054).
+      "Bash(security add-generic-password:*)",
+      "Bash(security delete-generic-password:*)",
+      "Bash(secret-tool store:*)",
+      "Bash(secret-tool clear:*)",
       // Claude Code applies Edit rules to every file-writing tool; Write rules are ignored.
       ...PROTECTED.map((path) => `Edit(${path})`),
     ],
@@ -81,6 +87,8 @@ const GIT_HOOKS = "git hooks run validate; skipping them skips the checks";
 const CREDENTIALS = "credentials and the instance they are for are set by a person (ADR-0020)";
 const UPGRADE = "the binary an agent runs changes only when a person upgrades it (ADR-0023)";
 const SECRETS = "stored credentials are read only by snagentic, never shown to an agent (ADR-0020)";
+const KEYCHAIN =
+  "the keychain items snagentic reads, secrets and this clone's identity, are set by a person with snagentic auth (ADR-0020, ADR-0054)";
 const RUNTIME =
   "these variables make the snagentic binary run other code, or stop checking certificates, with the credentials it holds";
 const NETWORK =
@@ -91,12 +99,17 @@ export const SHELL_DENY: readonly { readonly pattern: RegExp; readonly reason: s
   { pattern: /--no-verify\b|core\.hooksPath/, reason: GIT_HOOKS },
   { pattern: /\bcommit\b[^;&|]*\s-[a-zA-Z]*n[a-zA-Z]*(?=\s|$)/, reason: GIT_HOOKS },
   { pattern: /\bsnagentic\s+auth\b/, reason: CREDENTIALS },
-  { pattern: /\bSNAGENTIC_\w+_(?:PASSWORD|URL|KIND)\s*=/, reason: CREDENTIALS },
+  // The username too: it chooses whose secret is used (ADR-0054).
+  { pattern: /\bSNAGENTIC_\w+_(?:PASSWORD|USERNAME|URL|KIND)\s*=/, reason: CREDENTIALS },
   { pattern: /\bsnagentic\s+upgrade\b/, reason: UPGRADE },
   {
     pattern:
       /\bsecurity\s+(?:find-(?:generic|internet)-password|dump-keychain)\b|\bsecret-tool\s+lookup\b|\bcmdkey\b/,
     reason: SECRETS,
+  },
+  {
+    pattern: /\bsecurity\s+(?:add|delete)-generic-password\b|\bsecret-tool\s+(?:store|clear)\b/,
+    reason: KEYCHAIN,
   },
   {
     pattern: /\b(?:BUN_BE_BUN|BUN_OPTIONS|NODE_OPTIONS|NODE_TLS_REJECT_UNAUTHORIZED)\s*=/,

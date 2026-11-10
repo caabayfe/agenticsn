@@ -53,12 +53,18 @@ group("a team on one shared mirror, delivering", () => {
         ready: true,
         units: [{ updateName: SI_UNIT, operation: "load" }],
       });
+      // The developer pushes as themselves: instance.yaml names svc_ci, this clone dev.one
+      // (ADR-0054); the push finds dev.one's update sets and preferences.
+      const said: string[] = [];
       const pushed = await executeUseCase(
         push,
         { instance: "pdi", plan: String(plan.output["planId"]), confirm: true },
         context,
+        { signal: new AbortController().signal, progress: (event) => said.push(event.message) },
       );
       expect(pushed.exitCode).toBe(0);
+      expect(said[0]).toBe(`pushing plan ${String(plan.output["planId"])} as dev.one (this clone)`);
+      expect(await runGitOrThrow(["status", "--porcelain", "instances/pdi"], dev.root)).toBe("");
       expect(pushed.output).toMatchObject({
         units: [{ updateName: SI_UNIT, captured: true, applied: true }],
         notApplied: 0,

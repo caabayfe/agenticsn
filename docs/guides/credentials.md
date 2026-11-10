@@ -53,11 +53,34 @@ snagentic doctor --instance dev     # credentials, connection, roles, timestamps
 The keychain is macOS Keychain, Windows Credential Manager or Linux Secret Service.
 `snagentic auth logout <name>` deletes the item.
 
+### Signing in as yourself when `instance.yaml` names someone else
+
+In a team, the committed `instance.yaml` names the puller's account. Sign in as yourself with
+`--username` ([ADR-0054](../adr/0054-each-developer-signs-in-as-themselves.md)):
+
+```sh
+snagentic auth login dev --username jdoe
+```
+
+It checks jdoe's password as above, stores it under `jdoe@<host>`, and stores **this clone's
+identity**: a second keychain item, account `identity:<name>@<host>:<workspace folder>`, holding
+the username with the URL and kind. Every command in this clone then signs in as jdoe.
+`instance.yaml` doesn't change.
+
+The username comes from the first of:
+
+1. `SNAGENTIC_<NAME>_USERNAME`, in CI and on servers;
+2. this clone's identity;
+3. `username` in `instance.yaml`.
+
+`doctor --instance <name>` and `instance list` show which one is in use. `auth logout <name>`
+deletes the password and the identity.
+
 ### When you need to log in again
 
 | You changed | What happens | What to do |
 |---|---|---|
-| The `url` or `username` | The account name changes, so no password is found: `credentials-missing` | `snagentic auth login <name>` |
+| The `url` or `username` | The account name changes, so no password is found: `credentials-missing`. A changed URL or kind also sets this clone's identity aside | `snagentic auth login <name>` (with `--username <you>` in a team) |
 | The `kind` | The password is refused: `profile-not-trusted` | `snagentic auth login <name>` |
 | You upgraded from 1.1.0 or earlier | The old item records no URL or kind, so it's refused: `profile-not-trusted` | `snagentic auth login <name>`, once per instance |
 
@@ -113,6 +136,7 @@ three**: the URL and kind take the place of the keychain binding.
 | `SNAGENTIC_<NAME>_PASSWORD` | The password |
 | `SNAGENTIC_<NAME>_URL` | The instance URL, in any form `instance add` accepts: `acme`, `acme.service-now.com` or `https://acme.service-now.com` |
 | `SNAGENTIC_<NAME>_KIND` | `development`, `test` or `production` |
+| `SNAGENTIC_<NAME>_USERNAME` | Optional: the user to sign in as, instead of `username` in `instance.yaml`. Not secret; the URL and kind still pin the password |
 
 `<NAME>` is the instance name in capitals, with `-` replaced by `_`: instance `acme-prod`
 uses `SNAGENTIC_ACME_PROD_PASSWORD`.
@@ -141,7 +165,9 @@ pull request could change them together with `instance.yaml`.
 The host hooks and permission rules installed by `snagentic agent install` refuse:
 
 - any `snagentic auth` command;
-- shell commands that set `SNAGENTIC_<NAME>_PASSWORD`, `_URL` or `_KIND`;
+- shell commands that set `SNAGENTIC_<NAME>_PASSWORD`, `_USERNAME`, `_URL` or `_KIND`;
+- shell commands that add or delete keychain items (`security add-generic-password`,
+  `secret-tool store`, ...), so an agent can't change this clone's identity;
 - edits to protected files, such as the git hooks and the host settings.
 
 An agent can still edit `instance.yaml`. That's harmless: the change makes the password
@@ -159,7 +185,7 @@ checks are skipped and no request is sent.
 | `authentication-failed` | The instance rejected the username or password | Check both, then `snagentic auth login <name>` |
 | `read-only-credential-required` | A test or production account doesn't hold `snc_read_only` | Ask the ServiceNow admin to grant the role, then check with `doctor` |
 | `read-only-credential-on-development` | A development profile whose account holds `snc_read_only` | Check `kind` in `instance.yaml`. If it's right, use a development account |
-| `identity-mismatch` | The instance signed in a different user than `username` in `instance.yaml`. With OAuth, the client's OAuth Application User differs | Set `--username` to the user the client acts as, or fix the client |
+| `identity-mismatch` | The instance signed in a different user than the resolved username. The message says where that came from: `instance.yaml`, this clone's identity or `SNAGENTIC_<NAME>_USERNAME`. With OAuth, the client's OAuth Application User differs | If it's you, `snagentic auth login <name> --username <you>`; otherwise fix the source the message names. With OAuth, set `--username` to the user the client acts as, or fix the client |
 | `identity-unverified` | The instance didn't say who is signed in | Check that the account can read its own `sys_user` record |
 | `oauth-grant-unavailable` | The instance refused the client credentials grant | Set `glide.oauth.inbound.client.credential.grant_type.enabled` to `true`, then check the client id and secret |
 | `keychain-unavailable` | The OS keychain couldn't store the password | Unlock or set up the keychain, or use the environment variables |

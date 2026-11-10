@@ -1,4 +1,5 @@
 import {
+  actingAs,
   checkPublisher,
   continueFromNewest,
   getInstance,
@@ -170,6 +171,7 @@ export const pull = defineUseCase({
     if (input.cost && profile.kind !== "development") {
       throw new CostNeedsDevelopmentError(profile.name, profile.kind);
     }
+    run.progress({ message: `pulling ${profile.name} as ${actingAs(profile)}` });
     const setting = profile.sharedMirror;
     if (setting === undefined) {
       if (input.publish) throw new PublishNeedsSharedMirrorError(profile.name);

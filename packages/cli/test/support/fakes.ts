@@ -3,6 +3,8 @@ import {
   type CredentialStore,
   EMPTY_LEDGER,
   type EnvironmentProbe,
+  type IdentityStore,
+  type InstanceProfile,
   type ProfileStore,
   SnagenticError,
   type WorkspaceStore,
@@ -54,6 +56,28 @@ export const TRUSTED_PASSWORD: CredentialStore = {
     trusted: { url: profile.url, kind: profile.kind },
   }),
   write: async () => {},
+  remove: async () => false,
+};
+
+// Like the keychain item of ADR-0054: one identity per clone (workspace root) and instance.
+export function memoryIdentities(): IdentityStore & { readonly saved: Map<string, string> } {
+  const saved = new Map<string, string>();
+  const key = (root: string, profile: InstanceProfile) => `${root}|${profile.name}`;
+  return {
+    saved,
+    read: async (root, profile) => saved.get(key(root, profile)) ?? null,
+    write: async (root, profile, username) => {
+      saved.set(key(root, profile), username);
+    },
+    remove: async (root, profile) => saved.delete(key(root, profile)),
+  };
+}
+
+const NO_IDENTITIES: IdentityStore = {
+  read: async () => null,
+  write: async () => {
+    throw new Error("tests that set an identity provide their own identity store");
+  },
   remove: async () => false,
 };
 
@@ -114,6 +138,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
   workspaces: NO_WORKSPACES,
   profiles: NO_PROFILES,
   credentials: NO_CREDENTIALS,
+  identities: NO_IDENTITIES,
   secrets: { read: async () => "" },
   connections: {
     open: () => {

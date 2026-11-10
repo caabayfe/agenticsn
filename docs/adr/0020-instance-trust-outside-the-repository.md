@@ -1,6 +1,6 @@
 # 0020. Instance kind and address are trusted from outside the repository
 
-- Status: Accepted
+- Status: Accepted (amended by 0021, 0054)
 - Date: 2026-10-07
 - Requirements: ASR-02, ASR-08, ASR-15
 - Amends: 0012 (production read-only by construction), 0014 (workspace layout)

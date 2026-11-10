@@ -1,6 +1,6 @@
 # 0054. Each developer signs in as themselves, whatever user the committed profile names
 
-- Status: Proposed (2026-11-10, for the product owner)
+- Status: Accepted (2026-11-10)
 - Date: 2026-11-10
 - Requirements: G1, ASR-02, ASR-06, ASR-08
 - Amends: 0004 (team mode: who signs in), 0020 (where the username comes from)
@@ -57,8 +57,10 @@ with one username, so every clone and the CI job sign in as the same user:
    `<user>`, checks the roles as today, stores the secret under `<user>@<host>`, and records
    `<user>` as this clone's identity for the instance. Without `--username`, it uses the
    resolved username, as today.
-   - The identity is stored with the secret's binding, outside the workspace (ADR-0020): a
-     keychain item, or a file under `.snagentic/<name>/` that the agent hooks protect.
+   - The identity is stored in the OS keychain, next to the secret and bound in the same way
+     (ADR-0020): one item per clone and instance, holding the username with the instance's url
+     and kind. It is used only while they match. An agent's shell can't edit it, as it can't
+     edit the secret.
    - `auth logout <name>` removes it. The clone then falls back to `instance.yaml`.
 
 3. **Changing the identity can't release another secret.** The secret stays keyed by
@@ -85,23 +87,28 @@ with one username, so every clone and the CI job sign in as the same user:
   `instance.yaml`, and existing keychain items keep working.
 - One more variable is accepted in CI (`_USERNAME`). It isn't secret, and it pins nothing: the
   URL and kind still pin the secret.
-- The hooks' protected paths, and the environment check, cover the new identity.
-- Owed if accepted: tests for each source and their order, for login with `--username`, and for
+- The hooks' environment check covers the new variable, and the keychain keeps the identity out
+  of the workspace.
+- Owed with the build: tests for each source and their order, for login with `--username`, and for
   the publish check with two identities; the team-mode guide's "Who signs in" section.
 
 ## Alternatives considered
 
 - **Keep one username, and tell developers to edit their copy of `instance.yaml`.** It works
   for one clone, but every `git status` shows it, and one mistaken commit moves the team and the
-  scheduled pull to that developer. This is the stopgap the guide documents until this is
-  decided.
+  scheduled pull to that developer. This was the stopgap the guide documented until this
+  decision.
 - **One instance profile per developer (`dev-jdoe`).** The mirror branch and its state are per
   instance name, so each developer would have their own mirror again. That undoes ADR-0052.
 - **Leave `username` out of `instance.yaml`.** Every clone, and the CI job, would have to supply
   one before any command. That breaks existing workspaces and solo mode, for no gain over a
   fallback.
 - **Take the username from the keychain item alone.** The keychain account is looked up by the
-  username, so the username must be known first. A second item per instance only for the
-  identity is item 2's keychain option.
+  username, so the username must be known first. Item 2 stores the identity in a second item,
+  looked up by the clone and the instance.
+- **Store the identity in a file under `.snagentic/<name>/`**, protected by the agent hooks. It is
+  outside git, but inside the workspace, where an agent's shell can write it, and the hooks are
+  guidance, not a boundary (ADR-0011). The keychain keeps it with the secret, out of the agent's
+  reach (decided by the product owner, 2026-11-10).
 - **`git update-index --skip-worktree` on `instance.yaml`.** It hides the local edit, but git
   then refuses merges that change the file, and the setting is invisible and easy to forget.

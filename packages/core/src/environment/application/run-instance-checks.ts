@@ -1,5 +1,5 @@
 import type { InstanceReader, Row } from "../../connection/ports";
-import { IdentityMismatchError } from "../../instance/domain/errors";
+import { actingAs, identityMismatch } from "../../instance/domain/identity";
 import {
   credentialAccount,
   credentialVariables,
@@ -63,7 +63,7 @@ async function connect(
     }
     const actual = user["user_name"] ?? "";
     if (actual !== profile.auth.username) {
-      const mismatch = new IdentityMismatchError(profile.name, profile.auth.username, actual);
+      const mismatch = identityMismatch(profile, actual);
       return check("connection", "fail", mismatch.message, mismatch.hint);
     }
     return user;
@@ -164,7 +164,7 @@ export async function runInstanceChecks(
   if ("status" in user) {
     return [credentials, user as Check, ...skipped(2)];
   }
-  const connection = check("connection", "ok", `${profile.url} as ${profile.auth.username}`);
+  const connection = check("connection", "ok", `${profile.url} as ${actingAs(profile)}`);
   const results = [
     credentials,
     connection,

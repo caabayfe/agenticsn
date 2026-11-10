@@ -6,9 +6,16 @@ import { workspaceRoot } from "./workspace-root";
 export const authLogout = defineUseCase({
   group: "auth",
   name: "logout",
-  description: "Delete the stored password for an instance from the OS keychain.",
+  description:
+    "Delete the stored password for an instance from the OS keychain, and this clone's " +
+    "identity for it: the username then comes from instance.yaml again (ADR-0054).",
   input: z.object({ instance: z.string() }),
-  output: z.object({ instance: z.string(), account: z.string(), removed: z.boolean() }),
+  output: z.object({
+    instance: z.string(),
+    account: z.string(),
+    removed: z.boolean(),
+    identityRemoved: z.boolean(),
+  }),
   flags: {
     readOnly: false,
     destructive: true,
@@ -19,18 +26,24 @@ export const authLogout = defineUseCase({
   mcp: false,
   arguments: ["instance"],
   async handle(input, context) {
-    const profile = await getInstance(
-      await workspaceRoot(context),
-      InstanceName.parse(input.instance),
-      context.profiles,
-    );
+    const root = await workspaceRoot(context);
+    const profile = await getInstance(root, InstanceName.parse(input.instance), context.profiles);
     const removed = await logout(profile, context.credentials);
-    return { instance: profile.name, account: credentialAccount(profile), removed };
+    const identityRemoved = await context.identities.remove(root, profile);
+    return {
+      instance: profile.name,
+      account: credentialAccount(profile),
+      removed,
+      identityRemoved,
+    };
   },
   render(output) {
-    return output.removed
+    const secret = output.removed
       ? `deleted stored credentials for ${output.account}`
       : `no stored credentials for ${output.account}`;
+    return output.identityRemoved
+      ? `${secret}\nthis clone's identity for ${output.instance} removed; the username comes from instance.yaml`
+      : secret;
   },
   exitCode: () => 0,
 });

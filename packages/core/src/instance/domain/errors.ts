@@ -77,13 +77,19 @@ export class ProfileNotTrustedError extends SnagenticError {
   }
 }
 
+// Where the expected username came from (ADR-0054), and how a person changes it.
+export interface UsernameOrigin {
+  readonly names: string;
+  readonly fix: string;
+}
+
 export class IdentityMismatchError extends SnagenticError {
-  constructor(name: string, expected: string, actual: string) {
+  constructor(expected: string, actual: string, origin: UsernameOrigin) {
     super(
       "identity-mismatch",
       "not-permitted",
-      `the instance signed in as ${actual}, but instances/${name}/instance.yaml names ${expected}`,
-      `set the username in instances/${name}/instance.yaml to ${actual} if that is the right user, then log in again`,
+      `the instance signed in as ${actual}, but ${origin.names} names ${expected}`,
+      origin.fix,
     );
   }
 }

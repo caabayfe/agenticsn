@@ -9,6 +9,7 @@ import {
   instancePaths,
   noticeAllowed,
   updateNotice,
+  usernameResolvingProfiles,
   VERSION,
 } from "@snagentic/core";
 import { CsvDataTemplates } from "./adapters/accelerators/csv-data-templates";
@@ -16,6 +17,7 @@ import { GitPackWorkspace } from "./adapters/accelerators/git-pack-workspace";
 import { LazyPackSource, loadPackSource } from "./adapters/accelerators/pack-source-loader";
 import { EnvironmentCredentialStore } from "./adapters/credentials/environment-credential-store";
 import { KeychainCredentialStore } from "./adapters/credentials/keychain-credential-store";
+import { KeychainIdentityStore } from "./adapters/credentials/keychain-identity-store";
 import { LayeredCredentialStore } from "./adapters/credentials/layered-credential-store";
 import { GhPullRequests } from "./adapters/delivery/gh-pull-requests";
 import { GitDeliveryWorkspace } from "./adapters/delivery/git-delivery-workspace";
@@ -90,6 +92,7 @@ process.on("SIGINT", () => {
 });
 
 const workspaceOverride = process.env["SNAGENTIC_WORKSPACE"];
+const identities = new KeychainIdentityStore();
 const releases = new GitHubReleases({ userAgent: `snagentic/${VERSION}` });
 const context: UseCaseContext = {
   environmentProbes: [
@@ -100,7 +103,12 @@ const context: UseCaseContext = {
     networkProbe(),
   ],
   workspaces: new FsWorkspaceStore(),
-  profiles: new YamlProfileStore(),
+  // ADR-0054: every profile carries the username this clone signs in as.
+  profiles: usernameResolvingProfiles(new YamlProfileStore(), {
+    environment: process.env,
+    clone: identities,
+  }),
+  identities,
   credentials: new LayeredCredentialStore(
     new EnvironmentCredentialStore(process.env),
     new KeychainCredentialStore(),

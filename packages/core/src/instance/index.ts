@@ -2,6 +2,11 @@
 
 export { login, logout, resolveAccess, resolveSecret } from "./application/credentials";
 export {
+  rememberIdentity,
+  resolveUsername,
+  usernameResolvingProfiles,
+} from "./application/identity";
+export {
   addInstance,
   getInstance,
   listInstances,
@@ -26,7 +31,19 @@ export {
   InvalidInstanceUrlError,
   ProfileNotTrustedError,
   ReadOnlyAcknowledgementRequiredError,
+  type UsernameOrigin,
 } from "./domain/errors";
+export {
+  actingAs,
+  checkedUsername,
+  identityAccount,
+  identityMismatch,
+  profileForLogin,
+  usernameSource,
+  usernameSourceLabel,
+  usernameVariable,
+  withUsername,
+} from "./domain/identity";
 export { normalizeInstanceUrl } from "./domain/instance-url";
 export {
   type AuthSettings,
@@ -51,6 +68,7 @@ export {
   remoteProblem,
   type SharedMirrorSetting,
   secretName,
+  type UsernameSource,
   usernameProblem,
 } from "./domain/profile";
 export {
@@ -61,4 +79,4 @@ export {
   trustProblems,
   untrustedHint,
 } from "./domain/trust";
-export type { CredentialStore, ProfileStore } from "./ports";
+export type { CredentialStore, IdentityStore, ProfileStore, UsernameSources } from "./ports";

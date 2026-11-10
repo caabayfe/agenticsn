@@ -153,8 +153,10 @@ Without a deploy key, the template pushes with the workflow's own token. Then an
 the repository with `contents: write` can push the mirror too. Protect the workflow files with
 required reviews.
 
-snagentic checks what it can: it refuses a watermark later than the instance's clock, and a
-publish by an account other than the one that wrote the mirror. It can't detect a watermark
+snagentic checks what it can: it refuses a watermark later than the instance's clock, a
+publish by an account other than the one that wrote the mirror, and a shared mirror whose
+history was rewritten rather than extended (a force push): each clone remembers the shared
+commit it last fetched, and stops if the new tip doesn't contain it. It can't detect a watermark
 someone moved back by hand. Branch protection is what stops that.
 
 ## Daily developer flow

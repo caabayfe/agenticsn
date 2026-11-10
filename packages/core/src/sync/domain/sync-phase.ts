@@ -19,12 +19,11 @@ export function syncPhase(facts: SyncFacts): SyncPhase {
   return facts.unintegratedPulls > 0 ? "not-integrated" : "integrated";
 }
 
-// With a shared mirror (ADR-0052 item 6): what it holds that this clone lacks, and how old the
-// newest of the two mirrors is.
+// With a shared mirror (ADR-0052 item 6): whether it holds pulls this clone lacks, and whether a
+// pull would ask the instance anything (the same `current` the pull itself decides on).
 export interface SharedFacts {
   readonly ahead: boolean;
-  readonly newestMinutes: number | null;
-  readonly maxAgeMinutes: number;
+  readonly current: boolean;
 }
 
 export const NOTHING_TO_DO = "nothing: the mirror is current";
@@ -34,8 +33,7 @@ export function nextCommand(phase: SyncPhase, instance: string, shared?: SharedF
   const pull = `snagentic pull ${instance}`;
   if (phase === "interrupted") return pull;
   if (shared?.ahead === true || phase === "not-integrated") return integrate;
-  if (shared === undefined || shared.newestMinutes === null) return pull;
-  return shared.newestMinutes < shared.maxAgeMinutes ? NOTHING_TO_DO : pull;
+  return shared?.current === true ? NOTHING_TO_DO : pull;
 }
 
 // Whole minutes between a raw UTC timestamp ("YYYY-MM-DD HH:MM:SS") and now.

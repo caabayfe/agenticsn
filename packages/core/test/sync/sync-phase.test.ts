@@ -20,6 +20,18 @@ describe("nextCommand", () => {
     expect(nextCommand("never-pulled", "pdi")).toBe("snagentic pull pdi");
     expect(nextCommand("integrated", "pdi")).toBe("snagentic pull pdi");
   });
+
+  it("says nothing is to do only when a pull would ask the instance nothing", () => {
+    expect(nextCommand("integrated", "pdi", { ahead: false, current: true })).toBe(
+      "nothing: the mirror is current",
+    );
+    expect(nextCommand("integrated", "pdi", { ahead: false, current: false })).toBe(
+      "snagentic pull pdi",
+    );
+    expect(nextCommand("never-pulled", "pdi", { ahead: true, current: true })).toBe(
+      "snagentic integrate pdi",
+    );
+  });
 });
 
 describe("minutesSince", () => {

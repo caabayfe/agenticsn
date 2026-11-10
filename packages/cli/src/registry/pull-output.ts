@@ -1,9 +1,8 @@
 import {
-  type ConnectionStats,
   type IncrementalSummary,
   type PullSummary,
+  type RunFacts,
   SECRET_PATTERN_IDS,
-  type ServerCost,
 } from "@snagentic/core";
 import { z } from "zod";
 import { SharedPullOutput } from "./pull-shared-output";
@@ -104,19 +103,6 @@ export type PullOutput = z.output<typeof PullOutput>;
 
 const tenths = (milliseconds: number) => Math.round(milliseconds / 100) / 10;
 
-export interface RunFacts {
-  readonly instance: string;
-  readonly resumed: boolean;
-  readonly commit: string;
-  readonly changed: boolean;
-  readonly stats: ConnectionStats;
-  readonly started: number;
-  readonly committing: number;
-  readonly peakMemoryMb: number;
-  readonly serverCostRequested: boolean;
-  readonly serverCost: ServerCost | null;
-}
-
 function common(
   facts: RunFacts,
   summary: {
@@ -141,7 +127,7 @@ function common(
     semaphoreWaitMs: facts.stats.semaphoreWaitMs,
     peakConcurrency: facts.stats.peakConcurrency,
     requestSeconds: tenths(facts.stats.requestMs),
-    seconds: tenths(performance.now() - facts.started),
+    seconds: tenths(facts.elapsedMs),
     peakMemoryMb: facts.peakMemoryMb,
     timeouts: facts.stats.timeouts,
     serverCostRequested: facts.serverCostRequested,
@@ -162,7 +148,7 @@ export function fullOutput(facts: RunFacts, summary: PullSummary): PullOutput {
       malformedValues: summary.malformedValues,
       phaseSeconds: {
         ...summary.phaseSeconds,
-        commit: tenths(performance.now() - facts.committing),
+        commit: tenths(facts.commitMs),
       },
     },
   };

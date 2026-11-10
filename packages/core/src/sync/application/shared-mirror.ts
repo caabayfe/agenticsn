@@ -1,5 +1,9 @@
 import { isCurrent, isLater } from "../domain/pull-state";
-import { PublishRefusedError, SharedMirrorUnreachableError } from "../domain/shared-mirror-errors";
+import {
+  PublishRefusedError,
+  SharedMirrorDivergedError,
+  SharedMirrorUnreachableError,
+} from "../domain/shared-mirror-errors";
 import { minutesSince } from "../domain/sync-phase";
 import type { SharedMirror, SharedTip, SyncState, SyncStateStore } from "../ports";
 
@@ -27,14 +31,21 @@ export interface SharedStart {
   readonly current: boolean;
 }
 
+interface Mirrors {
+  // The local servicenow-remote/<name> tip and the state it carries.
+  readonly tip: string | null;
+  readonly local: SyncState | null;
+  // The shared tip as fetched.
+  readonly shared: SharedTip | null;
+}
+
 async function takesShared(
   deps: SharedPullDependencies,
   root: string,
-  tip: string | null,
-  shared: SharedTip | null,
-  local: SyncState | null,
+  mirrors: Mirrors,
   publishing: boolean,
 ): Promise<boolean> {
+  const { tip, local, shared } = mirrors;
   if (shared === null || shared.state === null) return false;
   if (tip === shared.commit) return false;
   if (local === null || tip === null) return true;
@@ -42,6 +53,28 @@ async function takesShared(
   // A publisher pushes fast-forward only: it continues from the shared tip unless its own
   // branch already builds on it.
   return publishing && !(await deps.shared.contains(root, tip, shared.commit));
+}
+
+// One rule for "the mirror is current", for pull and status alike (ADR-0052 item 3): the
+// watermark the next pull would continue from is younger than maxAge, and not ahead of the clock.
+function currentAt(start: SyncState | null, now: Date, setting: SharedPullSetting): boolean {
+  return start !== null && isCurrent(start.watermark, now, setting.maxAgeMinutes);
+}
+
+// Moving the local branch drops the commits it holds that the shared tip lacks. The fetch
+// refuses a shared tip that does not contain what this clone fetched before (SEC2-06), so once
+// the clone has fetched, those commits are its own unpublished pulls (ADR-0052 item 2); before
+// that, nothing shows it, and only a fast-forward is taken.
+async function checkMove(
+  deps: SharedPullDependencies,
+  root: string,
+  instance: string,
+  move: { readonly tip: string | null; readonly shared: string; readonly known: string | null },
+): Promise<void> {
+  if (move.tip === null || move.known !== null) return;
+  if (!(await deps.shared.contains(root, move.shared, move.tip))) {
+    throw new SharedMirrorDivergedError(instance, move.tip, move.shared);
+  }
 }
 
 // ADR-0052 item 2: fetches the shared mirror and continues from whichever of it and this clone's
@@ -54,11 +87,13 @@ export async function continueFromNewest(
   setting: SharedPullSetting,
   publishing = false,
 ): Promise<SharedStart> {
+  const known = await deps.shared.lastFetched(root, instance, setting.remote);
   const shared = await deps.shared.fetch(root, instance, setting.remote);
   const local = await deps.state.readState();
   const tip = await deps.shared.localTip(root, instance);
-  const moved = await takesShared(deps, root, tip, shared, local, publishing);
+  const moved = await takesShared(deps, root, { tip, local, shared }, publishing);
   if (moved && shared !== null) {
+    await checkMove(deps, root, instance, { tip, shared: shared.commit, known });
     // Only from the tip just compared: a pull that moved it since is not overwritten.
     await deps.shared.moveTo(root, instance, { commit: shared.commit, expected: tip });
     // An interrupted pull older than the shared mirror is not worth finishing.
@@ -74,7 +109,7 @@ export async function continueFromNewest(
     shared,
     from: moved ? "shared" : "local",
     watermark: start?.watermark ?? null,
-    current: start !== null && isCurrent(start.watermark, deps.now(), setting.maxAgeMinutes),
+    current: currentAt(start, deps.now(), setting),
   };
 }
 
@@ -96,6 +131,8 @@ export interface SharedMirrorStatus {
   readonly maxAgeMinutes: number;
   // The shared mirror holds pulls the local branch lacks: integrate brings them in.
   readonly ahead: boolean;
+  // A pull now would ask the instance nothing: the same rule pull applies (SharedStart.current).
+  readonly current: boolean;
 }
 
 // ADR-0052 item 6: how the team's mirror relates to this clone, from git alone.
@@ -111,19 +148,21 @@ export async function sharedMirrorStatus(
     shared = await deps.shared.fetch(root, instance, setting.remote);
   } catch (error) {
     if (error instanceof SharedMirrorUnreachableError) {
-      return { ...unknown, reachable: false, commit: null, ageMinutes: null, ahead: false };
+      const local = await deps.state.readState();
+      return {
+        ...unknown,
+        reachable: false,
+        commit: null,
+        ageMinutes: null,
+        ahead: false,
+        current: currentAt(local, deps.now(), setting),
+      };
     }
     throw error;
   }
   const tip = await deps.shared.localTip(root, instance);
-  const newer = await takesShared(
-    deps,
-    root,
-    instance,
-    shared,
-    await deps.state.readState(),
-    false,
-  );
+  const local = await deps.state.readState();
+  const newer = await takesShared(deps, root, { tip, local, shared }, false);
   const ahead =
     newer &&
     shared !== null &&
@@ -134,5 +173,6 @@ export async function sharedMirrorStatus(
     commit: shared?.commit ?? null,
     ageMinutes: shared?.state ? minutesSince(shared.state.watermark, deps.now()) : null,
     ahead,
+    current: currentAt(newer ? (shared?.state ?? null) : local, deps.now(), setting),
   };
 }

@@ -190,8 +190,12 @@ export interface SharedTip {
 // The team's copy of the mirror branch on a git remote, reached with the developer's own git
 // credentials. Instance secrets never reach git.
 export interface SharedMirror {
-  // Fetches servicenow-remote/<name>; null when the remote has no such branch yet.
+  // Fetches servicenow-remote/<name>; null when the remote has no such branch yet. Never
+  // forced: a shared tip that does not contain the commit last fetched from it is refused
+  // (SharedMirrorRewrittenError).
   fetch(root: string, instance: string, remote: string): Promise<SharedTip | null>;
+  // The shared commit this clone last fetched or published; null before its first fetch.
+  lastFetched(root: string, instance: string, remote: string): Promise<string | null>;
   // The tip of the local servicenow-remote/<name>.
   localTip(root: string, instance: string): Promise<string | null>;
   // True when `descendant` is `ancestor` or contains it in its history.

@@ -1,7 +1,7 @@
 import type { TableStatistics } from "../../connection/ports";
 import { formatRawTimestamp } from "../../kernel/raw-timestamp";
 import type { RedactionPolicy } from "../../metadata/domain/redaction";
-import type { MirrorWriter, PullStateStore } from "../ports";
+import type { MirrorWriter, PullStateStore, SpillStore } from "../ports";
 import type { KeysetPager } from "./keyset-pager";
 
 export interface PullProgress {
@@ -15,6 +15,8 @@ export interface PullDependencies {
   readonly statistics: TableStatistics;
   readonly records: MirrorWriter;
   readonly state: PullStateStore;
+  // Where child rows wait, grouped by owner, until their table is listed.
+  readonly spills: SpillStore;
   // Prefixes inside the mirror and local state.
   readonly instanceRoot: string;
   readonly metadataRoot: string;

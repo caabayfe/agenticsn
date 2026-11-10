@@ -1,3 +1,5 @@
+import type { Row } from "../../kernel/row";
+
 export const SECRET_PATTERN_IDS = [
   "private-key",
   "authorization-token",
@@ -130,4 +132,28 @@ export function scanDocumentSecrets(document: unknown): SecretDocumentScan {
     return { document: values, patterns: orderedPatterns(found) };
   }
   return { document, patterns: [] };
+}
+
+// One child row scanned on its own: a document of rows scans to these rows, and its patterns
+// are the merged patterns of its rows.
+export function scanRowSecrets(row: Row): {
+  readonly row: Row;
+  readonly patterns: readonly SecretPatternId[];
+} {
+  const found = new Set<SecretPatternId>();
+  const values: Record<string, string> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const scanned = scanSecrets(value);
+    values[key] = scanned.text;
+    for (const id of scanned.patterns) found.add(id);
+  }
+  return { row: values, patterns: orderedPatterns(found) };
+}
+
+export function mergeSecretPatterns(
+  lists: Iterable<readonly SecretPatternId[]>,
+): readonly SecretPatternId[] {
+  const found = new Set<SecretPatternId>();
+  for (const list of lists) for (const id of list) found.add(id);
+  return orderedPatterns(found);
 }

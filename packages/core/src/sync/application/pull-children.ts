@@ -4,19 +4,18 @@ import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { fieldsToRedact } from "../../metadata/domain/redaction";
+import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domain/secret-scan";
+import { CHILD_TABLES, type ChildTable, ownerOfBase, variableModelOf } from "../domain/pull-scope";
 import {
-  type SecretRedaction,
-  scanDocumentSecrets,
-  sortSecretRedactions,
-} from "../../metadata/domain/secret-scan";
-import {
-  type AttachedChildren,
-  CHILD_TABLES,
-  type ChildTable,
-  childGrouper,
-  ownerOfBase,
-  variableModelOf,
-} from "../domain/pull-scope";
+  childDocument,
+  namedByNestedTable,
+  namedThroughChildRows,
+  resolveThrough,
+  type SpilledChildRow,
+  spilledRow,
+  type ThroughEntry,
+} from "../domain/spilled-children";
+import type { KeyedSpill } from "../ports";
 import type { PullDependencies } from "./pull-dependencies";
 
 export interface ChildrenOutcome {
@@ -74,18 +73,67 @@ async function addTableNames(
   }
 }
 
-// Streams one child table straight into its groups: rows are cleaned as they arrive and the
-// table is never held twice. Returns null when the user may not read the table.
-export async function groupTable(
+// The keys a child row's parent field may hold, and the record each belongs to: records, table
+// names and rows of nested tables' parents in memory; every other child row's sys_id on disk,
+// for the table owned through child rows (null when that table is not listed with them).
+export interface ChildRowKeys {
+  readonly owners: Map<string, string>;
+  readonly through: KeyedSpill<ThroughEntry> | null;
+}
+
+export interface ListedChildren {
+  // Owner base -> its rows, in listing order.
+  readonly spill: KeyedSpill<SpilledChildRow>;
+  readonly orphans: number;
+}
+
+async function attach(
+  child: ChildTable,
+  keys: ChildRowKeys,
+  spill: KeyedSpill<SpilledChildRow>,
+  base: string,
+  entry: SpilledChildRow,
+): Promise<void> {
+  if (namedByNestedTable(child)) {
+    keys.owners.set(entry.id, base);
+  }
+  if (keys.through !== null && namedThroughChildRows(child)) {
+    await keys.through.add(entry.id, { kind: "owner", base });
+  }
+  await spill.add(base, entry);
+}
+
+// Joins the rows of a table owned through child rows with the owners of the rows they name.
+async function joinThrough(
+  through: KeyedSpill<ThroughEntry>,
+  owners: ReadonlyMap<string, string>,
+  spill: KeyedSpill<SpilledChildRow>,
+): Promise<number> {
+  let orphans = 0;
+  for await (const [key, entries] of through.groups()) {
+    const { base, rows } = resolveThrough(entries, owners.get(key));
+    if (base === undefined) {
+      orphans += rows.length;
+      continue;
+    }
+    for (const row of rows) {
+      await spill.add(base, row);
+    }
+  }
+  return orphans;
+}
+
+async function spillRows(
   deps: PullDependencies,
   catalog: Catalog,
   child: ChildTable,
-  owners: Map<string, string>,
+  keys: ChildRowKeys,
+  spill: KeyedSpill<SpilledChildRow>,
   signal: AbortSignal,
-): Promise<AttachedChildren | null> {
+): Promise<number> {
   const redact = fieldsToRedact(catalog, child.table, {}, deps.policy);
-  const alias = child.ownedByTableName === true ? variableModelOf : undefined;
-  const grouper = childGrouper(child.parentField, owners, alias);
+  const alias = child.ownedByTableName === true ? variableModelOf : () => null;
+  const through = child.ownedThroughChildRows === true ? keys.through : null;
   const listing = {
     table: TableName.parse(child.table),
     fields: "all" as const,
@@ -93,20 +141,57 @@ export async function groupTable(
     allDomains: true,
     base: "",
   };
+  if (child.ownedByTableName === true) {
+    await addTableNames(deps, keys.owners, signal);
+  }
+  let orphans = 0;
+  for await (const row of deps.pager.rows(listing, signal)) {
+    const clean = cleaned(row, redact);
+    const key = clean[child.parentField] ?? "";
+    if (through !== null) {
+      await through.add(key, { kind: "row", row: spilledRow(clean) });
+      continue;
+    }
+    const base = keys.owners.get(key) ?? keys.owners.get(alias(key) ?? "");
+    if (base === undefined) {
+      orphans += 1;
+    } else {
+      await attach(child, keys, spill, base, spilledRow(clean));
+    }
+  }
+  return through === null ? orphans : joinThrough(through, keys.owners, spill);
+}
+
+// Lists one child table into a spill grouped by owner, so only a page and one owner's rows are
+// ever held (PERF-07). Returns null when the user may not read the table.
+export async function listChildTable(
+  deps: PullDependencies,
+  catalog: Catalog,
+  child: ChildTable,
+  keys: ChildRowKeys,
+  signal: AbortSignal,
+): Promise<ListedChildren | null> {
+  const spill = await deps.spills.open<SpilledChildRow>();
   try {
-    if (child.ownedByTableName === true) {
-      await addTableNames(deps, owners, signal);
-    }
-    for await (const row of deps.pager.rows(listing, signal)) {
-      grouper.add(cleaned(row, redact));
-    }
+    return { spill, orphans: await spillRows(deps, catalog, child, keys, spill, signal) };
   } catch (error) {
+    await spill.close();
     if (!(error instanceof AccessDeniedError)) {
       throw error;
     }
     return null;
   }
-  return grouper.result();
+}
+
+// Each owner's child-row document, as its table's listing completes.
+export async function* ownerDocuments(listed: ListedChildren) {
+  try {
+    for await (const [base, entries] of listed.spill.groups()) {
+      yield { base, ...childDocument(entries) };
+    }
+  } finally {
+    await listed.spill.close();
+  }
 }
 
 // Child rows (flow logic, layouts, workflow structure) live next to their owning record.
@@ -115,30 +200,30 @@ export async function pullChildren(
   catalog: Catalog,
   signal: AbortSignal,
 ): Promise<ChildrenOutcome> {
-  const ownerMap = await owners(deps);
+  const keys = { owners: await owners(deps), through: await deps.spills.open<ThroughEntry>() };
   const unreadable: string[] = [];
   let childRows = 0;
   let orphanChildRows = 0;
   const secretRedactions: SecretRedaction[] = [];
-  for (const child of CHILD_TABLES) {
-    const grouped = await groupTable(deps, catalog, child, ownerMap, signal);
-    if (grouped === null) {
-      unreadable.push(child.table);
-      continue;
-    }
-    for (const [base, list] of grouped.attached) {
-      const relative = `${base}.children.${child.table}.yaml`;
-      const scanned = scanDocumentSecrets(list);
-      await deps.records.writeDocument(deps.metadataRoot, relative, scanned.document);
-      if (scanned.patterns.length > 0) {
-        secretRedactions.push({
-          path: `${deps.metadataRoot}/${relative}`,
-          patterns: scanned.patterns,
-        });
+  try {
+    for (const child of CHILD_TABLES) {
+      const listed = await listChildTable(deps, catalog, child, keys, signal);
+      if (listed === null) {
+        unreadable.push(child.table);
+        continue;
       }
-      childRows += list.length;
+      for await (const { base, rows, patterns } of ownerDocuments(listed)) {
+        const relative = `${base}.children.${child.table}.yaml`;
+        await deps.records.writeDocument(deps.metadataRoot, relative, rows);
+        if (patterns.length > 0) {
+          secretRedactions.push({ path: `${deps.metadataRoot}/${relative}`, patterns });
+        }
+        childRows += rows.length;
+      }
+      orphanChildRows += listed.orphans;
     }
-    orphanChildRows += grouped.orphans;
+  } finally {
+    await keys.through.close();
   }
   return {
     childRows,

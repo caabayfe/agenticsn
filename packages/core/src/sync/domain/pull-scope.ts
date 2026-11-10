@@ -1,4 +1,3 @@
-import type { Row } from "../../kernel/row";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { CHILD_TABLES, type ChildTable } from "../../metadata/domain/child-tables";
 import { isDeniedClass } from "../../metadata/domain/field-rules";
@@ -44,12 +43,6 @@ export function ownerOfBase(base: string): string {
   return leaf.slice(leaf.lastIndexOf("--") + 2);
 }
 
-export interface AttachedChildren {
-  // Record base -> its child rows, sorted by sys_id.
-  readonly attached: ReadonlyMap<string, readonly Row[]>;
-  readonly orphans: number;
-}
-
 // The variables of a flow, an action or a test step live in a table named
 // var__m_<variable table>_<model sys_id>, which has no table record. Rows keyed by such a name
 // (choices) belong to the model's record.
@@ -58,51 +51,4 @@ const VARIABLE_TABLE = /^var__m_(?:[a-z0-9_]+_)?([0-9a-f]{32})$/;
 
 export function variableModelOf(tableName: string): string | null {
   return VARIABLE_TABLE.exec(tableName)?.[1] ?? null;
-}
-
-// Groups child rows by owning record as they stream in. `owners` maps sys_id -> record base
-// and is extended with each attached row, so later child tables resolve through earlier ones.
-// `alias` names a second key to try when the parent field's own value has no owner.
-export function childGrouper(
-  parentField: string,
-  owners: Map<string, string>,
-  alias: (key: string) => string | null = () => null,
-) {
-  const attached = new Map<string, Row[]>();
-  let orphans = 0;
-  return {
-    add(row: Row): void {
-      const key = row[parentField] ?? "";
-      const base = owners.get(key) ?? owners.get(alias(key) ?? "");
-      if (base === undefined) {
-        orphans += 1;
-        return;
-      }
-      const list = attached.get(base);
-      if (list === undefined) {
-        attached.set(base, [row]);
-      } else {
-        list.push(row);
-      }
-      owners.set(row["sys_id"] ?? "", base);
-    },
-    result(): AttachedChildren {
-      for (const list of attached.values()) {
-        list.sort((a, b) => ((a["sys_id"] ?? "") < (b["sys_id"] ?? "") ? -1 : 1));
-      }
-      return { attached, orphans };
-    },
-  };
-}
-
-export function attachChildren(
-  rows: readonly Row[],
-  parentField: string,
-  owners: Map<string, string>,
-): AttachedChildren {
-  const grouper = childGrouper(parentField, owners);
-  for (const row of rows) {
-    grouper.add(row);
-  }
-  return grouper.result();
 }

@@ -34,6 +34,7 @@ import { FLUENT_WORKER_COMMAND } from "./adapters/fluent/worker-protocol";
 import { WorkspaceAuthoring } from "./adapters/fluent/workspace-authoring";
 import { WorkspaceFluentProjects } from "./adapters/fluent/workspace-fluent-projects";
 import { createTextFile } from "./adapters/fs/create-text-file";
+import { fileSpills } from "./adapters/fs/file-spill";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
 import { gitInspector } from "./adapters/git/git-inspector";
 import { gitIntegrator } from "./adapters/git/git-integrator";
@@ -121,6 +122,7 @@ const context: UseCaseContext = {
   syncState: syncStateStore,
   sharedMirror: gitSharedMirror,
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
+  spills: fileSpills(),
   integrator: gitIntegrator,
   inspector: gitInspector,
   inventory: gitInventoryReader,

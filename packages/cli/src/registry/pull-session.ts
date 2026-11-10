@@ -93,6 +93,7 @@ async function openSession(
     catalogPath: paths.pullCatalog,
     policy: DEFAULT_REDACTION,
     now: context.clock,
+    spills: context.spills,
     absence: removesByAbsence(pulled?.pulledBy, user) ? "remove" : "keep",
     instanceTime: () => reader.instanceTime?.() ?? null,
   };

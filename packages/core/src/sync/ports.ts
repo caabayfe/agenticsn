@@ -200,3 +200,19 @@ export interface SharedMirror {
     commit: string,
   ): Promise<"published" | "rejected">;
 }
+
+// Values grouped by key on local disk while a child table is listed, so a pull holds a page and
+// one owner's rows, not the whole table (PERF-07). Values are plain JSON data, already
+// redacted and secret-scanned: a spill never holds what the mirror may not.
+export interface KeyedSpill<T> {
+  add(key: string, value: T): Promise<void>;
+  // Each key once, with its values in the order they were added; keys in no particular order.
+  // Read once.
+  groups(): AsyncIterable<readonly [string, readonly T[]]>;
+  // Removes what was spilled; safe to call more than once.
+  close(): Promise<void>;
+}
+
+export interface SpillStore {
+  open<T>(): Promise<KeyedSpill<T>>;
+}

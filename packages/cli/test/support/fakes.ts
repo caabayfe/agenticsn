@@ -7,6 +7,7 @@ import {
   type WorkspaceStore,
 } from "@snagentic/core";
 import { z } from "zod";
+import { fileSpills } from "../../src/adapters/fs/file-spill";
 import type { CliIo } from "../../src/cli/run-cli";
 import {
   type ConnectionFactory,
@@ -62,6 +63,7 @@ const NO_CREDENTIALS: CredentialStore = {
 };
 
 export const FAKE_CONTEXT: UseCaseContext = {
+  spills: fileSpills(),
   packs: { ids: async () => [], files: async () => new Map(), parse: () => null },
   dataTemplates: {
     tracked: async () => false,

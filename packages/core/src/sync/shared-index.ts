@@ -3,4 +3,4 @@ export * from "./application/pull-state";
 export * from "./application/shared-mirror";
 export * from "./domain/pull-state";
 export * from "./domain/shared-mirror-errors";
-export type { SharedMirror, SharedTip } from "./ports";
+export type { KeyedSpill, SharedMirror, SharedTip, SpillStore } from "./ports";

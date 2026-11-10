@@ -13,6 +13,7 @@ import {
 } from "@snagentic/core";
 import { fakeInstance } from "./fake-instance";
 import { memoryMirror } from "./memory-mirror";
+import { memorySpills } from "./memory-spill";
 
 export const LIVE = new AbortController().signal;
 export const sid = (n: number) => n.toString(16).padStart(32, "0");
@@ -127,6 +128,7 @@ export async function pulledInstance(shape: (tables: Record<string, Row[]>) => v
   const { mirror, files, prepared } = memoryMirror();
   const state = memoryState();
   let now = new Date("2026-10-05T10:00:00Z");
+  const spills = memorySpills();
   const deps = {
     pager: new KeysetPager(instance.reader),
     statistics: instance.reader,
@@ -138,6 +140,7 @@ export async function pulledInstance(shape: (tables: Record<string, Row[]>) => v
     catalogPath: ".snagentic/pdi/catalog.json",
     policy: DEFAULT_REDACTION,
     now: () => now,
+    spills,
   };
   const full = await pullFull(deps, LIVE);
   state.saved.state = full.next;
@@ -147,6 +150,7 @@ export async function pulledInstance(shape: (tables: Record<string, Row[]>) => v
     files,
     state,
     prepared,
+    spills,
     // Takes read access away from tables, as an ACL would.
     deny(...tables: string[]) {
       denied.push(...tables);

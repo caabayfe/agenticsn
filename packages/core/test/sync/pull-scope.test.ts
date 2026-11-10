@@ -1,12 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import {
-  attachChildren,
   Catalog,
   CHILD_TABLES,
+  childDocument,
   childFamily,
-  childGrouper,
   classesToPull,
+  namedByNestedTable,
+  namedThroughChildRows,
   ownerOfBase,
+  resolveThrough,
+  spilledRow,
   variableModelOf,
 } from "@snagentic/core";
 
@@ -36,66 +39,57 @@ describe("what a full pull covers (ADR-0017)", () => {
   });
 });
 
-describe("attachChildren", () => {
-  it("groups child rows under the record that owns them, sorted by sys_id", () => {
-    const owners = new Map([["flow1", "global/sys_hub_flow/my-flow--flow1"]]);
-    const grouped = attachChildren(
-      [
-        { sys_id: "b", flow: "flow1", order: "2" },
-        { sys_id: "a", flow: "flow1", order: "1" },
-        { sys_id: "c", flow: "unknown", order: "3" },
-      ],
-      "flow",
-      owners,
-    );
-    expect([...grouped.attached]).toEqual([
-      [
-        "global/sys_hub_flow/my-flow--flow1",
-        [
-          { sys_id: "a", flow: "flow1", order: "1" },
-          { sys_id: "b", flow: "flow1", order: "2" },
-        ],
-      ],
+describe("spilled child rows (PERF-07)", () => {
+  const row = (id: string, extra: Record<string, string> = {}) =>
+    spilledRow({ sys_id: id, ...extra });
+
+  it("writes an owner's rows sorted by sys_id, with the patterns their scans redacted", () => {
+    const document = childDocument([
+      row("b", { flow: "flow1", note: "AKIAIOSFODNN7EXAMPLE" }),
+      row("a", { flow: "flow1" }),
     ]);
-    expect(grouped.orphans).toBe(1);
+    expect(document).toEqual({
+      rows: [
+        { sys_id: "a", flow: "flow1" },
+        { sys_id: "b", flow: "flow1", note: "[redacted:aws-access-key-id]" },
+      ],
+      patterns: ["aws-access-key-id"],
+    });
   });
 
-  it("lets nested child rows find their owner through an earlier child table", () => {
-    const owners = new Map([["wf1", "global/wf_workflow/approve--wf1"]]);
-    const versions = attachChildren([{ sys_id: "v1", workflow: "wf1" }], "workflow", owners);
-    const activities = attachChildren(
-      [{ sys_id: "act1", workflow_version: "v1" }],
-      "workflow_version",
-      owners,
-    );
-    expect(versions.orphans).toBe(0);
-    expect([...activities.attached.keys()]).toEqual(["global/wf_workflow/approve--wf1"]);
-  });
-});
-
-describe("childGrouper", () => {
-  it("groups streamed child rows like attachChildren, without holding the table twice", () => {
-    const owners = new Map([["flow1", "global/sys_hub_flow/my-flow--flow1"]]);
-    const grouper = childGrouper("flow", owners);
-    for (const row of [
-      { sys_id: "b", flow: "flow1" },
-      { sys_id: "a", flow: "flow1" },
-      { sys_id: "c", flow: "x" },
-    ]) {
-      grouper.add(row);
-    }
-    const grouped = grouper.result();
-    expect([...grouped.attached]).toEqual([
+  it("gives rows named through a child row to the owner of the last row with that sys_id", () => {
+    const joined = resolveThrough(
       [
-        "global/sys_hub_flow/my-flow--flow1",
-        [
-          { sys_id: "a", flow: "flow1" },
-          { sys_id: "b", flow: "flow1" },
-        ],
+        { kind: "owner", base: "global/wf_workflow/first--wf1" },
+        { kind: "owner", base: "global/wf_workflow/later--wf2" },
+        { kind: "row", row: row("v1") },
       ],
-    ]);
-    expect(grouped.orphans).toBe(1);
-    expect(owners.get("a")).toBe("global/sys_hub_flow/my-flow--flow1");
+      "global/sys_script/direct--s1",
+    );
+    expect(joined.base).toBe("global/wf_workflow/later--wf2");
+    expect(joined.rows.map((entry) => entry.id)).toEqual(["v1"]);
+  });
+
+  it("gives rows that name no child row to the record they name, or to nobody", () => {
+    const entries = [{ kind: "row" as const, row: row("v1") }];
+    expect(resolveThrough(entries, "global/sys_script/direct--s1").base).toBe(
+      "global/sys_script/direct--s1",
+    );
+    expect(resolveThrough(entries, undefined).base).toBeUndefined();
+  });
+
+  it("keeps in memory only the sys_ids of tables a nested table names", () => {
+    const kept = CHILD_TABLES.filter(namedByNestedTable).map((child) => child.table);
+    expect(kept).toEqual(["wf_workflow_version", "wf_activity"]);
+  });
+
+  it("has one table owned through child rows, listed last, so every other table's ids are spilled for it", () => {
+    const through = CHILD_TABLES.filter((child) => child.ownedThroughChildRows === true);
+    expect(through.map((child) => child.table)).toEqual(["sys_variable_value"]);
+    expect(CHILD_TABLES.at(-1)?.table).toBe("sys_variable_value");
+    expect(CHILD_TABLES.slice(0, -1).every(namedThroughChildRows)).toBe(true);
+    const last = CHILD_TABLES.at(-1);
+    expect(last !== undefined && namedThroughChildRows(last)).toBe(false);
   });
 });
 

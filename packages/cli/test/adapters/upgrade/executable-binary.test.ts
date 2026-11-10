@@ -58,6 +58,25 @@ describe("ExecutableBinary (ADR-0023)", () => {
     expect(await readFile(`${path}.old`, "utf8")).toContain("snagentic 1.3.0");
   });
 
+  it("refuses to replace or run itself when snagentic runs from source", async () => {
+    const binary = new ExecutableBinary(null, "darwin");
+    await expect(binary.replace(script("1.3.0"), "1.3.0")).rejects.toMatchObject({
+      code: "binary-not-replaced",
+    });
+    expect(() => binary.run(["--version"], tmpdir())).toThrow("not an installed release");
+  });
+
+  it("reports a binary it could not write as not replaced, with the reason", async () => {
+    const { dir } = await installed();
+    const path = join(dir, "gone", "snagentic");
+    await expect(
+      new ExecutableBinary(path, "darwin").replace(script("1.3.0"), "1.3.0"),
+    ).rejects.toMatchObject({
+      code: "binary-not-replaced",
+      message: expect.stringContaining("ENOENT"),
+    });
+  });
+
   it("knows a release binary from snagentic run from source", () => {
     expect(installedPath("/usr/local/bin/snagentic")).toBe("/usr/local/bin/snagentic");
     expect(installedPath("C:\\Tools\\snagentic.exe")).toBe("C:\\Tools\\snagentic.exe");

@@ -76,6 +76,12 @@ function workerCommand(): readonly string[] {
 
 let worker: FluentRuntime | undefined;
 
+// Named and tested on its own: only a sandbox that fails to start the worker calls it, which no
+// test host provokes, so coverage would otherwise depend on the platform.
+export const warnOnStderr = (line: string): void => {
+  process.stderr.write(`${line}\n`);
+};
+
 // The SDK as snagentic uses it: every build and transform in a worker that holds no credential
 // (ADR-0044). The SDK is pinned, so its version is the dependency's.
 export const loadFluentRuntime: LoadFluentRuntime = async () => {
@@ -83,7 +89,7 @@ export const loadFluentRuntime: LoadFluentRuntime = async () => {
     sdkVersion: cliPackage.dependencies["@servicenow/sdk"],
     command: workerCommand(),
     sandbox: osSandbox(),
-    warn: (line) => process.stderr.write(`${line}\n`),
+    warn: warnOnStderr,
   });
   return worker;
 };

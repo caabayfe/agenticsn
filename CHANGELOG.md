@@ -27,6 +27,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   approved pack, so its resume refuses (`install-resume-unknown`): plan again and confirm the new
   id (spec 014, F7).
 
+- `bun run verify` passes on macOS with Bun 1.4.4. That Bun counts functions and lines in error
+  paths that 1.4.2 (the CI pin) credited, so seven files fell under the 90 % coverage threshold.
+  Their untested paths now have tests on every platform; the threshold is unchanged.
+
 ### Security
 
 - The ServiceNow SDK's own copies of `zod` move to the patched 4.6.7 through a root override, so

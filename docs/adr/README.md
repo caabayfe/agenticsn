@@ -63,6 +63,7 @@ when the table is stale.
 | [0052](0052-the-mirror-carries-its-pull-state.md) | The mirror carries its pull state, so any clone continues a pull from git | Accepted |
 | [0053](0053-instance-owners-set-load-limits.md) | Instance owners set load limits; one scheduler per instance; the cost report is opt-in | Accepted |
 | [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Accepted |
+| [0055](0055-the-sdk-worker-on-windows-runs-at-low-integrity.md) | The SDK worker on Windows: a sandbox in two steps, low integrity first | Proposed |
 <!-- adr-index:end -->
 
 Requirements referenced as `ASR-nn` are in

@@ -67,4 +67,28 @@ describe("gitSharedMirror", () => {
     await gitSharedMirror.moveTo(root, "pdi", { commit: second, expected: first });
     expect(await gitSharedMirror.localTip(root, "pdi")).toBe(second);
   });
+
+  it("refuses to take a shared tip holding files a pull never writes, leaving the branch", async () => {
+    const { root } = await repositories();
+    const piped = async (args: string[], input: string) => {
+      const child = Bun.spawn(["git", ...args], { cwd: root, stdin: "pipe", stdout: "pipe" });
+      child.stdin.write(input);
+      await child.stdin.end();
+      return (await new Response(child.stdout).text()).trim();
+    };
+    const tree = (entries: string) => piped(["mktree"], entries);
+    const blob = await piped(["hash-object", "-w", "--stdin"], "{}\n");
+    const settings = await tree(`100644 blob ${blob}\tsettings.json\n`);
+    const top = await tree(`040000 tree ${settings}\t.claude\n`);
+    const commit = (
+      await runGitOrThrow(
+        ["-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", top, "-m", "pull"],
+        root,
+      )
+    ).trim();
+    await expect(
+      gitSharedMirror.moveTo(root, "pdi", { commit, expected: null }),
+    ).rejects.toMatchObject({ code: "mirror-outside-scope" });
+    expect(await gitSharedMirror.localTip(root, "pdi")).toBeNull();
+  });
 });

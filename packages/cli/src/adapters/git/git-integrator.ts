@@ -8,6 +8,7 @@ import {
   PULL_FOLDER,
   SnagenticError,
 } from "@snagentic/core";
+import { checkMirrorCommits } from "./mirror-tree-scope";
 import { pulledRecords } from "./pulled-records";
 import { runGit, runGitOrThrow } from "./run-git";
 
@@ -117,7 +118,14 @@ async function merge(
   options: IntegrationOptions,
 ): Promise<IntegrationResult> {
   const { branch, owned } = await ensureIntegrable(root, instance);
-  const related = (await runGit(["merge-base", "HEAD", branch], root)).exitCode === 0;
+  const base = await runGit(["merge-base", "HEAD", branch], root);
+  const related = base.exitCode === 0;
+  // Only what the mirror commits since the last integrate changed comes in, and only that is
+  // checked: a mirror commit's parent is always a mirror commit.
+  await checkMirrorCommits(root, instance, {
+    from: related ? base.stdout.trim() : null,
+    to: branch,
+  });
   const configured = (await runGit(["config", "user.email"], root)).stdout.trim() !== "";
   const identity = configured ? [] : FALLBACK_IDENTITY;
   const args = [
@@ -144,7 +152,8 @@ async function merge(
 }
 
 // `integrate` (ADR-0007, ADR-0031): the instance's copy is merged into the current branch. The
-// mirror is read-only, so the instance's copy always wins there.
+// mirror is read-only, so the instance's copy always wins there. Nothing but the instance's
+// mirrored folders may come in with it (checked before the working tree is touched).
 async function integrate(
   root: string,
   instance: string,
@@ -153,6 +162,7 @@ async function integrate(
   const { branch } = await ensureIntegrable(root, instance);
   const head = await runGit(["rev-parse", "--verify", "--quiet", "HEAD"], root);
   if (head.exitCode !== 0) {
+    await checkMirrorCommits(root, instance, { from: null, to: branch });
     options.progress?.({ message: "integrate: checking out the pull" });
     return startFrom(root, branch);
   }

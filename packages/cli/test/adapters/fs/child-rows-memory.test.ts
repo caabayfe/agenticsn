@@ -90,6 +90,7 @@ const reader: InstanceReader = {
   stats: () => ({
     requests: 0,
     retries: 0,
+    timeouts: 0,
     semaphoreWaitMs: 0,
     transactionIds: [],
     concurrencyLimit: 1,

@@ -25,7 +25,11 @@ $work = New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath())
 try {
   $binary = Join-Path $work "snagentic.exe"
   Invoke-WebRequest "$base/$target" -OutFile $binary -UseBasicParsing
-  $sums = (Invoke-WebRequest "$base/SHA256SUMS" -UseBasicParsing).Content
+  # Saved to a file and read as text: a release asset is served as application/octet-stream, for
+  # which Invoke-WebRequest's .Content is bytes, not text.
+  $sumsFile = Join-Path $work "SHA256SUMS"
+  Invoke-WebRequest "$base/SHA256SUMS" -OutFile $sumsFile -UseBasicParsing
+  $sums = Get-Content -Raw $sumsFile
   $expected = ($sums -split "`n" | Where-Object { $_ -match " $([regex]::Escape($target))\s*$" } | ForEach-Object { ($_ -split "\s+")[0] }) | Select-Object -First 1
   $actual = (Get-FileHash $binary -Algorithm SHA256).Hash.ToLower()
   if (-not $expected -or $expected.ToLower() -ne $actual) {

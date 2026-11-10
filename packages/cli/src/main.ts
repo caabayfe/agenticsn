@@ -51,9 +51,7 @@ import { YamlProfileStore } from "./adapters/profiles/yaml-profile-store";
 import { searchIndexProbe } from "./adapters/search-index-probe";
 import { fetchTransport } from "./adapters/servicenow/fetch-transport";
 import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
-import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
-import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
-import { ServiceNowWriteClient } from "./adapters/servicenow/servicenow-write-client";
+import { InstanceConnections } from "./adapters/servicenow/instance-connections";
 import { FileWorkspaceLock } from "./adapters/state/file-workspace-lock";
 import { JsonInstallJournal } from "./adapters/state/json-install-journal";
 import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
@@ -107,17 +105,12 @@ const context: UseCaseContext = {
     new KeychainCredentialStore(),
   ),
   secrets: new TerminalSecretReader(),
-  connections: {
-    open: (profile, secret) =>
-      new ServiceNowClient(profile, secret, new RequestScheduler(fetchTransport()), versionLine()),
-    openForWrite: (profile, secret) =>
-      new ServiceNowWriteClient(
-        profile,
-        secret,
-        new RequestScheduler(fetchTransport()),
-        versionLine(),
-      ),
-  },
+  // One scheduler per instance, shared by every command and concurrent MCP call (ADR-0053).
+  connections: new InstanceConnections({
+    transport: fetchTransport(),
+    environment: process.env,
+    version: versionLine(),
+  }),
   syncState: syncStateStore,
   sharedMirror: gitSharedMirror,
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },

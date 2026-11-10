@@ -5,12 +5,22 @@ export interface HttpRequest {
   readonly url: string;
   readonly headers: Readonly<Record<string, string>>;
   readonly body?: string;
+  // False when the caller retries a timed-out GET itself, with a smaller page (ADR-0053).
+  readonly retryTimeout?: boolean;
 }
 
 export interface HttpResponse {
   readonly status: number;
   readonly headers: { get(name: string): string | null };
   text(): Promise<string>;
+}
+
+// The transport gave up waiting for an answer (its own timeout, not a cancellation).
+export class TransportTimeoutError extends Error {
+  constructor(readonly timeoutMs: number) {
+    super(`no answer within ${Math.round(timeoutMs / 1000)} s`);
+    this.name = "TransportTimeoutError";
+  }
 }
 
 export type Transport = (request: HttpRequest, signal: AbortSignal) => Promise<HttpResponse>;

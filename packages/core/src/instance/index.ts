@@ -44,6 +44,7 @@ export {
   type InstanceProfile,
   instanceHost,
   isCredentialVariable,
+  type LoadSettings,
   maxAgeProblem,
   type NewProfile,
   type OAuthClientCredentials,

@@ -30,6 +30,14 @@ export interface SharedMirrorSetting {
 
 export const DEFAULT_MAX_AGE_MINUTES = 15;
 
+// Load limits an instance owner asks for: any subset, each a positive integer. They can only
+// lower the built-in limits (ADR-0053).
+export interface LoadSettings {
+  readonly maxConcurrency?: number;
+  readonly requestsPerSecond?: number;
+  readonly requestBudget?: number;
+}
+
 export interface InstanceProfile {
   readonly name: InstanceName;
   readonly url: string;
@@ -37,6 +45,8 @@ export interface InstanceProfile {
   readonly auth: AuthSettings;
   readonly readOnlyAcknowledged: boolean;
   readonly sharedMirror?: SharedMirrorSetting;
+  // From instance.yaml's `load:` block, when it has one.
+  readonly load?: LoadSettings;
 }
 
 // A profile proved to be of a development instance (ADR-0012 layer 3): the only kind a write

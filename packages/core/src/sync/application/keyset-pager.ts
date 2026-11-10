@@ -1,3 +1,4 @@
+import { RequestTimedOutError } from "../../connection/domain/errors";
 import type { InstanceReader } from "../../connection/ports";
 import { OperationCancelledError, SnagenticError } from "../../kernel/errors";
 import type { Row } from "../../kernel/row";
@@ -37,6 +38,15 @@ function isQuotaCancellation(error: unknown): boolean {
   );
 }
 
+function requireCursorFields(listing: KeysetListing): void {
+  const fields = listing.fields;
+  const missing =
+    fields === "all" ? [] : CURSOR_FIELDS[listing.kind].filter((field) => !fields.includes(field));
+  if (missing.length > 0) {
+    throw new Error(`a ${listing.kind} listing must request ${missing.join(", ")}`);
+  }
+}
+
 // The only way snagentic lists rows (ADR-0016). A listing ends only on an empty page, because
 // ACLs remove rows after the limit is applied, so short pages are normal.
 export class KeysetPager {
@@ -50,26 +60,23 @@ export class KeysetPager {
   }
 
   async *rows(listing: KeysetListing, signal: AbortSignal): AsyncGenerator<Row> {
-    const fields = listing.fields;
-    const missing =
-      fields === "all"
-        ? []
-        : CURSOR_FIELDS[listing.kind].filter((field) => !fields.includes(field));
-    if (missing.length > 0) {
-      throw new Error(`a ${listing.kind} listing must request ${missing.join(", ")}`);
-    }
+    requireCursorFields(listing);
     let cursor: Cursor | null = null;
     let size = this.settings.initialPageSize ?? PAGE_SIZE.initial;
+    // A page the client gave up on is tried once more, smaller (ADR-0053).
+    let timedOut = false;
     for (;;) {
       if (signal.aborted) {
         throw new OperationCancelledError();
       }
       const started = this.now();
-      const page = await this.page(listing, cursor, size, signal);
-      if (page === "retry-smaller") {
+      const page = await this.page(listing, cursor, size, signal, timedOut);
+      if (page === "retry-smaller" || page === "timed-out") {
+        timedOut ||= page === "timed-out";
         size = nextPageSize(size, { durationMs: 0, cancelled: true });
         continue;
       }
+      timedOut = false;
       const last = page.at(-1);
       if (last === undefined) {
         return;
@@ -91,17 +98,28 @@ export class KeysetPager {
     cursor: Cursor | null,
     size: number,
     signal: AbortSignal,
-  ): Promise<readonly Row[] | "retry-smaller"> {
+    timedOutBefore: boolean,
+  ): Promise<readonly Row[] | "retry-smaller" | "timed-out"> {
     try {
       const query = keysetQuery(listing, cursor);
       const domains = listing.allDomains === true ? { allDomains: true } : {};
       return await this.reader.query(
-        { table: listing.table, query, fields: listing.fields, limit: size, ...domains },
+        {
+          table: listing.table,
+          query,
+          fields: listing.fields,
+          limit: size,
+          ...domains,
+          retryOnTimeout: false,
+        },
         signal,
       );
     } catch (error) {
       if (isQuotaCancellation(error) && size > PAGE_SIZE.min) {
         return "retry-smaller";
+      }
+      if (error instanceof RequestTimedOutError && !timedOutBefore) {
+        return "timed-out";
       }
       throw error;
     }

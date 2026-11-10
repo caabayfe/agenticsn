@@ -82,6 +82,19 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   runs go through the same checks as any other call. Only a development instance's connection
   has write ports, and only use cases declared as changing an instance can open one. The
   ServiceNow adapter also refuses to send a write to a test or production instance.
+- One request scheduler per instance and process: every command and concurrent MCP call to an
+  instance shares one concurrency limit, adaptive controller and rate limit, while each run keeps
+  its own statistics and request budget (ADR-0053, proposed; spec 014 step P1).
+- Load limits an instance owner can set: `max_concurrency`, `requests_per_second` and
+  `request_budget` under `load:` in `instance.yaml` (they can only lower the defaults), or
+  `SNAGENTIC_<NAME>_MAX_CONCURRENCY`, `_REQUESTS_PER_SECOND` and `_REQUEST_BUDGET` (which may also
+  raise the budget). Defaults: 4 at once and 10 per second on development, 2 and 5 on test and
+  production, 20,000 requests per run.
+- A request that times out lowers concurrency, is retried once (a listing with a smaller page)
+  instead of up to four times, and is counted in `pull`'s new `timeouts` field.
+- `pull` reads its server cost from the transaction log only with `--cost`, and only on
+  development instances. The output's `serverCost` is null otherwise; the new
+  `serverCostRequested` field tells the two apart.
 
 ### Fixed
 

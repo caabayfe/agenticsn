@@ -50,6 +50,8 @@ export interface PullRequest {
   readonly full: boolean;
   readonly verify: boolean;
   readonly publish: boolean;
+  // Measure the server cost from the transaction log (development only; ADR-0053).
+  readonly cost: boolean;
 }
 
 // A pull continues an interrupted full pull, pulls changes once a full pull exists, or starts
@@ -127,7 +129,8 @@ export async function pullFromInstance(
       started,
       committing,
       peakMemoryMb: memory.peakMb(),
-      serverCost: await measureServerCost(session.reader, since, run.signal),
+      serverCostRequested: input.cost,
+      serverCost: input.cost ? await measureServerCost(session.reader, since, run.signal) : null,
     };
   };
   const { deps, mirror, name, puller } = session;

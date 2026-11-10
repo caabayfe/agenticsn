@@ -16,6 +16,20 @@ describe("ConcurrencyController (adaptive, ADR-0016)", () => {
     expect(controller.limit).toBe(4);
   });
 
+  it("halves when a request times out, as after a 503 (ADR-0053)", () => {
+    const controller = new ConcurrencyController({ initial: 4 });
+    controller.timedOut();
+    expect(controller.limit).toBe(2);
+  });
+
+  it("never rises above the ceiling an instance owner set", () => {
+    const controller = new ConcurrencyController({ max: 1, healthyStreak: 1 });
+    for (let index = 0; index < 5; index += 1) {
+      controller.observe(healthy);
+    }
+    expect(controller.limit).toBe(1);
+  });
+
   it.each([429, 503])("halves after HTTP %p, never below 1", (status) => {
     const controller = new ConcurrencyController({ initial: 4 });
     controller.observe({ status, semaphoreWaitMs: 0 });

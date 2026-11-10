@@ -15,6 +15,9 @@ export interface TableQuery {
   // Rows of every domain, not only those the session's domain sees
   // (sysparm_query_no_domain): composites keep rows in other domains (ADR-0033, ADR-0030 #9).
   readonly allDomains?: boolean;
+  // False when the caller retries a timed-out request itself (the pager, with a smaller page),
+  // so the connection does not retry it too (ADR-0053).
+  readonly retryOnTimeout?: boolean;
 }
 
 export interface ConnectionStats {
@@ -27,6 +30,8 @@ export interface ConnectionStats {
   readonly peakConcurrency: number;
   // Total time spent waiting for responses (requests overlap, so this exceeds wall time).
   readonly requestMs: number;
+  // Requests abandoned after the client's timeout (ADR-0053).
+  readonly timeouts: number;
 }
 
 // Read access to one instance. Every implementation goes through the request scheduler.

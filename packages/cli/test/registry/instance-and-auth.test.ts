@@ -103,6 +103,7 @@ async function setup() {
         concurrencyLimit: 2,
         peakConcurrency: 2,
         requestMs: 0,
+        timeouts: 0,
       }),
     }),
     host: { cwd: join(root, "instances"), home: base, version: "test" },

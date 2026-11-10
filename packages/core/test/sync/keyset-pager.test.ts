@@ -4,6 +4,7 @@ import {
   InstanceError,
   type InstanceReader,
   KeysetPager,
+  RequestTimedOutError,
   type Row,
   TableName,
   type TableQuery,
@@ -19,6 +20,7 @@ const STATS: ConnectionStats = {
   concurrencyLimit: 2,
   peakConcurrency: 2,
   requestMs: 0,
+  timeouts: 0,
 };
 const TABLE = TableName.parse("sys_metadata");
 
@@ -255,6 +257,43 @@ describe("KeysetPager", () => {
       base: "",
     });
     expect(sizes).toEqual([800, 400]);
+  });
+
+  it("retries a timed-out page once, smaller, and asks the connection not to retry it", async () => {
+    const asked: { limit: number; retryOnTimeout: boolean | undefined }[] = [];
+    const slow: InstanceReader = {
+      query: async (query) => {
+        asked.push({ limit: query.limit, retryOnTimeout: query.retryOnTimeout });
+        if (asked.length === 1) {
+          throw new RequestTimedOutError("https://x");
+        }
+        return [];
+      },
+      stats: () => STATS,
+    };
+    await collect(new KeysetPager(slow, { initialPageSize: 800 }), {
+      ...SPEC,
+      kind: "snapshot",
+      base: "",
+    });
+    expect(asked).toEqual([
+      { limit: 800, retryOnTimeout: false },
+      { limit: 400, retryOnTimeout: false },
+    ]);
+  });
+
+  it("gives up when the smaller page times out too", async () => {
+    let calls = 0;
+    const slow: InstanceReader = {
+      query: async () => {
+        calls += 1;
+        throw new RequestTimedOutError("https://x");
+      },
+      stats: () => STATS,
+    };
+    const listing = collect(new KeysetPager(slow), { ...SPEC, kind: "snapshot", base: "" });
+    await expect(listing).rejects.toMatchObject({ code: "request-timed-out" });
+    expect(calls).toBe(2);
   });
 
   it("does not retry other errors", async () => {

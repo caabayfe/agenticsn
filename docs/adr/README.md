@@ -61,6 +61,7 @@ when the table is stale.
 | [0048](0048-store-application-demo-data-on-request.md) | `--demo` is the one demo switch: demo data, demo modules and store applications' demo data | Accepted (amended by 0049) |
 | [0049](0049-demo-modules-turned-on-with-demo.md) | `--demo` turns on the demo modules it installs, on development only, never promoted | Accepted |
 | [0052](0052-the-mirror-carries-its-pull-state.md) | The mirror carries its pull state, so any clone continues a pull from git | Accepted |
+| [0053](0053-instance-owners-set-load-limits.md) | Instance owners set load limits; one scheduler per instance; the cost report is opt-in | Proposed |
 | [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Proposed |
 <!-- adr-index:end -->
 

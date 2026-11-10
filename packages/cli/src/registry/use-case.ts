@@ -89,7 +89,8 @@ export interface WritePorts {
 
 export type WriteConnection = ReadConnection & WritePorts;
 
-// Opens a connection to an instance; every connection has its own request scheduler. Write
+// Opens a connection to an instance: a run with its own statistics and request budget, on the
+// instance's one request scheduler (ADR-0053). Write
 // ports come only from openForWrite, which takes a profile proved to be a development one, and
 // executeUseCase withholds it from use cases not declared as changing an instance.
 export interface ConnectionFactory {

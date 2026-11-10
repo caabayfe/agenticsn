@@ -141,6 +141,30 @@ describe("YamlProfileStore", () => {
     await expect(store.read(root, pdi.name)).rejects.toMatchObject({ code: "invalid-profile" });
   });
 
+  it("reads the load limits an instance owner set, and keeps them when it writes", async () => {
+    const root = await workspace();
+    await mkdir(join(root, "instances/pdi"), { recursive: true });
+    await writeFile(
+      join(root, "instances/pdi/instance.yaml"),
+      "url: https://x.service-now.com\nkind: production\nread_only_acknowledged: true\nauth:\n  method: basic\n  username: svc\nload:\n  max_concurrency: 1\n  request_budget: 3000\n",
+    );
+    const profile = await store.read(root, pdi.name);
+    expect(profile?.load).toEqual({ maxConcurrency: 1, requestBudget: 3000 });
+    if (profile === null) throw new Error("no profile");
+    await store.write(root, profile);
+    expect(await store.read(root, pdi.name)).toEqual(profile);
+  });
+
+  it("refuses a load limit that is not a positive whole number", async () => {
+    const root = await workspace();
+    await mkdir(join(root, "instances/pdi"), { recursive: true });
+    await writeFile(
+      join(root, "instances/pdi/instance.yaml"),
+      "url: https://x.service-now.com\nkind: development\nauth:\n  method: basic\n  username: svc\nload:\n  requests_per_second: 0\n",
+    );
+    await expect(store.read(root, pdi.name)).rejects.toMatchObject({ code: "invalid-profile" });
+  });
+
   it("removes the profile file", async () => {
     const root = await workspace();
     await store.write(root, pdi);

@@ -17,6 +17,7 @@ const STATS: ConnectionStats = {
   concurrencyLimit: 2,
   peakConcurrency: 2,
   requestMs: 0,
+  timeouts: 0,
 };
 
 // Serves snapshot listings: honors `sys_id>` cursors and the limit, and records queries.

@@ -16,7 +16,13 @@ export {
   InstanceHibernatingError,
   InstanceUnreachableError,
   RequestBudgetExhaustedError,
+  RequestTimedOutError,
 } from "./connection/domain/errors";
+export {
+  defaultLoadLimits,
+  effectiveLoadLimits,
+  type LoadLimits,
+} from "./connection/domain/load-limits";
 export {
   type HttpMethod,
   type RequestOutcome,

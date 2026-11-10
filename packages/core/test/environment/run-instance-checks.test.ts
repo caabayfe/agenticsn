@@ -22,6 +22,7 @@ const STATS: ConnectionStats = {
   concurrencyLimit: 2,
   peakConcurrency: 2,
   requestMs: 0,
+  timeouts: 0,
 };
 
 function profile(kind: "development" | "production" = "development") {

@@ -27,7 +27,8 @@ export class ConcurrencyController {
   constructor(settings: ConcurrencySettings = {}) {
     this.min = settings.min ?? 1;
     this.max = settings.max ?? 4;
-    this.current = settings.initial ?? 2;
+    // An owner's lower ceiling (ADR-0053) also caps where it starts.
+    this.current = Math.min(settings.initial ?? 2, this.max);
     this.healthyStreak = settings.healthyStreak ?? 20;
     this.threshold = settings.semaphoreWaitThresholdMs ?? 500;
   }
@@ -40,8 +41,7 @@ export class ConcurrencyController {
     const pressured =
       signal.status === 429 || signal.status === 503 || signal.semaphoreWaitMs > this.threshold;
     if (pressured) {
-      this.current = Math.max(this.min, Math.floor(this.current / 2));
-      this.streak = 0;
+      this.backOff();
       return;
     }
     if (signal.status >= 500) {
@@ -52,5 +52,16 @@ export class ConcurrencyController {
       this.current = Math.min(this.max, this.current + 1);
       this.streak = 0;
     }
+  }
+
+  // A request abandoned after the client's timeout: the instance is too busy to answer in
+  // time, which is pressure as much as a 503 (ADR-0053).
+  timedOut(): void {
+    this.backOff();
+  }
+
+  private backOff(): void {
+    this.current = Math.max(this.min, Math.floor(this.current / 2));
+    this.streak = 0;
   }
 }

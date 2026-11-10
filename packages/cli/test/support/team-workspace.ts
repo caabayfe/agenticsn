@@ -84,3 +84,7 @@ export async function team(data: Record<string, Row[]>) {
 }
 
 export const COMMIT_IDENTITY = IDENTITY;
+
+// A team test runs several clones, fetches and pushes: about 5 s on a Windows runner, so such
+// tests get 15 s, as plans do (PLAN_TIMEOUT).
+export const TEAM_TIMEOUT = 15_000;

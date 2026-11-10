@@ -56,6 +56,20 @@ module.exports = {
       },
     },
     {
+      name: "contexts-meet-through-their-index",
+      comment:
+        "A core context uses another context only through that context's index.ts (AGENTS.md: " +
+        "contexts talk through application services, never each other's internals). kernel " +
+        "and metadata are shared by every context and exempt. Existing reach-ins are recorded " +
+        "in .dependency-cruiser-known-violations.json, which may only shrink.",
+      severity: "error",
+      from: { path: "(^|/)packages/core/src/([^/]+)/" },
+      to: {
+        path: "(^|/)packages/core/src/[^/]+/(?!index\\.ts$)",
+        pathNot: ["(^|/)packages/core/src/$2/", "(^|/)packages/core/src/(kernel|metadata)/"],
+      },
+    },
+    {
       name: "no-circular",
       severity: "error",
       from: {},

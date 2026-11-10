@@ -60,6 +60,7 @@ export {
   type InstanceKind,
   type InstanceProfile,
   instanceHost,
+  instanceVariable,
   isCredentialVariable,
   type LoadSettings,
   maxAgeProblem,

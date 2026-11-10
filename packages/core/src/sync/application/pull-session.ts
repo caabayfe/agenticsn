@@ -1,18 +1,20 @@
-import { measureServerCost } from "../../connection/application/measure-server-cost";
-import type {
-  ConnectionStats,
-  InstanceReader,
-  ServerCost,
-  ServerCostReader,
-  TableStatistics,
-} from "../../connection/ports";
-import { resolveSecret } from "../../instance/application/credentials";
-import { verifyReadOnlyCredential } from "../../instance/application/verify-access";
-import type { InstanceProfile } from "../../instance/domain/profile";
-import type { CredentialStore } from "../../instance/ports";
+import {
+  type ConnectionStats,
+  type InstanceReader,
+  measureServerCost,
+  type ServerCost,
+  type ServerCostReader,
+  type TableStatistics,
+} from "../../connection/index";
+import {
+  type CredentialStore,
+  type InstanceProfile,
+  resolveSecret,
+  verifyReadOnlyCredential,
+} from "../../instance/index";
 import type { InstanceName } from "../../kernel/instance-name";
 import { DEFAULT_REDACTION } from "../../metadata/domain/redaction";
-import { instancePaths } from "../../workspace/domain/layout";
+import { instancePaths } from "../../workspace/index";
 import { VerifyNeedsPullError } from "../domain/pull-errors";
 import { removesByAbsence } from "../domain/pull-state";
 import type {

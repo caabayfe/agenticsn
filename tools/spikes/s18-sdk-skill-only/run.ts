@@ -51,7 +51,7 @@ const ALLOWED = [
 const args = process.argv.slice(2);
 const repsAt = args.indexOf("--reps");
 const reps = repsAt >= 0 ? Number(args[repsAt + 1]) : 2;
-const positional = args.filter((arg, index) => index !== repsAt && index !== repsAt + 1);
+const positional = args.filter((_arg, index) => index !== repsAt && index !== repsAt + 1);
 const [outDir = "s18-runs", ...only] = positional;
 const scenarios = only.length === 0 ? SCENARIOS : SCENARIOS.filter((s) => only.includes(s.id));
 

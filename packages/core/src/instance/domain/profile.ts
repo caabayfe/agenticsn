@@ -169,9 +169,16 @@ export function secretName(profile: InstanceProfile): string {
   return profile.auth.method === "basic" ? "password" : "client secret";
 }
 
+// Every per-instance environment variable follows one scheme, SNAGENTIC_<NAME>_<SETTING>: the
+// secret, the url and kind that pin it (ADR-0020), the username (ADR-0054) and the load limits
+// (ADR-0053). isCredentialVariable depends on it too.
+export function instanceVariable(profile: InstanceProfile, setting: string): string {
+  return `SNAGENTIC_${profile.name.toUpperCase().replaceAll("-", "_")}_${setting}`;
+}
+
 // Environment variable that supplies the secret in CI, e.g. SNAGENTIC_ACME_PROD_PASSWORD.
 export function credentialVariable(profile: InstanceProfile): string {
-  return `SNAGENTIC_${profile.name.toUpperCase().replaceAll("-", "_")}_PASSWORD`;
+  return instanceVariable(profile, "PASSWORD");
 }
 
 // Whether an environment variable can hold an instance secret, so child processes never get it
@@ -182,6 +189,8 @@ export function isCredentialVariable(name: string): boolean {
 
 // All variables a CI job sets: the secret, and the url and kind that pin it (ADR-0020).
 export function credentialVariables(profile: InstanceProfile): string {
-  const prefix = credentialVariable(profile).replace(/_PASSWORD$/, "");
-  return `${prefix}_PASSWORD, ${prefix}_URL and ${prefix}_KIND`;
+  const [secret, url, kind] = ["PASSWORD", "URL", "KIND"].map((setting) =>
+    instanceVariable(profile, setting),
+  );
+  return `${secret}, ${url} and ${kind}`;
 }

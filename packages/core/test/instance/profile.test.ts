@@ -5,6 +5,7 @@ import {
   credentialAccount,
   credentialVariable,
   InstanceName,
+  instanceVariable,
   isCredentialVariable,
   normalizeInstanceUrl,
   secretName,
@@ -151,6 +152,23 @@ describe("write policy and credential naming", () => {
     });
     expect(credentialAccount(client)).toBe("oauth:admin@dev312411.service-now.com");
     expect(secretName(client)).toBe("client secret");
+  });
+});
+
+describe("instance variables (ADR-0020, ADR-0053, ADR-0054)", () => {
+  it("names every per-instance variable SNAGENTIC_<NAME>_<SETTING>, one scheme for all", () => {
+    const profile = createProfile({
+      name: InstanceName.parse("acme-prod"),
+      url: "dev312411",
+      username: "admin",
+      kind: "development",
+      acknowledgeReadOnly: false,
+    });
+    expect(instanceVariable(profile, "URL")).toBe("SNAGENTIC_ACME_PROD_URL");
+    expect(instanceVariable(profile, "MAX_CONCURRENCY")).toBe(
+      "SNAGENTIC_ACME_PROD_MAX_CONCURRENCY",
+    );
+    expect(credentialVariable(profile)).toBe(instanceVariable(profile, "PASSWORD"));
   });
 });
 

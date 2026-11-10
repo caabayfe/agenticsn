@@ -10,7 +10,6 @@ import { isIdle, refuseFutureWatermark, writesInstanceData } from "./incremental
 import { applyChildChanges, type ChildOutcome } from "./incremental-children";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { type RecordStep, recordPhase } from "./incremental-record-phase";
-import type { RecordOutcome } from "./incremental-records";
 import { pullApplications } from "./pull-applications";
 import { type PullProgress, rawTimestamp } from "./pull-dependencies";
 import { pullOperational } from "./pull-operational";

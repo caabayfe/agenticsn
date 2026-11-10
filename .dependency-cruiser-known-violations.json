@@ -1,0 +1,848 @@
+[
+  {
+    "type": "dependency",
+    "from": "packages/core/src/accelerators/application/ensure-layouts.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/accelerators/application/ensure-layouts.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/accelerators/application/read-sections.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/accelerators/application/read-sections.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/advice/application/advise.ts",
+    "to": "packages/core/src/knowledge/application/describe-table.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/advice/application/advise.ts",
+    "to": "packages/core/src/knowledge/application/freshness.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/advice/application/advise.ts",
+    "to": "packages/core/src/knowledge/application/knowledge-dependencies.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/authoring/application/adopt.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/authoring/application/locate-records.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/authoring/application/locate-records.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/authoring/application/read-units.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/authoring/application/read-units.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/authoring/application/take-over.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/authoring/application/take-over.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/authoring/application/unit-catalog.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/authoring/application/unit-catalog.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/connection/domain/load-limits.ts",
+    "to": "packages/core/src/instance/domain/profile.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/field-lengths.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/field-lengths.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/field-lengths.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/load-refusals.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/load-refusals.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/plan-units.ts",
+    "to": "packages/core/src/authoring/application/read-units.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/plan-units.ts",
+    "to": "packages/core/src/authoring/domain/digest.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/plan-units.ts",
+    "to": "packages/core/src/authoring/domain/ledger.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/plan-units.ts",
+    "to": "packages/core/src/authoring/domain/plan-unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/plan-units.ts",
+    "to": "packages/core/src/authoring/domain/renamed-units.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/plan-units.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/plan-units.ts",
+    "to": "packages/core/src/authoring/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/plan-units.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-project.ts",
+    "to": "packages/core/src/authoring/application/read-units.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-project.ts",
+    "to": "packages/core/src/authoring/domain/ledger.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-project.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-read-back.ts",
+    "to": "packages/core/src/authoring/application/read-units.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-read-back.ts",
+    "to": "packages/core/src/authoring/domain/compare.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-read-back.ts",
+    "to": "packages/core/src/authoring/domain/ledger.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-read-back.ts",
+    "to": "packages/core/src/authoring/domain/unit-specs.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-read-back.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-steps.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-units.ts",
+    "to": "packages/core/src/authoring/domain/ledger.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/push-units.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/removed-definitions.ts",
+    "to": "packages/core/src/authoring/domain/ledger.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/removed-definitions.ts",
+    "to": "packages/core/src/authoring/domain/renamed-units.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/removed-definitions.ts",
+    "to": "packages/core/src/authoring/domain/unit-specs.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/removed-definitions.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/removed-definitions.ts",
+    "to": "packages/core/src/authoring/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/application/removed-definitions.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/domain/carried.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/domain/field-lengths.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/domain/gate.ts",
+    "to": "packages/core/src/governance/domain/findings.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/domain/unit-plan.ts",
+    "to": "packages/core/src/authoring/domain/compare.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/domain/unit-plan.ts",
+    "to": "packages/core/src/authoring/domain/losses.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/domain/unit-plan.ts",
+    "to": "packages/core/src/authoring/domain/plan-unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/delivery/domain/unit-plan.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/environment/application/check-agent-pack.ts",
+    "to": "packages/core/src/workspace/domain/agent-pack.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/environment/application/check-agent-pack.ts",
+    "to": "packages/core/src/workspace/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/environment/application/check-mcp-configs.ts",
+    "to": "packages/core/src/workspace/domain/mcp-config.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/environment/application/check-mcp-configs.ts",
+    "to": "packages/core/src/workspace/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/environment/application/run-instance-checks.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/environment/application/run-instance-checks.ts",
+    "to": "packages/core/src/instance/domain/identity.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/environment/application/run-instance-checks.ts",
+    "to": "packages/core/src/instance/domain/profile.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/environment/application/run-instance-checks.ts",
+    "to": "packages/core/src/instance/domain/trust.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/governance/application/check.ts",
+    "to": "packages/core/src/workspace/domain/protected-paths.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/governance/application/record-checks.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/governance/application/unit-versions.ts",
+    "to": "packages/core/src/authoring/domain/digest.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/governance/application/unit-versions.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/governance/application/unit-versions.ts",
+    "to": "packages/core/src/authoring/domain/values.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/governance/domain/built-values.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/governance/domain/flow-checks.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/governance/domain/fluent-findings.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/governance/domain/role-checks.ts",
+    "to": "packages/core/src/authoring/domain/unit.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/instance/application/credentials.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/instance/application/verify-access.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/knowledge/application/freshness.ts",
+    "to": "packages/core/src/sync/domain/sync-phase.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/knowledge/application/refresh-index.ts",
+    "to": "packages/core/src/sync/application/concurrently.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/knowledge/application/refresh-index.ts",
+    "to": "packages/core/src/sync/domain/record-changes.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/plugins/application/activate-plugin.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/plugins/application/install-store-app.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/plugins/application/list-plugins.ts",
+    "to": "packages/core/src/sync/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/sync/application/fetch-fingerprints.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/sync/application/keyset-pager.ts",
+    "to": "packages/core/src/connection/domain/errors.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/sync/application/keyset-pager.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/sync/application/pull-dependencies.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/sync/application/pull-operational.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/sync/ports.ts",
+    "to": "packages/core/src/authoring/domain/drift.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/updatesets/application/export-update-set.ts",
+    "to": "packages/core/src/sync/application/pull-dependencies.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/updatesets/application/update-set-reads.ts",
+    "to": "packages/core/src/connection/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/updatesets/application/update-set-reads.ts",
+    "to": "packages/core/src/sync/application/keyset-pager.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/updatesets/application/update-set-reads.ts",
+    "to": "packages/core/src/sync/domain/record-changes.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/updatesets/application/update-set-views.ts",
+    "to": "packages/core/src/sync/application/pull-dependencies.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/upgrade/application/upgrade.ts",
+    "to": "packages/core/src/workspace/domain/agent-pack.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/upgrade/application/upgrade.ts",
+    "to": "packages/core/src/workspace/ports.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/workspace/domain/layout.ts",
+    "to": "packages/core/src/sync/domain/pull-state.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  },
+  {
+    "type": "dependency",
+    "from": "packages/core/src/workspace/domain/mirror-scope.ts",
+    "to": "packages/core/src/sync/domain/pull-state.ts",
+    "rule": {
+      "name": "contexts-meet-through-their-index",
+      "severity": "error"
+    }
+  }
+]

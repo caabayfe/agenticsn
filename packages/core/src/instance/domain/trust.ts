@@ -1,4 +1,4 @@
-import { credentialVariable, type InstanceKind, type InstanceProfile } from "./profile";
+import { type InstanceKind, type InstanceProfile, instanceVariable } from "./profile";
 
 // ADR-0020: what a person confirmed when storing the secret. instance.yaml can be edited by
 // anyone; the secret is released only while the profile still matches.
@@ -44,8 +44,9 @@ export function trustedSecret(
 
 export function untrustedHint(profile: InstanceProfile, source: CredentialSource): string {
   if (source === "environment") {
-    const prefix = credentialVariable(profile).replace(/_PASSWORD$/, "");
-    return `set ${prefix}_URL and ${prefix}_KIND to the instance's url and kind (ADR-0020)`;
+    const url = instanceVariable(profile, "URL");
+    const kind = instanceVariable(profile, "KIND");
+    return `set ${url} and ${kind} to the instance's url and kind (ADR-0020)`;
   }
   return (
     `if a person made this change, run: snagentic auth login ${profile.name}; ` +

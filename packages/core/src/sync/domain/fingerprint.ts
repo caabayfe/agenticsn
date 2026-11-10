@@ -1,12 +1,8 @@
 import { formatRawTimestamp, parseRawTimestamp } from "../../kernel/raw-timestamp";
+import type { TableFingerprint } from "../../kernel/table-fingerprint";
 import { CHILD_TABLES } from "./pull-scope";
 
-// Count and latest sys_updated_on of a table: inserts and updates raise the latest update,
-// deletions lower the count (ADR-0016, M4 appendix).
-export interface TableFingerprint {
-  readonly count: number;
-  readonly maxUpdatedOn: string | null;
-}
+export type { TableFingerprint };
 
 export type FingerprintChange = "unchanged" | "changed" | "shrunk";
 

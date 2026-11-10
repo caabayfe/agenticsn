@@ -28,6 +28,10 @@ export interface InstanceProfile {
   readonly readOnlyAcknowledged: boolean;
 }
 
+// A profile proved to be of a development instance (ADR-0012 layer 3): the only kind a write
+// connection is opened for. Obtained through ensureDevelopmentInstance.
+export type DevelopmentProfile = InstanceProfile & { readonly kind: "development" };
+
 export interface NewProfile {
   readonly name: InstanceName;
   readonly url: string;

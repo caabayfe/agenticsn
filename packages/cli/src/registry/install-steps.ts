@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { acceleratorAdd } from "./accelerator-add";
 import { acceleratorLoad } from "./accelerator-load";
 import { appsInstall } from "./apps-install";
+import { runUseCase } from "./execute";
 import { fluentKeys } from "./fluent-keys";
 import { integrate } from "./integrate";
 import { planPush } from "./plan-push";
@@ -35,8 +36,8 @@ const DOING: Readonly<Record<string, string>> = {
 // Use cases whose own progress only restates the line above.
 const RESTATED = new Set(["plan-push", "push"]);
 
-// Each use case shows as a sub-step of the install's step; its own progress goes one level
-// deeper.
+// Each use case runs through the same checks as any other call (ADR-0012 layer 3) and shows as
+// a sub-step of the install's step; its own progress goes one level deeper.
 export const callerFor =
   (context: UseCaseContext, run: RunControl): CallUseCase =>
   (useCase, input) => {
@@ -48,7 +49,7 @@ export const callerFor =
         if (!RESTATED.has(useCase.name)) run.progress({ ...event, depth: 3 });
       },
     };
-    return useCase.handle(useCase.input.parse(input), context, nested);
+    return runUseCase(useCase, input, context, nested);
   };
 
 // A collision with update sets this install named (an earlier run's, still open) is the

@@ -21,8 +21,8 @@ function isAbort(error: unknown, signal: AbortSignal): boolean {
   return signal.aborted || (error instanceof DOMException && error.name === "AbortError");
 }
 
-async function handle(
-  useCase: UseCase,
+async function handle<O extends z.ZodObject>(
+  useCase: UseCase<z.ZodObject, O>,
   input: Record<string, unknown>,
   context: UseCaseContext,
   run: RunControl,
@@ -37,10 +37,14 @@ async function handle(
   }
 }
 
+type Declared = Pick<UseCase, "name" | "group" | "flags">;
+
+const named = (useCase: Declared) => [useCase.group, useCase.name].filter(Boolean).join(" ");
+
 // ADR-0012 layer 3: a use case that changes an instance runs only against a development one,
 // checked here, once, before any handler can reach the instance.
 async function ensureWritableTarget(
-  useCase: UseCase,
+  useCase: Declared,
   input: Record<string, unknown>,
   context: UseCaseContext,
 ): Promise<void> {
@@ -56,7 +60,42 @@ async function ensureWritableTarget(
     InstanceName.parse(instance),
     context.profiles,
   );
-  ensureDevelopmentInstance(profile, [useCase.group, useCase.name].filter(Boolean).join(" "));
+  ensureDevelopmentInstance(profile, named(useCase));
+}
+
+// The handler of a use case not declared as changing an instance never gets a write
+// connection: the flag and the type are one gate.
+function gated(useCase: Declared, context: UseCaseContext): UseCaseContext {
+  if (useCase.flags.requiresDevelopmentInstance) {
+    return context;
+  }
+  const openForWrite = () => {
+    throw new Error(`${named(useCase)} is not declared as changing an instance`);
+  };
+  return { ...context, connections: { ...context.connections, openForWrite } };
+}
+
+// Validates the input, checks the target, runs the handler and validates its output: the one
+// path every call takes, nested ones included.
+export async function runUseCase<I extends z.ZodObject, O extends z.ZodObject>(
+  useCase: UseCase<I, O>,
+  rawInput: unknown,
+  context: UseCaseContext,
+  run: RunControl = UNCONTROLLED,
+): Promise<z.output<O>> {
+  const input = useCase.input.safeParse(rawInput);
+  if (!input.success) {
+    throw new InvalidInputError(z.prettifyError(input.error));
+  }
+  await ensureWritableTarget(useCase, input.data, context);
+  const result = await handle(useCase, input.data, gated(useCase, context), run);
+  const output = useCase.output.safeParse(result);
+  if (!output.success) {
+    throw new Error(
+      `${useCase.name} returned output that does not match its schema: ${z.prettifyError(output.error)}`,
+    );
+  }
+  return output.data;
 }
 
 export interface Execution {
@@ -71,18 +110,8 @@ export async function executeUseCase(
   context: UseCaseContext,
   run: RunControl = UNCONTROLLED,
 ): Promise<Execution> {
-  const input = useCase.input.safeParse(rawInput);
-  if (!input.success) {
-    throw new InvalidInputError(z.prettifyError(input.error));
-  }
-  await ensureWritableTarget(useCase, input.data, context);
-  const output = useCase.output.safeParse(await handle(useCase, input.data, context, run));
-  if (!output.success) {
-    throw new Error(
-      `${useCase.name} returned output that does not match its schema: ${z.prettifyError(output.error)}`,
-    );
-  }
-  return { output: output.data, exitCode: useCase.exitCode(output.data) };
+  const output = await runUseCase(useCase, rawInput, context, run);
+  return { output, exitCode: useCase.exitCode(output) };
 }
 
 export interface DescribedError {

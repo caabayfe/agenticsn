@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { z } from "zod";
+import { connectForWrite } from "../../src/registry/connect";
 import { executeUseCase } from "../../src/registry/execute";
+import { callerFor } from "../../src/registry/install-steps";
 import { pull } from "../../src/registry/pull";
 import { USE_CASES } from "../../src/registry/registry";
 import { updateSetsList } from "../../src/registry/update-sets-list";
-import { defineUseCase } from "../../src/registry/use-case";
+import { defineUseCase, type UseCase } from "../../src/registry/use-case";
 import { instanceWorkspace } from "../support/instance-workspace";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -96,3 +100,97 @@ describe("ADR-0012 layer 4: reading a test or production instance", () => {
     expect(instance.queries.map((query) => String(query.table))).toContain("sys_update_set");
   });
 });
+
+const reachesForWrite = defineUseCase({
+  group: "thing",
+  name: "reach",
+  description: "asks for a write connection",
+  input: z.object({ instance: z.string() }),
+  output: z.object({}),
+  flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
+  mcp: false,
+  async handle(input, context, run) {
+    await connectForWrite(context, input.instance, run.signal);
+    handled += 1;
+    return {};
+  },
+  render: () => "",
+  exitCode: () => 0,
+});
+
+describe("ADR-0012 layer 3: one write gate", () => {
+  it.each(["test", "production"] as const)(
+    "refuses a nested use case that changes a %s instance",
+    async (kind) => {
+      const { context } = await workspace(kind, ["snc_read_only"]);
+      handled = 0;
+      const run = { signal: new AbortController().signal, progress: () => {} };
+      await expect(callerFor(context, run)(change, { instance: "pdi" })).rejects.toMatchObject({
+        code: "development-instance-required",
+      });
+      expect(handled).toBe(0);
+    },
+  );
+
+  it("withholds the write connection from a use case not declared as changing an instance", async () => {
+    const { context } = await workspace("development");
+    handled = 0;
+    await expect(executeUseCase(reachesForWrite, { instance: "pdi" }, context)).rejects.toThrow(
+      "not declared as changing an instance",
+    );
+    expect(handled).toBe(0);
+  });
+
+  it("gives the write connection to a use case declared as changing a development instance", async () => {
+    const { context } = await workspace("development");
+    handled = 0;
+    const declared = { ...reachesForWrite, flags: { ...change.flags } };
+    await executeUseCase(declared, { instance: "pdi" }, context);
+    expect(handled).toBe(1);
+  });
+
+  it("never declares a read-only use case as changing an instance", () => {
+    const both = USE_CASES.filter((u) => u.flags.readOnly && u.flags.requiresDevelopmentInstance);
+    expect(both.map((u) => u.name)).toEqual([]);
+  });
+
+  it("never lets a read-only use case ask for a write connection", async () => {
+    // The gate above withholds write ports at run time; this catches a mislabelled use case
+    // before any run, along every registry module it reaches.
+    const reaching = await readOnlyReachingWrites(
+      USE_CASES.filter((useCase) => useCase.flags.readOnly),
+    );
+    expect(reaching).toEqual([]);
+  });
+});
+
+const REGISTRY = join(import.meta.dir, "../../src/registry");
+const ASKS_FOR_WRITE = /(?:\bconnectForWrite|\.openForWrite)\(/;
+
+// The registry modules a module reaches through its relative imports, itself included.
+async function reached(file: string, seen = new Set<string>()): Promise<Set<string>> {
+  if (seen.has(file)) return seen;
+  seen.add(file);
+  const text = await readFile(join(REGISTRY, file), "utf8");
+  for (const [, name] of text.matchAll(/from "\.\/([a-z0-9-]+)"/g)) {
+    await reached(`${name}.ts`, seen);
+  }
+  return seen;
+}
+
+// Each read-only use case, by the module that defines it, with the modules it reaches that
+// ask for a write connection.
+async function readOnlyReachingWrites(useCases: readonly UseCase[]): Promise<string[]> {
+  const found: string[] = [];
+  const files = (await readdir(REGISTRY)).filter((f) => f.endsWith(".ts") && f !== "connect.ts");
+  for (const file of files) {
+    const module: Record<string, unknown> = await import(join(REGISTRY, file));
+    if (!Object.values(module).some((value) => useCases.some((u) => u === value))) continue;
+    for (const dependency of await reached(file)) {
+      if (dependency === "connect.ts") continue;
+      const text = await readFile(join(REGISTRY, dependency), "utf8");
+      if (ASKS_FOR_WRITE.test(text)) found.push(`${file} reaches ${dependency}`);
+    }
+  }
+  return found;
+}

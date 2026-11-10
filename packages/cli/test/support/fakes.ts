@@ -8,7 +8,13 @@ import {
 } from "@snagentic/core";
 import { z } from "zod";
 import type { CliIo } from "../../src/cli/run-cli";
-import { defineUseCase, type UseCase, type UseCaseContext } from "../../src/registry/use-case";
+import {
+  type ConnectionFactory,
+  defineUseCase,
+  type UseCase,
+  type UseCaseContext,
+  type WriteConnection,
+} from "../../src/registry/use-case";
 
 export function fakeProbe(name: string, status: "ok" | "fail" | "unavailable"): EnvironmentProbe {
   return {
@@ -108,6 +114,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
   secrets: { read: async () => "" },
   connections: {
     open: () => {
+      throw new Error("tests that need an instance provide their own connections");
+    },
+    openForWrite: () => {
       throw new Error("tests that need an instance provide their own connections");
     },
   },
@@ -286,4 +295,9 @@ export function waitForCancelUseCase(
         started();
       }),
   });
+}
+
+// A connection factory that hands out one fake connection, for reads and writes alike.
+export function connectionsTo(connection: WriteConnection): ConnectionFactory {
+  return { open: () => connection, openForWrite: () => connection };
 }

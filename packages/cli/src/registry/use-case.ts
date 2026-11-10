@@ -5,6 +5,7 @@ import type {
   CredentialStore,
   DataTemplates,
   DeliveryWorkspace,
+  DevelopmentProfile,
   DocumentationSources,
   EnvironmentProbe,
   FluentInstaller,
@@ -65,24 +66,33 @@ export interface SecretReader {
   read(prompt: string): Promise<string>;
 }
 
-// Opens a connection to an instance; every connection has its own request scheduler.
+// What a connection reads, for every kind of instance.
+export type ReadConnection = InstanceReader &
+  TableStatistics &
+  ServerCostReader & {
+    // The embedded SDK's reads through this connection (ADR-0032); absent where it has none.
+    readonly sdkAccess?: (signal: AbortSignal) => SdkAccess;
+  };
+
+// What only a development instance's connection has (ADR-0012 layer 3).
+export interface WritePorts {
+  readonly plugins: PluginActivator;
+  readonly apps: StoreAppInstaller;
+  readonly writer: InstanceWriter;
+  // fluent/load and flow publishing (ADR-0031); absent from connections that cannot push.
+  readonly fluent?: FluentInstaller;
+  // Accelerator data loads (ADR-0026); absent from connections that cannot load.
+  readonly imports?: ImportSetWriter;
+}
+
+export type WriteConnection = ReadConnection & WritePorts;
+
+// Opens a connection to an instance; every connection has its own request scheduler. Write
+// ports come only from openForWrite, which takes a profile proved to be a development one, and
+// executeUseCase withholds it from use cases not declared as changing an instance.
 export interface ConnectionFactory {
-  open(
-    profile: InstanceProfile,
-    secret: string,
-  ): InstanceReader &
-    TableStatistics &
-    ServerCostReader & {
-      readonly plugins: PluginActivator;
-      readonly apps: StoreAppInstaller;
-      readonly writer: InstanceWriter;
-      // fluent/load and flow publishing (ADR-0031); absent from connections that cannot push.
-      readonly fluent?: FluentInstaller;
-      // Accelerator data loads (ADR-0026); absent from connections that cannot load.
-      readonly imports?: ImportSetWriter;
-      // The embedded SDK's reads through this connection (ADR-0032); absent where it has none.
-      readonly sdkAccess?: (signal: AbortSignal) => SdkAccess;
-    };
+  open(profile: InstanceProfile, secret: string): ReadConnection;
+  openForWrite(profile: DevelopmentProfile, secret: string): WriteConnection;
 }
 
 // The ports use cases need, wired by the composition root (main.ts).

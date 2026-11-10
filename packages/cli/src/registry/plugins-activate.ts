@@ -1,6 +1,6 @@
 import { activatePlugin, ConfirmationRequiredError } from "@snagentic/core";
 import { z } from "zod";
-import { connect } from "./connect";
+import { connectForWrite } from "./connect";
 import { defineUseCase } from "./use-case";
 
 export const pluginsActivate = defineUseCase({
@@ -30,7 +30,7 @@ export const pluginsActivate = defineUseCase({
     if (!input.confirm) {
       throw new ConfirmationRequiredError(`activating ${input.id}`);
     }
-    const { name, pager, reader } = await connect(context, input.instance, run.signal);
+    const { name, pager, reader } = await connectForWrite(context, input.instance, run.signal);
     const deps = { pager, activator: reader.plugins, sleep: context.sleep, now: context.clock };
     const outcome = await activatePlugin(deps, name, input.id, run.signal, (progress) =>
       run.progress({

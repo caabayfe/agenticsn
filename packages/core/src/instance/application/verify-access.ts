@@ -3,7 +3,7 @@ import { SnagenticError } from "../../kernel/errors";
 import { SESSION_USER } from "../../kernel/session-user";
 import { TableName } from "../../kernel/table-name";
 import { IdentityMismatchError, IdentityUnverifiedError } from "../domain/errors";
-import type { InstanceProfile } from "../domain/profile";
+import type { DevelopmentProfile, InstanceProfile } from "../domain/profile";
 
 export class ReadOnlyCredentialRequiredError extends SnagenticError {
   constructor(profile: InstanceProfile, reason: string) {
@@ -119,7 +119,10 @@ export async function verifyCredentialMatchesKind(
 }
 
 // ADR-0012 layer 3: operations that change an instance exist only for development instances.
-export function ensureDevelopmentInstance(profile: InstanceProfile, operation: string): void {
+export function ensureDevelopmentInstance(
+  profile: InstanceProfile,
+  operation: string,
+): asserts profile is DevelopmentProfile {
   if (profile.kind !== "development") {
     throw new DevelopmentInstanceRequiredError(profile, operation);
   }

@@ -1,7 +1,7 @@
 import { DataDomainError, InstanceError, loadData, resolveDataDomain } from "@snagentic/core";
 import { z } from "zod";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
-import { connect } from "./connect";
+import { connectForWrite } from "./connect";
 import { defineUseCase } from "./use-case";
 
 const Counts = z.object({
@@ -55,7 +55,7 @@ export const acceleratorLoad = defineUseCase({
   mcp: false,
   arguments: ["pack", "instance"],
   async handle(input, context, run) {
-    const { root, name, reader } = await connect(context, input.instance, run.signal);
+    const { root, name, reader } = await connectForWrite(context, input.instance, run.signal);
     if (reader.imports === undefined) {
       throw new InstanceError("this connection cannot load data through import sets");
     }

@@ -37,6 +37,7 @@ export {
   credentialAccount,
   credentialVariable,
   credentialVariables,
+  type DevelopmentProfile,
   INSTANCE_KINDS,
   type InstanceKind,
   type InstanceProfile,

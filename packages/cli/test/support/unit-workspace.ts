@@ -124,7 +124,7 @@ export async function unitWorkspace(options: {
   const reader = { ...ws.instance.reader, fluent: installer(tables, loads) };
   const context = {
     ...ws.context,
-    connections: { open: () => reader },
+    connections: { open: () => reader, openForWrite: () => reader },
     authoring: () => ({ workspace: authoring, toolchain }),
   };
   return {

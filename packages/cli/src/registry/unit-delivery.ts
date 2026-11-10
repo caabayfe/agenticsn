@@ -5,7 +5,7 @@ import {
   type UnitPlanDependencies,
   VERSION,
 } from "@snagentic/core";
-import type { connect } from "./connect";
+import type { connect, connectForWrite } from "./connect";
 import type { UseCaseContext } from "./use-case";
 
 type Connection = Awaited<ReturnType<typeof connect>>;
@@ -35,7 +35,7 @@ export function unitPlanDependencies(
 }
 
 // The connection's fluent/load, without which nothing can be pushed.
-export function installerOf(connection: Connection) {
+export function installerOf(connection: Awaited<ReturnType<typeof connectForWrite>>) {
   const installer = connection.reader.fluent;
   if (installer === undefined) throw new SdkUnavailableError(connection.name);
   return installer;

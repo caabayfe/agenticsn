@@ -16,7 +16,7 @@ const PACKS = new DirectoryPackSource([
 async function loading(imports: boolean, domains: readonly Record<string, string>[] = []) {
   const { context } = await instanceWorkspace({ sys_user: [{ sys_id: "u1", user_name: "admin" }] });
   const posted: string[] = [];
-  const open = context.connections.open;
+  const open = context.connections.openForWrite;
   const data = mkdtempSync(join(tmpdir(), "pack-data-"));
   writeFileSync(join(data, "location.csv"), "name,city\nSydney HQ,Sydney\nMelbourne,Melbourne\n");
   return {
@@ -30,7 +30,8 @@ async function loading(imports: boolean, domains: readonly Record<string, string
       packs: PACKS,
       dataTemplates: new CsvDataTemplates(),
       connections: {
-        open: (...args: Parameters<typeof open>) => ({
+        ...context.connections,
+        openForWrite: (...args: Parameters<typeof open>) => ({
           ...open(...args),
           ...(imports
             ? {

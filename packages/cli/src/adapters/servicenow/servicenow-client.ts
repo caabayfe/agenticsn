@@ -2,31 +2,24 @@ import {
   AccessDeniedError,
   AuthenticationFailedError,
   type ConnectionStats,
-  type FluentInstaller,
-  type ImportSetWriter,
+  ensureDevelopmentInstance,
   InstanceError,
   InstanceHibernatingError,
   type InstanceProfile,
   type InstanceReader,
-  type InstanceWriter,
-  type PluginActivator,
   type Row,
   type SdkAccess,
   SdkRouteRefusedError,
   type ServerCost,
   type ServerCostReader,
-  type StoreAppInstaller,
   type TableFingerprint,
   TableName,
   type TableQuery,
   type TableStatistics,
 } from "@snagentic/core";
 import { authorize, type RequestSender } from "./authorization";
-import { CicdAppInstaller } from "./cicd-app-installer";
-import { CicdPluginActivator } from "./cicd-plugin-activator";
-import { type ApiBody, ApiFluentInstaller } from "./fluent-installer";
+import type { ApiBody } from "./fluent-installer";
 import type { HttpResponse } from "./http-types";
-import { ImportSetApiWriter } from "./import-set-writer";
 import {
   countOf,
   errorMessage,
@@ -37,26 +30,17 @@ import {
   StatsResult,
 } from "./responses";
 import { costOf, costParams } from "./server-cost";
-import { TableApiWriter } from "./table-api-writer";
 
 const MAX_PAGE_SIZE = 10_000;
 
 // The only place that builds Table API and Aggregate API requests, so ADR-0016's rules hold
 // everywhere: explicit fields, raw values, no reference links, no row counts on listings.
+// A read connection: the write ports live on ServiceNowWriteClient, opened only for a
+// development instance, and the requests that change an instance refuse any other kind.
 export class ServiceNowClient implements InstanceReader, TableStatistics, ServerCostReader {
   private readonly headers: Readonly<Record<string, string>>;
   // Unique per connection, so the transaction log can tell this run's requests apart.
   private readonly userAgent: string;
-  // Plugin activation through the CI/CD API, over this connection.
-  readonly plugins: PluginActivator = new CicdPluginActivator(this);
-  readonly apps: StoreAppInstaller = new CicdAppInstaller(this);
-  // Table API writes, for push to development instances.
-  readonly writer: InstanceWriter = new TableApiWriter(this);
-  // Fluent builds loaded and published through the ServiceNow IDE's endpoints (ADR-0028).
-  readonly fluent: FluentInstaller = new ApiFluentInstaller(this);
-  // Accelerator data loads through the Import Set API (ADR-0026).
-  readonly imports: ImportSetWriter = new ImportSetApiWriter(this);
-
   // Every request goes through the scheduler, signed for the profile's auth method.
   private readonly scheduler: RequestSender;
 
@@ -168,6 +152,9 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     what: string,
     signal: AbortSignal,
   ): Promise<unknown> {
+    // ADR-0012 layer 3 at the last step: whatever the caller, never sent to a test or
+    // production instance.
+    ensureDevelopmentInstance(this.profile, what);
     const url = new URL(path, this.profile.url);
     const headers = { ...this.headers, "Content-Type": "application/json" };
     const request = { method, url: url.href, headers, body: JSON.stringify(body) };
@@ -184,6 +171,7 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     signal: AbortSignal,
     post: ApiBody = {},
   ): Promise<unknown> {
+    if (method === "POST") ensureDevelopmentInstance(this.profile, what);
     const url = new URL(path, this.profile.url);
     const type = { "Content-Type": post.contentType ?? "application/json" };
     const headers = method === "POST" ? { ...this.headers, ...type } : this.headers;

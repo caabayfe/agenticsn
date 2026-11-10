@@ -10,7 +10,7 @@ import { LayeredCredentialStore } from "../../packages/cli/src/adapters/credenti
 import { YamlProfileStore } from "../../packages/cli/src/adapters/profiles/yaml-profile-store";
 import { fetchTransport } from "../../packages/cli/src/adapters/servicenow/fetch-transport";
 import { RequestScheduler } from "../../packages/cli/src/adapters/servicenow/request-scheduler";
-import { ServiceNowClient } from "../../packages/cli/src/adapters/servicenow/servicenow-client";
+import { ServiceNowWriteClient } from "../../packages/cli/src/adapters/servicenow/servicenow-write-client";
 import {
   ensureDevelopmentInstance,
   getInstance,
@@ -23,7 +23,7 @@ const WORKSPACE = resolve(process.env["SNAGENTIC_LIVE_WORKSPACE"] ?? ".");
 const UNKNOWN = "00000000000000000000000000000000";
 const signal = new AbortController().signal;
 
-async function connect(): Promise<ServiceNowClient> {
+async function connect(): Promise<ServiceNowWriteClient> {
   const profile = await getInstance(
     WORKSPACE,
     InstanceName.parse(INSTANCE ?? ""),
@@ -35,7 +35,7 @@ async function connect(): Promise<ServiceNowClient> {
     new KeychainCredentialStore(),
   );
   const secret = await resolveSecret(profile, credentials);
-  return new ServiceNowClient(
+  return new ServiceNowWriteClient(
     profile,
     secret,
     new RequestScheduler(fetchTransport()),

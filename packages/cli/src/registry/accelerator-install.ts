@@ -19,7 +19,7 @@ import { installProgress } from "./accelerator-install-progress";
 import { renderPlan, renderRun } from "./accelerator-install-render";
 import { InstallViewOutput, installView } from "./accelerator-install-view";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
-import { connect } from "./connect";
+import { connectForWrite } from "./connect";
 import { callerFor, installSteps } from "./install-steps";
 import { knowledgeSession } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
@@ -34,7 +34,7 @@ const Step = z.object({
 });
 
 // The install steps that read or write the instance directly, through the open connection.
-function connectedSteps(connection: Awaited<ReturnType<typeof connect>>) {
+function connectedSteps(connection: Awaited<ReturnType<typeof connectForWrite>>) {
   const { reader, profile } = connection;
   return {
     completeUpdateSets: (sets: readonly { readonly sysId: string }[], signal: AbortSignal) =>
@@ -98,7 +98,7 @@ export const acceleratorInstall = defineUseCase({
   arguments: ["pack", "instance"],
   async handle(input, context, run) {
     // Update sets are read live (ADR-0018): the plan lists the pack's earlier ones in progress.
-    const connection = await connect(context, input.instance, run.signal);
+    const connection = await connectForWrite(context, input.instance, run.signal);
     const { root, profile, reader, pager } = connection;
     const name = InstanceName.parse(input.instance);
     const result = await installPack(

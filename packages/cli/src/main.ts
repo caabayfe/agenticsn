@@ -52,6 +52,7 @@ import { fetchTransport } from "./adapters/servicenow/fetch-transport";
 import { SYSTEM_CLOCK } from "./adapters/servicenow/http-types";
 import { RequestScheduler } from "./adapters/servicenow/request-scheduler";
 import { ServiceNowClient } from "./adapters/servicenow/servicenow-client";
+import { ServiceNowWriteClient } from "./adapters/servicenow/servicenow-write-client";
 import { JsonInstallJournal } from "./adapters/state/json-install-journal";
 import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
 import { JsonSyncStateStore } from "./adapters/state/json-sync-state-store";
@@ -107,6 +108,13 @@ const context: UseCaseContext = {
   connections: {
     open: (profile, secret) =>
       new ServiceNowClient(profile, secret, new RequestScheduler(fetchTransport()), versionLine()),
+    openForWrite: (profile, secret) =>
+      new ServiceNowWriteClient(
+        profile,
+        secret,
+        new RequestScheduler(fetchTransport()),
+        versionLine(),
+      ),
   },
   syncState: (root, instance) =>
     new JsonSyncStateStore(join(root, instancePaths(instance).localState)),

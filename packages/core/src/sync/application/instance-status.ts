@@ -10,16 +10,6 @@ export interface StatusDependencies {
   readonly shared?: SharedMirrorStatus;
 }
 
-function sharedFacts(shared: SharedMirrorStatus | undefined, localMinutes: number | null) {
-  if (shared === undefined) return undefined;
-  const ages = [localMinutes, shared.ageMinutes].filter((age): age is number => age !== null);
-  return {
-    ahead: shared.ahead,
-    newestMinutes: ages.length === 0 ? null : Math.min(...ages),
-    maxAgeMinutes: shared.maxAgeMinutes,
-  };
-}
-
 export interface InstanceStatus {
   readonly instance: string;
   readonly phase: SyncPhase;
@@ -65,6 +55,6 @@ export async function instanceStatus(
     unintegratedPulls: view.unintegratedPulls,
     localChanges: view.localChanges,
     sharedMirror: deps.shared ?? null,
-    next: nextCommand(phase, instance, sharedFacts(deps.shared, minutesSinceLastPull)),
+    next: nextCommand(phase, instance, deps.shared),
   };
 }

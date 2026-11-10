@@ -74,6 +74,7 @@ describe("instanceStatus", () => {
       ageMinutes: 5,
       maxAgeMinutes: 15,
       ahead: true,
+      current: true,
     };
     const never = await instanceStatus("/w", "pdi", { ...deps(null, null), shared });
     expect(never).toMatchObject({ phase: "never-pulled", next: "snagentic integrate pdi" });
@@ -83,7 +84,7 @@ describe("instanceStatus", () => {
       shared: current,
     });
     expect(integrated.next).toBe("nothing: the mirror is current");
-    const old = { ...current, ageMinutes: 60 };
+    const old = { ...current, ageMinutes: 60, current: false };
     expect((await instanceStatus("/w", "pdi", { ...deps(PULLED, null), shared: old })).next).toBe(
       "snagentic pull pdi",
     );

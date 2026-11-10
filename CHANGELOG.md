@@ -122,13 +122,6 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
-- `describe`, `find` and `advise` refresh the knowledge index with one `git status` over the
-  workspace, which git serves from its untracked cache, instead of a diff plus an untracked-file
-  listing over the mirror folder. A no-change refresh of a 240,000-file mirror went from 1.00 s
-  to 0.44 s (spec 014, PERF2-03).
-- The knowledge index is closed after every `describe`, `find`, `advise` and accelerator install,
-  also when the call fails. A long-running MCP server no longer keeps a SQLite handle per call,
-  and on Windows the workspace's folders can be removed afterwards (spec 014, follow-up 24).
 
 
 - A push whose ledger commit fails after the push reached the instance (a commit-msg hook that
@@ -170,6 +163,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Security
 
+- With a shared mirror, the fetch is never forced. A shared tip that no longer contains the
+  commit this clone last fetched (a rewritten history) is refused, naming both commits and how to
+  recover. A clone that never fetched the shared mirror takes it only by fast-forward (ADR-0052
+  amendment A1).
 - Pull, adopt and update set export treat an outbound REST or SOAP header or parameter whose name
   marks a credential (`Authorization`, an API key, a token, a password) as a secret field: pull
   leaves its value out of the mirror and names it as redacted, and export withholds the update.

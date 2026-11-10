@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { SharedMirrorRewrittenError } from "@snagentic/core";
 import { gitSharedMirror } from "../../../src/adapters/git/git-shared-mirror";
 import { runGitOrThrow } from "../../../src/adapters/git/run-git";
 
@@ -99,6 +100,41 @@ describe("gitSharedMirror", () => {
     expect(error).toMatchObject({ code: "mirror-outside-scope", paths: [".claude/settings.json"] });
     expect(await gitSharedMirror.localTip(root, "pdi")).toBe(clean);
   });
+
+  it("refuses a shared mirror whose history was rewritten, naming both commits (SEC2-06)", async () => {
+    const { root } = await repositories();
+    const trees = plumbing(root);
+    const empty = await trees.tree("");
+    const first = await trees.commit(empty);
+    const push = (commit: string) =>
+      runGitOrThrow(
+        ["push", "-q", "-f", "origin", `${commit}:refs/heads/servicenow-remote/pdi`],
+        root,
+      );
+    await push(first);
+    expect(await gitSharedMirror.lastFetched(root, "pdi", "origin")).toBeNull();
+    expect(await gitSharedMirror.fetch(root, "pdi", "origin")).toMatchObject({ commit: first });
+    expect(await gitSharedMirror.lastFetched(root, "pdi", "origin")).toBe(first);
+    const next = await trees.commit(empty, first);
+    await push(next);
+    expect(await gitSharedMirror.fetch(root, "pdi", "origin")).toMatchObject({ commit: next });
+    const rewritten = await trees.commit(empty, null, "rewritten");
+    await push(rewritten);
+    const error = await gitSharedMirror.fetch(root, "pdi", "origin").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(SharedMirrorRewrittenError);
+    const message = error instanceof Error ? error.message : "";
+    expect(message).toContain(next.slice(0, 10));
+    expect(message).toContain(rewritten.slice(0, 10));
+    expect(await gitSharedMirror.lastFetched(root, "pdi", "origin")).toBe(next);
+  });
+
+  it("remembers what it published as the shared commit it knows", async () => {
+    const { root } = await repositories();
+    const trees = plumbing(root);
+    const commit = await trees.commit(await trees.tree(""));
+    expect(await gitSharedMirror.publish(root, "pdi", "origin", commit)).toBe("published");
+    expect(await gitSharedMirror.lastFetched(root, "pdi", "origin")).toBe(commit);
+  });
 });
 
 // Trees and commits built object by object, as a push to the mirror branch could hold them.
@@ -112,10 +148,20 @@ function plumbing(root: string) {
   return {
     blob: (text: string) => piped(["hash-object", "-w", "--stdin"], text),
     tree: (entries: string) => piped(["mktree"], entries),
-    commit: async (tree: string) =>
+    commit: async (tree: string, parent: string | null = null, message = "pull") =>
       (
         await runGitOrThrow(
-          ["-c", "user.name=t", "-c", "user.email=t@t", "commit-tree", tree, "-m", "pull"],
+          [
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit-tree",
+            tree,
+            ...(parent === null ? [] : ["-p", parent]),
+            "-m",
+            message,
+          ],
           root,
         )
       ).trim(),

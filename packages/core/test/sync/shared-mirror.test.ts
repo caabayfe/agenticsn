@@ -6,9 +6,11 @@ import {
   type PullCheckpoint,
   removesByAbsence,
   type SharedMirror,
+  SharedMirrorUnreachableError,
   type SharedTip,
   type SyncState,
   type SyncStateStore,
+  sharedMirrorStatus,
 } from "@snagentic/core";
 
 const NOW = new Date("2026-11-10T12:00:00Z");
@@ -25,11 +27,14 @@ function world(options: {
   shared: SharedTip | null;
   history?: Record<string, readonly string[]>;
   checkpoint?: PullCheckpoint;
+  // The shared commit this clone fetched before; null: it never fetched.
+  known?: string | null;
 }) {
   let tip = options.local?.commit ?? null;
   let checkpoint = options.checkpoint ?? null;
   const shared: SharedMirror = {
     fetch: async () => options.shared,
+    lastFetched: async () => options.known ?? null,
     localTip: async () => tip,
     contains: async (_root, descendant, ancestor) =>
       descendant === ancestor || (options.history?.[descendant] ?? []).includes(ancestor),
@@ -85,6 +90,7 @@ describe("continueFromNewest (ADR-0052 item 2)", () => {
     const w = world({
       local: { commit: "l1", state: at("2026-11-10 11:00:00") },
       shared: { commit: "s1", state: at("2026-11-10 10:00:00") },
+      known: "s0",
     });
     expect(await continueFromNewest(w.deps, "/w", "pdi", SETTING, true)).toMatchObject({
       from: "shared",
@@ -141,5 +147,110 @@ describe("shared mirror rules", () => {
     expect(removesByAbsence("svc_ci", "svc_ci")).toBe(true);
     expect(removesByAbsence(undefined, "dev")).toBe(true);
     expect(removesByAbsence("svc_ci", "dev")).toBe(false);
+  });
+});
+
+describe("taking the shared tip without a rewritten history (SEC2-06)", () => {
+  const behind = { commit: "l1", state: at("2026-11-10 10:00:00", "dev") };
+  const newer = { commit: "s2", state: at("2026-11-10 11:50:00") };
+
+  it("refuses to drop local commits before this clone ever fetched the shared mirror", async () => {
+    const w = world({ local: behind, shared: newer });
+    await expect(continueFromNewest(w.deps, "/w", "pdi", SETTING)).rejects.toMatchObject({
+      code: "shared-mirror-diverged",
+      message: expect.stringContaining("l1"),
+    });
+    expect(w.tip()).toBe("l1");
+  });
+
+  it("fast-forwards a clone that never fetched, when the shared tip builds on its branch", async () => {
+    const w = world({ local: behind, shared: newer, history: { s2: ["l1"] } });
+    expect(await continueFromNewest(w.deps, "/w", "pdi", SETTING)).toMatchObject({
+      from: "shared",
+    });
+    expect(w.tip()).toBe("s2");
+  });
+
+  it("drops this clone's own unpublished pulls once it has fetched the shared mirror", async () => {
+    const w = world({ local: behind, shared: newer, known: "s1" });
+    expect(await continueFromNewest(w.deps, "/w", "pdi", SETTING)).toMatchObject({
+      from: "shared",
+    });
+    expect(w.tip()).toBe("s2");
+  });
+});
+
+describe("sharedMirrorStatus (ADR-0052 item 6)", () => {
+  it("is ahead when the shared mirror holds pulls the local branch lacks, and current while young", async () => {
+    const w = world({
+      local: { commit: "l1", state: at("2026-11-10 10:00:00", "dev") },
+      shared: { commit: "s2", state: at("2026-11-10 11:50:00") },
+    });
+    expect(await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING)).toEqual({
+      remote: "origin",
+      maxAgeMinutes: 15,
+      reachable: true,
+      commit: "s2",
+      ageMinutes: 10,
+      ahead: true,
+      current: true,
+    });
+    expect(w.tip()).toBe("l1");
+  });
+
+  it("is not ahead when the local branch already contains the shared tip", async () => {
+    const w = world({
+      local: { commit: "l2", state: at("2026-11-10 11:00:00", "dev") },
+      shared: { commit: "s1", state: at("2026-11-10 10:00:00") },
+      history: { l2: ["s1"] },
+    });
+    expect(await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING)).toMatchObject({
+      ahead: false,
+      current: false,
+    });
+  });
+
+  it("is not ahead of a local branch at the shared tip itself", async () => {
+    const state = at("2026-11-10 11:55:00");
+    const w = world({ local: { commit: "s1", state }, shared: { commit: "s1", state } });
+    expect(await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING)).toMatchObject({
+      ahead: false,
+      current: true,
+    });
+  });
+
+  it("calls a watermark ahead of the clock not current, as pull does (QUAL2-04)", async () => {
+    const future = { commit: "s1", state: at("2026-11-10 13:00:00") };
+    const w = world({ local: null, shared: future });
+    const status = await sharedMirrorStatus(w.deps, "/w", "pdi", SETTING);
+    expect(status).toMatchObject({ ageMinutes: 0, current: false });
+    const start = await continueFromNewest(
+      world({ local: null, shared: future }).deps,
+      "/w",
+      "pdi",
+      SETTING,
+    );
+    expect(start.current).toBe(status.current);
+  });
+
+  it("reports an unreachable remote without failing", async () => {
+    const w = world({
+      local: { commit: "l1", state: at("2026-11-10 11:55:00", "dev") },
+      shared: null,
+    });
+    const deps = {
+      ...w.deps,
+      shared: {
+        ...w.deps.shared,
+        fetch: async () => {
+          throw new SharedMirrorUnreachableError("origin", "no network");
+        },
+      },
+    };
+    expect(await sharedMirrorStatus(deps, "/w", "pdi", SETTING)).toMatchObject({
+      reachable: false,
+      ahead: false,
+      current: true,
+    });
   });
 });

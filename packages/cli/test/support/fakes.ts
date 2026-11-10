@@ -157,6 +157,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
     fetch: async () => {
       throw new Error("tests with a shared mirror provide their own");
     },
+    lastFetched: async () => null,
     localTip: async () => null,
     contains: async () => false,
     moveTo: async () => {},

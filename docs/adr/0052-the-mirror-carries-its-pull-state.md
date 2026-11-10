@@ -1,6 +1,6 @@
 # 0052. The mirror carries its pull state, so any clone continues a pull from git
 
-- Status: Accepted (2026-11-10)
+- Status: Accepted (2026-11-10); amendments A1 and A2 accepted (2026-11-10)
 - Date: 2026-11-10
 - Requirements: ASR-06, ASR-07, ASR-08, ASR-16
 - Amends: 0004 (team mode: how developers get and refresh the mirror), 0014 (what `.snagentic/`
@@ -142,3 +142,74 @@ user can't read.
   developer.
 - **A central mirror service.** ADR-0004 rejected it for v1: it reimplements what git already
   does.
+
+## Amendments
+
+### A1. A shared mirror's history is only ever extended (Accepted, 2026-11-10; built)
+
+Evidence: spec 014 re-audit, SEC2-06. The shared fetch used a forced refspec, and item 2 moved
+the local branch to a later shared tip without checking how the two histories relate. A force
+push to an unprotected `servicenow-remote/*` silently replaced every clone's mirror.
+
+Item 2 and item 5 gain one precondition:
+
+- The fetch is never forced. Each clone remembers the shared commit it last fetched or
+  published (`refs/snagentic/shared/<remote>/servicenow-remote/<name>`; only snagentic writes
+  it, so a plain `git fetch` can't move it). A shared tip that doesn't contain that commit is
+  refused (`shared-mirror-rewritten`), naming both commits and the recovery.
+- Moving the local branch to the shared tip still drops the local pull commits the shared tip
+  lacks, as item 2 says: since the fetch only extends known history, those commits are this
+  clone's own unpublished pulls. The publisher's retry in item 5 is such a move. Before a clone
+  has fetched the shared mirror at all, nothing shows that, so it moves only by fast-forward;
+  otherwise it stops (`shared-mirror-diverged`) and names both commits.
+
+A team that deliberately replaces the shared mirror says so to every clone, which then deletes
+that ref once. Branch protection (the team-mode guide) remains the control that prevents it.
+
+### A2. Developer pulls outside maxAge (Accepted, 2026-11-10; not built yet)
+
+Evidence: spec 014 re-audit, PERF2-02. The CI template pulls every 15 minutes, and the default
+`max_age_minutes` is 15. The watermark is the pull's start time, so a mirror is already "pull
+duration + queue + cron delay" old when it is published. GitHub delays scheduled runs by minutes
+routinely, so the mirror is older than maxAge for part of every cycle. A developer `pull` then
+goes to the instance, as item 3 allows. Its own watermark is then the later one, so that clone
+keeps pulling on its own every 15 minutes. If the scheduled job fails, every developer becomes
+a puller. Each process has its own request scheduler, so ADR-0053's limits cap one process,
+not the team: with N developers whose agents follow `status`, the steady state is up to N
+no-change pulls per interval, not one.
+
+The options considered:
+
+1. **Require `--now` for a non-publisher to pull from the instance.** In team mode, a pull by a
+   user other than the one the shared state names, outside maxAge, fetches and takes the shared
+   mirror and asks the instance nothing. It reports how old the mirror is, says the scheduled
+   pull looks late, and suggests `integrate`. `--now` pulls anyway, as today.
+   - For: the instance load is one puller per instance whatever the team size. A publisher
+     outage shows up as a stale mirror that `status` and `doctor` can report loudly, instead
+     of multiplying the load without anyone noticing.
+   - Against: developers see data as old as the last successful scheduled pull, until someone
+     passes `--now`. A shared mirror that no one publishes (no CI yet, a branch that names no
+     user) must keep today's behaviour, or a team can't start. Agents need a `next` that says
+     "the mirror is late" rather than "pull".
+   - CI interaction: the scheduled job is the publisher, so it is unaffected. Its schedule then
+     only sets how fresh the mirror is, not how much load the team makes. `status` should call
+     a mirror stale after about two schedule intervals, because one late cron run is normal.
+2. **A larger default maxAge** (at least twice the schedule: 30 to 45 minutes with a
+   15-minute cron).
+   - For: only a default changes. No new rule or flag, and cron delay and pull duration no
+     longer push a fresh mirror past maxAge.
+   - Against: it doesn't limit the load when the publisher is down: after maxAge every
+     developer pulls again, and each then keeps pulling on its own watermark. "Current" means
+     older data by default.
+   - CI interaction: maxAge must stay above the schedule interval, plus the pull's duration,
+     plus the cron delay. A team that schedules hourly must raise `max_age_minutes` to match,
+     and the template and guide must say so. `doctor` could check the pairing.
+3. **Both.** Option 2's default keeps a normal cycle current. Option 1 keeps the load at one
+   puller when the publisher is late or down.
+
+**Decision: option 3, both.** Accepted by the product owner on 2026-11-10. In team mode, a
+non-publisher's pull outside maxAge reaches the instance only with `--now`, and the default
+`max_age_minutes` rises to at least twice the scheduled interval. It is accepted but not built:
+a follow-up step builds it. Until then, today's behaviour stands. That step also settles the
+"stale" threshold, what `status`'s `next` says when the mirror is stale, and the CI template
+comment that ties its cron to `max_age_minutes` (packaging/ci).

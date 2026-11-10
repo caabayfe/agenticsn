@@ -119,6 +119,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - `pull` reads its server cost from the transaction log only with `--cost`, and only on
   development instances. The output's `serverCost` is null otherwise; the new
   `serverCostRequested` field tells the two apart.
+- Contributors: `bun run arch` enforces that a core context imports another only through its
+  `index.ts`. The reach-ins that predate the rule are recorded as known violations, and a test
+  keeps that list from growing. `bun run lint` fails on Biome warnings, and `biome.json` follows
+  the installed Biome (spec 014, 1b-j).
 
 ### Fixed
 

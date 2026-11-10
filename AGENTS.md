@@ -54,7 +54,7 @@ bun install                # install dependencies
 bun test                   # all tests (no network, no live instance)
 bun test <path>            # one file or folder
 bun run typecheck          # tsc --noEmit, strict
-bun run lint               # biome check
+bun run lint               # biome check; warnings fail
 bun run format             # biome format --write
 bun run arch               # dependency-cruiser boundary rules
 bun run size               # no product file over 300 lines
@@ -99,7 +99,10 @@ tests/fixtures/        hash vectors, sample artifacts, recorded HTTP
   `registry/`, and the CLI, MCP tools and hooks are generated from it. Never hand-write
   an MCP tool or CLI command.
 - Contexts use `kernel` and `metadata` directly. Otherwise they talk through application
-  services, never each other's internals.
+  services, never each other's internals: a context imports another only through its
+  `index.ts`. Reach-ins that predate the rule are listed in
+  `.dependency-cruiser-known-violations.json`; that list may only shrink (a test enforces
+  it). Remove an entry when you fix it; never add one.
 
 ## How to work (TDD, always)
 
@@ -149,10 +152,19 @@ Choosing the test:
   `packages/cli/src/registry/`, calling one application service. Set `readOnly`,
   `destructive` and `requiresDevelopmentInstance` correctly. Mark `mcp: true` only if it
   earns a place in the **13-tool MCP budget** (ADR-0002, ADR-0026).
-- **A rule:** a folder in `packages/rules-basic/` with:
-  - metadata: ID, category, severity, description, remediation;
-  - the implementation (ESLint rule API for scripts, YAML or TypeScript for metadata);
-  - spec tests with at least one triggering and one passing sample.
+- **A rule:** three parts.
+  - Metadata (ID, category, severity, title, why, remediation, which scripts or classes it
+    applies to): an entry in the catalog in `packages/core/src/advice/domain/` (`rules.ts`,
+    or the ACL, Fluent, documentation or accelerator list it imports). `validate` checks it
+    and `advise` cites it from there.
+  - The implementation. Script rules use the ESLint rule API in
+    `packages/rules-basic/src/rules/<category>.ts`. Rules on records (ACLs, roles, flows,
+    Fluent, documentation) are checks in `packages/core/src/governance/` (pure ones in
+    `domain/`); accelerator pack rules are in `packages/core/src/accelerators/`.
+  - Spec tests with at least one triggering and one passing sample: a row in the `CASES`
+    table of `packages/rules-basic/test/rules.test.ts` for a script rule (a test fails when
+    a catalog script rule has no implementation or no samples), or a test next to the
+    record check in `packages/core/test/`.
 
   Never reuse or renumber a rule ID.
 - **An artifact type:** register it in the `ArtifactType` registry (script fields,

@@ -155,6 +155,23 @@ describe("YamlProfileStore", () => {
     expect(await store.read(root, pdi.name)).toEqual(profile);
   });
 
+  it("keeps load limits and a shared mirror side by side", async () => {
+    const root = await workspace();
+    await mkdir(join(root, "instances/pdi"), { recursive: true });
+    await writeFile(
+      join(root, "instances/pdi/instance.yaml"),
+      "url: https://x.service-now.com\nkind: development\nauth:\n  method: basic\n  username: svc\nshared_mirror:\n  remote: origin\nload:\n  requests_per_second: 2\n",
+    );
+    const profile = await store.read(root, pdi.name);
+    expect(profile).toMatchObject({
+      load: { requestsPerSecond: 2 },
+      sharedMirror: { remote: "origin" },
+    });
+    if (profile === null) throw new Error("no profile");
+    await store.write(root, profile);
+    expect(await store.read(root, pdi.name)).toEqual(profile);
+  });
+
   it("refuses a load limit that is not a positive whole number", async () => {
     const root = await workspace();
     await mkdir(join(root, "instances/pdi"), { recursive: true });

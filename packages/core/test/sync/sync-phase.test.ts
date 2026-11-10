@@ -34,6 +34,33 @@ describe("nextCommand", () => {
   });
 });
 
+describe("nextCommand with a stale shared mirror (ADR-0052 A2)", () => {
+  const stale = {
+    ahead: false,
+    current: false,
+    stale: true,
+    publisher: "svc_ci",
+    ageMinutes: 75,
+    maxAgeMinutes: 30,
+  };
+
+  it("says the mirror is stale and how to get fresher data, instead of pull", () => {
+    expect(nextCommand("integrated", "pdi", stale)).toBe(
+      "nothing yet: the shared mirror is stale (75 min old, max 30); wait for svc_ci's next scheduled pull, or run snagentic pull pdi --now",
+    );
+  });
+
+  it("still integrates what the stale mirror holds first", () => {
+    expect(nextCommand("integrated", "pdi", { ...stale, ahead: true })).toBe(
+      "snagentic integrate pdi",
+    );
+  });
+
+  it("finishes an interrupted pull with --now, as only --now reaches the instance", () => {
+    expect(nextCommand("interrupted", "pdi", stale)).toBe("snagentic pull pdi --now");
+  });
+});
+
 describe("minutesSince", () => {
   const now = new Date("2026-10-06T10:00:30Z");
 

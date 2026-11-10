@@ -1,4 +1,4 @@
-import { isCurrent, isLater } from "../domain/pull-state";
+import { isCurrent, isLater, waitsFor } from "../domain/pull-state";
 import {
   PublishRefusedError,
   SharedMirrorDivergedError,
@@ -113,6 +113,12 @@ export async function continueFromNewest(
   };
 }
 
+// ADR-0052 A2: the publisher a pull by `user` waits for, instead of asking the instance; null when
+// it pulls.
+export function stalePublisher(start: SharedStart, user: string): string | null {
+  return waitsFor(start.shared?.state?.pulledBy, user, start.current);
+}
+
 // ADR-0052 item 5: only the user the shared state names publishes; a new branch names no one.
 export function checkPublisher(start: SharedStart, instance: string, user: string): void {
   const owner = start.shared?.state?.pulledBy;
@@ -133,6 +139,11 @@ export interface SharedMirrorStatus {
   readonly ahead: boolean;
   // A pull now would ask the instance nothing: the same rule pull applies (SharedStart.current).
   readonly current: boolean;
+  // The instance user the shared mirror's state names: the one who publishes it.
+  readonly publisher: string | null;
+  // ADR-0052 A2: not current, and published by another user than this clone's, so a pull here
+  // takes it as it is unless --now asks (the same rule pull applies: stalePublisher).
+  readonly stale: boolean;
 }
 
 // ADR-0052 item 6: how the team's mirror relates to this clone, from git alone.
@@ -141,6 +152,7 @@ export async function sharedMirrorStatus(
   root: string,
   instance: string,
   setting: SharedPullSetting,
+  user: string,
 ): Promise<SharedMirrorStatus> {
   const unknown = { remote: setting.remote, maxAgeMinutes: setting.maxAgeMinutes };
   let shared: SharedTip | null;
@@ -156,6 +168,8 @@ export async function sharedMirrorStatus(
         ageMinutes: null,
         ahead: false,
         current: currentAt(local, deps.now(), setting),
+        publisher: null,
+        stale: false,
       };
     }
     throw error;
@@ -167,12 +181,16 @@ export async function sharedMirrorStatus(
     newer &&
     shared !== null &&
     (tip === null || !(await deps.shared.contains(root, tip, shared.commit)));
+  const current = currentAt(newer ? (shared?.state ?? null) : local, deps.now(), setting);
+  const publisher = shared?.state?.pulledBy;
   return {
     ...unknown,
     reachable: true,
     commit: shared?.commit ?? null,
     ageMinutes: shared?.state ? minutesSince(shared.state.watermark, deps.now()) : null,
     ahead,
-    current: currentAt(newer ? (shared?.state ?? null) : local, deps.now(), setting),
+    current,
+    publisher: publisher ?? null,
+    stale: waitsFor(publisher, user, current) !== null,
   };
 }

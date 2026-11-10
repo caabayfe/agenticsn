@@ -10,7 +10,9 @@ import { SharedPullOutput } from "./pull-shared-output";
 export const PullOutput = z.object({
   instance: z.string(),
   // current: the shared mirror was younger than maxAge, and the instance was not asked.
-  mode: z.enum(["full", "incremental", "current"]),
+  // stale: it was older, and another user publishes it; the instance was not asked either:
+  // wait for the publisher's next pull, or pull --now (ADR-0052 A2).
+  mode: z.enum(["full", "incremental", "current", "stale"]),
   resumed: z.boolean(),
   // The tip of servicenow-remote/<name>; unchanged when an incremental pull found nothing.
   commit: z.string(),

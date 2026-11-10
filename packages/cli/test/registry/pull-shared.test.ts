@@ -70,13 +70,22 @@ describe("pull with a shared mirror (ADR-0052)", () => {
     expect(current.output).toMatchObject({
       mode: "current",
       requests: 0,
-      shared: { from: "shared", ageMinutes: 5, maxAgeMinutes: 15, published: false },
+      shared: { from: "shared", ageMinutes: 5, maxAgeMinutes: 30, published: false },
     });
     expect(t.instance.queries.length).toBe(before);
     expect(await tipOf(dev.root)).toBe(String(published.output["commit"]));
     expect(pull.render(current.output as never, "text")).toContain("the mirror is current");
+    // Older than the max age, and published by svc_ci: the developer waits for it (A2).
     const later = await executeUseCase(pull, { instance: "pdi" }, dev.at("2026-10-05T12:30:00Z"));
-    expect(later.output).toMatchObject({ mode: "incremental", changed: false });
+    expect(later.output).toMatchObject({
+      mode: "stale",
+      requests: 0,
+      shared: { ageMinutes: 30, publisher: "svc_ci" },
+    });
+    expect(t.instance.queries.length).toBe(before);
+    expect(pull.render(later.output as never, "text")).toContain(
+      "pdi: the shared mirror is stale (pulled 30 min ago, max 30); nothing was asked of the instance",
+    );
     const now = await executeUseCase(
       pull,
       { instance: "pdi", now: true },
@@ -180,7 +189,8 @@ describe("pull with a shared mirror (ADR-0052)", () => {
     Object.assign(rule ?? {}, { script: "changed();", sys_updated_on: "2026-10-05 12:20:00" });
     // The second publisher's push races the first: the first publishes between its fetch and push.
     let raced = false;
-    const racing = second.at("2026-10-05T12:55:00Z");
+    // Older than the 30-minute max age after the race too, so the retry pulls again.
+    const racing = second.at("2026-10-05T13:20:00Z");
     const context = {
       ...racing,
       sharedMirror: {

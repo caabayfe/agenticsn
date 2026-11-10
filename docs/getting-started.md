@@ -187,7 +187,8 @@ Then they run:
 snagentic status          # the shared mirror's age, and whether it holds pulls you lack
 snagentic integrate dev   # fetches the shared mirror, then merges it
 snagentic pull dev        # continues from the shared mirror; nothing is asked of the
-                          # instance while it is current (--now pulls anyway)
+                          # instance while it is current, nor while it is stale and
+                          # the puller's run is late (--now pulls anyway)
 ```
 
 `pull`, `integrate` and `status` call the git remote with your own git credentials. Instance

@@ -97,10 +97,10 @@ describe("YamlProfileStore", () => {
     });
     await store.write(root, team);
     const text = await readFile(join(root, "instances/pdi/instance.yaml"), "utf8");
-    expect(text).toContain("shared_mirror:\n  max_age_minutes: 15\n  remote: origin\n");
+    expect(text).toContain("shared_mirror:\n  max_age_minutes: 30\n  remote: origin\n");
     expect(await store.read(root, team.name)).toEqual({
       ...pdi,
-      sharedMirror: { remote: "origin", maxAgeMinutes: 15 },
+      sharedMirror: { remote: "origin", maxAgeMinutes: 30 },
     });
   });
 

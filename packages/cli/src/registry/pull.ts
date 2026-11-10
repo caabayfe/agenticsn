@@ -25,7 +25,9 @@ const PullInput = z.object({
   now: z
     .boolean()
     .default(false)
-    .describe("pull from the instance even when the shared mirror is younger than its max age"),
+    .describe(
+      "pull from the instance even when the shared mirror is younger than its max age, or stale and published by another user",
+    ),
   publish: z
     .boolean()
     .default(false)
@@ -48,20 +50,23 @@ function sharedView(facts: SharedPullFacts, now: Date): SharedPullOutput {
     sharedCommit: start.shared?.commit ?? null,
     ageMinutes: start.watermark === null ? null : minutesSince(start.watermark, now),
     maxAgeMinutes: setting.maxAgeMinutes,
+    publisher: start.shared?.state?.pulledBy ?? null,
     published,
   };
 }
 
-// The mirror is younger than maxAge: the pull asked the instance nothing (ADR-0052 item 3).
-function currentOutput(
+// The pull asked the instance nothing: the mirror is younger than maxAge (ADR-0052 item 3), or
+// older and another user publishes it (A2).
+function skippedOutput(
   name: string,
+  mode: "current" | "stale",
   commit: string,
   shared: SharedPullFacts,
   now: Date,
 ): PullOutput {
   return {
     instance: name,
-    mode: "current",
+    mode,
     resumed: false,
     commit,
     changed: false,
@@ -84,7 +89,9 @@ function currentOutput(
 }
 
 function toOutput(name: string, outcome: PullOutcome, now: Date): PullOutput {
-  if (outcome.mode === "current") return currentOutput(name, outcome.commit, outcome.shared, now);
+  if (outcome.mode === "current" || outcome.mode === "stale") {
+    return skippedOutput(name, outcome.mode, outcome.commit, outcome.shared, now);
+  }
   const output =
     outcome.mode === "full"
       ? fullOutput(outcome.facts, outcome.summary)
@@ -122,8 +129,9 @@ export const pull = defineUseCase({
     "Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The " +
     "first pull is complete and resumable; later pulls fetch only what changed. With a shared " +
     "mirror, a pull continues from the newest of it and this clone's branch, and asks the " +
-    "instance nothing while that mirror is younger than its max age. Then run integrate to " +
-    "bring it into the working branch.",
+    "instance nothing while that mirror is younger than its max age, or, unless --now, while " +
+    "it is older and another user publishes it (mode stale). Then run integrate to bring it " +
+    "into the working branch.",
   input: PullInput,
   output: PullOutput,
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },

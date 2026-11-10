@@ -52,3 +52,16 @@ export function isCurrent(watermark: string, now: Date, maxAgeMinutes: number): 
   const age = now.getTime() - parseRawTimestamp(watermark);
   return !aheadOfClock(watermark, now.getTime()) && age < maxAgeMinutes * 60_000;
 }
+
+// ADR-0052 A2: in team mode, a mirror older than maxAge is its publisher's to refresh. A pull by
+// any other user takes it as it is unless --now asks, so a late or failed scheduled pull leaves
+// one stale mirror, not one puller per developer. A mirror that names no publisher (no scheduled
+// pull yet, or state from an earlier version) keeps the earlier rule, so a team can start.
+// Returns the publisher this user waits for, or null.
+export function waitsFor(
+  publisher: string | undefined,
+  user: string,
+  current: boolean,
+): string | null {
+  return !current && publisher !== undefined && publisher !== user ? publisher : null;
+}

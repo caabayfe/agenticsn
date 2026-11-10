@@ -28,7 +28,10 @@ export interface SharedMirrorSetting {
   readonly maxAgeMinutes: number;
 }
 
-export const DEFAULT_MAX_AGE_MINUTES = 15;
+// Twice the scheduled pull's 15 minutes in the CI template: a published mirror is already a few
+// minutes old (run time, queue, late cron starts), so one late run doesn't make it stale
+// (ADR-0052 A2).
+export const DEFAULT_MAX_AGE_MINUTES = 30;
 
 // Load limits an instance owner asks for: any subset, each a positive integer. They can only
 // lower the built-in limits (ADR-0053).

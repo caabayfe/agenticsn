@@ -88,13 +88,22 @@ group("a team on one shared mirror", () => {
     expect(catalog?.parents).toMatchObject({ incident: "task", sys_script: "sys_metadata" });
     expect(t.instance.queries.length).toBe(fullRequests);
 
-    // Once the mirror is old, the developer's own pull is only the change since.
+    // Once the mirror is older than its max age, the developer waits for the puller (ADR-0052
+    // A2): the pull takes the shared mirror and asks the instance nothing.
     Object.assign(t.instance.tables["sys_script"]?.[0] ?? {}, {
       script: "stamp(current, true);",
       sys_updated_on: "2026-10-05 12:10:00",
     });
     t.instance.queries.length = 0;
-    const own = await executeUseCase(pull, { instance: "pdi" }, dev.at("2026-10-05T12:30:00Z"));
+    const stale = await executeUseCase(pull, { instance: "pdi" }, dev.at("2026-10-05T12:30:00Z"));
+    expect(stale.output).toMatchObject({ mode: "stale", shared: { publisher: "svc_ci" } });
+    expect(t.instance.queries).toHaveLength(0);
+    // With --now, the developer's own pull is only the change since.
+    const own = await executeUseCase(
+      pull,
+      { instance: "pdi", now: true },
+      dev.at("2026-10-05T12:30:00Z"),
+    );
     expect(own.output).toMatchObject({ mode: "incremental", records: 1 });
     const delta = tables(t.instance.queries);
     expect(delta.length).toBeLessThan(fullRequests / 2);

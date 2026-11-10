@@ -73,11 +73,20 @@ Windows (PowerShell):
 irm https://github.com/caabayfe/agenticsn/releases/latest/download/install.ps1 | iex
 ```
 
-Windows is a **preview**. Pull, integrate, plan-push, push, validate and check pass their tests
-there. Known limits: `snagentic docs` can't read its pages, the Fluent SDK worker runs without
-a sandbox, and the tests of the knowledge tools (`find`, `describe`, `advise`), `upgrade`, the
-Copilot CLI hook and accelerator installs don't pass on Windows yet. The test files that still
-fail there are listed in [`tests/windows-known-failures.txt`](tests/windows-known-failures.txt).
+Windows x64 is a **preview**. Every command's test suite passes on the Windows CI runner: pull,
+integrate, plan-push, push, validate, check, `find`, `describe`, `advise`, `docs`, agent install
+and its hooks (Claude Code and Copilot CLI), accelerator installs, `upgrade` and `install.ps1`.
+What is not yet the same as on macOS:
+
+- the Fluent SDK worker holds no credential but runs **without a sandbox** on Windows: it can
+  write where you can and reach the network ([ADR-0044](docs/adr/0044-the-sdk-runs-in-a-worker-without-credentials.md);
+  a Windows sandbox is proposed in [ADR-0055](docs/adr/0055-the-sdk-worker-on-windows-runs-at-low-integrity.md));
+- it has not yet been run end to end against an instance by a developer on Windows, only in CI;
+- the Windows Credential Manager, which holds the instance secret, lets any program you run read
+  it (macOS asks per application).
+
+Test files that still fail there, if any, are listed in
+[`tests/windows-known-failures.txt`](tests/windows-known-failures.txt).
 
 One self-contained binary; its only prerequisite is `git`. The installers check SHA-256 sums.
 The binaries aren't signed yet, so Gatekeeper and SmartScreen may warn on first run.

@@ -1,0 +1,63 @@
+# snagentic: the scheduled pull of one instance, published as the team's shared mirror (ADR-0052).
+# Guide: https://github.com/caabayfe/agenticsn/blob/main/docs/guides/team-mode.md
+#
+# Copy this file to .github/workflows/snagentic-pull-dev.yml in the workspace repository, then
+# replace the instance name `dev` (and `DEV` in the variable names) with yours. One copy per
+# instance. It needs:
+#   - secret   SNAGENTIC_DEV_PASSWORD: the puller account's password (or OAuth client secret);
+#   - variable SNAGENTIC_DEV_URL: the instance URL, for example dev12345.service-now.com;
+#   - optional secret SNAGENTIC_MIRROR_DEPLOY_KEY: a deploy key with write access, the only
+#     identity allowed to push servicenow-remote/* (see the guide). Without it, the job pushes
+#     with the workflow's own token.
+# The kind below must match instances/dev/instance.yaml. Keep the URL and kind here, in the CI
+# configuration, never only in the repository (ADR-0020).
+
+name: snagentic pull (dev)
+
+on:
+  schedule:
+    # Every 15 minutes, the default shared_mirror max_age_minutes: developers' own pulls inside
+    # that age ask the instance nothing.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+# Nothing by default; the pull job asks for what it needs.
+permissions: {}
+
+# One pull of an instance at a time. A run that starts while another runs waits; it is not
+# cancelled halfway through a pull.
+concurrency:
+  group: snagentic-pull-dev
+  cancel-in-progress: false
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      # Pushes servicenow-remote/dev when no deploy key is set.
+      contents: write
+    env:
+      SNAGENTIC_DEV_PASSWORD: ${{ secrets.SNAGENTIC_DEV_PASSWORD }}
+      SNAGENTIC_DEV_URL: ${{ vars.SNAGENTIC_DEV_URL }}
+      SNAGENTIC_DEV_KIND: development
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ssh-key: ${{ secrets.SNAGENTIC_MIRROR_DEPLOY_KEY }}
+      - name: install snagentic
+        env:
+          # The release this template came with. Raise it on purpose, after reading the changelog.
+          SNAGENTIC_VERSION: "2.19.1"
+          # Lets the install script check the build provenance (ADR-0043).
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL "https://github.com/caabayfe/agenticsn/releases/download/v${SNAGENTIC_VERSION}/install.sh" -o "$RUNNER_TEMP/install.sh"
+          sh "$RUNNER_TEMP/install.sh" | tee "$RUNNER_TEMP/install.log"
+          # Refuse a binary whose provenance was not checked.
+          grep -q "provenance verified" "$RUNNER_TEMP/install.log"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # --now: the designated puller always asks the instance, even when the last scheduled pull
+      # is a little younger than the max age.
+      - name: pull and publish
+        run: snagentic pull dev --now --publish --format text

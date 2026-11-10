@@ -72,8 +72,10 @@ export interface UnitPushResult {
   readonly notApplied: number;
   // Units the platform skipped during the load, by table and reason, with what unblocks them.
   readonly refused: readonly RefusedGroup[];
-  // The commit of the ledgers, or null when no ledger changed.
+  // The commit of the ledgers, or null when no ledger changed or committing them failed.
   readonly ledgerCommit: string | null;
+  // What the push could not finish after reaching the instance, with the command that does it.
+  readonly warnings: readonly string[];
   readonly next: readonly NextCall[];
 }
 
@@ -145,7 +147,9 @@ const pushOrder = (loads: readonly ProjectLoad[]) =>
             : 1,
     );
 
-// Writes each project's new ledger, and commits them together.
+// Writes each project's new ledger, and commits them together. The push already reached the
+// instance, so a failed commit (a commit-msg hook, a lock file) is a warning with the command
+// to finish it, never an error that hides what was pushed.
 async function commitLedgers(
   deps: UnitPushDependencies,
   instance: string,
@@ -154,7 +158,7 @@ async function commitLedgers(
     readonly load: ProjectLoad;
     readonly ledger: ReadonlyMap<string, LedgerEntry | undefined>;
   }[],
-): Promise<string | null> {
+): Promise<{ readonly commit: string | null; readonly warnings: readonly string[] }> {
   const paths: string[] = [];
   for (const { load, ledger } of changes) {
     if (ledger.size === 0) continue;
@@ -164,11 +168,21 @@ async function commitLedgers(
     );
     paths.push(`${load.project.path}/${LEDGER_FILE}`);
   }
-  if (paths.length === 0) return null;
-  return deps.workspace.commitFiles(
-    paths,
-    `chore(snagentic): ledger after push ${planId} to ${instance}`,
-  );
+  if (paths.length === 0) return { commit: null, warnings: [] };
+  const message = `chore(snagentic): ledger after push ${planId} to ${instance}`;
+  try {
+    return { commit: await deps.workspace.commitFiles(paths, message), warnings: [] };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    const files = paths.join(" ");
+    return {
+      commit: null,
+      warnings: [
+        `the push succeeded, but committing the ledger failed (${reason}). ` +
+          `Commit it yourself: git add -- ${files} && git commit -m "${message}" -- ${files}`,
+      ],
+    };
+  }
 }
 
 // Each project in turn, into its update set.
@@ -223,7 +237,7 @@ export async function pushUnits(
   };
   const { updateSets, units, ledgers } = await pushAll(deps, run, loads);
   await deps.journal.clear();
-  const ledgerCommit = await commitLedgers(deps, query.instance, plan.planId, ledgers);
+  const ledger = await commitLedgers(deps, query.instance, plan.planId, ledgers);
   return {
     instance: query.instance,
     planId: plan.planId,
@@ -234,7 +248,8 @@ export async function pushUnits(
     notCaptured: units.filter((u) => !u.captured).length,
     notApplied: units.filter((u) => !u.applied).length,
     refused: refusalGroups(units, deps.username),
-    ledgerCommit,
+    ledgerCommit: ledger.commit,
+    warnings: ledger.warnings,
     next: [{ tool: "status", args: { instance: query.instance } }],
   };
 }

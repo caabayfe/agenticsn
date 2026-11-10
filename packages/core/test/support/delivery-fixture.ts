@@ -14,6 +14,8 @@ export interface State {
   uncommittedSource?: string[];
   // Commits push made (the ledger), in order.
   commits?: { paths: string[]; message: string }[];
+  // Makes the ledger commit fail with this message (a commit-msg hook, a lock file).
+  commitFailure?: string;
 }
 
 function fakeWorkspace(state: State): DeliveryWorkspace {
@@ -27,6 +29,7 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
     },
     uncommittedSource: async () => state.uncommittedSource ?? [],
     commitFiles: async (paths, message) => {
+      if (state.commitFailure !== undefined) throw new Error(state.commitFailure);
       state.commits = [...(state.commits ?? []), { paths: [...paths], message }];
       return `commit-${state.commits.length}`;
     },

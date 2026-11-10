@@ -114,6 +114,12 @@ export const push = defineUseCase({
       .string()
       .nullable()
       .describe("the commit of the ledgers: what each unit now agrees with on the instance"),
+    warnings: z
+      .array(z.string())
+      .readonly()
+      .describe(
+        "what the push could not finish after reaching the instance, with the command to do it",
+      ),
     next: NextCalls,
   }),
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
@@ -160,9 +166,12 @@ export const push = defineUseCase({
       ...output.refused.map(
         (g) => `refused: ${g.records.length} ${g.table} record(s), ${g.reason}: ${g.action}`,
       ),
-      output.ledgerCommit === null
-        ? "no ledger change"
-        : `ledger committed: ${output.ledgerCommit.slice(0, 10)}`,
+      output.ledgerCommit !== null
+        ? `ledger committed: ${output.ledgerCommit.slice(0, 10)}`
+        : output.warnings.length > 0
+          ? "ledger not committed"
+          : "no ledger change",
+      ...output.warnings.map((w) => `warning: ${w}`),
       output.notCaptured + output.notApplied === 0
         ? `pushed ${output.units.length} unit(s)`
         : `${output.notCaptured} load(s) not captured, ${output.notApplied} not applied as built: check them on the instance before moving the update set`,

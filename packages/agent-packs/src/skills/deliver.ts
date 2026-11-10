@@ -13,7 +13,7 @@ export const DELIVER: Skill = {
     "`plan_push` (with `label` if the user named the update set).",
     "Show the plan: each of the `units` (`operation`, `updateName`, its `changes` and the `losses` the load also sets), the `updateSets`, the `gate`, any `collisions` and `problems`.",
     "Once the plan is `ready` and the user approves it: `push` with `instance`, `plan` set to the `planId`, `confirm` true, and `draftPr` true when the user wants a pull request and the branch has none.",
-    "Report the `batch` and `updateSets` with their `link`, the `pullRequest`, each of the `units` pushed, and the `ledgerCommit`.",
+    "Report the `batch` and `updateSets` with their `link`, the `pullRequest`, each of the `units` pushed, the `ledgerCommit`, and any `warnings` with the command each one names (a ledger commit a git hook refused: the push itself succeeded).",
   ],
   decide: [
     "`ready` is false: fix what `problems`, the gate's `blocking` findings or `collisions` name, then `plan_push` again. A problem of kind `drift` needs snagentic adopt --refresh; `not-adopted` needs snagentic adopt.",

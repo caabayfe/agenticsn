@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -24,6 +24,7 @@ import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-stor
 import type { UseCaseContext } from "../../src/registry/use-case";
 import { FAKE_CONTEXT, memoryIdentities, TRUSTED_PASSWORD } from "./fakes";
 import { DELIVERY_ADAPTERS } from "./instance-workspace";
+import { removeTestTree } from "./remove-test-tree";
 
 const IDENTITY = ["-c", "user.name=t", "-c", "user.email=t@t"];
 
@@ -36,6 +37,7 @@ export async function team(data: Record<string, Row[]>) {
   const instance = fakeInstance(data);
   let count = 0;
   let committed = "";
+  const roots: string[] = [];
   const identities = memoryIdentities();
   const context = (
     root: string,
@@ -73,6 +75,7 @@ export async function team(data: Record<string, Row[]>) {
   const member = async (username = "svc_ci", via: "clone" | "environment" = "clone") => {
     count += 1;
     const root = join(base, `w${count}`);
+    roots.push(root);
     if (count === 1) {
       await new FsWorkspaceStore().create(root, { layout: 2, createdWith: "test" });
       await runGitOrThrow(["remote", "add", "origin", origin], root);
@@ -105,7 +108,7 @@ export async function team(data: Record<string, Row[]>) {
     origin,
     instance,
     member,
-    cleanup: () => rm(base, { recursive: true, force: true }),
+    cleanup: () => removeTestTree(base, roots),
   };
 }
 

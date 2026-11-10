@@ -73,6 +73,11 @@ Windows (PowerShell):
 irm https://github.com/caabayfe/agenticsn/releases/latest/download/install.ps1 | iex
 ```
 
+Windows is a **preview**. Pull, plan-push and push work there, but `validate` given file paths
+finds no Fluent project to check, `snagentic docs` can't read its pages, and the Fluent SDK
+worker runs without a sandbox. The test files that still fail on Windows are listed in
+[`tests/windows-known-failures.txt`](tests/windows-known-failures.txt).
+
 One self-contained binary; its only prerequisite is `git`. The installers check SHA-256 sums.
 The binaries aren't signed yet, so Gatekeeper and SmartScreen may warn on first run.
 

@@ -1,7 +1,6 @@
 import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { childEnvironment } from "../child-environment";
 import { runGitOrThrow } from "../git/run-git";
 import type { LoadFluentRuntime } from "./fluent-runtime-loader";
 import type { FluentBuildOutcome } from "./sdk-runtime";
@@ -52,31 +51,31 @@ export async function buildInCopy<T>(
   }
 }
 
-// The project as `commit` held it (adopt --refresh converts as of the last ledger commit): git
-// archive written to a file, then extracted, so neither the index nor the working tree is
-// touched. Not piped: streaming one process into the other failed now and then (pdi2, 2026-10-19).
+// The project as `commit` held it (adopt --refresh converts as of the last ledger commit). Git
+// writes the commit's files into a scratch work tree; restoring only the work tree leaves the
+// workspace's index and working tree untouched. Not `git archive` and tar: tar read a Windows
+// path ("C:\...") as a remote host, and piping one into the other failed now and then (pdi2,
+// 2026-10-19). No fsmonitor daemon is started for the scratch folder, which would hold it open.
 export const fromCommit =
   (workspace: string, project: string, commit: string): ProjectSource =>
   async (copy) => {
     const scratch = join(copy, "..", "commit");
     await mkdir(scratch, { recursive: true });
-    const tarball = join(copy, "..", "commit.tar");
-    const archive = Bun.spawn(
-      ["git", "archive", "--format=tar", "-o", tarball, commit, "--", project],
-      { cwd: workspace, stdout: "ignore", stderr: "pipe", env: childEnvironment() },
+    // The workspace can be a folder inside the repository: paths are from the repository's top.
+    const prefix = (await runGitOrThrow(["rev-parse", "--show-prefix"], workspace)).trim();
+    const path = `${prefix}${project}`;
+    await runGitOrThrow(
+      [
+        "-c",
+        "core.fsmonitor=false",
+        `--work-tree=${scratch}`,
+        "restore",
+        `--source=${commit}`,
+        "--worktree",
+        "--",
+        `:(top,literal)${path}`,
+      ],
+      workspace,
     );
-    const archived = await archive.exited;
-    const tar =
-      archived === 0
-        ? Bun.spawn(["tar", "-x", "-f", tarball, "-C", scratch], {
-            stderr: "pipe",
-            env: childEnvironment(),
-          })
-        : null;
-    const extracted = tar === null ? 1 : await tar.exited;
-    if (archived !== 0 || extracted !== 0) {
-      const reason = await new Response((tar ?? archive).stderr).text();
-      throw new Error(`could not read ${project} at ${commit}: ${reason}`);
-    }
-    await cp(join(scratch, project), copy, { recursive: true });
+    await cp(join(scratch, path), copy, { recursive: true });
   };

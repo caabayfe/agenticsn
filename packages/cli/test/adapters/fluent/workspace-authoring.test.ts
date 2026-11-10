@@ -108,7 +108,30 @@ describe("fromCommit", () => {
     expect(readFileSync(join(root, "source/x_app", SCRIPT), "utf8")).toBe(lines("var a = 2;"));
     await expect(
       fromCommit(root, project.path, "0".repeat(40))(join(scratch, "other")),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: "git-command-failed" });
+  });
+
+  // Git alone reads the commit: no tar program, which on Windows read "C:\..." as a remote host.
+  it("copies the project when the workspace is a folder inside the repository", async () => {
+    const outer = mkdtempSync(join(tmpdir(), "snagentic-authoring-outer-"));
+    await runGitOrThrow(["init", "-q"], outer);
+    const root = join(outer, "team", "workspace");
+    const authoring = new WorkspaceAuthoring(root, runtime);
+    const project = await authoring.scaffold({ name: "x_app", sysId: "a".repeat(32) });
+    await authoring.writeFiles(project, new Map([[SCRIPT, lines("var a = 1;")]]));
+    await runGitOrThrow(["add", "-A"], outer);
+    await runGitOrThrow(
+      ["-c", "user.name=dev", "-c", "user.email=dev@example.com", "commit", "-qm", "adopt"],
+      outer,
+    );
+    const base = (await runGitOrThrow(["rev-parse", "HEAD"], outer)).trim();
+    writeFileSync(join(root, "source/x_app", SCRIPT), lines("var a = 2;"));
+    await runGitOrThrow(["add", "-A"], outer);
+    const staged = await runGitOrThrow(["status", "--porcelain"], outer);
+    const scratch = mkdtempSync(join(tmpdir(), "snagentic-from-commit-"));
+    await fromCommit(root, project.path, base)(join(scratch, "copy"));
+    expect(readFileSync(join(scratch, "copy", SCRIPT), "utf8")).toBe(lines("var a = 1;"));
+    expect(await runGitOrThrow(["status", "--porcelain"], outer)).toBe(staged);
   });
 });
 

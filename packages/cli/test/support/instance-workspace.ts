@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createProfile, InstanceName, instancePaths, type Row } from "@snagentic/core";
@@ -22,6 +22,7 @@ import { syncStateStore } from "../../src/adapters/state/mirror-sync-state-store
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import type { UseCaseContext } from "../../src/registry/use-case";
 import { FAKE_CONTEXT, TRUSTED_PASSWORD } from "./fakes";
+import { removeTestTree } from "./remove-test-tree";
 
 // What plan-push and push use beyond the mirror, as the CLI wires it.
 export const DELIVERY_ADAPTERS: Pick<
@@ -108,6 +109,6 @@ export async function instanceWorkspace(
     context,
     instance,
     written,
-    cleanup: () => rm(base, { recursive: true, force: true }),
+    cleanup: () => removeTestTree(base, [root]),
   };
 }

@@ -3,7 +3,13 @@ import type { Row } from "../../kernel/row";
 import { TableName } from "../../kernel/table-name";
 import { KeysetPager } from "../../sync/application/keyset-pager";
 import type { BuiltUnit, Fields, InstanceCopy } from "../domain/unit";
-import { type ChildSpec, childLink, coalesceValues, unitSpec } from "../domain/unit-specs";
+import {
+  type ChildSpec,
+  childLink,
+  coalesceValues,
+  isReadable,
+  unitSpec,
+} from "../domain/unit-specs";
 import { VERSION_FIELDS, versionOf } from "../domain/unit-version";
 import { isNamedReference, keyedReference, namedField } from "../domain/values";
 
@@ -170,12 +176,15 @@ async function copyOf(
   };
 }
 
-// The instance's copy of each unit, by update name; null when the instance holds none.
+// The instance's copy of each unit, by update name; null when the instance holds none, or when
+// its table is one the instance never serves (unitSpec's readable), which is not asked at all.
 export async function readUnits(
   reader: InstanceReader,
-  units: readonly BuiltUnit[],
+  all: readonly BuiltUnit[],
   signal: AbortSignal,
 ): Promise<ReadonlyMap<string, InstanceCopy | null>> {
+  const units = all.filter((unit) => isReadable(unit.head.table));
+  const unread = all.filter((unit) => !isReadable(unit.head.table));
   const pager = new KeysetPager(reader);
   const byId = await headsById(pager, units, signal);
   const missing = units.filter((_, index) => byId[index] === null);
@@ -184,5 +193,7 @@ export async function readUnits(
     const head = byId[index] ?? byKeys.get(unit.updateName) ?? null;
     return [unit.updateName, head === null ? null : await copyOf(pager, unit, head, signal)];
   });
-  return new Map(await Promise.all(read));
+  const copies = new Map<string, InstanceCopy | null>(await Promise.all(read));
+  for (const unit of unread) copies.set(unit.updateName, null);
+  return copies;
 }

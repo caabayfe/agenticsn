@@ -28,6 +28,10 @@ export interface UnitSpec {
   // What a keyed unit's update name starts with, when it is not the table: a choice list's is
   // sys_choice_<table>_<element>, on its header in sys_choice_set.
   readonly updatePrefix?: string;
+  // False for tables the instance's REST API refuses to every user, admin included: a load and
+  // its update set take their records, but no copy can be read, so the ledger and the update
+  // set's capture stand for the comparison (ADR-0051).
+  readonly readable?: false;
 }
 
 const RECORD: UnitSpec = { comparable: true };
@@ -106,11 +110,15 @@ const SPECS: Readonly<Record<string, UnitSpec>> = {
   // base64-encoded (equal once decoded, pdi2), so they are compared as the flow is: by ledger.
   sys_json_chunk: COMPILED,
   sys_hub_action_type_definition: COMPILED,
+  // A table's database index: "Failed API level ACL Validation" for admin too (pdi6).
+  sys_index: { comparable: true, readable: false },
 };
 
 export function unitSpec(table: string): UnitSpec {
   return SPECS[table] ?? RECORD;
 }
+
+export const isReadable = (table: string): boolean => unitSpec(table).readable !== false;
 
 // The table of a unit named by its keys (sys_dictionary_<table>_<element>): the table the
 // platform coalesces on whose update-name prefix the name starts with, the longest prefix first.

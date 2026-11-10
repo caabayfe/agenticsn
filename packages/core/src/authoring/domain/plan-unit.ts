@@ -4,7 +4,7 @@ import { compareUnit, type Difference } from "./compare";
 import type { LedgerEntry } from "./ledger";
 import { knownLoss, type LossId } from "./losses";
 import { type BuiltUnit, type InstanceCopy, isDeletion } from "./unit";
-import { unitSpec } from "./unit-specs";
+import { isReadable, unitSpec } from "./unit-specs";
 
 // What plan does with one unit (ADR-0033 item 4).
 export type UnitDecision =
@@ -47,13 +47,23 @@ function decideDeletion(copy: InstanceCopy | null, entry: LedgerEntry | undefine
   return { kind: "delete" };
 }
 
+// A deletion on a table the instance never serves: nothing could show the record is there, or
+// gone after the load, so it is left to the instance's administrator.
+const UNSEEN_DELETION: UnitDecision = {
+  kind: "unsafe",
+  reason:
+    "the instance's REST API does not serve this table, so its deletion could not be checked: delete the record on the instance",
+};
+
 export function planUnit(
   unit: BuiltUnit,
   digest: string,
   copy: InstanceCopy | null,
   entry: LedgerEntry | undefined,
 ): UnitDecision {
-  if (isDeletion(unit)) return decideDeletion(copy, entry);
+  if (isDeletion(unit)) {
+    return isReadable(unit.head.table) ? decideDeletion(copy, entry) : UNSEEN_DELETION;
+  }
   const lone = loneChoiceRefusal(unit);
   if (lone !== null) return { kind: "unsafe", reason: lone };
   // Not on the instance: created, or created again when it agreed with source before (a plugin

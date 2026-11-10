@@ -1,6 +1,7 @@
 import { readUnits } from "../../authoring/application/read-units";
 import type { LedgerEntry } from "../../authoring/domain/ledger";
 import type { InstanceCopy } from "../../authoring/domain/unit";
+import { isReadable } from "../../authoring/domain/unit-specs";
 import { GLOBAL } from "../domain/batch";
 import { carrierOf } from "../domain/carried";
 import { RecordChangedOnInstanceError } from "../domain/errors";
@@ -120,6 +121,9 @@ async function openSet(run: ProjectRun, load: ProjectLoad) {
   );
 }
 
+// The ledger's instance version of a unit no copy of which can be read.
+const UNREAD = "unread";
+
 // Each unit's outcome: captured in the update set, and applied as built. Units the instance
 // already held are recorded in the ledger as they were read at plan time.
 async function outcomes(
@@ -133,7 +137,10 @@ async function outcomes(
   for (const unit of units) {
     const { project, updateName, table, name, operation } = unit;
     const done = loaded(unit) ? await captured(run.session, updateName, into) : true;
-    const applied = back.applied.get(updateName) ?? true;
+    const unread = !isReadable(table);
+    const applied = unread ? done : (back.applied.get(updateName) ?? true);
+    if (unread && done)
+      back.ledger.set(updateName, { build: unit.digest, instance: UNREAD, losses: [] });
     pushed.push({
       project,
       updateName,

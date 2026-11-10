@@ -2,7 +2,7 @@ import { readUnits } from "../../authoring/application/read-units";
 import { compareUnit } from "../../authoring/domain/compare";
 import type { LedgerEntry } from "../../authoring/domain/ledger";
 import type { BuiltUnit, InstanceCopy } from "../../authoring/domain/unit";
-import { unitSpec } from "../../authoring/domain/unit-specs";
+import { isReadable, unitSpec } from "../../authoring/domain/unit-specs";
 import { mismatchesOf, type PlannedUnit } from "../domain/unit-plan";
 import type { ProjectLoad } from "./plan-units";
 import type { InstanceSession } from "./push-steps";
@@ -19,7 +19,8 @@ export async function readBack(
   const applied = new Map<string, boolean>();
   // Why each unit not applied reads back otherwise.
   const mismatches = new Map<string, readonly string[]>();
-  for (const unit of units) {
+  // A unit no copy of which can be read is decided by its capture (push-project's outcomes).
+  for (const unit of units.filter((u) => isReadable(u.table))) {
     const copy = copies.get(unit.updateName) ?? null;
     const builtUnit = load.built.get(unit.updateName)?.unit;
     if (unit.operation === "forget") {

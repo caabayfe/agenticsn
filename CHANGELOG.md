@@ -27,6 +27,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   approved pack, so its resume refuses (`install-resume-unknown`): plan again and confirm the new
   id (spec 014, F7).
 
+### Security
+
+- The ServiceNow SDK's own copies of `zod` move to the patched 4.6.7 through a root override, so
+  `bun audit` no longer reports a high advisory. The SDK still builds the `doctor` test flow.
+- The advisory register records, for each decision, the installed versions it covers and the
+  direct dependencies that bring them in. The advisory check reads both from `bun.lock` and fails
+  when an advisory hits another version or arrives another way, so a decision can't silently
+  outlive the copies it was made about (spec 014, F2).
+
 ## [2.19.1] - 2026-11-08
 
 ### Fixed

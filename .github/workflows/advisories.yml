@@ -13,6 +13,7 @@ on:
       - docs/security/advisories.md
       - scripts/advisories.ts
       - scripts/check-advisories.ts
+      - scripts/lockfile.ts
   workflow_dispatch:
 
 permissions:

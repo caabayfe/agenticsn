@@ -1,0 +1,50 @@
+{
+  "fast-uri": [
+    {
+      "id": 1243097,
+      "url": "https://github.com/advisories/GHSA-w74x-v6f9-j3xg",
+      "title": "fast-uri vulnerable to URI scheme spoofing via percent-encoded scheme decoding",
+      "severity": "moderate",
+      "vulnerable_versions": ">=4.0.0 <4.2.3",
+      "cwe": [
+        "CWE-172",
+        "CWE-180"
+      ],
+      "cvss": {
+        "score": 6.1,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+      }
+    },
+    {
+      "id": 1243098,
+      "url": "https://github.com/advisories/GHSA-w74x-v6f9-j3xg",
+      "title": "fast-uri vulnerable to URI scheme spoofing via percent-encoded scheme decoding",
+      "severity": "moderate",
+      "vulnerable_versions": ">=3.0.0 <3.1.9",
+      "cwe": [
+        "CWE-172",
+        "CWE-180"
+      ],
+      "cvss": {
+        "score": 6.1,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+      }
+    }
+  ],
+  "zod": [
+    {
+      "id": 1243066,
+      "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "severity": "high",
+      "vulnerable_versions": "<4.6.6",
+      "cwe": [
+        "CWE-770"
+      ],
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      }
+    }
+  ]
+}

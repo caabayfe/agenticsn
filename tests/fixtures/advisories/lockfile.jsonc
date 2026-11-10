@@ -1,0 +1,26 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "fixture-root",
+      "devDependencies": { "lint": "^1.0.0" },
+    },
+    "packages/cli": {
+      "name": "@fixture/cli",
+      "dependencies": { "@fixture/core": "workspace:*", "@vendor/sdk": "1.0.0", "mcp": "^1.0.0", "zod": "^4.6.7" },
+    },
+  },
+  "packages": {
+    "@fixture/core": ["@fixture/core@workspace:packages/core"],
+    "@vendor/sdk": ["@vendor/sdk@1.0.0", "", { "dependencies": { "ajv": "^8.0.0", "fast-uri": "^4.0.0", "zod": "4.6.5" } }, "sha512-sdk"],
+    "ajv": ["ajv@8.20.0", "", { "dependencies": { "fast-uri": "^3.0.1" } }, "sha512-ajv"],
+    "fast-uri": ["fast-uri@3.1.8", "", {}, "sha512-fu3"],
+    "lint": ["lint@1.0.0", "", { "dependencies": { "ajv": "^6.0.0" } }, "sha512-lint"],
+    "mcp": ["mcp@1.0.0", "", { "dependencies": { "ajv": "^8.0.0", "zod": "^4.0.0" } }, "sha512-mcp"],
+    "zod": ["zod@4.6.7", "", {}, "sha512-zod7"],
+    "@vendor/sdk/fast-uri": ["fast-uri@4.2.2", "", {}, "sha512-fu4"],
+    "@vendor/sdk/zod": ["zod@4.6.5", "", {}, "sha512-zod5"],
+    "lint/ajv": ["ajv@6.15.0", "", { "dependencies": { "uri-js": "^4.2.2" } }, "sha512-ajv6"],
+    "lint/ajv/uri-js": ["uri-js@4.4.1", "", {}, "sha512-urijs"],
+  }
+}

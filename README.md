@@ -99,6 +99,7 @@ MCP tool is in the [command reference](docs/reference/commands.md).
 | Stakeholders and decision makers | [Product overview](docs/product/overview.md) |
 | Security and architecture reviewers | [Security and governance](docs/product/security-and-governance.md) |
 | Users | [Getting started](docs/getting-started.md), [command reference](docs/reference/commands.md) |
+| Teams | [Team mode: one pull per instance](docs/guides/team-mode.md), with a scheduled CI pull template |
 | Contributors | [AGENTS.md](AGENTS.md), [requirements](docs/architecture/significant-requirements.md), [decisions (ADRs)](docs/adr/README.md) |
 | Evidence | [Pull baseline](docs/reports/pull-baseline-pdi.md), [performance targets](docs/reports/v1.0-targets.md), [agent evaluation baseline](docs/reports/agent-eval-baseline-2026-10-06.md) |
 

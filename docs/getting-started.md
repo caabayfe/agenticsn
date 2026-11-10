@@ -162,6 +162,9 @@ designated puller can push it. The mirror shows the instance as that user sees i
 user read access to everything the team works on. A pull by any other user adds and changes
 records but never removes one just because its own listing left it out.
 
+The [team-mode guide](guides/team-mode.md) has the full setup: the scheduled CI pull template,
+branch protection, the puller's read access, who signs in, and troubleshooting.
+
 ## 5. Update sets
 
 Read live from the instance, so always current:

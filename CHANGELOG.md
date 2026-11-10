@@ -26,6 +26,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   `next` suggests `integrate` for those, and `pull` only once the mirror is older than its max
   age. The design and deliver skills follow `status`'s `next` instead of offering a pull because
   this clone never pulled. Getting started has a short team-mode section.
+- Guide: [team mode: one pull per instance](docs/guides/team-mode.md): the designated puller,
+  its read access, branch protection on `servicenow-remote/*`, the daily developer flow and
+  troubleshooting.
+- A GitHub Actions template for the scheduled pull and publish,
+  [`packaging/ci/github/snagentic-pull.yml`](packaging/ci/github/snagentic-pull.yml): every 15
+  minutes, one run per instance at a time, actions pinned by SHA, `contents: write` only for the
+  publishing job, a pinned snagentic version whose build provenance must verify. A test keeps its
+  commands and flags in step with the registry.
+- Proposed [ADR-0054](docs/adr/0054-each-developer-signs-in-as-themselves.md): each developer
+  signs in as themselves. Today every clone signs in as the one `username` in the committed
+  `instance.yaml`; the guide documents the stopgap.
 
 ### Changed
 

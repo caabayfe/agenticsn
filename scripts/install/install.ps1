@@ -2,7 +2,8 @@
 # when the GitHub CLI is installed and signed in, its build provenance (ADR-0043).
 #   irm https://github.com/caabayfe/agenticsn/releases/latest/download/install.ps1 | iex
 # Environment: SNAGENTIC_VERSION (default: latest), SNAGENTIC_INSTALL_DIR (default:
-# %LOCALAPPDATA%\snagentic\bin), SNAGENTIC_DOWNLOAD_BASE (a URL holding the release files).
+# %LOCALAPPDATA%\snagentic\bin), SNAGENTIC_DOWNLOAD_BASE (a URL holding the release files),
+# SNAGENTIC_NO_MODIFY_PATH (set: leave the user's PATH alone).
 $ErrorActionPreference = "Stop"
 
 $repo = "caabayfe/agenticsn"
@@ -48,10 +49,19 @@ try {
     Write-Output "provenance not checked (needs the GitHub CLI, signed in); checked against SHA256SUMS only"
   }
   New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-  Move-Item -Force $binary (Join-Path $installDir "snagentic.exe")
+  $installed = Join-Path $installDir "snagentic.exe"
+  # Windows won't replace a running .exe (an MCP server, an open terminal) but lets it be
+  # renamed; snagentic upgrade removes the copies moved aside once they no longer run.
+  if (Test-Path $installed) {
+    $aside = "$installed.old"
+    Remove-Item -Force $aside -ErrorAction SilentlyContinue
+    if (Test-Path $aside) { $aside = "$installed.$PID.old" }
+    Move-Item -Force $installed $aside
+  }
+  Move-Item -Force $binary $installed
   Write-Output "installed snagentic in $installDir"
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-  if (-not ($userPath -split ";" -contains $installDir)) {
+  if (-not $env:SNAGENTIC_NO_MODIFY_PATH -and -not ($userPath -split ";" -contains $installDir)) {
     [Environment]::SetEnvironmentVariable("Path", "$userPath;$installDir", "User")
     Write-Output "added $installDir to your PATH; open a new terminal to use snagentic"
   }

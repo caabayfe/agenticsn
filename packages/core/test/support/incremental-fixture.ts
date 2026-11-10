@@ -1,6 +1,7 @@
 import {
   type CatalogData,
   DEFAULT_REDACTION,
+  type IncrementalDependencies,
   KeysetPager,
   type PullCheckpoint,
   type PullOptions,
@@ -154,12 +155,18 @@ export async function pulledInstance(shape: (tables: Record<string, Row[]>) => v
     timeOut(...tables: string[]) {
       slow.push(...tables);
     },
-    async incremental(options: PullOptions = {}) {
+    // The instance's clock, as its responses give it.
+    clock: instance.clock,
+    async incremental(
+      options: PullOptions = {},
+      extra: Pick<IncrementalDependencies, "absence"> = {},
+    ) {
       now = new Date("2026-10-05T11:00:00Z");
       instance.queries.length = 0;
       instance.fingerprints.length = 0;
       instance.counted.length = 0;
-      const summary = await pullIncremental(deps, "pdi", LIVE, () => {}, options);
+      const run = { ...deps, ...extra, instanceTime: () => instance.clock.time };
+      const summary = await pullIncremental(run, "pdi", LIVE, () => {}, options);
       return {
         summary,
         queries: [...instance.queries],

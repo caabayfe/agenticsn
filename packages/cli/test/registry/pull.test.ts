@@ -16,6 +16,7 @@ import { WorkspaceAuthoring } from "../../src/adapters/fluent/workspace-authorin
 import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { GitMirror } from "../../src/adapters/git/git-mirror";
+import { gitSharedMirror } from "../../src/adapters/git/git-shared-mirror";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
 import { syncStateStore } from "../../src/adapters/state/mirror-sync-state-store";
@@ -78,6 +79,7 @@ async function setup(
     credentials: TRUSTED_PASSWORD,
     connections: { open: () => instance.reader, openForWrite: () => instance.reader },
     syncState: syncStateStore,
+    sharedMirror: gitSharedMirror,
     mirrors: { open: (r, instance, mode) => GitMirror.open(r, instance, mode) },
     integrator: gitIntegrator,
     inspector: gitInspector,

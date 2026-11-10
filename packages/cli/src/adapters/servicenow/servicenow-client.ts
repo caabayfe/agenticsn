@@ -39,6 +39,7 @@ const MAX_PAGE_SIZE = 10_000;
 // development instance, and the requests that change an instance refuse any other kind.
 export class ServiceNowClient implements InstanceReader, TableStatistics, ServerCostReader {
   private readonly headers: Readonly<Record<string, string>>;
+  private lastDate: number | null = null;
   // Unique per connection, so the transaction log can tell this run's requests apart.
   private readonly userAgent: string;
   // Every request goes through the scheduler, signed for the profile's auth method.
@@ -235,6 +236,10 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     return this.scheduler.stats();
   }
 
+  instanceTime(): number | null {
+    return this.lastDate;
+  }
+
   // The parsed `result` of a successful response; undefined when the body is not JSON.
   private async result(
     response: HttpResponse,
@@ -243,6 +248,8 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     answers: readonly number[] = [],
   ): Promise<unknown> {
     const body = await response.text();
+    const date = Date.parse(response.headers.get("date") ?? "");
+    if (!Number.isNaN(date)) this.lastDate = date;
     if (response.status === 401) {
       throw new AuthenticationFailedError(this.profile.name);
     }

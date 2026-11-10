@@ -33,6 +33,9 @@ export interface ConnectionStats {
 export interface InstanceReader {
   query(query: TableQuery, signal: AbortSignal): Promise<readonly Row[]>;
   stats(): ConnectionStats;
+  // The instance's clock (epoch ms), from the Date header of its latest response; null before
+  // any response (ADR-0052 item 7).
+  instanceTime?(): number | null;
 }
 
 // One aggregate request per table: its row count and latest update (ADR-0016, M4 appendix).

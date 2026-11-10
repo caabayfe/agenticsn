@@ -4,9 +4,9 @@ import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domai
 import { changesSince, type FingerprintChange } from "../domain/fingerprint";
 import type { InventorySource } from "../domain/inventory";
 import { CHILD_TABLES } from "../domain/pull-scope";
-import { FIRST_REDACTION_VERSION } from "../domain/redaction-upgrades";
 import type { Fingerprints, SyncState } from "../ports";
 import { detectChanges } from "./detect-changes";
+import { isIdle, refuseFutureWatermark } from "./incremental-checks";
 import { applyChildChanges, type ChildOutcome } from "./incremental-children";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { type RecordStep, recordPhase } from "./incremental-record-phase";
@@ -115,8 +115,9 @@ async function applicationsIfMoved(
   stale: readonly { readonly table: string }[],
   signal: AbortSignal,
 ) {
+  const remove = deps.absence === "keep" ? undefined : deps.records;
   return stale.some((source) => source.table === "sys_scope")
-    ? pullApplications(deps, catalog, signal, deps.records)
+    ? pullApplications(deps, catalog, signal, remove)
     : { applications: 0, unreadable: [], secretRedactions: [] };
 }
 
@@ -145,28 +146,30 @@ function nextState(
 // Child rows, applications and the operational inventory: what the record feeds do not carry.
 async function pullBesideRecords(
   deps: IncrementalDependencies,
-  catalog: Catalog,
+  records: Awaited<ReturnType<typeof recordPhase>>,
   moved: {
     readonly state: SyncState;
     readonly changes: ReadonlyMap<string, FingerprintChange>;
     readonly stale: readonly InventorySource[];
     readonly since: string;
-    readonly created: RecordOutcome["created"];
-    // Child tables to list again whole, as if never read (ADR-0034 #2).
-    readonly relist: readonly string[];
   },
   signal: AbortSignal,
 ) {
-  const { state, changes, stale, since, created } = moved;
+  const { state, changes, stale, since } = moved;
+  const { step, reread, verified } = records;
+  const catalog = verified?.catalog ?? step.catalog;
+  const created = step.records.created;
+  const deleted = step.deleted;
   const neverRead = new Set([
     ...CHILD_TABLES.map((child) => child.table).filter((table) => !state.fingerprints?.[table]),
-    ...moved.relist,
+    // Child tables to list again whole, as if never read (ADR-0034 #2).
+    ...reread.childTables,
   ]);
   const children = await applyChildChanges(
     deps,
     catalog,
     changes,
-    { since, neverRead, created },
+    { since, neverRead, created, deleted },
     signal,
   );
   const applications = await applicationsIfMoved(deps, catalog, stale, signal);
@@ -201,20 +204,6 @@ async function prepareIncremental(
   return { state, catalog: new Catalog(migration.catalog), migration };
 }
 
-// Nothing moved on the instance, and no policy asked to rewrite what the mirror holds.
-function isIdle(
-  state: SyncState,
-  policyVersion: number,
-  run: { readonly verify: boolean; readonly moved: boolean },
-): boolean {
-  return (
-    !run.verify &&
-    !run.moved &&
-    (state.secretScanVersion ?? 0) >= SECRET_SCAN_VERSION &&
-    (state.redactionVersion ?? FIRST_REDACTION_VERSION) === policyVersion
-  );
-}
-
 export async function pullIncremental(
   deps: IncrementalDependencies,
   instance: string,
@@ -232,6 +221,7 @@ export async function pullIncremental(
     verify,
     signal,
   );
+  refuseFutureWatermark(deps, state, instance);
   const since = changesSince(state.watermark);
   const run = {
     state,
@@ -244,12 +234,7 @@ export async function pullIncremental(
   const records = await recordPhase(deps, run, signal, progress);
   const { step, reread, verified } = records;
   progress({ message: "child rows" });
-  const rest = await pullBesideRecords(
-    deps,
-    verified?.catalog ?? step.catalog,
-    { state, changes, stale, since, created: step.records.created, relist: reread.childTables },
-    signal,
-  );
+  const rest = await pullBesideRecords(deps, records, { state, changes, stale, since }, signal);
   const unreadable = [...current.unreadable, ...records.unreadable, ...rest.unreadable];
   const summary = summarize(fingerprintChanges, step, verified, reread, rest.children, unreadable);
   return {

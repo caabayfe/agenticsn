@@ -9,8 +9,10 @@ import {
   sortSecretRedactions,
 } from "../../metadata/domain/secret-scan";
 import type { FingerprintChange } from "../domain/fingerprint";
-import { CHILD_TABLES, type ChildTable, childFamily } from "../domain/pull-scope";
+import { CHILD_TABLES, type ChildTable } from "../domain/pull-scope";
 import { chunks } from "../domain/record-changes";
+import { familiesToRelist } from "../domain/relist-families";
+import { withUnlistedRows } from "../domain/unlisted-rows";
 import { type ChildOwners, childOwners, ownersWithOtherCounts } from "./child-owners";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { cleaned, groupTable, owners } from "./pull-children";
@@ -29,7 +31,16 @@ interface Totals {
   childFiles: number;
   removedChildFiles: number;
   secretRedactions: SecretRedaction[];
+  // sys_ids the instance's deletion records name in this pull.
+  deleted: ReadonlySet<string>;
 }
+
+const newTotals = (deleted: readonly string[] = []): Totals => ({
+  childFiles: 0,
+  removedChildFiles: 0,
+  secretRedactions: [],
+  deleted: new Set(deleted),
+});
 
 const childFile = (base: string, table: string) => `${base}.children.${table}.yaml`;
 
@@ -42,8 +53,18 @@ async function store(
   totals: Totals,
 ): Promise<void> {
   const path = childFile(base, table);
-  if (rows !== undefined && rows.length > 0) {
-    const scanned = scanDocumentSecrets(rows);
+  const held = deps.records.filesOf(deps.metadataRoot, base).includes(path);
+  // Another user's listing is not the whole family (ADR-0052 item 4): what it missed stays.
+  const current =
+    deps.absence === "keep" && held
+      ? withUnlistedRows(
+          rows ?? [],
+          await deps.records.readDocument(deps.metadataRoot, path),
+          totals.deleted,
+        )
+      : (rows ?? []);
+  if (current.length > 0) {
+    const scanned = scanDocumentSecrets(current);
     await deps.records.writeDocument(deps.metadataRoot, path, scanned.document);
     if (scanned.patterns.length > 0) {
       totals.secretRedactions.push({
@@ -52,7 +73,7 @@ async function store(
       });
     }
     totals.childFiles += 1;
-  } else if (deps.records.filesOf(deps.metadataRoot, base).includes(path)) {
+  } else if (held) {
     await deps.records.remove(deps.metadataRoot, path);
     totals.removedChildFiles += 1;
   }
@@ -195,25 +216,6 @@ async function relistFamily(
   return unreadable;
 }
 
-// Families to list again: a nested table resolves owners only through its parent rows (the
-// nested families are small: workflow structure), and a table the last pull did not read has
-// no rows to refresh from (ADR-0025).
-function familiesToRelist(
-  changes: ReadonlyMap<string, FingerprintChange>,
-  neverRead: ReadonlySet<string>,
-): ChildTable[][] {
-  const roots = new Map<string, ChildTable[]>();
-  for (const child of CHILD_TABLES) {
-    const change = changes.get(child.table) ?? "unchanged";
-    const nested = change !== "unchanged" && child.parentTable !== undefined;
-    if (nested || neverRead.has(child.table)) {
-      const family = childFamily(child.table);
-      roots.set(family[0]?.table ?? child.table, family);
-    }
-  }
-  return [...roots.values()];
-}
-
 export async function applyChildChanges(
   deps: IncrementalDependencies,
   catalog: Catalog,
@@ -223,11 +225,13 @@ export async function applyChildChanges(
     readonly neverRead: ReadonlySet<string>;
     // Records new to the mirror: their rows may be older than they are (spec 006, B4).
     readonly created?: readonly { readonly base: string; readonly className: string }[];
+    // sys_ids the instance's deletion records name in this pull.
+    readonly deleted?: readonly string[];
   },
   signal: AbortSignal,
 ): Promise<ChildOutcome> {
   const { since, neverRead, created = [] } = window;
-  const totals: Totals = { childFiles: 0, removedChildFiles: 0, secretRedactions: [] };
+  const totals = newTotals(window.deleted);
   const unreadable: string[] = [];
   const families = familiesToRelist(changes, neverRead);
   const relisted = new Set(families.flat().map((child) => child.table));

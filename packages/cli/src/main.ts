@@ -39,6 +39,7 @@ import { gitInspector } from "./adapters/git/git-inspector";
 import { gitIntegrator } from "./adapters/git/git-integrator";
 import { gitInventoryReader } from "./adapters/git/git-inventory-reader";
 import { GitMirror } from "./adapters/git/git-mirror";
+import { gitSharedMirror } from "./adapters/git/git-shared-mirror";
 import { gitProbe } from "./adapters/git-probe";
 import { EslintScriptChecker } from "./adapters/governance/eslint-script-checker";
 import { GitMirrorState } from "./adapters/governance/git-mirror-state";
@@ -118,6 +119,7 @@ const context: UseCaseContext = {
       ),
   },
   syncState: syncStateStore,
+  sharedMirror: gitSharedMirror,
   mirrors: { open: (root, instance, mode) => GitMirror.open(root, instance, mode) },
   integrator: gitIntegrator,
   inspector: gitInspector,

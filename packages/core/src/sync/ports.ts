@@ -118,6 +118,8 @@ export interface MirrorTree {
   countChildRows(root: string, table: string): Promise<ReadonlyMap<string, number>>;
   // Child-row sys_id -> base of the record whose child-row file holds it, for these tables.
   childRowOwners(root: string, tables: readonly string[]): Promise<ReadonlyMap<string, string>>;
+  // A YAML file as this pull has left it so far, read as text values; null when there is none.
+  readDocument(root: string, path: string): Promise<unknown>;
 }
 
 export interface IncrementalMirror extends MirrorSession, MirrorTree {
@@ -165,4 +167,36 @@ export interface MirrorView {
 // Reads, without changing anything, how the workspace relates to an instance's mirror.
 export interface MirrorInspector {
   inspect(root: string, instance: string): Promise<MirrorView>;
+}
+
+// The tip of servicenow-remote/<name> on the team's git remote (ADR-0052).
+export interface SharedTip {
+  readonly commit: string;
+  // Null when the commit carries no pull state (an earlier version pushed it).
+  readonly state: SyncState | null;
+}
+
+// The team's copy of the mirror branch on a git remote, reached with the developer's own git
+// credentials. Instance secrets never reach git.
+export interface SharedMirror {
+  // Fetches servicenow-remote/<name>; null when the remote has no such branch yet.
+  fetch(root: string, instance: string, remote: string): Promise<SharedTip | null>;
+  // The tip of the local servicenow-remote/<name>.
+  localTip(root: string, instance: string): Promise<string | null>;
+  // True when `descendant` is `ancestor` or contains it in its history.
+  contains(root: string, descendant: string, ancestor: string): Promise<boolean>;
+  // Moves the local servicenow-remote/<name> to `commit`, only while it is still at `expected`
+  // (null: no branch yet).
+  moveTo(
+    root: string,
+    instance: string,
+    move: { readonly commit: string; readonly expected: string | null },
+  ): Promise<void>;
+  // Pushes `commit` as servicenow-remote/<name>, fast-forward only.
+  publish(
+    root: string,
+    instance: string,
+    remote: string,
+    commit: string,
+  ): Promise<"published" | "rejected">;
 }

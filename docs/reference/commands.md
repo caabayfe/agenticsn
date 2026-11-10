@@ -37,6 +37,7 @@ Options:
 - `--client-id <value>`: OAuth client id from the Application Registry, for the client-credentials grant
 - `--kind <value>`: only development is written to (one of: development, test, production)
 - `--acknowledge-read-only`: confirm that a test or production credential is read-only
+- `--shared-mirror <value>`: git remote that holds the team's mirror branch (team mode, e.g. origin): pulls continue from it
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -98,7 +99,7 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 snagentic pull <instance> [options]
 ```
 
-Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The first pull is complete and resumable; later pulls fetch only what changed. Then run integrate to bring it into the working branch.
+Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The first pull is complete and resumable; later pulls fetch only what changed. With a shared mirror, a pull continues from the newest of it and this clone's branch, and asks the instance nothing while that mirror is younger than its max age. Then run integrate to bring it into the working branch.
 
 Changes the instance: no (writes only to the workspace). MCP tool: `pull`.
 
@@ -106,6 +107,8 @@ Options:
 
 - `--full`: pull everything again
 - `--verify`: also compare the mirror with the instance by counts and repair differences
+- `--now`: pull from the instance even when the shared mirror is younger than its max age
+- `--publish`: push the mirror branch to the shared mirror after the pull (the designated puller; fast-forward only)
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -705,10 +708,12 @@ All commands also take `--format agent|json|text` and `--workspace <path>`.
 `snagentic mcp` serves these tools over stdio. Tools that change an instance are only offered
 when the workspace has a development instance, and can only name those (ADR-0012).
 
-- `pull`: Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The first pull is complete and resumable; later pulls fetch only what changed. Then run integrate to bring it into the working branch.
+- `pull`: Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The first pull is complete and resumable; later pulls fetch only what changed. With a shared mirror, a pull continues from the newest of it and this clone's branch, and asks the instance nothing while that mirror is younger than its max age. Then run integrate to bring it into the working branch.
   - `instance` (string, required)
   - `full` (boolean, optional): pull everything again
   - `verify` (boolean, optional): also compare the mirror with the instance by counts and repair differences
+  - `now` (boolean, optional): pull from the instance even when the shared mirror is younger than its max age
+  - `publish` (boolean, optional): push the mirror branch to the shared mirror after the pull (the designated puller; fast-forward only)
 - `status`: Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet integrated and local changes to synced files. Reads local state only; never calls the instance.
   - `instance` (string, optional): one instance (default: all)
 - `find`: Find where something lives in the mirrored instance: records by name (business rules, script includes, tables, fields, ACLs…) or, with code=true, by text inside scripts. Without text, lists records by class, table or scope. Reads the workspace only. Follow up with describe on a result's path.

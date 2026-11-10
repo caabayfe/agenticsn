@@ -123,6 +123,15 @@ export const FAKE_CONTEXT: UseCaseContext = {
   syncState: () => {
     throw new Error("tests that pull provide their own sync state");
   },
+  sharedMirror: {
+    fetch: async () => {
+      throw new Error("tests with a shared mirror provide their own");
+    },
+    localTip: async () => null,
+    contains: async () => false,
+    moveTo: async () => {},
+    publish: async () => "rejected",
+  },
   mirrors: {
     open: async () => {
       throw new Error("tests that pull provide their own mirror");

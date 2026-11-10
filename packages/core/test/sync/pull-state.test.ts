@@ -72,6 +72,14 @@ describe("the pull state in the mirror (ADR-0052)", () => {
     expect(local.calls).toEqual(["note 2026-10-05 12:00:00", "clear checkpoint"]);
   });
 
+  it("commits a publishing pull's later watermark even when nothing changed", async () => {
+    const { mirror, files } = memoryMirror();
+    const state = stateInMirror(localStore({ state: PULLED }).store, mirror, "instances/pdi");
+    const run = { full: false, idle: true, publish: true, puller: PULLER };
+    expect(await recordPull(state, PULLED, run)).toBe(true);
+    expect(files.get(PULL_STATE_FILE)).toMatchObject(PULLED);
+  });
+
   it("moves an earlier version's local state and catalog into the next pull commit", async () => {
     const { mirror, files } = memoryMirror();
     const local = localStore({ state: PULLED, legacy: true });

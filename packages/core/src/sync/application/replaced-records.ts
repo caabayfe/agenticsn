@@ -24,7 +24,8 @@ export async function removeReplaced(
   signal: AbortSignal,
 ): Promise<number> {
   const fresh = created.filter((c) => REPLACED_ON_SAVE.has(c.className));
-  if (fresh.length === 0) return 0;
+  // Absent from a listing is not deleted for a user other than the mirror's (ADR-0052 item 4).
+  if (fresh.length === 0 || deps.absence === "keep") return 0;
   const freshBases = new Set(fresh.map((c) => c.base));
   const wanted = new Map(fresh.map((c) => [nameKey(c.base), c.className]));
   const candidates: { base: string; sysId: string; className: string }[] = [];

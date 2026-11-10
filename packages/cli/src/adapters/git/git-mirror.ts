@@ -8,7 +8,7 @@ import type {
 } from "@snagentic/core";
 import { instancePaths } from "@snagentic/core";
 import { serialQueue } from "../serial-queue";
-import { toYaml } from "../yaml/own-style";
+import { fromYamlStrings, toYaml } from "../yaml/own-style";
 import { childRowOwners, countChildRows } from "./child-row-files";
 import { FastImport, fastImportPath } from "./fast-import";
 import { removeTemporaryPacks } from "./git-pack-cleanup";
@@ -163,6 +163,15 @@ export class GitMirror implements IncrementalMirror {
 
   childRowOwners(root: string, tables: readonly string[]): Promise<Map<string, string>> {
     return this.atCurrentTip((tip) => childRowOwners(this.repository, tip, root, tables));
+  }
+
+  async readDocument(root: string, path: string): Promise<unknown> {
+    await this.checkpoint();
+    const progress = await revParse(this.repository, GitMirror.progressRef(this.instance));
+    const tip = progress ?? this.startFrom;
+    const shown =
+      tip === null ? null : await runGit(["show", `${tip}:${root}/${path}`], this.repository);
+    return shown === null || shown.exitCode !== 0 ? null : fromYamlStrings(shown.stdout);
   }
 
   // Runs a read of the mirrored tree as this pull has left it so far (pending writes are

@@ -1,171 +1,156 @@
 import {
-  completePull,
-  DEFAULT_REDACTION,
-  type FinishedPull,
+  checkPublisher,
+  continueFromNewest,
   getInstance,
-  type IncrementalDependencies,
   InstanceName,
-  instancePaths,
-  KeysetPager,
-  type MirrorMode,
-  measureServerCost,
-  pullFull,
-  pullIncremental,
-  rawTimestamp,
-  recordPull,
-  resolveSecret,
+  type InstanceProfile,
+  minutesSince,
+  PublishRejectedError,
+  type SharedStart,
   SnagenticError,
-  stateInMirror,
-  verifyReadOnlyCredential,
 } from "@snagentic/core";
 import { z } from "zod";
-import {
-  fullOutput,
-  incrementalOutput,
-  PullOutput,
-  type RunFacts,
-  renderPull,
-} from "./pull-output";
-import {
-  defineUseCase,
-  type ProgressEvent,
-  type RunControl,
-  type UseCaseContext,
-} from "./use-case";
+import { PullOutput, renderPull } from "./pull-output";
+import { pullFromInstance } from "./pull-session";
+import type { SharedPullOutput } from "./pull-shared-output";
+import { defineUseCase, type RunControl, type UseCaseContext } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
-// Resident memory, sampled whenever the pull reports progress (at least once per class).
-function memorySampler(run: RunControl) {
-  let peak = 0;
-  const sample = () => {
-    peak = Math.max(peak, process.memoryUsage().rss);
-  };
-  const progress = (event: ProgressEvent) => {
-    sample();
-    run.progress(event);
-  };
-  return { sample, progress, peakMb: () => Math.round(peak / 1024 / 1024) };
-}
-
-// A pull continues an interrupted full pull, pulls changes once a full pull exists, or
-// starts from scratch when asked to (--full) or when nothing was pulled yet.
-class VerifyNeedsPullError extends SnagenticError {
+class PublishNeedsSharedMirrorError extends SnagenticError {
   constructor(instance: string) {
     super(
-      "verify-needs-pull",
+      "publish-needs-shared-mirror",
       "usage",
-      `--verify checks a completed pull, and ${instance} has none to check`,
-      `run: snagentic pull ${instance}`,
+      `--publish pushes to the shared mirror, and ${instance}'s profile names none`,
+      `add shared_mirror: { remote: origin } to instances/${instance}/instance.yaml, or pull without --publish`,
     );
   }
 }
 
-async function openSession(
-  input: { instance: string; full: boolean; verify: boolean },
-  context: UseCaseContext,
-  signal: AbortSignal,
-) {
-  const root = await workspaceRoot(context);
-  const name = InstanceName.parse(input.instance);
-  const profile = await getInstance(root, name, context.profiles);
-  const state = context.syncState(root, name);
-  const resumed = (await state.readCheckpoint()) !== null;
-  const pulled = (await state.readState()) !== null;
-  const mode: MirrorMode = resumed ? "resume" : !input.full && pulled ? "incremental" : "fresh";
-  if (input.verify && mode !== "incremental") {
-    throw new VerifyNeedsPullError(name);
-  }
-  const reader = context.connections.open(
-    profile,
-    await resolveSecret(profile, context.credentials),
-  );
-  await verifyReadOnlyCredential(profile, reader, signal);
-  const mirror = await context.mirrors.open(root, name, mode);
-  const paths = instancePaths(name);
-  const deps: IncrementalDependencies = {
-    pager: new KeysetPager(reader),
-    statistics: reader,
-    records: mirror,
-    state: stateInMirror(state, mirror, paths.root),
-    instanceRoot: paths.root,
-    metadataRoot: paths.metadata,
-    operationalRoot: paths.operational,
-    catalogPath: paths.pullCatalog,
-    policy: DEFAULT_REDACTION,
-    now: context.clock,
+const PullInput = z.object({
+  instance: z.string(),
+  full: z.boolean().default(false).describe("pull everything again"),
+  verify: z
+    .boolean()
+    .default(false)
+    .describe("also compare the mirror with the instance by counts and repair differences"),
+  now: z
+    .boolean()
+    .default(false)
+    .describe("pull from the instance even when the shared mirror is younger than its max age"),
+  publish: z
+    .boolean()
+    .default(false)
+    .describe(
+      "push the mirror branch to the shared mirror after the pull (the designated puller; fast-forward only)",
+    ),
+});
+type PullInput = z.output<typeof PullInput>;
+type Setting = NonNullable<InstanceProfile["sharedMirror"]>;
+
+function sharedView(
+  start: SharedStart,
+  setting: Setting,
+  now: Date,
+  published: boolean,
+): SharedPullOutput {
+  return {
+    remote: start.remote,
+    from: start.from,
+    sharedCommit: start.shared?.commit ?? null,
+    ageMinutes: start.watermark === null ? null : minutesSince(start.watermark, now),
+    maxAgeMinutes: setting.maxAgeMinutes,
+    published,
   };
-  const puller = { user: profile.auth.username, version: context.host.version };
-  return { name, mode, reader, mirror, deps, puller };
+}
+
+// The mirror is younger than maxAge: the pull asks the instance nothing (ADR-0052 item 3).
+function currentOutput(
+  name: string,
+  commit: string,
+  start: SharedStart,
+  shared: SharedPullOutput,
+): PullOutput {
+  return {
+    instance: name,
+    mode: "current",
+    resumed: false,
+    commit,
+    changed: false,
+    records: 0,
+    unreadable: [],
+    secretRedactions: [],
+    watermark: start.watermark ?? "",
+    requests: 0,
+    retries: 0,
+    semaphoreWaitMs: 0,
+    peakConcurrency: 0,
+    requestSeconds: 0,
+    seconds: 0,
+    peakMemoryMb: 0,
+    serverCost: null,
+    shared,
+  };
+}
+
+// ADR-0052 items 2, 3 and 5: start from the newest mirror, skip a current one, publish
+// fast-forward only; a refused push fetches, continues from the newer commit and tries once more.
+async function pullShared(
+  root: string,
+  profile: InstanceProfile,
+  setting: Setting,
+  input: PullInput,
+  context: UseCaseContext,
+  run: RunControl,
+): Promise<PullOutput> {
+  const state = context.syncState(root, profile.name);
+  const deps = { shared: context.sharedMirror, state, now: context.clock };
+  for (let attempt = 1; ; attempt += 1) {
+    const start = await continueFromNewest(deps, root, profile.name, setting, input.publish);
+    if (input.publish) checkPublisher(start, profile.name, profile.auth.username);
+    const view = (published: boolean) => sharedView(start, setting, context.clock(), published);
+    const tip = (await context.sharedMirror.localTip(root, profile.name)) ?? "";
+    // A publisher skips only when the shared tip already holds what it would publish.
+    const shared = !input.publish || tip === start.shared?.commit;
+    if (start.current && shared && !input.now && !input.full && !input.verify) {
+      return currentOutput(profile.name, tip, start, view(false));
+    }
+    const output = await pullFromInstance(root, profile, input, context, run);
+    if (!input.publish) return { ...output, shared: view(false) };
+    run.progress({ message: `publishing to ${setting.remote}` });
+    const pushed = await context.sharedMirror.publish(
+      root,
+      profile.name,
+      setting.remote,
+      output.commit,
+    );
+    if (pushed === "published") return { ...output, shared: view(true) };
+    if (attempt >= 2) throw new PublishRejectedError(profile.name, setting.remote);
+  }
 }
 
 export const pull = defineUseCase({
   name: "pull",
   description:
     "Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The " +
-    "first pull is complete and resumable; later pulls fetch only what changed. Then run " +
-    "integrate to bring it into the working branch.",
-  input: z.object({
-    instance: z.string(),
-    full: z.boolean().default(false).describe("pull everything again"),
-    verify: z
-      .boolean()
-      .default(false)
-      .describe("also compare the mirror with the instance by counts and repair differences"),
-  }),
+    "first pull is complete and resumable; later pulls fetch only what changed. With a shared " +
+    "mirror, a pull continues from the newest of it and this clone's branch, and asks the " +
+    "instance nothing while that mirror is younger than its max age. Then run integrate to " +
+    "bring it into the working branch.",
+  input: PullInput,
   output: PullOutput,
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
   arguments: ["instance"],
   async handle(input, context, run) {
-    const started = performance.now();
-    // The transaction log is searched from a little before the start, so a skewed local
-    // clock cannot hide requests; the run tag in the User-Agent does the matching.
-    const since = rawTimestamp(new Date(context.clock().getTime() - 5 * 60_000));
-    const session = await openSession(input, context, run.signal);
-    const memory = memorySampler(run);
-    const facts = async (finished: FinishedPull, committing: number): Promise<RunFacts> => {
-      memory.sample();
-      // Read before measuring, so the measuring request is not counted as part of the pull.
-      const stats = session.reader.stats();
-      return {
-        instance: session.name,
-        resumed: session.mode === "resume",
-        commit: finished.commit,
-        changed: finished.created,
-        stats,
-        started,
-        committing,
-        peakMemoryMb: memory.peakMb(),
-        serverCost: await measureServerCost(session.reader, since, run.signal),
-      };
-    };
-    const { deps, mirror, name, puller } = session;
-    try {
-      if (session.mode === "incremental") {
-        const summary = await pullIncremental(deps, name, run.signal, memory.progress, {
-          verify: input.verify,
-        });
-        const committing = performance.now();
-        const record = { full: false, idle: summary.idle, puller };
-        const carried = await recordPull(deps.state, summary.next, record);
-        const finished = await mirror.finish(
-          `snagentic pull ${name}: changes in ${summary.changedSources.join(", ") || "state"}`,
-        );
-        await completePull(deps.state, carried);
-        return incrementalOutput(await facts(finished, committing), summary);
-      }
-      const summary = await pullFull(deps, run.signal, memory.progress);
-      const committing = performance.now();
-      await recordPull(deps.state, summary.next, { full: true, idle: false, puller });
-      const finished = await mirror.finish(
-        `snagentic pull ${name}: full (${summary.records} records, ${summary.childRows} child rows)`,
-      );
-      await completePull(deps.state, true);
-      return fullOutput(await facts(finished, committing), summary);
-    } catch (error) {
-      await mirror.abort();
-      throw error;
+    const root = await workspaceRoot(context);
+    const profile = await getInstance(root, InstanceName.parse(input.instance), context.profiles);
+    const setting = profile.sharedMirror;
+    if (setting === undefined) {
+      if (input.publish) throw new PublishNeedsSharedMirrorError(profile.name);
+      return pullFromInstance(root, profile, input, context, run);
     }
+    return pullShared(root, profile, setting, input, context, run);
   },
   render: renderPull,
   exitCode: () => 0,

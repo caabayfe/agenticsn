@@ -1,5 +1,4 @@
-import { actingAs } from "../../instance/domain/identity";
-import type { InstanceProfile } from "../../instance/domain/profile";
+import { actingAs, type InstanceProfile } from "../../instance/index";
 import { CostNeedsDevelopmentError, PublishNeedsSharedMirrorError } from "../domain/pull-errors";
 import { PublishRejectedError } from "../domain/shared-mirror-errors";
 import {

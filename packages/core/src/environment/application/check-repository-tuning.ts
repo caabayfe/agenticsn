@@ -1,5 +1,4 @@
-import { missingSettings, tuningCommands } from "../../workspace/domain/repository-tuning";
-import type { WorkspaceStore } from "../../workspace/ports";
+import { missingSettings, tuningCommands, type WorkspaceStore } from "../../workspace/index";
 import type { Check } from "../domain/check";
 
 const NAME = "git-tuning";

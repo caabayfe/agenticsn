@@ -35,6 +35,9 @@ pushing at once overwrite each other's.
 **Toolchain note:** TypeScript is pinned to 6.x on purpose. TypeScript 7 (the native
 compiler) doesn't yet publish the compiler API that dependency-cruiser needs, so the
 architecture checks would silently find nothing. Revisit when dependency-cruiser supports 7.
+Bun is pinned to the exact version in `.bun-version`: every workflow reads it, and
+`bun run verify` fails on another version, because coverage counts and compiled binaries
+differ between Bun patch releases. To move Bun, change that file only.
 
 ## Read before changing anything
 

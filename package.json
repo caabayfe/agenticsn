@@ -11,9 +11,10 @@
     "format": "biome format --write .",
     "arch": "bun scripts/arch.ts",
     "test": "bun test",
-    "verify": "bun run typecheck && bun run lint && bun run arch && bun run size && bun test --coverage",
+    "verify": "bun run bun-version && bun run typecheck && bun run lint && bun run arch && bun run size && bun test --coverage",
     "build": "bun scripts/build.ts",
     "size": "bun scripts/check-size.ts",
+    "bun-version": "bun scripts/check-bun-version.ts",
     "docs": "bun scripts/command-reference.ts && bun scripts/adr-index.ts"
   },
   "devDependencies": {

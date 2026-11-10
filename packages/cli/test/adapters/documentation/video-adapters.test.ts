@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseScene, playerHtml } from "@snagentic/core";
@@ -9,6 +9,7 @@ import {
   startBrowser,
 } from "../../../src/adapters/documentation/chrome-video-renderer";
 import { DevToolsClient, field } from "../../../src/adapters/documentation/devtools-client";
+import { fakeProgram } from "../../support/fake-program";
 import { mediaTestsRun } from "../../support/media-tests";
 
 // Runs where Chrome and ffmpeg are installed; SNAGENTIC_TEST_MEDIA moves it to the media CI job,
@@ -39,13 +40,24 @@ describe("the browser", () => {
   it("starts the browser again, with a fresh profile, when the first one gives no endpoint", async () => {
     const dir = await mkdtemp(join(tmpdir(), "snagentic-fake-chrome-"));
     try {
-      const program = join(dir, "chrome");
       // Answers only on its second start: writes DevToolsActivePort into --user-data-dir.
-      await writeFile(
-        program,
-        `#!/bin/sh\ncount="${dir}/starts"\necho x >> "$count"\n[ "$(wc -l < "$count")" -lt 2 ] && sleep 5 && exit 0\nfor arg in "$@"; do case "$arg" in --user-data-dir=*) profile="\${arg#--user-data-dir=}";; esac; done\nmkdir -p "$profile"\nprintf '9222\\n/devtools/browser/fake\\n' > "$profile/DevToolsActivePort"\nsleep 5\n`,
+      const program = await fakeProgram(
+        dir,
+        "chrome",
+        [
+          'import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";',
+          'import { join } from "node:path";',
+          `const count = ${JSON.stringify(join(dir, "starts"))};`,
+          'appendFileSync(count, "x\\n");',
+          'if (readFileSync(count, "utf8").trim().split("\\n").length >= 2) {',
+          '  const flag = process.argv.find((arg) => arg.startsWith("--user-data-dir="));',
+          '  const profile = (flag ?? "").slice("--user-data-dir=".length);',
+          "  mkdirSync(profile, { recursive: true });",
+          '  writeFileSync(join(profile, "DevToolsActivePort"), "9222\\n/devtools/browser/fake\\n");',
+          "}",
+          "await Bun.sleep(5000);",
+        ].join("\n"),
       );
-      await chmod(program, 0o755);
       const started = await startBrowser(program, dir, new AbortController().signal, 20);
       started.browser.kill();
       expect(started.url).toBe("ws://127.0.0.1:9222/devtools/browser/fake");
@@ -58,9 +70,7 @@ describe("the browser", () => {
   it("gives up after the second start gives no endpoint either", async () => {
     const dir = await mkdtemp(join(tmpdir(), "snagentic-fake-chrome-"));
     try {
-      const program = join(dir, "chrome");
-      await writeFile(program, "#!/bin/sh\nsleep 5\n");
-      await chmod(program, 0o755);
+      const program = await fakeProgram(dir, "chrome", "await Bun.sleep(5000);");
       await expect(startBrowser(program, dir, new AbortController().signal, 10)).rejects.toThrow(
         /did not start its DevTools endpoint/,
       );

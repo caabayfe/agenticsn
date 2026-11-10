@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { chmod, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ExecutableBinary, installedPath } from "../../../src/adapters/upgrade/executable-binary";
@@ -17,7 +17,7 @@ const BINARY_TIMEOUT = 60_000;
 // runs on Windows too.
 const script = (version: string) =>
   compiledProgram(
-    `console.log("snagentic ${version} (test)");\nconsole.log(\`args: \${process.argv.slice(2).join(" ")}\`);\n`,
+    `if (process.argv.includes("--wait")) await Bun.sleep(30_000);\nconsole.log("snagentic ${version} (test)");\nconsole.log(\`args: \${process.argv.slice(2).join(" ")}\`);\n`,
   );
 
 async function installed(name = "snagentic") {
@@ -77,6 +77,28 @@ describe("ExecutableBinary (ADR-0023)", () => {
       expect(await readFile(`${path}.old`, "utf8")).toContain("snagentic 1.2.1");
       await binary.replace(await script("1.4.0"), "1.4.0");
       expect(await readFile(`${path}.old`, "utf8")).toContain("snagentic 1.3.0");
+    },
+    BINARY_TIMEOUT,
+  );
+
+  it(
+    "on Windows upgrades again while the binary moved aside last time still runs",
+    async () => {
+      const { dir, path } = await installed("snagentic.exe");
+      const binary = new ExecutableBinary(path, "win32");
+      await binary.replace(await script("1.3.0"), "1.3.0");
+      // An MCP server started before the upgrade keeps running the old binary.
+      const running = Bun.spawn([`${path}.old`, "--wait"], { stdout: "ignore" });
+      try {
+        await binary.replace(await script("1.4.0"), "1.4.0");
+        expect(await readFile(path, "utf8")).toContain("snagentic 1.4.0");
+      } finally {
+        running.kill();
+        await running.exited;
+      }
+      await binary.replace(await script("1.5.0"), "1.5.0");
+      expect((await readdir(dir)).sort()).toEqual(["snagentic.exe", "snagentic.exe.old"]);
+      expect(await readFile(`${path}.old`, "utf8")).toContain("snagentic 1.4.0");
     },
     BINARY_TIMEOUT,
   );

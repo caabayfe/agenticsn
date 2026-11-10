@@ -9,10 +9,13 @@ const INSTANCE_DATA = /^snagentic-(?:adopt|worker|sdk)-/;
 const DAY_MS = 24 * 3_600_000;
 
 // Removes such folders older than a day: none is still in use by then. Returns their paths.
+// `pattern` names other scratch folders, such as a pull's spills (whose caller holds the lock
+// that proves none is in use, and passes no age).
 export function sweepStaleScratch(
   root: string = tmpdir(),
   now: number = Date.now(),
   maxAgeMs: number = DAY_MS,
+  pattern: RegExp = INSTANCE_DATA,
 ): string[] {
   let names: string[];
   try {
@@ -21,7 +24,7 @@ export function sweepStaleScratch(
     return [];
   }
   const swept: string[] = [];
-  for (const name of names.filter((n) => INSTANCE_DATA.test(n))) {
+  for (const name of names.filter((n) => pattern.test(n))) {
     const path = join(root, name);
     try {
       const entry = statSync(path);

@@ -47,13 +47,14 @@ describe("pullIncremental: child rows", () => {
   });
 
   it("lists a whole nested family again when one of its tables changed", async () => {
-    const { incremental, tables, files } = await pulledInstance();
+    const { incremental, tables, files, spills } = await pulledInstance();
     touch(tables["wf_activity"]?.[0], { name: "Start" });
     const { queries } = await incremental();
     expect(queries.map((query) => String(query.table))).toContain("wf_workflow_version");
     expect(files.get(`${WORKFLOW}.children.wf_activity.yaml`)).toEqual([
       expect.objectContaining({ sys_id: "a1", name: "Start" }),
     ]);
+    expect(spills.openSpills()).toBe(0);
   });
 
   it("redacts and reports a secret in a changed child-row file", async () => {

@@ -40,6 +40,7 @@ import type {
   ServerCostReader,
   SharedMirror,
   SiteOutput,
+  SpillStore,
   StoreAppInstaller,
   SyncStateStore,
   TableStatistics,
@@ -112,6 +113,8 @@ export interface UseCaseContext {
   readonly mirrors: {
     open(root: string, instance: InstanceName, mode: MirrorMode): Promise<IncrementalMirror>;
   };
+  // The files a pull groups child rows in (.snagentic/<name>/spill/, PERF-07).
+  readonly spills: (root: string, instance: InstanceName) => SpillStore;
   readonly integrator: MirrorIntegrator;
   readonly inspector: MirrorInspector;
   readonly inventory: InventoryReader;

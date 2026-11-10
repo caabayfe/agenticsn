@@ -4,6 +4,8 @@ import { TableName } from "../../kernel/table-name";
 import type { Catalog } from "../../metadata/domain/catalog";
 import { fieldsToRedact } from "../../metadata/domain/redaction";
 import {
+  mergeSecretPatterns,
+  type SecretPatternId,
   type SecretRedaction,
   scanDocumentSecrets,
   sortSecretRedactions,
@@ -15,7 +17,7 @@ import { familiesToRelist } from "../domain/relist-families";
 import { withUnlistedRows } from "../domain/unlisted-rows";
 import { type ChildOwners, childOwners, ownersWithOtherCounts } from "./child-owners";
 import type { IncrementalDependencies } from "./incremental-dependencies";
-import { cleaned, groupTable, owners } from "./pull-children";
+import { cleaned, listChildTable, ownerDocuments, owners } from "./pull-children";
 
 // Parent keys per request when refreshing records' child rows.
 const OWNER_BATCH = 100;
@@ -44,13 +46,15 @@ const newTotals = (deleted: readonly string[] = []): Totals => ({
 
 const childFile = (base: string, table: string) => `${base}.children.${table}.yaml`;
 
-// Writes an owner's current child rows, or removes its file when it has none left.
+// Writes an owner's current child rows, or removes its file when it has none left. `scanned`
+// names the patterns already redacted from `rows` (scanning again finds nothing new in them).
 async function store(
   deps: IncrementalDependencies,
   base: string,
   table: string,
   rows: readonly Row[] | undefined,
   totals: Totals,
+  scanned: readonly SecretPatternId[] = [],
 ): Promise<void> {
   const path = childFile(base, table);
   const held = deps.records.filesOf(deps.metadataRoot, base).includes(path);
@@ -64,13 +68,11 @@ async function store(
         )
       : (rows ?? []);
   if (current.length > 0) {
-    const scanned = scanDocumentSecrets(current);
-    await deps.records.writeDocument(deps.metadataRoot, path, scanned.document);
-    if (scanned.patterns.length > 0) {
-      totals.secretRedactions.push({
-        path: `${deps.metadataRoot}/${path}`,
-        patterns: scanned.patterns,
-      });
+    const scan = scanDocumentSecrets(current);
+    const patterns = mergeSecretPatterns([scanned, scan.patterns]);
+    await deps.records.writeDocument(deps.metadataRoot, path, scan.document);
+    if (patterns.length > 0) {
+      totals.secretRedactions.push({ path: `${deps.metadataRoot}/${path}`, patterns });
     }
     totals.childFiles += 1;
   } else if (held) {
@@ -195,11 +197,11 @@ async function relistFamily(
   signal: AbortSignal,
   totals: Totals,
 ): Promise<string[]> {
-  const ownerMap = await owners(deps);
+  const keys = { owners: await owners(deps), through: null };
   const unreadable: string[] = [];
   for (const child of family) {
-    const grouped = await groupTable(deps, catalog, child, ownerMap, signal);
-    if (grouped === null) {
+    const listed = await listChildTable(deps, catalog, child, keys, signal);
+    if (listed === null) {
       unreadable.push(child.table);
       continue;
     }
@@ -209,8 +211,12 @@ async function relistFamily(
         holders.add(base);
       }
     }
-    for (const base of new Set([...holders, ...grouped.attached.keys()])) {
-      await store(deps, base, child.table, grouped.attached.get(base), totals);
+    for await (const { base, rows, patterns } of ownerDocuments(listed)) {
+      holders.delete(base);
+      await store(deps, base, child.table, rows, totals, patterns);
+    }
+    for (const base of holders) {
+      await store(deps, base, child.table, undefined, totals);
     }
   }
   return unreadable;

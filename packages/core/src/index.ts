@@ -110,12 +110,14 @@ export {
   type RedactionPolicy,
 } from "./metadata/domain/redaction";
 export {
+  mergeSecretPatterns,
   SECRET_PATTERN_IDS,
   type SecretDocumentScan,
   type SecretPatternId,
   type SecretRedaction,
   type SecretScan,
   scanDocumentSecrets,
+  scanRowSecrets,
   scanSecrets,
   sortSecretRedactions,
 } from "./metadata/domain/secret-scan";
@@ -180,12 +182,9 @@ export {
   type PageTiming,
 } from "./sync/domain/keyset";
 export {
-  type AttachedChildren,
-  attachChildren,
   CHILD_TABLES,
   type ChildTable,
   childFamily,
-  childGrouper,
   classesToPull,
   ownerOfBase,
   variableModelOf,
@@ -202,6 +201,7 @@ export {
   type Rereads,
   rereadsBetween,
 } from "./sync/domain/redaction-upgrades";
+export * from "./sync/domain/spilled-children";
 export {
   minutesSince,
   nextCommand,

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { scanDocumentSecrets, scanSecrets, sortSecretRedactions } from "@snagentic/core";
+import {
+  mergeSecretPatterns,
+  scanDocumentSecrets,
+  scanRowSecrets,
+  scanSecrets,
+  sortSecretRedactions,
+} from "@snagentic/core";
 import fc from "fast-check";
 
 describe("secret scan (ADR-0035)", () => {
@@ -91,6 +97,24 @@ describe("secret scan (ADR-0035)", () => {
       fc.property(fc.string(), (text) => {
         const once = scanSecrets(text);
         expect(scanSecrets(once.text)).toEqual({ text: once.text, patterns: [] });
+      }),
+    );
+  });
+
+  it("scans a document of rows exactly as it scans each row on its own", () => {
+    const value = fc.oneof(
+      fc.string(),
+      fc.constant("AKIAIOSFODNN7EXAMPLE"),
+      fc.constant("https://admin:hunter2@example.com/api"),
+    );
+    fc.assert(
+      fc.property(fc.array(fc.dictionary(fc.string(), value)), (rows) => {
+        const each = rows.map(scanRowSecrets);
+        const whole = scanDocumentSecrets(rows);
+        expect(whole.document).toEqual(each.map((scanned) => scanned.row));
+        expect(mergeSecretPatterns(each.map((scanned) => scanned.patterns))).toEqual(
+          whole.patterns,
+        );
       }),
     );
   });

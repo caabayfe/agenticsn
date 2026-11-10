@@ -80,6 +80,9 @@ async function openSession(
   );
   await verifyReadOnlyCredential(profile, reader, signal);
   const mirror = await context.mirrors.open(root, name, mode);
+  // The pull holds the workspace lock, so any spill found now was left by a crashed run.
+  const spills = context.spills(root, name);
+  await spills.sweep();
   const paths = instancePaths(name);
   const user = profile.auth.username;
   const deps: IncrementalDependencies = {
@@ -93,6 +96,7 @@ async function openSession(
     catalogPath: paths.pullCatalog,
     policy: DEFAULT_REDACTION,
     now: context.clock,
+    spills,
     absence: removesByAbsence(pulled?.pulledBy, user) ? "remove" : "keep",
     instanceTime: () => reader.instanceTime?.() ?? null,
   };

@@ -15,6 +15,7 @@ import {
   type SyncState,
   type TableQuery,
 } from "@snagentic/core";
+import { memorySpills } from "../support/memory-spill";
 
 const LIVE = new AbortController().signal;
 const STATS: ConnectionStats = {
@@ -162,7 +163,12 @@ function memoryState(checkpoint: PullCheckpoint | null = null, timeline: string[
   return { store, saved };
 }
 
-function run(reader: InstanceReader, state = memoryState(), records = memoryRecords()) {
+function run(
+  reader: InstanceReader,
+  state = memoryState(),
+  records = memoryRecords(),
+  spills = memorySpills(),
+) {
   const deps = {
     pager: new KeysetPager(reader),
     statistics: {
@@ -178,8 +184,9 @@ function run(reader: InstanceReader, state = memoryState(), records = memoryReco
     catalogPath: ".snagentic/pdi/catalog.json",
     policy: DEFAULT_REDACTION,
     now: () => new Date("2026-10-05T12:00:00Z"),
+    spills,
   };
-  return { result: pullFull(deps, LIVE), records, state };
+  return { result: pullFull(deps, LIVE), records, state, spills };
 }
 
 describe("pullFull", () => {
@@ -305,6 +312,35 @@ describe("pullFull", () => {
     );
     expect(activity).toEqual([{ sys_id: sid(11), workflow_version: sid(10), name: "Begin" }]);
     expect(summary.childRows).toBe(2);
+  });
+
+  it("attaches variable values to the record that owns the child row they name", async () => {
+    const { result, records } = run(
+      instance({
+        sys_variable_value: [
+          { sys_id: sid(22), document_key: sid(11), value: "through an activity" },
+          { sys_id: sid(21), document_key: sid(3), value: "on the record" },
+          { sys_id: sid(23), document_key: sid(99), value: "nobody's" },
+        ],
+      }).reader,
+    );
+    const summary = await result;
+    expect(
+      records.documents.get(
+        `meta|global/wf_workflow/approve--${sid(3)}.children.sys_variable_value.yaml`,
+      ),
+    ).toEqual([
+      { sys_id: sid(21), document_key: sid(3), value: "on the record" },
+      { sys_id: sid(22), document_key: sid(11), value: "through an activity" },
+    ]);
+    expect(summary.childRows).toBe(4);
+    expect(summary.orphanChildRows).toBe(1);
+  });
+
+  it("removes every spill of child rows once their files are written, readable or not", async () => {
+    const { result, spills } = run(instance({}, ["wf_activity", "sys_ui_element"]).reader);
+    await result;
+    expect(spills.openSpills()).toBe(0);
   });
 
   it("scans child-row and operational documents before writing them", async () => {

@@ -14,15 +14,22 @@ import { runGit, runGitOrThrow } from "../git/run-git";
 type Setting = Pick<RepositorySetting, "key" | "value">;
 
 // git settings for repositories with hundreds of thousands of files. git's built-in
-// file-system monitor exists only on macOS and Windows.
-function largeRepositorySettings(): readonly Setting[] {
+// file-system monitor exists only on macOS and Windows. Deep mirror records pass Windows'
+// 260-character path limit, which git keeps unless core.longpaths is set.
+function largeRepositorySettings(platform: NodeJS.Platform): readonly Setting[] {
   const settings = [
     { key: "feature.manyFiles", value: "true" },
     { key: "core.untrackedCache", value: "true" },
   ];
-  return process.platform === "darwin" || process.platform === "win32"
-    ? [...settings, { key: "core.fsmonitor", value: "true" }]
-    : settings;
+  if (platform === "darwin") return [...settings, { key: "core.fsmonitor", value: "true" }];
+  if (platform === "win32") {
+    return [
+      ...settings,
+      { key: "core.fsmonitor", value: "true" },
+      { key: "core.longpaths", value: "true" },
+    ];
+  }
+  return settings;
 }
 
 function nearestExisting(directory: string): string {
@@ -34,6 +41,8 @@ function nearestExisting(directory: string): string {
 }
 
 export class FsWorkspaceStore implements WorkspaceStore {
+  constructor(private readonly platform: NodeJS.Platform = process.platform) {}
+
   ancestorsOf(directory: string): readonly string[] {
     const ancestors = [resolve(directory)];
     let current = ancestors[0] ?? "/";
@@ -71,7 +80,7 @@ export class FsWorkspaceStore implements WorkspaceStore {
     await writeFile(join(directory, MANIFEST_FILE), stringify(file, { sortMapEntries: true }));
     await writeFile(join(directory, ".gitignore"), GITIGNORE);
     await runGitOrThrow(["init", "-q", "-b", "main"], directory);
-    await this.tuneRepository(directory, largeRepositorySettings());
+    await this.tuneRepository(directory, largeRepositorySettings(this.platform));
     // The directory was empty: everything in it is the workspace's own (ADR-0014).
     await runGitOrThrow(["add", "-A"], directory);
     const configured = (await runGit(["config", "user.email"], directory)).stdout.trim() !== "";
@@ -86,7 +95,7 @@ export class FsWorkspaceStore implements WorkspaceStore {
       return null;
     }
     return Promise.all(
-      largeRepositorySettings().map(async (setting) => {
+      largeRepositorySettings(this.platform).map(async (setting) => {
         // Exit code 1 means unset in every scope.
         const result = await runGit(["config", "--get", setting.key], directory);
         return { ...setting, current: result.exitCode === 0 ? result.stdout.trim() : null };

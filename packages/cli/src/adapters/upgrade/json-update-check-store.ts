@@ -1,13 +1,15 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, posix, win32 } from "node:path";
 import type { UpdateCheck, UpdateCheckStore } from "@snagentic/core";
 
-// Where the notice remembers its last check: the user's cache folder, never a workspace.
+// Where the notice remembers its last check: the user's cache folder, never a workspace. The
+// path is for `platform`, joined with that platform's separator.
 export function updateCheckFile(
   env: Readonly<Record<string, string | undefined>>,
   home: string,
   platform: string,
 ): string {
+  const { join } = platform === "win32" ? win32 : posix;
   const cache =
     env["XDG_CACHE_HOME"] ??
     (platform === "darwin"

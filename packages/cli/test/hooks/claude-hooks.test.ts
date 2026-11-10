@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { PROXY_VARIABLES, RUNTIME_VARIABLES, TRUST_VARIABLES } from "@snagentic/core";
 import { runCli } from "../../src/cli/run-cli";
 import { runClaudeHook } from "../../src/hooks/claude-hooks";
@@ -106,7 +106,13 @@ describe("hooks under other hosts", () => {
       checked(paths),
     );
     expect(outcome.exitCode).toBe(2);
-    expect(paths).toEqual(["/w/snagentic.yaml", "/w/a.js", "/w/.snagentic/b.js", "/w/c.yaml"]);
+    // Relative paths are resolved against the session folder; absolute ones are kept as given.
+    expect(paths).toEqual([
+      resolve("/w", "snagentic.yaml"),
+      "/w/a.js",
+      resolve("/w", ".snagentic/b.js"),
+      resolve("/w", "c.yaml"),
+    ]);
   });
 
   it("reads the edited path from path, filePath and camelCase toolArgs payloads", async () => {

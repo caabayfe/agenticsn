@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { MirrorListing, MirrorRecord, MirrorRecords } from "@snagentic/core";
+import { scanPosix } from "../fs/posix-paths";
 import { fromYamlStrings } from "../yaml/own-style";
 
 const isMap = (value: unknown): value is Record<string, unknown> =>
@@ -54,7 +55,7 @@ export class FsMirrorRecords implements MirrorRecords {
       return null;
     }
     const pattern = `*/${table}/*--${sysId}.yaml`;
-    for await (const path of new Bun.Glob(pattern).scan({ cwd: this.metadata })) {
+    for await (const path of scanPosix(pattern, this.metadata)) {
       return path.slice(0, -".yaml".length);
     }
     return null;
@@ -72,7 +73,7 @@ export class FsMirrorRecords implements MirrorRecords {
     const folder = base.slice(0, base.lastIndexOf("/"));
     const leaf = base.slice(base.lastIndexOf("/") + 1);
     const children: Record<string, string> = {};
-    for await (const file of new Bun.Glob(`${leaf}.*`).scan({ cwd: join(this.metadata, folder) })) {
+    for await (const file of scanPosix(`${leaf}.*`, join(this.metadata, folder))) {
       const part = partOfFile(leaf, file);
       if (part === null) {
         continue;
@@ -115,9 +116,7 @@ export class FsMirrorRecords implements MirrorRecords {
     }
     const listings: MirrorListing[] = [];
     // Glob order follows the file system (sorted on macOS, not on Linux); sort for a stable result.
-    const paths = await Array.fromAsync(
-      new Bun.Glob(`*/${table}/*.yaml`).scan({ cwd: this.metadata }),
-    );
+    const paths = await Array.fromAsync(scanPosix(`*/${table}/*.yaml`, this.metadata));
     for (const path of paths.sort()) {
       signal.throwIfAborted();
       const leaf = path.slice(path.lastIndexOf("/") + 1);

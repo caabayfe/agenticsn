@@ -48,9 +48,50 @@ export function mandatoryLabel(sid: bigint, sidLength = 0): Uint8Array {
 
 export const wide = (text: string): Uint8Array => Buffer.from(`${text}\0`, "utf16le");
 
+type Buffer64 = Uint8Array | BigUint64Array | Int32Array | null;
+
+// The calls used, as bun:ffi exposes them: handles and addresses as bigint, BOOL as a number.
+export interface Win32Libraries {
+  readonly kernel32: {
+    CreateJobObjectW(attributes: null, name: null): bigint;
+    SetInformationJobObject(job: bigint, kind: number, info: Buffer64, length: number): number;
+    AssignProcessToJobObject(job: bigint, process: bigint): number;
+    CloseHandle(handle: bigint): number;
+    LocalFree(memory: bigint): bigint;
+  };
+  readonly advapi32: {
+    OpenProcessToken(process: bigint, access: number, token: Buffer64): number;
+    ConvertStringSidToSidW(text: Buffer64, sid: Buffer64): number;
+    GetLengthSid(sid: bigint): number;
+    SetTokenInformation(token: bigint, kind: number, info: Buffer64, length: number): number;
+    ConvertStringSecurityDescriptorToSecurityDescriptorW(
+      text: Buffer64,
+      revision: number,
+      descriptor: Buffer64,
+      size: null,
+    ): number;
+    GetSecurityDescriptorSacl(
+      descriptor: bigint,
+      present: Buffer64,
+      sacl: Buffer64,
+      defaulted: Buffer64,
+    ): number;
+    SetNamedSecurityInfoW(
+      name: Buffer64,
+      kind: number,
+      information: number,
+      owner: null,
+      group: null,
+      dacl: null,
+      sacl: bigint,
+    ): number;
+  };
+}
+
 const { u64, u32, i32, ptr } = FFIType;
 
-function libraries() {
+// Throws off Windows: the libraries exist only there.
+export function loadWin32Libraries(): Win32Libraries {
   const kernel32 = dlopen("kernel32.dll", {
     CreateJobObjectW: { args: [ptr, ptr], returns: u64 },
     SetInformationJobObject: { args: [u64, u32, ptr, u32], returns: i32 },
@@ -73,7 +114,7 @@ function libraries() {
   return { kernel32: kernel32.symbols, advapi32: advapi32.symbols };
 }
 
-type Libraries = ReturnType<typeof libraries>;
+type Libraries = Win32Libraries;
 
 const succeeded = (name: string, result: number | bigint): void => {
   if (result === 0 || result === 0n) throw new Error(`${name} failed`);
@@ -156,8 +197,10 @@ function lowerToLowIntegrity({ kernel32, advapi32 }: Libraries): void {
   }
 }
 
-export function win32Confinement(): Win32Confinement {
-  const loaded = libraries();
+export function win32Confinement(
+  load: () => Win32Libraries = loadWin32Libraries,
+): Win32Confinement {
+  const loaded = load();
   return {
     labelLowIntegrity: (folder) => labelLowIntegrity(loaded, folder),
     joinJobWithoutChildren: () => joinJobWithoutChildren(loaded),

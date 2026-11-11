@@ -49,6 +49,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   (`feature.manyFiles`, `core.untrackedCache`, `core.fsmonitor` on macOS and Windows): the first
   `integrate` or `pull` sets the ones with no value yet, in the clone's own config, never the global
   one, and `doctor` reports a clone without them (`git-tuning`) (spec 014, 1b-H).
+- `init` writes `instances/** -text` into the workspace's `.gitattributes` (merged into one already
+  there, never twice), so git checks the mirror out byte for byte on every platform. A Windows
+  clone with `core.autocrlf=true` checked scripts out with CRLF, and an edit pushed from there sent
+  CRLF to the instance. `doctor` reports a workspace without the rule (`mirror-line-endings`) and
+  says how to add it; snagentic doesn't edit the committed file itself. The team-mode guide and
+  getting started give the one-time command that checks an existing CRLF clone's mirror out with
+  LF. Record hashes already read CRLF as LF, so change detection is unchanged (spec 014, 1b-L).
 - A stale shared mirror waits for its puller (ADR-0052, amendment A2; spec 014, 1b-K). In team
   mode, a `pull` by a user other than the one the shared mirror's state names, when the mirror is
   older than `max_age_minutes`, asks the instance nothing unless `--now` is given (`--full` and

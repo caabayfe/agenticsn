@@ -8,7 +8,8 @@ export interface WorkspaceStore {
   readManifest(directory: string): Promise<unknown | null>;
   isInsideGitRepository(directory: string): Promise<boolean>;
   isEmptyOrMissing(directory: string): Promise<boolean>;
-  // Writes the manifest and .gitignore, initializes and tunes the git repository.
+  // Writes the manifest, .gitignore and .gitattributes (merged into one already there),
+  // initializes and tunes the git repository.
   create(directory: string, manifest: WorkspaceManifest): Promise<void>;
   // The large-repository settings for this machine, with the value git resolves for each;
   // null when the directory is not in a git repository.

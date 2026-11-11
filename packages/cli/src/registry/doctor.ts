@@ -4,6 +4,7 @@ import {
   type Check,
   checkAgentPack,
   checkMcpConfigs,
+  checkMirrorAttributes,
   checkRepositoryTuning,
   EXIT_CODES,
   getInstance,
@@ -50,6 +51,7 @@ async function workspaceChecks(context: UseCaseContext): Promise<Check[]> {
       await checkAgentPack(context.workspaceFiles, root, VERSION),
       await checkMcpConfigs(context.workspaceFiles, root, MCP_CONFIGS),
       await checkRepositoryTuning(context.workspaces, root),
+      await checkMirrorAttributes(context.workspaceFiles, root),
     ];
   } catch (error) {
     if (error instanceof WorkspaceNotFoundError) {
@@ -71,8 +73,8 @@ export const doctor = defineUseCase({
   description:
     "Check that snagentic can work: git, OS keychain, search index and the proxy and extra " +
     "certificates in effect on this machine, the workspace clone's large-repository git " +
-    "settings, and, with --instance, credentials, connection, " +
-    "roles and timestamp handling of an instance.",
+    "settings, the .gitattributes rule that checks the mirror out byte for byte, and, with " +
+    "--instance, credentials, connection, roles and timestamp handling of an instance.",
   input: z.object({
     instance: z.string().optional().describe("also check this instance of the workspace"),
   }),

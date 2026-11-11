@@ -212,6 +212,38 @@ without them, and `git status` on a large mirror is several times slower.
 - Only in the clone's own `.git/config`, never your global git configuration, and only
   settings that have no value yet. A value you set yourself, in any scope, even `false`, stays.
 
+### Line endings
+
+`snagentic init` writes `instances/** -text` into the workspace's `.gitattributes`. git then
+checks the mirror out byte for byte on every platform. Without it, a Windows clone with
+`core.autocrlf=true` (the Git for Windows default) checks scripts out with CRLF line endings, and a
+script edited there would be pushed to the instance with CRLF. snagentic's own change detection
+doesn't depend on it: record hashes read CRLF as LF, so a CRLF working copy never shows as a
+change.
+
+Workspaces created before this rule existed lack it, and `snagentic doctor` says so
+(`mirror-line-endings`). snagentic doesn't add it for you: `.gitattributes` is committed and shared
+by the whole team. To add it, once, in one clone:
+
+1. Commit or push any edits under `instances/` first. With the rule, git stops converting them
+   and would commit CRLF.
+2. Add the line `instances/** -text` to `.gitattributes`, and commit only that file
+   (`git add .gitattributes`, never `git commit -a`).
+3. Push it. Everyone gets it with their next `git pull` of the workspace.
+
+A clone whose mirror was already checked out with CRLF (Windows with `core.autocrlf=true`) may
+then show every mirror file as modified. Don't commit them. Check the mirror out again, once, with
+nothing uncommitted under `instances/`:
+
+```sh
+git rm -r --cached -q instances
+git checkout HEAD -- instances
+```
+
+`git status` is clean afterwards, and the files have LF line endings. Don't use
+`git add --renormalize` for this: it would record the CRLF copies in the mirror. macOS and Linux
+clones, and Windows clones with `core.autocrlf=false`, already have LF and need nothing.
+
 ## Who signs in
 
 ADR-0004 asks each developer to push with their own instance user, so update sets show who made

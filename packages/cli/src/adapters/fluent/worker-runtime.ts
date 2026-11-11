@@ -6,7 +6,7 @@ import { allowedExchange, type InstanceExchange } from "./instance-exchange";
 import type { FluentRuntime } from "./sdk-runtime";
 import { workerEnvironment } from "./worker-environment";
 import { FromWorker, type ToWorker } from "./worker-protocol";
-import type { Isolation, Sandbox } from "./worker-sandbox";
+import type { Isolation, Sandbox, Sandboxed } from "./worker-sandbox";
 
 // snagentic's side of ADR-0044: every build and transform runs in a new worker process that holds
 // no credential, sandboxed where the operating system allows it. snagentic answers the worker's
@@ -64,16 +64,16 @@ function answer(child: Bun.Subprocess, message: FromWorker, job: Job): void {
 
 // One worker, from start to its one result. The worker never exits by itself once it has
 // answered: it is stopped here, so its result always arrives before its exit.
-function attempt(command: readonly string[], scratch: string, job: Job): Promise<Attempt> {
+function attempt(worker: Sandboxed, scratch: string, job: Job): Promise<Attempt> {
   // A program that can't be found (a missing sandbox, a moved binary) throws at the spawn: the
   // worker did not start, as when it exits before `ready`.
-  return spawnWorker(command, scratch, job).catch((error: unknown) => ({
+  return spawnWorker(worker, scratch, job).catch((error: unknown) => ({
     started: false,
     detail: error instanceof Error ? error.message : String(error),
   }));
 }
 
-function spawnWorker(command: readonly string[], scratch: string, job: Job): Promise<Attempt> {
+function spawnWorker(worker: Sandboxed, scratch: string, job: Job): Promise<Attempt> {
   return new Promise((resolve) => {
     let ready = false;
     let settled = false;
@@ -85,9 +85,9 @@ function spawnWorker(command: readonly string[], scratch: string, job: Job): Pro
       child.kill();
       child.exited.then(() => resolve(result));
     };
-    const child = Bun.spawn([...command], {
+    const child = Bun.spawn([...worker.command], {
       cwd: scratch,
-      env: workerEnvironment(scratch),
+      env: { ...workerEnvironment(scratch), ...worker.environment },
       stdin: "ignore",
       stdout: "ignore",
       stderr: "pipe",
@@ -140,7 +140,7 @@ export function workerRuntime(options: WorkerOptions): FluentRuntime {
     const scratch = await realpath(await mkdtemp(join(tmpdir(), "snagentic-worker-")));
     try {
       const sandboxed = options.sandbox(options.command, [await realpath(projectDir), scratch]);
-      let outcome = await attempt(sandboxed.command, scratch, job);
+      let outcome = await attempt(sandboxed, scratch, job);
       isolation = sandboxed.isolation;
       // Before `ready` the worker hasn't seen the project: only the sandbox can have failed.
       if (!outcome.started && sandboxed.isolation !== "none") {
@@ -151,7 +151,7 @@ export function workerRuntime(options: WorkerOptions): FluentRuntime {
           warned = true;
         }
         isolation = "none";
-        outcome = await attempt(options.command, scratch, job);
+        outcome = await attempt({ command: options.command, isolation: "none" }, scratch, job);
       }
       if (!outcome.started) {
         throw new FluentWorkerError(`the Fluent build worker did not start (${outcome.detail})`);

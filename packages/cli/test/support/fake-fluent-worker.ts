@@ -2,6 +2,10 @@
 // code in a real worker could. The project folder's mode.json says how (worker-runtime tests).
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { confineWorkerProcess } from "../../src/adapters/fluent/fluent-worker-process";
+
+// As the real worker does, before it reads the project (ADR-0055).
+confineWorkerProcess();
 
 interface Mode {
   readonly mode: string;
@@ -40,8 +44,16 @@ async function job(message: Record<string, unknown>): Promise<void> {
       tryWrite(join(target, "escaped.txt")),
       await tryFetch(url),
       tryWrite(join(dir, "inside.txt")),
+      tryWrite(join(dir, "src", "existing.txt")),
     ];
     return send({ kind: "built", outcome: { success: true, records } });
+  }
+  if (mode === "spawn") {
+    let started = "refused";
+    try {
+      if (Bun.spawnSync([process.execPath, "--version"]).success) started = "started";
+    } catch {}
+    return send({ kind: "built", outcome: { success: true, records: [started] } });
   }
   if (mode === "outside")
     return send({ kind: "built", outcome: { success: true, records: ["../escape.xml"] } });

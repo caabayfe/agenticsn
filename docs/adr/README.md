@@ -54,7 +54,7 @@ when the table is stale.
 | [0041](0041-open-questions-are-records-with-an-answer.md) | Open questions are records, each with someone to ask and an answer | Accepted (amended 2026-10-20) |
 | [0042](0042-modules-add-to-shipped-layouts-by-business-key.md) | Modules add to shipped layouts through ensure rules, found by table and view | Accepted |
 | [0043](0043-upgrade-and-installers-verify-build-provenance.md) | `upgrade` and the installers verify where a release was built | Accepted |
-| [0044](0044-the-sdk-runs-in-a-worker-without-credentials.md) | The workspace is untrusted; the SDK runs in a worker that holds no credential | Accepted |
+| [0044](0044-the-sdk-runs-in-a-worker-without-credentials.md) | The workspace is untrusted; the SDK runs in a worker that holds no credential | Accepted (amended by 0055) |
 | [0045](0045-configuration-is-restored-by-installing-its-fluent-source.md) | Configuration is restored by installing its Fluent source on a development instance | Proposed |
 | [0046](0046-related-lists-load-whole-from-sdk-4-14.md) | Related lists load whole from SDK 4.14; modules add to shipped ones entry by entry | Accepted |
 | [0047](0047-installs-turn-on-test-execution-on-development.md) | An install turns on ATF test execution on a development instance, in an update set that is never promoted | Accepted |
@@ -63,7 +63,7 @@ when the table is stale.
 | [0052](0052-the-mirror-carries-its-pull-state.md) | The mirror carries its pull state, so any clone continues a pull from git | Accepted |
 | [0053](0053-instance-owners-set-load-limits.md) | Instance owners set load limits; one scheduler per instance; the cost report is opt-in | Accepted |
 | [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Accepted |
-| [0055](0055-the-sdk-worker-on-windows-runs-at-low-integrity.md) | The SDK worker on Windows: a sandbox in two steps, low integrity first | Proposed |
+| [0055](0055-the-sdk-worker-on-windows-runs-at-low-integrity.md) | The SDK worker on Windows: a sandbox in two steps, low integrity first | Accepted |
 <!-- adr-index:end -->
 
 Requirements referenced as `ASR-nn` are in

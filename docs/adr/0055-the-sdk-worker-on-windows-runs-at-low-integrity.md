@@ -1,6 +1,7 @@
 # 0055. The SDK worker on Windows: a sandbox in two steps, low integrity first
 
-- Status: Proposed (2026-11-10)
+- Status: Accepted (product owner, 2026-11-11). Step 1 is being built (spec 014, stage 1b);
+  step 2 is not built.
 - Date: 2026-11-10
 - Requirements: ASR-02, ASR-03, ASR-08, ASR-15
 - Amends: 0044 (item 6, Windows)
@@ -46,10 +47,10 @@ different channel to the worker.
 ADR-0044's first lines stay true under every option: the worker holds no credential and gets a
 fixed environment; the main process re-checks every instance request and the worker's answer.
 
-## Decision (proposed)
+## Decision
 
-1. **Now:** Windows stays at "worker only" (option F), and the documentation says so where it
-   names the platform: README and the product overview. `snagentic doctor` already says it
+1. **Until step 1 ships:** Windows stays at "worker only" (option F), and the documentation says
+   so where it names the platform: README and the product overview. `snagentic doctor` says it
    (`in a worker with no credential (no sandbox on this system)`).
 2. **Step 1, option A:** the worker runs at low integrity inside a job object. This meets
    requirement 1 (writes) and 3–5, not 2 (network). `doctor` and the build report the level as
@@ -59,6 +60,27 @@ fixed environment; the main process re-checks every instance request and the wor
    a build of the Fluent fixtures). If it passes, AppContainer replaces A on Windows and meets
    requirement 2 as well; if not, A stays and the network gap is documented.
 4. Options C, D and E are not built.
+
+### How step 1 is built
+
+- **The worker confines itself**, all of it, before it loads the SDK or reads the project:
+  snagentic starts it with the folders it may write (`SNAGENTIC_WORKER_LOW_INTEGRITY_FOLDERS`),
+  and the worker, still at medium integrity, labels them low (`SetNamedSecurityInfoW` with
+  `S:(ML;OICI;NW;;;LW)`, which also relabels the files already in them), creates a job for itself
+  (one active process, kill on close, die on an unhandled exception) and lowers its token
+  (`SetTokenInformation`, `TokenIntegrityLevel`). The table above has the main process label the
+  folders and create the job; doing it in the worker keeps `bun:ffi` out of the process that holds
+  the credential, so a mistake in a Win32 call can only crash the worker.
+- The calls go through `bun:ffi` against `kernel32.dll` and `advapi32.dll`: system libraries, no
+  native add-on and no helper binary (ADR-0005).
+- The job is the worker's own: it stops the worker starting any program, and kill-on-close only
+  covers processes in it. That the worker ends with snagentic stays as before: it exits when the
+  IPC channel closes, and snagentic stops it when a build ends or is cancelled.
+- If any call fails, the worker exits before `ready`; snagentic starts it again without the
+  sandbox and says so once (ADR-0044, item 6). `doctor` reports `at low integrity (no writes
+  outside the build; network open)`.
+- Only the build copy and the scratch folder are labelled, and both are temporary folders snagentic
+  deletes after the build: nothing is left on the machine.
 
 ## Consequences
 

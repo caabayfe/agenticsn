@@ -87,7 +87,7 @@ function spawnWorker(worker: Sandboxed, scratch: string, job: Job): Promise<Atte
     };
     const child = Bun.spawn([...worker.command], {
       cwd: scratch,
-      env: { ...workerEnvironment(scratch), ...worker.environment },
+      env: workerEnvironment(scratch, process.env, worker.environment),
       stdin: "ignore",
       stdout: "ignore",
       stderr: "pipe",

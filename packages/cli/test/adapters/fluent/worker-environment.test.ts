@@ -28,4 +28,13 @@ describe("the SDK worker's environment (ADR-0044)", () => {
       NO_TELEMETRY: "1",
     });
   });
+
+  it("adds what the sandbox asks, and never takes that variable from snagentic's own", () => {
+    const planted = { ...parent, SNAGENTIC_WORKER_LOW_INTEGRITY_FOLDERS: '["C:\\\\"]' };
+    expect(workerEnvironment("/s", planted)).not.toHaveProperty(
+      "SNAGENTIC_WORKER_LOW_INTEGRITY_FOLDERS",
+    );
+    const asked = { SNAGENTIC_WORKER_LOW_INTEGRITY_FOLDERS: '["/p"]' };
+    expect(workerEnvironment("/s", parent, asked)).toMatchObject(asked);
+  });
 });

@@ -188,6 +188,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Security
 
+- On Windows the Fluent SDK worker runs at low integrity inside a job (ADR-0055, step 1): before it
+  loads the SDK or reads the project, it labels its build copy and scratch folder writable at low
+  integrity, joins a job that allows no other process and lowers its own token, so it can't write
+  anywhere else or start a program. The network stays open on Windows. If the sandbox can't
+  start, the worker runs without it and says so once; `doctor` reports `at low integrity` (spec
+  014, SEC2-04).
 - With a shared mirror, the fetch is never forced. A shared tip that no longer contains the
   commit this clone last fetched (a rewritten history) is refused, naming both commits and how to
   recover. A clone that never fetched the shared mirror takes it only by fast-forward (ADR-0052

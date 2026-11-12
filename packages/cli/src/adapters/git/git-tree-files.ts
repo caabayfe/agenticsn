@@ -88,7 +88,13 @@ class GitBlobReader {
   }
 }
 
+// "<mode> blob <object id>\t<path>", as ls-tree prints a file.
+const TREE_BLOB = /^[0-7]+ blob ([0-9a-f]+)\t(.*)$/;
+
 // Reads one blob at a time through one cat-file process; memory is bounded by the largest file.
+// Blobs are asked for by object id, not "<ref>:<path>": git resolves a path by scanning each
+// folder on the way, and a mirror folder can hold 200,000 files (everis2's sys_dictionary, where
+// reading by path took 4 ms a file against 0.08 ms by id).
 export async function* gitTreeTexts(
   repository: string,
   ref: string,
@@ -96,11 +102,10 @@ export async function* gitTreeTexts(
 ): AsyncGenerator<{ readonly path: string; readonly text: string }> {
   const blobs = GitBlobReader.start(repository);
   try {
-    for await (const path of gitLines(
-      ["ls-tree", "-r", "--name-only", ref, "--", root],
-      repository,
-    )) {
-      yield { path, text: await blobs.text(`${ref}:${path}`) };
+    for await (const line of gitLines(["ls-tree", "-r", ref, "--", root], repository)) {
+      const entry = TREE_BLOB.exec(line);
+      if (entry?.[1] === undefined || entry[2] === undefined) continue;
+      yield { path: entry[2], text: await blobs.text(entry[1]) };
     }
   } finally {
     await blobs.close();

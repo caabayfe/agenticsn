@@ -4,6 +4,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- 2.20.0 stopped every command that reads an instance without changing it (`pull`, `doctor
+  --instance`, `auth login`, `connect` and the other read-only commands) with "context.connections.open
+  is not a function". The write gate copied the connection factory with a spread, which drops
+  the methods of the class the binary uses; the tests used plain objects.
+- The first pull after upgrading to 2.20 re-scans the committed mirror for the new secret patterns,
+  and read each file by its path: git scanned every folder on the way for each one. On a mirror of
+  1.18 million files with a folder of 205,751 that took about 80 minutes before the pull asked the
+  instance anything. Files are now read by object id (about 50 times faster).
+
 ## [2.20.0] - 2026-11-12
 
 One pull per instance for a whole team: a shared mirror in git, load limits an instance owner

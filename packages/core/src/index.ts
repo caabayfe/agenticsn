@@ -8,6 +8,7 @@ export * from "./delivery/index";
 export * from "./documentation/index";
 export { checkAgentPack } from "./environment/application/check-agent-pack";
 export { checkMcpConfigs } from "./environment/application/check-mcp-configs";
+export { checkMirrorAttributes } from "./environment/application/check-mirror-attributes";
 export { checkRepositoryTuning } from "./environment/application/check-repository-tuning";
 export { runDoctor } from "./environment/application/run-doctor";
 export { runInstanceChecks } from "./environment/application/run-instance-checks";

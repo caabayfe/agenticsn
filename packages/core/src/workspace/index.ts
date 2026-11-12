@@ -44,6 +44,11 @@ export {
 } from "./domain/manifest";
 export { withMcpServer } from "./domain/mcp-config";
 export {
+  hasMirrorAttributes,
+  MIRROR_ATTRIBUTES_RULE,
+  withMirrorAttributes,
+} from "./domain/mirror-attributes";
+export {
   checkMirrorScope,
   MirrorScopeError,
   type MirrorTreeEntry,

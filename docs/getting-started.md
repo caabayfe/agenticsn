@@ -62,6 +62,18 @@ cd ~/snagentic/acme
 
 Every command works from any folder inside the workspace (or pass `--workspace <path>`).
 
+`init` also writes `instances/** -text` into the workspace's `.gitattributes`, so git checks the
+mirror out byte for byte on every platform, Windows with `core.autocrlf=true` included. A
+workspace created by an earlier version lacks it: `snagentic doctor` reports it
+(`mirror-line-endings`), and the [team-mode guide](guides/team-mode.md#line-endings) has the
+one-time steps to add it, including the command that checks a Windows clone's mirror out again
+with LF:
+
+```sh
+git rm -r --cached -q instances
+git checkout HEAD -- instances
+```
+
 ## 3. Add an instance
 
 ```sh

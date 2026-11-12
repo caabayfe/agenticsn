@@ -7,6 +7,7 @@ import {
   type RepositorySetting,
   type WorkspaceManifest,
   type WorkspaceStore,
+  withMirrorAttributes,
 } from "@snagentic/core";
 import { parse, stringify } from "yaml";
 import { runGit, runGitOrThrow } from "../git/run-git";
@@ -79,6 +80,9 @@ export class FsWorkspaceStore implements WorkspaceStore {
     const file = { created_with: manifest.createdWith, layout: manifest.layout };
     await writeFile(join(directory, MANIFEST_FILE), stringify(file, { sortMapEntries: true }));
     await writeFile(join(directory, ".gitignore"), GITIGNORE);
+    const attributes = join(directory, ".gitattributes");
+    const existing = existsSync(attributes) ? await readFile(attributes, "utf8") : null;
+    await writeFile(attributes, withMirrorAttributes(existing));
     await runGitOrThrow(["init", "-q", "-b", "main"], directory);
     await this.tuneRepository(directory, largeRepositorySettings(this.platform));
     // The directory was empty: everything in it is the workspace's own (ADR-0014).

@@ -30,6 +30,7 @@ describe("doctor use case", () => {
       expect.objectContaining({ name: "agent-pack", status: "warn" }),
       expect.objectContaining({ name: "mcp-config", status: "ok" }),
       expect.objectContaining({ name: "git-tuning", status: "ok" }),
+      expect.objectContaining({ name: "mirror-line-endings", status: "ok" }),
     ]);
     expect(exitCode).toBe(0);
   });
@@ -46,6 +47,19 @@ describe("doctor use case", () => {
     const { output, exitCode } = await executeUseCase(doctor, {}, context);
     expect(output["checks"]).toContainEqual(
       expect.objectContaining({ name: "git-tuning", status: "warn" }),
+    );
+    expect(exitCode).toBe(0);
+  });
+
+  // Spec 014, 1b-L: a workspace created before init wrote the rule.
+  it("warns when .gitattributes lacks the rule that keeps the mirror byte for byte", async () => {
+    const ws = await instanceWorkspace({});
+    cleanups.push(ws.cleanup);
+    await Bun.write(join(ws.root, ".gitattributes"), "*.png binary\n");
+    const context = { ...ws.context, environmentProbes: [fakeProbe("git", "ok")] };
+    const { output, exitCode } = await executeUseCase(doctor, {}, context);
+    expect(output["checks"]).toContainEqual(
+      expect.objectContaining({ name: "mirror-line-endings", status: "warn" }),
     );
     expect(exitCode).toBe(0);
   });

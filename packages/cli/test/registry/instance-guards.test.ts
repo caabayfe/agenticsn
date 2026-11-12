@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { DevelopmentProfile, InstanceProfile } from "@snagentic/core";
 import { z } from "zod";
 import { connectForWrite } from "../../src/registry/connect";
 import { executeUseCase } from "../../src/registry/execute";
@@ -8,7 +9,13 @@ import { callerFor } from "../../src/registry/install-steps";
 import { pull } from "../../src/registry/pull";
 import { USE_CASES } from "../../src/registry/registry";
 import { updateSetsList } from "../../src/registry/update-sets-list";
-import { defineUseCase, type UseCase } from "../../src/registry/use-case";
+import {
+  type ConnectionFactory,
+  defineUseCase,
+  type ReadConnection,
+  type UseCase,
+  type WriteConnection,
+} from "../../src/registry/use-case";
 import { instanceWorkspace } from "../support/instance-workspace";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -139,6 +146,23 @@ describe("ADR-0012 layer 3: one write gate", () => {
       "not declared as changing an instance",
     );
     expect(handled).toBe(0);
+  });
+
+  // The composition root's factory is a class (InstanceConnections, ADR-0053): withholding the
+  // write connection must keep the read one, whose method lives on the prototype.
+  it("keeps the read connection of a factory whose methods are on its class", async () => {
+    const { context, instance } = await workspace("development");
+    class Connections implements ConnectionFactory {
+      open(profile: InstanceProfile, secret: string): ReadConnection {
+        return context.connections.open(profile, secret);
+      }
+      openForWrite(profile: DevelopmentProfile, secret: string): WriteConnection {
+        return context.connections.openForWrite(profile, secret);
+      }
+    }
+    const classBased = { ...context, connections: new Connections() };
+    await executeUseCase(updateSetsList, { instance: "pdi" }, classBased);
+    expect(instance.queries.map((query) => String(query.table))).toContain("sys_update_set");
   });
 
   it("gives the write connection to a use case declared as changing a development instance", async () => {

@@ -10,7 +10,7 @@ import {
   UNEXPECTED_ERROR_EXIT_CODE,
 } from "@snagentic/core";
 import { z } from "zod";
-import type { RunControl, UseCase, UseCaseContext } from "./use-case";
+import type { ConnectionFactory, RunControl, UseCase, UseCaseContext } from "./use-case";
 import { underWorkspaceLock } from "./workspace-lock";
 import { workspaceRoot } from "./workspace-root";
 
@@ -70,10 +70,13 @@ function gated(useCase: Declared, context: UseCaseContext): UseCaseContext {
   if (useCase.flags.requiresDevelopmentInstance) {
     return context;
   }
+  const { connections } = context;
   const openForWrite = () => {
     throw new Error(`${named(useCase)} is not declared as changing an instance`);
   };
-  return { ...context, connections: { ...context.connections, openForWrite } };
+  // Not a spread: the composition root's factory is a class, and a spread drops its methods.
+  const open: ConnectionFactory["open"] = (profile, secret) => connections.open(profile, secret);
+  return { ...context, connections: { open, openForWrite } };
 }
 
 // Validates the input, checks the target, runs the handler and validates its output: the one

@@ -81,7 +81,7 @@ jobs:
       - name: install snagentic
         env:
           # The release this template came with. Raise it on purpose, after reading the changelog.
-          SNAGENTIC_VERSION: "2.19.1"
+          SNAGENTIC_VERSION: "2.20.0"
           # Lets the install script check the build provenance (ADR-0043).
           GH_TOKEN: ${{ github.token }}
         run: |

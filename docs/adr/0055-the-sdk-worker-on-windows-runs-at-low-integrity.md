@@ -1,7 +1,7 @@
 # 0055. The SDK worker on Windows: a sandbox in two steps, low integrity first
 
-- Status: Accepted (product owner, 2026-11-11). Step 1 is being built (spec 014, stage 1b);
-  step 2 is not built.
+- Status: Accepted (product owner, 2026-11-11). Step 1 is built (spec 014, stage 1b;
+  release 2.20.0); step 2 is not built.
 - Date: 2026-11-10
 - Requirements: ASR-02, ASR-03, ASR-08, ASR-15
 - Amends: 0044 (item 6, Windows)

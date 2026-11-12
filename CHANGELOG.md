@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.20.1] - 2026-11-12
+
 ### Fixed
 
 - 2.20.0 stopped every command that reads an instance without changing it (`pull`, `doctor

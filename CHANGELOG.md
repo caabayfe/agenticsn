@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.20.0] - 2026-11-12
+
+One pull per instance for a whole team: a shared mirror in git, load limits an instance owner
+can set, and Windows support with the Fluent SDK worker sandboxed.
+
 ### Added
 
 - `doctor` shows the proxy and extra certificate variables in effect (`network`), with any

@@ -48,6 +48,11 @@ the developer's own project.
   snagentic itself uses, so one copy is installed. Checked: the real SDK still builds the `doctor`
   test flow (`ServiceNow SDK 4.14.0: built a test flow`, in the sandboxed worker) and the tests that
   drive its build and transform pass (`packages/cli/test/adapters/fluent`, adopt, take-over).
+- **`fast-xml-parser` 5.12.0** (2026-11-12) overrides 5.7.2, which SDK 4.14 pins exactly in
+  `@servicenow/sdk-api` and `sdk-build-plugins`, and snagentic's own 5.11.2 (it reads the SDK's
+  build output in `built-units.ts`), so one copy is installed (GHSA-474x-hrwr-fgx4, low).
+  Checked: the real SDK still builds the `doctor` test flow and the tests that drive its build
+  and transform pass (`packages/cli/test/adapters/fluent`, adopt, take-over).
 - `braces` is no longer reported (2026-10-25), so its row is gone.
 - **`joi` 17.13.9 and `qs` 6.16.1** (2026-11-03) override 17.13.8 and 6.16.0. `joi` is pinned
   by the SDK's `@servicenow/isomorphic-rollup` (17.13.8, so the override moves it one patch);

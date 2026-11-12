@@ -1,13 +1,16 @@
 import { existsSync } from "node:fs";
+import { LOW_INTEGRITY_FOLDERS } from "./windows-confinement";
 
-// Where the operating system offers it, the SDK worker also runs without network access and
-// can write only to its build copy and its scratch folder (ADR-0044, item 6).
+// Where the operating system offers it, the SDK worker can write only to its build copy and its
+// scratch folder, and on macOS also has no network (ADR-0044 item 6, ADR-0055 for Windows).
 
-export type Isolation = "sandbox-exec" | "none";
+export type Isolation = "sandbox-exec" | "low-integrity" | "none";
 
 export interface Sandboxed {
   readonly command: readonly string[];
   readonly isolation: Isolation;
+  // Added to the worker's environment: on Windows the worker confines itself, as asked here.
+  readonly environment?: Readonly<Record<string, string>>;
 }
 
 // Wraps `command`, allowing writes under `writable` (real paths) only.
@@ -40,13 +43,19 @@ export interface SandboxHost {
 const SYSTEM: SandboxHost = { platform: process.platform, exists: existsSync };
 
 export function osSandbox(host: SandboxHost = SYSTEM): Sandbox {
-  return (command, writable) =>
-    host.platform === "darwin" && host.exists(SANDBOX_EXEC)
-      ? {
-          command: [SANDBOX_EXEC, "-p", macosProfile(writable), ...command],
-          isolation: "sandbox-exec",
-        }
-      : { command, isolation: "none" };
+  return (command, writable) => {
+    if (host.platform === "darwin" && host.exists(SANDBOX_EXEC)) {
+      return {
+        command: [SANDBOX_EXEC, "-p", macosProfile(writable), ...command],
+        isolation: "sandbox-exec",
+      };
+    }
+    if (host.platform === "win32") {
+      const environment = { [LOW_INTEGRITY_FOLDERS]: JSON.stringify(writable) };
+      return { command, isolation: "low-integrity", environment };
+    }
+    return { command, isolation: "none" };
+  };
 }
 
 // No sandbox: the worker still holds no credential (ADR-0044, item 3).

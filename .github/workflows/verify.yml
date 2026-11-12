@@ -79,6 +79,13 @@ jobs:
           out=$(bun test packages/cli/test/adapters/fluent/worker-runtime.test.ts -t "the macOS sandbox" 2>&1)
           echo "$out"
           grep -Eq '^ *[1-9][0-9]* pass$' <<<"$out"
+      # The same for the Windows low-integrity sandbox (ADR-0055, step 1).
+      - name: the Windows sandbox tests ran
+        if: runner.os == 'Windows'
+        run: |
+          out=$(bun test packages/cli/test/adapters/fluent/worker-runtime.test.ts -t "the Windows sandbox" 2>&1)
+          echo "$out"
+          grep -Eq '^ *[1-9][0-9]* pass$' <<<"$out"
 
   # The tests that drive a real ffmpeg and Chrome: slow and dependent on the runner image, so
   # they are reported here instead of failing the gating job (spec 014, R1). The whole suite,

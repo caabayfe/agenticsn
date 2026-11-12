@@ -36,9 +36,12 @@ function problem(outcome: FluentBuildOutcome, root: string): string | null {
 // sandbox, where there is one, also keeps it off the network and out of other folders.
 function contained(isolation: string | undefined): string {
   if (isolation === undefined) return "";
-  return isolation === "none"
-    ? ", in a worker with no credential (no sandbox on this system)"
-    : `, in a worker with no credential, sandboxed by ${isolation}`;
+  if (isolation === "none") return ", in a worker with no credential (no sandbox on this system)";
+  // Windows, ADR-0055 step 1: writes are contained, the network is not.
+  if (isolation === "low-integrity") {
+    return ", in a worker with no credential, at low integrity (no writes outside the build; network open)";
+  }
+  return `, in a worker with no credential, sandboxed by ${isolation}`;
 }
 
 // Builds a one-flow Fluent project with the embedded SDK in a temporary folder (ADR-0028).

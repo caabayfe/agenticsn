@@ -28,6 +28,10 @@ describe("fluent probe", () => {
   it("says how the build was contained (ADR-0044)", async () => {
     for (const [isolation, said] of [
       ["sandbox-exec", ", in a worker with no credential, sandboxed by sandbox-exec"],
+      [
+        "low-integrity",
+        ", in a worker with no credential, at low integrity (no writes outside the build; network open)",
+      ],
       ["none", ", in a worker with no credential (no sandbox on this system)"],
     ]) {
       const load = async () => ({

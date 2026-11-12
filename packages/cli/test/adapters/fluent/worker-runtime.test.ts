@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SdkRouteRefusedError } from "@snagentic/core";
@@ -21,8 +21,16 @@ const MISSING = [join(tmpdir(), "snagentic-no-such-program")];
 function project(mode: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), "snagentic-worker-test-"));
   writeFileSync(join(dir, "mode.json"), JSON.stringify(mode));
+  // A file the worker rewrites, as a transform rewrites the project's sources.
+  mkdirSync(join(dir, "src"));
+  writeFileSync(join(dir, "src", "existing.txt"), "before");
   return dir;
 }
+
+const EXPECTED_ISOLATION: Record<string, string> = {
+  darwin: "sandbox-exec",
+  win32: "low-integrity",
+};
 
 function fake(overrides: Partial<WorkerOptions> = {}) {
   return workerRuntime({
@@ -49,7 +57,7 @@ describe("the SDK worker", () => {
       const runtime = await loadFluentRuntime();
       const outcome = await runtime.build(copyFixture(join(FLUENT_FIXTURES, "server-modules")));
       expect(outcome.success).toBe(true);
-      expect(runtime.isolation?.()).toBe(process.platform === "darwin" ? "sandbox-exec" : "none");
+      expect(runtime.isolation?.()).toBe(EXPECTED_ISOLATION[process.platform] ?? "none");
     },
     BUILD_TIMEOUT,
   );
@@ -61,6 +69,16 @@ describe("the SDK worker", () => {
     expect(seen).toContain("PATH");
     expect(seen).toContain("NO_TELEMETRY");
     for (const name of planted) expect(seen).not.toContain(name);
+  });
+
+  it("passes the sandbox's own variables to the worker, on top of the allow-list", async () => {
+    const sandbox: Sandbox = (command) => ({
+      command,
+      isolation: "none",
+      environment: { SNAGENTIC_SANDBOX_TEST: "1" },
+    });
+    const outcome = await fake({ sandbox }).build(project({ mode: "env" }));
+    expect(outcome.success && outcome.records).toContain("SNAGENTIC_SANDBOX_TEST");
   });
 
   it("refuses a file the worker names outside the project", async () => {
@@ -151,7 +169,7 @@ describe.if(process.platform === "darwin")("the macOS sandbox", () => {
       const contained = await fake({ sandbox: osSandbox() }).build(project(mode));
       expect(contained).toEqual({
         success: true,
-        records: ["refused EPERM", "refused", "written"],
+        records: ["refused EPERM", "refused", "written", "written"],
       });
       expect(existsSync(join(target, "escaped.txt"))).toBe(false);
       // The same worker without the sandbox reaches the server: the check above means something.
@@ -160,5 +178,41 @@ describe.if(process.platform === "darwin")("the macOS sandbox", () => {
     } finally {
       server.stop(true);
     }
+  });
+});
+
+describe.if(process.platform === "win32")("the Windows sandbox", () => {
+  it("keeps the worker out of folders outside the project, and lets it write its own", async () => {
+    const server = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response("ok") });
+    const target = mkdtempSync(join(tmpdir(), "snagentic-outside-"));
+    try {
+      const mode = { mode: "escape", target, url: `http://127.0.0.1:${server.port}/` };
+      const dir = project(mode);
+      const runtime = fake({ sandbox: osSandbox() });
+      const contained = await runtime.build(dir);
+      expect(runtime.isolation?.()).toBe("low-integrity");
+      const records = contained.success ? contained.records : [];
+      // Low integrity stops writes, not the network (ADR-0055: step 2 would).
+      expect(records).toEqual([
+        expect.stringMatching(/^refused E(PERM|ACCES)$/),
+        "reached",
+        "written",
+        "written",
+      ]);
+      expect(existsSync(join(target, "escaped.txt"))).toBe(false);
+      expect(readFileSync(join(dir, "src", "existing.txt"), "utf8")).toBe("x");
+      // The same worker without the sandbox writes there: the check above means something.
+      const open = await fake().build(project(mode));
+      expect(open.success && open.records[0]).toBe("written");
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  it("can't start another program", async () => {
+    const outcome = await fake({ sandbox: osSandbox() }).build(project({ mode: "spawn" }));
+    expect(outcome.success && outcome.records).toEqual(["refused"]);
+    const open = await fake().build(project({ mode: "spawn" }));
+    expect(open.success && open.records).toEqual(["started"]);
   });
 });

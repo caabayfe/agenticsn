@@ -25,6 +25,8 @@ const PASSED = new Set([
 export function workerEnvironment(
   scratch: string,
   parent: Environment = process.env,
+  // What the sandbox asks of the worker (ADR-0055): set by snagentic, never taken from `parent`.
+  sandbox: Readonly<Record<string, string>> = {},
 ): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [name, value] of Object.entries(parent)) {
@@ -34,5 +36,5 @@ export function workerEnvironment(
   // The SDK unpacks what it reads into the temporary folder: the worker's own.
   for (const name of ["TMPDIR", "TMP", "TEMP"]) env[name] = scratch;
   env["NO_TELEMETRY"] = "1";
-  return env;
+  return { ...env, ...sandbox };
 }

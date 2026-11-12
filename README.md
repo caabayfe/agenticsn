@@ -78,9 +78,11 @@ integrate, plan-push, push, validate, check, `find`, `describe`, `advise`, `docs
 and its hooks (Claude Code and Copilot CLI), accelerator installs, `upgrade` and `install.ps1`.
 What is not yet the same as on macOS:
 
-- the Fluent SDK worker holds no credential but runs **without a sandbox** on Windows: it can
-  write where you can and reach the network ([ADR-0044](docs/adr/0044-the-sdk-runs-in-a-worker-without-credentials.md);
-  a Windows sandbox is proposed in [ADR-0055](docs/adr/0055-the-sdk-worker-on-windows-runs-at-low-integrity.md));
+- the Fluent SDK worker holds no credential and runs at **low integrity** in a job on Windows:
+  it can't write outside its build copy or start another program, but unlike on macOS it can
+  still reach the network ([ADR-0044](docs/adr/0044-the-sdk-runs-in-a-worker-without-credentials.md),
+  [ADR-0055](docs/adr/0055-the-sdk-worker-on-windows-runs-at-low-integrity.md); closing the
+  network needs an AppContainer, not built);
 - it has not yet been run end to end against an instance by a developer on Windows, only in CI;
 - the Windows Credential Manager, which holds the instance secret, lets any program you run read
   it (macOS asks per application).

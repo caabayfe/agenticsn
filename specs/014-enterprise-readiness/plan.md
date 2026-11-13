@@ -137,7 +137,7 @@ Effort: S under 1 day, M 1 to 3 days, L over 3 days. Steps without a decision or
 | T2 | Team-mode guide, CI pull template, per-developer identity | ADR-0004 (CI templates are part of the product), ENT-09 (templates) | M | T1 |
 | P1 | Load controls an instance owner can set | PERF-04, PERF-05, PERF-06 | M | ADR amending ADR-0016 |
 | P2 | Memory bounded by page, not by table | PERF-07 | M | — |
-| P3 | Measure on a large instance; fix what it shows | PERF-01, PERF-02, PERF-09 | L | D5 |
+| P3 | Measure on a large instance; fix what it shows (done 2026-11-13: [report](../../docs/reports/pull-baseline-large-instance.md), fixes #259 #261) | PERF-01, PERF-02, PERF-09 | L | D5 |
 | R1 | Tests on macOS and Windows; hermetic git tests; media tests as a separate job | REL-02, REL-07, REL-08 | M | — |
 | R2 | Scheduled live suite and recorded fixtures | REL-01 (A-08) | M | D10 |
 

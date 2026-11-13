@@ -9,6 +9,11 @@
 #   - optional secret SNAGENTIC_MIRROR_DEPLOY_KEY: a deploy key with write access, the only
 #     identity allowed to push servicenow-remote/* (see the guide). Without it, the job pushes
 #     with the workflow's own token.
+# The first run makes a full pull, which must finish within timeout-minutes: its checkpoint stays on
+# the runner, so a stopped first pull starts over on the next run. One of about 870,000 metadata
+# records took 74 minutes at the test and production limits; for an instance that size, make the
+# first pull once from a workstation with `snagentic pull dev --publish` (guide: "The first pull
+# of a large instance").
 # The kind below must match instances/dev/instance.yaml. Keep the URL and kind here, in the CI
 # configuration, never only in the repository (ADR-0020).
 #

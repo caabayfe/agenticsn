@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- Team mode: the guide and the scheduled-pull template say how to make the first pull of a large
+  instance. The job's checkpoint stays on the runner, so a first full pull longer than its
+  60-minute limit starts over on each run; make it once from a workstation with `pull --publish`.
+
 ## [2.20.1] - 2026-11-12
 
 ### Fixed

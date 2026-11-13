@@ -144,6 +144,22 @@ dictionary. Each list takes one request per page (500 to 1,000 rows, fewer when 
 slow), plus one empty page. That is about 17 requests on a PDI, and 25 to 45 on an instance with
 about a million metadata records (10,000 classes, 1,000 scopes, 6,000 typed fields).
 
+**The first pull of a large instance.** The job's first run makes a full pull, and its limit is
+60 minutes (`timeout-minutes`). A full pull resumes where it stopped, but from its checkpoint in
+`.snagentic/dev/`, which a hosted runner discards after each run: a first pull stopped at the limit
+starts over on the next run, and never finishes. A PDI's first pull takes a few minutes. One of an
+instance with about 870,000 metadata records in 2,880 classes took 74 minutes at the test and
+production limits (2 requests at a time, 5 a second; 7,445 requests). For an instance that size,
+make the first full pull once from a workstation, with the puller's account, and publish it before
+you protect the mirror branch (step 4):
+
+```sh
+snagentic pull dev --publish
+```
+
+The job then starts from that mirror, and each run fetches only what changed: on the same instance,
+24 requests and a few seconds when nothing did.
+
 Raise `SNAGENTIC_VERSION` on purpose, after reading the changelog. Use the same version on the
 developers' machines.
 

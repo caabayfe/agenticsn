@@ -21,6 +21,13 @@ its claims come from, and `tests/tooling/product-docs.test.ts` checks the counts
 tools, skills) against the code. Anything else a video says is checked by whoever changes the document it
 comes from: change the document, then the animation.
 
+## The voice
+
+The narration is Piper's `en_US-lessac-medium`, chosen by the product owner (2026-11-14) after listening to the
+alternatives. **Check its license before the videos leave the company**: the model is kept in a `non-commercial/`
+folder on the machine that made them, and its license has not been confirmed. For public use, re-record
+with a public-domain voice such as `en_US-ljspeech-high`, which `--voice piper` picks when no model is named.
+
 ## Make them again
 
 This folder is a documentation workspace without a git repository of its own (the repository's `.snagentic/`
@@ -28,10 +35,12 @@ folder is ignored). From here:
 
 ```sh
 snagentic docs check                    # the animations are well formed
-snagentic docs video whysn --voice system
-snagentic docs build --voice system     # a site in .snagentic/site/, to preview with: snagentic docs serve
+export SNAGENTIC_PIPER_MODEL=~/.local/share/snagentic/piper/voices/non-commercial/en_US-lessac-medium.onnx
+snagentic docs video whysn --voice piper
+snagentic docs build --voice piper      # a site in .snagentic/site/, to preview with: snagentic docs serve
 cp .snagentic/videos/*.mp4 videos/      # the videos are committed
 ```
 
-Needs `ffmpeg` and Chrome. `--voice system` uses the operating system's voice (macOS `say`); `--voice piper`
-gives a better one when Piper is installed. Re-record a video after changing its steps, and commit it.
+Needs `ffmpeg`, Chrome and [Piper](https://github.com/rhasspy/piper) with a voice model (`SNAGENTIC_PIPER` and
+`SNAGENTIC_PIPER_MODEL` name them; by default `~/.local/share/snagentic/piper`). Without Piper, `--voice system`
+uses the operating system's voice. Re-record a video after changing its steps, and commit it.

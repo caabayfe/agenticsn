@@ -28,6 +28,7 @@ import { instanceAdd } from "./instance-add";
 import { instanceList } from "./instance-list";
 import { instanceRemove } from "./instance-remove";
 import { integrate } from "./integrate";
+import { onboard } from "./onboard";
 import { planPush } from "./plan-push";
 import { pluginsActivate } from "./plugins-activate";
 import { pluginsList } from "./plugins-list";
@@ -72,6 +73,7 @@ export const USE_CASES: readonly UseCase[] = [
   updateSetsCollisions,
   updateSetsExport,
   updateSetsTool,
+  onboard,
   pluginsList,
   pluginsActivate,
   appsInstall,

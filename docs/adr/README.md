@@ -20,7 +20,7 @@ when the table is stale.
 | [0007](0007-disk-format-and-hash-contract.md) | Keep the v1 disk format, mirror branch and hash contract | Accepted (amended by 0014, 0015, 0017) |
 | [0008](0008-commercial-boundary.md) | Open core with a sealed premium engine behind the `Validator` port | Proposed |
 | [0009](0009-engineering-practices.md) | Engineering practices: TDD, strict typing, enforced boundaries | Accepted |
-| [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013, 0024, 0026, 0036, 0039) |
+| [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013, 0024, 0026, 0036, 0039, 0056) |
 | [0011](0011-enforcement-layers.md) | Enforcement layers | Accepted (amended by 0019) |
 | [0012](0012-production-read-only-by-construction.md) | Production access is read-only by construction | Accepted, pending the read-only role spike (amended by 0013, 0020, 0021, 0038) |
 | [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted (amended by 0018) |
@@ -64,6 +64,7 @@ when the table is stale.
 | [0053](0053-instance-owners-set-load-limits.md) | Instance owners set load limits; one scheduler per instance; the cost report is opt-in | Accepted |
 | [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Accepted |
 | [0055](0055-the-sdk-worker-on-windows-runs-at-low-integrity.md) | The SDK worker on Windows: a sandbox in two steps, low integrity first | Accepted |
+| [0056](0056-onboard-an-instance-with-one-command.md) | Onboard an instance with one command, built into the binary | Accepted |
 <!-- adr-index:end -->
 
 Requirements referenced as `ASR-nn` are in

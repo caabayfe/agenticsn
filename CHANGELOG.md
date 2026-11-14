@@ -6,6 +6,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Added
 
+- The accelerator team's onboarding scripts, `scripts/onboard/onboard-pdi.sh` and a PowerShell port
+  `onboard-pdi.ps1` for Windows (not yet run on Windows), now live in this repository. They find the
+  `ntt-accelerators` clone and `spaces/` next to it, or in `ONBOARD_ROOT`; a test keeps the commands they call in step
+  with the registry.
 - `snagentic onboard <name> --url <instance> --username <user>` (ADR-0056): one command from nothing to a
   pulled, integrated workspace on macOS, Linux and Windows. It creates the workspace, adds the profile,
   signs in (the secret is asked for without echo and kept only once the instance accepts it), says how the

@@ -88,31 +88,27 @@ save, and run `doctor` again.
 | `integrate dev` | `status` says nothing is pending |
 | `find incident` | the mirror answers in milliseconds |
 
-## The one-run scripts (ITSM accelerator)
+## The accelerator team's scripts
 
-> The first seven steps below are what `snagentic onboard` does ([ADR-0056](../adr/0056-onboard-an-instance-with-one-command.md)).
-> The scripts add what is specific to the accelerator team, and are not part of the binary. Once the
-> binary with `onboard` is released they can call it for those steps.
-
-For the accelerator team, two scripts do the whole onboarding, including pinning the pack and
-installing it with demo data. They live in the `agenticsn/bin/` folder of the accelerator
-workspace, next to the `ntt-accelerators` clone and the `spaces/` folder they create into:
+For the accelerator team, two scripts in [`scripts/onboard/`](../../scripts/onboard) do the whole onboarding for the
+ITSM accelerator: `snagentic onboard`'s steps, plus the pack pin, the pack's regression mark, retiring a profile
+that an instance replaces, and the ITSM install with demo data.
 
 | OS | Run | Needs |
 |---|---|---|
-| macOS, Linux | `bin/onboard-pdi.sh` | bash, git, curl, python3 |
-| Windows | `.\bin\onboard-pdi.ps1` | PowerShell 5.1 or 7, git |
+| macOS, Linux | `scripts/onboard/onboard-pdi.sh` | bash, git, curl, python3 |
+| Windows | `.\scripts\onboard\onboard-pdi.ps1` | PowerShell 5.1 or 7, git |
 
-Both ask for the instance, a profile name, the user and the password (never echoed or written to
-disk), check the instance is awake and that REST accepts the user, create
-`spaces/<profile>-<instance>`, store the password in the OS keychain, run `doctor`, the first pull
-and `integrate`, pin the pack in a detached worktree, and plan the ITSM install. They install only
-after you read the plan and answer yes. Run again with the same answers to continue after a
-failure. `--retire <profile>` (`-Retire <profile>` on Windows) forgets a profile's password and
-archives its workspace; nothing on the instance is touched.
+They expect the `ntt-accelerators` clone and the `spaces/` folder next to this repository (or in the folder
+`ONBOARD_ROOT` names). Both ask for the instance, a profile name, the user and the password (never echoed or written to
+disk), check the instance is awake and that REST accepts the user, create `spaces/<profile>-<instance>`, store the
+password in the OS keychain, run `doctor`, the first pull and `integrate`, pin the pack in a detached worktree, and plan
+the ITSM install. They install only after you read the plan and answer yes. Run again with the same answers to continue
+after a failure. `--retire <profile>` (`-Retire <profile>` on Windows) forgets a profile's password and archives its
+workspace; nothing on the instance is touched.
 
-The Windows script has been written to match the bash one but has not yet run on a Windows
-machine; report what fails.
+A test keeps the commands they call in step with the registry. The Windows script was written to match the bash one but
+has not yet run on a Windows machine; report what fails.
 
-Set `SNAGENTIC` to use another build (`$env:SNAGENTIC` in PowerShell). The default is
-`~/bin/snagentic`, or `%LOCALAPPDATA%\snagentic\bin\snagentic.exe` on Windows.
+Set `SNAGENTIC` to use another build (`$env:SNAGENTIC` in PowerShell). The default is `~/bin/snagentic`, or
+`%LOCALAPPDATA%\snagentic\bin\snagentic.exe` on Windows.

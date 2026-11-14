@@ -4,10 +4,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
-### Fixed
+## [2.21.0] - 2026-11-14
 
-- Seven new advisories on `hono` and `@hono/node-server` (reached through the MCP SDK) are fixed with overrides to
-  4.13.18 and 2.1.8; snagentic serves MCP over stdio only, so none was reachable.
+One command to onboard an instance on any platform, and a documentation set to learn and show snagentic:
+guides, a glossary and four short product videos.
 
 ### Added
 
@@ -39,6 +39,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - Team mode: the guide and the scheduled-pull template say how to make the first pull of a large
   instance. The job's checkpoint stays on the runner, so a first full pull longer than its
   60-minute limit starts over on each run; make it once from a workstation with `pull --publish`.
+
+### Fixed
+
+- Seven new advisories on `hono` and `@hono/node-server` (reached through the MCP SDK) are fixed with overrides to
+  4.13.18 and 2.1.8; snagentic serves MCP over stdio only, so none was reachable.
 
 ## [2.20.1] - 2026-11-12
 

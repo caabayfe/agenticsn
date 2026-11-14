@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.21.0] - 2026-11-14
+
+One command to onboard an instance on any platform, and a documentation set to learn and show snagentic:
+guides, a glossary and four short product videos.
+
 ### Added
 
 - Four short narrated product videos, made with the documentation capability (`docs video`): why snagentic,

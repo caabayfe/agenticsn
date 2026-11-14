@@ -40,6 +40,11 @@ guides, a glossary and four short product videos.
   instance. The job's checkpoint stays on the runner, so a first full pull longer than its
   60-minute limit starts over on each run; make it once from a workstation with `pull --publish`.
 
+### Fixed
+
+- Seven new advisories on `hono` and `@hono/node-server` (reached through the MCP SDK) are fixed with overrides to
+  4.13.18 and 2.1.8; snagentic serves MCP over stdio only, so none was reachable.
+
 ## [2.20.1] - 2026-11-12
 
 ### Fixed

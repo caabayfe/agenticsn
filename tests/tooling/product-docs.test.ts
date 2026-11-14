@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SKILLS } from "../../packages/agent-packs/src/index";
 import { USE_CASES } from "../../packages/cli/src/registry/registry";
@@ -8,9 +8,18 @@ import { RULES } from "../../packages/core/src/index";
 
 // The counts the product documents quote, taken from code so they can't go stale again.
 const ROOT = join(import.meta.dir, "../..");
+// What the product videos narrate and caption (media/product-videos): one steps file per animation.
+const ANIMATIONS = "media/product-videos/documentation/animations";
+const VIDEO_STEPS = readdirSync(join(import.meta.dir, "../..", ANIMATIONS))
+  .sort()
+  .map((name) => `${ANIMATIONS}/${name}/steps.json`);
+
 const DOCS = [
+  ...VIDEO_STEPS,
   "README.md",
   "docs/getting-started.md",
+  "docs/guides/start-here.md",
+  "docs/guides/glossary.md",
   "docs/product/overview.md",
   "docs/product/security-and-governance.md",
 ];

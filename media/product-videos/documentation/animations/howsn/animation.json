@@ -1,0 +1,8 @@
+{
+  "name": "howsn",
+  "title": "How snagentic works",
+  "heading": "From the instance to a reviewed change",
+  "tags": [["src", "snagentic command reference"]],
+  "vb": [960, 440],
+  "foot": "Commands as in the command reference: docs/reference/commands.md."
+}

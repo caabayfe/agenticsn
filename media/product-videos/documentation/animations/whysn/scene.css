@@ -1,0 +1,22 @@
+.lbl {
+  font-size: 13px;
+}
+.lbl.b {
+  font-size: 16px;
+}
+.red rect {
+  stroke: var(--red);
+  fill: var(--redL);
+}
+.grn rect {
+  stroke: var(--teal);
+  fill: var(--tealL);
+}
+.blu rect {
+  stroke: var(--blue);
+  fill: var(--blueL);
+}
+.amb rect {
+  stroke: var(--amber);
+  fill: var(--amberL);
+}

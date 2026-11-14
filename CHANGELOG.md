@@ -6,6 +6,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Added
 
+- Four short narrated product videos, made with the documentation capability (`docs video`): why snagentic,
+  how it works, safe by design, and verified documentation with `snagentic onboard`. Sources and MP4s are in
+  [`media/product-videos`](media/product-videos/README.md); a test pins the counts they quote.
+- Guides: [start here](docs/guides/start-here.md) (by role, a 10-minute path, troubleshooting) and a
+  [glossary](docs/guides/glossary.md).
 - `snagentic onboard <name> --url <instance> --username <user>` (ADR-0056): one command from nothing to a
   pulled, integrated workspace on macOS, Linux and Windows. It creates the workspace, adds the profile,
   signs in (the secret is asked for without echo and kept only once the instance accepts it), says how the

@@ -1,0 +1,38 @@
+[
+  {
+    "t": "Pull",
+    "c": "<b>pull</b> mirrors every metadata record into git.",
+    "say": "First, pull mirrors every metadata record of the instance into a git repository. Later pulls bring only what changed: with nothing new, about 22 small requests."
+  },
+  {
+    "t": "Understand",
+    "c": "<b>describe</b> and <b>find</b> read the mirror, not the instance.",
+    "say": "Then describe and find read the mirror, not the instance. They explain what runs on a table, in execution order, with no load on the instance."
+  },
+  {
+    "t": "Edit",
+    "c": "<b>adopt</b> brings records into Fluent, where you edit.",
+    "say": "To change something, adopt it into Fluent source, the ServiceNow S D K's TypeScript. You or your agent edit it there, and new records are written in Fluent too.",
+    "sub": "To change something, adopt it into Fluent source, the ServiceNow SDK's TypeScript. You or your agent edit it there, and new records are written in Fluent too."
+  },
+  {
+    "t": "Validate",
+    "c": "<b>validate</b> reports only what your change introduced.",
+    "say": "Validate builds the source and checks it against 41 rules for security, performance, upgradability, manageability and user experience."
+  },
+  {
+    "t": "Plan",
+    "c": "<b>plan-push</b> shows each unit, collisions and drift.",
+    "say": "Plan-push shows exactly what would be loaded, what someone else holds in an open update set, and what changed on the instance since you started."
+  },
+  {
+    "t": "Push",
+    "c": "<b>push</b> loads the reviewed plan, and only that plan.",
+    "say": "Push loads that reviewed plan, and only that plan, into an update set on a development instance, then reads each load back to check it was recorded."
+  },
+  {
+    "t": "Next",
+    "c": "Each branch gets <b>its own update set batch</b>.",
+    "say": "Each branch, and so each pull request, gets its own update set batch. Pull again, and the mirror shows what you built."
+  }
+]

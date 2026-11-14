@@ -1,0 +1,8 @@
+{
+  "name": "docsn",
+  "title": "Documentation that stays true",
+  "heading": "And a first run in one command",
+  "tags": [["src", "snagentic documentation guide"]],
+  "vb": [960, 440],
+  "foot": "Documentation: docs/guides/generate-documentation.md. Onboarding: docs/guides/onboarding.md."
+}

@@ -24,6 +24,8 @@ coverage/
 # Instance data belongs in a snagentic workspace, never in this repository (ADR-0014)
 instances/
 snagentic.yaml
+# The product videos are a documentation workspace with no instance data (media/product-videos).
+!media/product-videos/snagentic.yaml
 
 # Agent evaluation transcripts quote instance code: never commit them.
 .eval-results/

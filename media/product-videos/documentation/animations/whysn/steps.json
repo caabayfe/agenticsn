@@ -1,0 +1,37 @@
+[
+  {
+    "t": "Today",
+    "c": "ServiceNow development is <b>browser-bound</b>: one form at a time.",
+    "say": "ServiceNow work happens in the browser, one form at a time. Nobody gets a complete, searchable picture of what runs on a table."
+  },
+  {
+    "t": "Agents",
+    "c": "Coding agents are <b>blind to the instance</b>.",
+    "say": "Coding agents are now the fastest way to write code, but they can't see your instance. They duplicate what already runs, and they ignore platform practice."
+  },
+  {
+    "t": "Guardrails",
+    "c": "Best practice is checked <b>late, if at all</b>.",
+    "say": "Best practice is usually checked when an update set is reviewed, long after the code is written, if it is checked at all."
+  },
+  {
+    "t": "Mirror",
+    "c": "snagentic puts <b>the whole instance in git</b>, as files.",
+    "say": "snagentic puts the whole instance in git, as files that you and your agent can read, search and review."
+  },
+  {
+    "t": "Understand",
+    "c": "<b>describe</b> and <b>find</b> answer what runs when you save.",
+    "say": "Ask why the assignment group changes when you save an incident, and get the answer in order, in about a second."
+  },
+  {
+    "t": "Guardrails",
+    "c": "<b>41 rules</b> and the push gate, enforced in code.",
+    "say": "41 platform rules check every change, and report only what that change introduced. They run in code, not in a prompt the agent can ignore."
+  },
+  {
+    "t": "Deliver",
+    "c": "Reviewed changes go to <b>development</b>. Production stays read-only.",
+    "say": "Reviewed changes go to a development instance, as a normal update set. Test and production are read-only by construction."
+  }
+]

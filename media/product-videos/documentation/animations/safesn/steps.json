@@ -1,0 +1,33 @@
+[
+  {
+    "t": "Production",
+    "c": "Write commands <b>do not exist</b> for test or production.",
+    "say": "For test and production, write commands are not registered at all, and the credential must hold the read-only role, checked before every connection."
+  },
+  {
+    "t": "Push",
+    "c": "A push needs a <b>plan, a pass, a confirmation</b>.",
+    "say": "A push needs a plan id, passing validation or a reviewed waiver, your confirmation, and records unchanged on the instance. An edit someone made there is never overwritten silently."
+  },
+  {
+    "t": "SDK",
+    "c": "The SDK reads through snagentic's <b>own connection</b>.",
+    "say": "The ServiceNow S D K runs inside snagentic and reads the instance through snagentic's own connection, limited to reads. It never holds a credential.",
+    "sub": "The ServiceNow SDK runs inside snagentic and reads the instance through snagentic's own connection, limited to reads. It never holds a credential."
+  },
+  {
+    "t": "Load",
+    "c": "Keyset paging and a <b>request scheduler</b>.",
+    "say": "Instance load is a requirement. Listings use keyset paging, name their fields, and go through a scheduler with a rate limit, so an incremental pull with no changes costs about 22 requests."
+  },
+  {
+    "t": "Secrets",
+    "c": "Passwords live in the <b>OS keychain</b>, bound to the URL.",
+    "say": "Credentials live only in the operating system keychain or environment variables, each bound to the instance it was stored for, so editing a file can't redirect it."
+  },
+  {
+    "t": "Agent",
+    "c": "Hooks, permissions, pre-commit and the push gate <b>enforce</b>.",
+    "say": "Skills and instructions guide the agent. Hooks, permission rules, the git pre-commit hook and the push gate enforce, in code."
+  }
+]

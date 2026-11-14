@@ -1,0 +1,38 @@
+[
+  {
+    "t": "Pages",
+    "c": "Pages cite <b>evidence</b>: a record, and its hash.",
+    "say": "Documentation goes wrong with the next change. snagentic anchors each claim to the record it describes, with that record's hash at the time it was checked."
+  },
+  {
+    "t": "Check",
+    "c": "<b>docs check</b> compares them with the mirror.",
+    "say": "Docs check compares every claim with the mirror, and exits with an error when a page is no longer true."
+  },
+  {
+    "t": "Stale",
+    "c": "A change shows <b>which sentences it makes stale</b>.",
+    "say": "Docs impact lists, on a pull request, each sentence the change affects, with its page and its reader. Then docs build makes a site, with narrated animations and video."
+  },
+  {
+    "t": "Onboard",
+    "c": "<b>snagentic onboard</b> does the first run.",
+    "say": "A new user runs one command: snagentic onboard, with the instance and the user."
+  },
+  {
+    "t": "Sign in",
+    "c": "The password is asked <b>without echo</b>.",
+    "say": "It creates the workspace and the profile, then asks for the password without showing it, and keeps it in the keychain only once the instance accepts it."
+  },
+  {
+    "t": "Check",
+    "c": "It says what to do if the instance is <b>asleep or refuses</b>.",
+    "say": "If a developer instance is asleep, it says how to wake it. If the instance refuses the user, it names the role that Brazil release instances need for R E S T.",
+    "sub": "If a developer instance is asleep, it says how to wake it. If the instance refuses the user, it names the role that Brazil release instances need for REST."
+  },
+  {
+    "t": "Ready",
+    "c": "<b>doctor, pull and integrate</b>, then you are ready.",
+    "say": "Then it runs doctor, pulls, and integrates. Run it again after a stop, and it carries on where it stopped."
+  }
+]

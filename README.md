@@ -113,6 +113,7 @@ MCP tool is in the [command reference](docs/reference/commands.md).
 | Stakeholders and decision makers | [Product overview](docs/product/overview.md) |
 | Security and architecture reviewers | [Security and governance](docs/product/security-and-governance.md) |
 | Users | [Getting started](docs/getting-started.md), [command reference](docs/reference/commands.md) |
+| Everyone | [Start here](docs/guides/start-here.md) (by role, a 10-minute path, troubleshooting), [glossary](docs/guides/glossary.md), the [product videos](media/product-videos/README.md) |
 | Onboarding and sync | [Onboard an instance](docs/guides/onboarding.md) (`snagentic onboard`; macOS, Linux, Windows), [sync: pull, integrate, keep fresh](docs/guides/sync.md) |
 | Building a change | [Build a new capability: a worked example](docs/guides/build-a-capability.md), [with spec-driven development](docs/guides/spec-driven-development.md), [recipes for everything else](docs/guides/recipes.md) |
 | Documenting | [Generate verified documentation](docs/guides/generate-documentation.md) |

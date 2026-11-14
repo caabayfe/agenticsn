@@ -6,6 +6,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Added
 
+- Four short narrated product videos, made with the documentation capability (`docs video`): why snagentic,
+  how it works, safe by design, and verified documentation with `snagentic onboard`. Sources and MP4s are in
+  [`media/product-videos`](media/product-videos/README.md); a test pins the counts they quote.
+- Guides: [start here](docs/guides/start-here.md) (by role, a 10-minute path, troubleshooting) and a
+  [glossary](docs/guides/glossary.md).
 - The accelerator team's onboarding scripts, `scripts/onboard/onboard-pdi.sh` and a PowerShell port
   `onboard-pdi.ps1` for Windows (not yet run on Windows), now live in this repository. They find the
   `ntt-accelerators` clone and `spaces/` next to it, or in `ONBOARD_ROOT`; a test keeps the commands they call in step

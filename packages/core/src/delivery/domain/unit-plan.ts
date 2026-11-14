@@ -4,6 +4,7 @@ import type { UnitDecision } from "../../authoring/domain/plan-unit";
 import type { BuiltUnit } from "../../authoring/domain/unit";
 import { canonicalJson } from "../../kernel/canonical-json";
 import { sha256Hex } from "../../kernel/sha256";
+import type { PendingDelivery } from "./delivery-receipt";
 import type { GateResult } from "./gate";
 
 // What a plan does with each unit of the workspace's Fluent source (ADR-0033 item 4).
@@ -153,8 +154,27 @@ export function plannedOrProblem(
 
 // Binds a plan to exactly what it would load, against which instance versions, under which
 // gate: any edit, any save on the instance, any finding or waiver gives another id.
-export function unitPlanId(units: readonly PlannedUnit[], gate: GateResult): string {
+export function unitPlanId(
+  units: readonly PlannedUnit[],
+  gate: GateResult,
+  delivery?: {
+    readonly instance: string;
+    readonly url: string;
+    readonly label: string;
+    readonly pending: readonly PendingDelivery[];
+  },
+): string {
   const material = canonicalJson({
+    ...(delivery === undefined
+      ? {}
+      : {
+          delivery: {
+            instance: delivery.instance,
+            url: delivery.url,
+            label: delivery.label,
+            pending: delivery.pending.map((entry) => ({ ...entry })),
+          },
+        }),
     // A deletion's update name holds a random sys_id: it is bound by what it deletes.
     units: units.map((u) =>
       [

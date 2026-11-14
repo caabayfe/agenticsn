@@ -9,6 +9,7 @@ import {
   withEntries,
 } from "@snagentic/core";
 import { builtUnitOf } from "../../src/adapters/fluent/built-units";
+import { decodeCapture } from "../../src/adapters/fluent/capture-decoder";
 import { WorkspaceAuthoring } from "../../src/adapters/fluent/workspace-authoring";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { instanceWorkspace } from "./instance-workspace";
@@ -55,6 +56,7 @@ function installer(tables: Record<string, Row[]>, loads: string[]): FluentInstal
             name: unit.updateName,
             update_set: updateSet,
             sys_updated_by: "admin",
+            payload: file.content,
           },
         ];
       }
@@ -124,6 +126,7 @@ export async function unitWorkspace(options: {
   const reader = { ...ws.instance.reader, fluent: installer(tables, loads) };
   const context = {
     ...ws.context,
+    decodeCapture,
     connections: { open: () => reader },
     authoring: () => ({ workspace: authoring, toolchain }),
   };

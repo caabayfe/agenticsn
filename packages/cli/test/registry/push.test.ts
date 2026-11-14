@@ -20,6 +20,53 @@ async function workspace(source: string) {
 
 describe("push (ADR-0031 item 4)", () => {
   it(
+    "keeps an uncaptured change in a disk journal and delivers it through a fresh plan",
+    async () => {
+      const { context, root, tables } = await workspace("Pending capture.");
+      const reader = context.connections.open();
+      const installer = reader.fluent;
+      if (installer === undefined) throw new Error("no installer");
+      const missing = {
+        ...context,
+        connections: {
+          open: () => ({
+            ...reader,
+            fluent: {
+              ...installer,
+              load: async (...args: Parameters<typeof installer.load>) => {
+                await installer.load(...args);
+                tables["sys_update_xml"] = [];
+              },
+            },
+          }),
+        },
+      };
+      const first = await executeUseCase(planPush, {}, missing);
+      const failed = await executeUseCase(
+        push,
+        { instance: "pdi", plan: first.output["planId"], confirm: true },
+        missing,
+      );
+      expect(failed.output).toMatchObject({ notApplied: 0, notCaptured: 1, ledgerCommit: null });
+      expect(existsSync(join(root, ".snagentic/pdi/push-journal.json"))).toBe(true);
+      // Each use-case invocation opens a new JsonPushJournalStore; nothing relies on memory.
+      const next = await executeUseCase(planPush, {}, { ...context });
+      expect(next.output).toMatchObject({
+        ready: true,
+        units: [{ updateName: SI_UNIT, operation: "load" }],
+      });
+      const result = await executeUseCase(
+        push,
+        { instance: "pdi", plan: next.output["planId"], confirm: true },
+        context,
+      );
+      expect(result.output).toMatchObject({ notApplied: 0, notCaptured: 0 });
+      expect(existsSync(join(root, ".snagentic/pdi/push-journal.json"))).toBe(false);
+    },
+    PLAN_TIMEOUT,
+  );
+
+  it(
     "loads a reviewed plan, stamped, into the branch's update sets, and commits the ledger",
     async () => {
       const { context, root, loads, tables, git } = await workspace("Edited in source.");

@@ -1,0 +1,169 @@
+import { compareUnit } from "../../authoring/domain/compare";
+import type { BuiltUnit, InstanceCopy, UnitRecord } from "../../authoring/domain/unit";
+import { unitSpec } from "../../authoring/domain/unit-specs";
+import {
+  comparedValue,
+  keyedReference,
+  namedField,
+  sameValue,
+} from "../../authoring/domain/values";
+import { canonicalJson } from "../../kernel/canonical-json";
+
+// Publish changes lifecycle fields, not the authored trigger, actions or inputs.
+const PUBLISH_FIELDS = new Set(["active", "status", "version"]);
+const SNAPSHOTS = new Set(["sys_hub_flow_snapshot", "sys_hub_action_type_snapshot"]);
+
+function jsonValue(value: string): string {
+  if (!/^[\s]*[[{]/.test(value)) return value;
+  try {
+    return canonicalJson(JSON.parse(value));
+  } catch {
+    return value;
+  }
+}
+
+function normalized(record: UnitRecord, publishedHead: boolean): UnitRecord {
+  const lifecycle =
+    publishedHead &&
+    (record.table === "sys_hub_flow" || record.table === "sys_hub_action_type_definition");
+  const fields = Object.fromEntries(
+    Object.entries(record.fields)
+      .filter(([field]) => !lifecycle || !PUBLISH_FIELDS.has(field))
+      .map(([field, value]) => [field, jsonValue(value)]),
+  );
+  return { ...record, fields };
+}
+
+function instanceFields(record: UnitRecord): Readonly<Record<string, string>> {
+  const fields: Record<string, string> = { ...record.fields };
+  for (const [field, name] of Object.entries(record.referenceNames)) {
+    fields[namedField(record.table, field)] = name === "NULL" ? "" : name;
+  }
+  for (const [field, value] of Object.entries(record.fields)) {
+    for (const [key, held] of keyedReference(value) ?? []) fields[`${field}.${key}`] = held;
+  }
+  return fields;
+}
+
+function recordAgrees(wanted: UnitRecord, actual: UnitRecord, head: boolean): boolean {
+  if (wanted.table !== actual.table || wanted.action !== actual.action) return false;
+  const built = normalized(wanted, head);
+  const captured = normalized(actual, head);
+  // A missing payload field is missing evidence, unlike a live Table API column absent on an
+  // older release. Never let compareUnit's compatibility handling turn it into agreement.
+  if (Object.keys(built.fields).some((field) => captured.fields[field] === undefined)) return false;
+  return (
+    compareUnit(
+      { updateName: "", file: "", head: built, children: [] },
+      { head: instanceFields(captured), children: [], version: "", foreignRows: 0 },
+    ).length === 0
+  );
+}
+
+function completeChildren(built: BuiltUnit, actual: BuiltUnit): boolean {
+  const spec = unitSpec(built.head.table).children;
+  if (spec === undefined) return true;
+  return built.children.every((row) =>
+    actual.children.some(
+      (candidate) =>
+        row.table === candidate.table &&
+        row.action === candidate.action &&
+        spec.key.every((field) => {
+          const wanted = comparedValue(row, field)[0];
+          const held = comparedValue(candidate, field)[0];
+          return sameValue(wanted, held) || (wanted === "NULL" && held === "");
+        }) &&
+        Object.keys(row.fields).every((field) => candidate.fields[field] !== undefined),
+    ),
+  );
+}
+
+function sameIdentity(built: BuiltUnit, actual: BuiltUnit): boolean {
+  const keyedDeletion =
+    built.head.action === "DELETE" &&
+    Object.keys(built.head.fields).some((field) => !field.startsWith("sys_"));
+  if (built.head.action === "DELETE")
+    return keyedDeletion || built.head.sysId === actual.head.sysId;
+  return (
+    keyedDeletion ||
+    unitSpec(built.head.table).coalesce !== undefined ||
+    built.head.sysId === actual.head.sysId
+  );
+}
+
+// The captured authored graph must agree, even though the platform adds compiled snapshots.
+// Empty-ID child records are the SDK's delete_multiple instructions: their table is still
+// checked, so old rows left behind cannot silently survive in a captured flow.
+export function capturedContentAgrees(built: BuiltUnit, actual: BuiltUnit): boolean {
+  if (built.head.table !== actual.head.table) return false;
+  if (built.head.action !== actual.head.action) return false;
+  if (!sameIdentity(built, actual)) return false;
+  if (built.head.action === "DELETE") return recordAgrees(built.head, actual.head, false);
+  const compiled = !unitSpec(built.head.table).comparable;
+  if (!recordAgrees(built.head, actual.head, compiled)) return false;
+  if (!compiled) {
+    return (
+      completeChildren(built, actual) &&
+      compareUnit(built, {
+        head: instanceFields(actual.head),
+        children: actual.children.map(instanceFields),
+        version: "",
+        foreignRows: 0,
+      }).length === 0
+    );
+  }
+  const authoredTables = new Set(built.children.map((record) => record.table));
+  if (
+    actual.children.some(
+      (record) => !authoredTables.has(record.table) && !SNAPSHOTS.has(record.table),
+    )
+  )
+    return false;
+  return [...new Set(built.children.map((record) => record.table))].every((table) => {
+    const wanted = built.children.filter((record) => record.table === table && record.sysId !== "");
+    const held = actual.children.filter((record) => record.table === table && record.sysId !== "");
+    return (
+      wanted.length === held.length &&
+      wanted.every((record) => {
+        const found = held.find((candidate) => candidate.sysId === record.sysId);
+        return found !== undefined && recordAgrees(record, found, false);
+      })
+    );
+  });
+}
+
+// Capture proves the authored graph; live head fields and the master snapshot must still
+// agree. A stale capture cannot certify another published version on the instance.
+export function compiledCopyAgrees(
+  built: BuiltUnit,
+  captured: BuiltUnit,
+  copy: InstanceCopy | null,
+): boolean {
+  if (copy === null) return false;
+  if (built.head.table === "sys_hub_flow" && copy.head["status"] !== "published") return false;
+  const snapshot = captured.head.fields["master_snapshot"];
+  if (snapshot !== undefined && snapshot !== "" && copy.head["master_snapshot"] !== snapshot)
+    return false;
+  return recordAgrees(built.head, { ...built.head, fields: copy.head, referenceNames: {} }, true);
+}
+
+// A snapshot must belong to this definition, not merely appear somewhere in the payload.
+export function publishedCapture(unit: BuiltUnit): boolean {
+  const table = unit.head.table;
+  if (table !== "sys_hub_flow" && table !== "sys_hub_action_type_definition") return true;
+  if (table === "sys_hub_flow" && unit.head.fields["status"] !== "published") return false;
+  const snapshotTable =
+    table === "sys_hub_flow" ? "sys_hub_flow_snapshot" : "sys_hub_action_type_snapshot";
+  const master = unit.head.fields["master_snapshot"] ?? "";
+  return unit.children.some(
+    (snapshot) =>
+      snapshot.table === snapshotTable &&
+      snapshot.sysId !== "" &&
+      snapshot.action !== "DELETE" &&
+      (master !== ""
+        ? master === snapshot.sysId
+        : ["flow", "action_type", "action_type_definition"].some(
+            (field) => snapshot.fields[field] === unit.head.sysId,
+          )),
+  );
+}

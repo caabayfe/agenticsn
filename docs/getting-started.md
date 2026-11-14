@@ -174,6 +174,11 @@ snagentic push --instance dev --plan <planId> --confirm
 - **push** loads each project's units into the branch's update sets with `fluent/load`, stamps
   them as a save would, publishes flows, checks each was recorded and reads it back, then commits
   the projects' ledgers. Only development instances can be written.
+- **Incomplete delivery** stays in `.snagentic/<instance>/push-journal.json` until content,
+  capture and the ledger commit are verified. An applied change without capture remains in
+  the next plan, even when source already equals live. Review that new plan before retrying;
+  keep the original instance and batch label. Remote edits and legacy journals without
+  evidence block the retry. See [delivery recovery](../specs/014-delivery-verification/plan.md#recovery).
 - **Drift**: when someone changes an adopted record on the instance, pull it, then
   `snagentic adopt --instance dev --refresh <record>`. It converts the instance's copy as of your
   last ledger commit and merges it into your source as git merges: both sides kept, overlaps

@@ -21,6 +21,9 @@ export function unitPlanDependencies(
   return {
     authoring: context.authoring(root),
     reader,
+    journal: context.pushJournal(root, instance),
+    url: connection.profile.url,
+    decodeCapture: context.decodeCapture,
     workspace: context.delivery(root, instance),
     governance: context.governance(root, instance),
     packGate: (paths, units) =>

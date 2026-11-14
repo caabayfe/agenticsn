@@ -18,13 +18,14 @@ export {
   type PullRequestOutcome,
   pullRequestFor,
 } from "./application/pull-request";
-export type { PushedUnit } from "./application/push-project";
+export type { PushedUnit } from "./application/push-types";
 export {
   pushUnits,
   type UnitPushDependencies,
   type UnitPushQuery,
   type UnitPushResult,
 } from "./application/push-units";
+export { capturedContentAgrees, publishedCapture } from "./domain/capture-content";
 export {
   BranchNotPublishedError,
   IntegrationUserNotFoundError,
@@ -72,10 +73,13 @@ export {
   waiverFor,
 } from "./domain/waivers";
 export type {
+  CaptureContent,
+  CaptureDecoder,
   DeliveryWorkspace,
   FluentInstaller,
   FluentPublishResult,
   InstanceWriter,
+  PendingDelivery,
   PullRequestLookup,
   PullRequests,
   PushJournal,

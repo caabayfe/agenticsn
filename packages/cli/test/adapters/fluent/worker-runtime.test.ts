@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,6 +42,33 @@ afterEach(() => {
 });
 
 describe("the SDK worker", () => {
+  it.skipIf(process.platform !== "darwin")(
+    "warns through the real loader when native sandbox startup fails",
+    async () => {
+      const runtime = await loadFluentRuntime();
+      const failed = Bun.spawn([process.execPath, "-e", "process.exit(3)"], {
+        stdin: "ignore",
+        stdout: "ignore",
+        stderr: "pipe",
+        ipc() {},
+      });
+      // Fail only the first native start; fallback still runs the real SDK worker.
+      const spawn = spyOn(Bun, "spawn").mockImplementationOnce(() => failed as never);
+      const warning = spyOn(process.stderr, "write").mockImplementation(() => true);
+      try {
+        expect(
+          (await runtime.build(copyFixture(join(FLUENT_FIXTURES, "server-modules")))).success,
+        ).toBe(true);
+        expect(warning).toHaveBeenCalledWith(expect.stringContaining("still with no credential"));
+        expect(runtime.isolation?.()).toBe("none");
+      } finally {
+        spawn.mockRestore();
+        warning.mockRestore();
+      }
+    },
+    BUILD_TIMEOUT,
+  );
+
   it(
     "builds the project with the SDK, in a worker",
     async () => {

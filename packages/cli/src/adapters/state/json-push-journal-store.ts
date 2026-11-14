@@ -18,6 +18,25 @@ const PushJournalFile: z.ZodType<PushJournal> = z
     planId: z.string(),
     mirrorCommit: z.string(),
     startedAt: z.string(),
+    instance: z.string().exactOptional(),
+    url: z.string().exactOptional(),
+    label: z.string().exactOptional(),
+    pending: z
+      .array(
+        z.object({
+          project: z.string(),
+          updateName: z.string(),
+          digest: z.string(),
+          updateSet: z.string(),
+          before: z.string().nullable(),
+          observed: z.string().nullable().exactOptional(),
+          operation: z.enum(["create", "load", "delete"]),
+          removes: z.string().nullable(),
+          verified: z.boolean().exactOptional(),
+          captureName: z.string().exactOptional(),
+        }),
+      )
+      .exactOptional(),
     preferences: z.array(Preference).exactOptional(),
     preference: Preference.omit({ user: true }).nullable().exactOptional(),
     steps: z.array(

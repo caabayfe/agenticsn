@@ -19,6 +19,34 @@ const journal = {
 };
 
 describe("the push journal", () => {
+  it("recovers pending evidence through a fresh store without persisting payloads", async () => {
+    const directory = folder();
+    const pending = {
+      ...journal,
+      instance: "dev",
+      url: "https://dev.example.com",
+      label: "feature",
+      pending: [
+        {
+          project: "source/x_app",
+          updateName: "sys_script_include_1",
+          digest: "digest",
+          updateSet: "set1",
+          before: "1|before",
+          observed: "2|after",
+          operation: "load" as const,
+          removes: null,
+          verified: false,
+        },
+      ],
+    };
+    await new JsonPushJournalStore(directory).write(pending);
+    expect(await new JsonPushJournalStore(directory).read()).toEqual(pending);
+    expect(JSON.stringify(await new JsonPushJournalStore(directory).read())).not.toContain(
+      "payload",
+    );
+  });
+
   it("keeps a journal until it is cleared", async () => {
     const store = new JsonPushJournalStore(folder());
     expect(await store.read()).toBeNull();

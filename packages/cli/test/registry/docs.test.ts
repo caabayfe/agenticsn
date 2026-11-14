@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { createProfile, InstanceName } from "@snagentic/core";
 import { bunMarkdown } from "../../src/adapters/documentation/bun-markdown";
 import { FsDocumentationSources } from "../../src/adapters/documentation/fs-documentation-sources";
 import { FsMirrorRecords } from "../../src/adapters/documentation/fs-mirror-records";
@@ -95,6 +96,34 @@ afterEach(() => {
 });
 
 describe("snagentic docs", () => {
+  it("builds evidence links against the configured instance URL", async () => {
+    const current = context();
+    const profile = createProfile({
+      name: InstanceName.parse("pdi2"),
+      url: "https://dev.example.com",
+      username: "admin",
+      kind: "development",
+      acknowledgeReadOnly: false,
+    });
+    await docsBuild.handle(
+      {},
+      { ...current, profiles: { ...current.profiles, list: async () => [profile] } },
+      run,
+    );
+    expect(
+      readFileSync(join(root, ".snagentic/site/processes/incident/configure/assign.html"), "utf8"),
+    ).toContain(`https://dev.example.com/sys_script.do?sys_id=${RULE}`);
+  });
+
+  it("renders an unknown evidence citation as a documentation error", async () => {
+    write(PAGE, `${readFileSync(join(root, PAGE), "utf8")}\nMissing evidence [E99].\n`);
+    const result = await docsCheck.handle({}, context(), run);
+    expect(result.problems).toContainEqual(
+      expect.objectContaining({ kind: "unknown-citation", severity: "error" }),
+    );
+    expect(docsCheck.render(result, "text")).toContain("error   unknown-citation");
+  });
+
   it("census lists the applications that reach the process, from the mirror (ADR-0040)", async () => {
     write(
       "documentation/processes/incident/process.yaml",

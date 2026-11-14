@@ -2,6 +2,7 @@
 // tool and the JSON output are all generated from it; nothing is defined twice by hand.
 import type {
   AuthoringWorkspace,
+  CaptureDecoder,
   CredentialStore,
   DataTemplates,
   DeliveryWorkspace,
@@ -141,6 +142,7 @@ export interface UseCaseContext {
   readonly pullRequests: (root: string) => PullRequests;
   // Where push journals its progress (.snagentic/<name>/push-journal.json).
   readonly pushJournal: (root: string, instance: InstanceName) => PushJournalStore;
+  readonly decodeCapture: CaptureDecoder;
   readonly installJournal: (root: string, instance: InstanceName) => InstallJournal;
   // Text files inside the workspace (the agent pack).
   readonly workspaceFiles: WorkspaceFiles;

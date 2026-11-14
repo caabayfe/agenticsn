@@ -23,6 +23,23 @@ async function installed(name = "snagentic") {
 }
 
 describe("ExecutableBinary (ADR-0023)", () => {
+  it("refuses replacement and execution when there is no installed binary", async () => {
+    const binary = new ExecutableBinary(null);
+    await expect(binary.replace(script("1.3.0"), "1.3.0")).rejects.toMatchObject({
+      code: "binary-not-replaced",
+    });
+    expect(() => binary.run([], tmpdir())).toThrow("not an installed release");
+  });
+
+  it("wraps an I/O failure and leaves the previous binary untouched", async () => {
+    const { dir, path } = await installed();
+    const absent = join(dir, "absent", "snagentic");
+    await expect(
+      new ExecutableBinary(absent).replace(script("1.3.0"), "1.3.0"),
+    ).rejects.toMatchObject({ code: "binary-not-replaced" });
+    expect(await readFile(path, "utf8")).toContain("snagentic 1.2.1");
+  });
+
   it("swaps in a new binary once it runs and reports the expected version", async () => {
     const { path } = await installed();
     const binary = new ExecutableBinary(path, "darwin");

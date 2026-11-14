@@ -31,6 +31,10 @@ the developer's own project.
 - **`ip-address` 10.7.4** (2026-10-23) overrides 10.7.3, which reaches the MCP server through
   `express-rate-limit` and the SDK through `socks`; both accept `^10`.
 - `sprintf-js` is no longer reported (2026-10-23), so its row is gone.
+- **`hono` 4.13.18 and `@hono/node-server` 2.1.8** (2026-11-14) override 4.13.13 and 2.1.3, which reach the MCP
+  server through `@modelcontextprotocol/sdk` (`@hono/node-server` brings `hono`). Seven advisories were published
+  against them; snagentic serves MCP over stdio only, so none was reachable, but a compatible fix exists, so it is
+  applied instead of recorded.
 - **`body-parser` 2.4.0** (2026-10-25) overrides 2.3.0, which reaches the MCP server through
   `express` 5 (`^2.2.1`).
 - **`fast-uri`** (2026-10-25, paths corrected 2026-11-10) ships twice: 3.1.8 through `ajv` 8

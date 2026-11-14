@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Seven new advisories on `hono` and `@hono/node-server` (reached through the MCP SDK) are fixed with overrides to
+  4.13.18 and 2.1.8; snagentic serves MCP over stdio only, so none was reachable.
+
 ### Added
 
 - Four short narrated product videos, made with the documentation capability (`docs video`): why snagentic,

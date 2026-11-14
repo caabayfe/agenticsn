@@ -51,6 +51,65 @@ flowchart LR
   S3 -. "more use cases" .-> S4
 ```
 
+## Out-of-the-box candidates (checked 7 November 2026)
+
+ServiceNow's own agentic workflows and autonomous triggers on everis2 that are installed but not
+yet used in the demo. Read-only check of `sn_aia_usecase`, `sn_aia_trigger_configuration` and the
+execution plans on 7 November.
+
+### 1. Autonomous out of the box: triggers already installed, switched off
+
+These start by themselves on a record event. Switching one on is a single change.
+
+| Trigger (off) | What it does | Demo fit |
+|---|---|---|
+| **Generate post incident review on resolved** | When an accepted major incident with an assignee is resolved, the agent drafts the post-incident review from the incident, its child incidents and related records, as the assignee, in the Now Assist panel; once the assignee approves, it writes it to the Post Incident Review (level 2) | **Built 8 November.** ServiceNow's trigger is protected and can't be switched on (an override runs its flow but starts nothing). Our own Global trigger on the unchanged workflow works: `AIT post incident review on resolved (DEMO.PI)`, update set `AIT-P2-pir-trigger`, panel alert on. Demo scene 3.5 |
+| **Change Request Planner** | When a change is created, the agent writes its implementation, backout and test plans | Good: CHG0030146 (the HANA firewall change) or a new SAP change gets its plans unasked |
+| Survey filling trigger | Proposes answers to surveys | Weak for a demo |
+| Investigate and recommend incident resolution | Proposes a resolution on the incident | Already covered by our build, which runs on assignment |
+
+### 2. Out of the box, started by a person, with no run kept on everis2
+
+The run counts come from the execution plans still on the instance. Some of these were tried on
+28 October and their runs no longer appear, so 0 means "nothing kept", not "never tried".
+
+- **Analyze alert impact: rehearse it, don't build it.** The SAP service model was loaded on
+  2 November for this agent, and it shows 0 runs. Everything it needs is already on everis2.
+- **Problem and change:** Investigate problems, Assess conflicts, Assess quality, Create outages for
+  a change request, Schedule a change, Create standard change template proposal.
+- **Manager view:**
+  - Help Optimize Team Productivity;
+  - Identify ways to improve service;
+  - Analyze task trends (still blocked by the empty incident clusters).
+- **Other channels:**
+  - Intent to Action, ServiceNow's email-to-action workflow;
+  - Process images for new tasks.
+- **Operations:**
+  - Manage On Call Shifts (shift swaps);
+  - Playbook Activity Assist (could fit the major-incident playbook).
+
+### 3. Stories built from these, with no custom code
+
+| Story | Steps | Starts on its own |
+|---|---|---|
+| **The day after the outage** | Resolve the SAP major incident → the review is written automatically → "Investigate problems" on the root cause → a standard change template proposed for the fix | Yes, at the first step |
+| **Change on autopilot** | Create the SAP change → plans written automatically → check conflicts and quality → create the outage → schedule | Yes, at the first step |
+| **What hits the business** | Open the HANA alert group → "Analyze alert impact" shows the affected offerings and users from the loaded SAP model | No, but nothing to build |
+| **The manager's morning** | Team productivity, ways to improve service, trends, then the period comparison (B1) | No |
+
+### Recommendation
+
+1. Rehearse **Analyze alert impact** first: no change to everis2 is needed.
+2. Then switch on the **post incident review** and **Change Request Planner** triggers, limited to
+   the DEMO.PI groups like the SLA trigger. Together they give two autonomous moments using only
+   ServiceNow's agents. Both change a shared instance and need the owner's approval.
+
+### To check
+
+Two triage triggers are active on incidents, named "Triage" and "triage", and triage shows 1,346
+runs. Every incident may be triaged twice, which costs AI usage and may flip fields. Not yet
+checked which one is the duplicate.
+
 ## Decisions needed from the team
 
 1. Confirm the phase dates and the golden demo date.

@@ -145,7 +145,7 @@ never passes through a snagentic service: there isn't one.
 | 1.2 to 1.8 | Credentials bound to their instance, OAuth clients, `upgrade`, ACLs, flows, accelerator packs | Released 2026-10-07 to 2026-10-15 |
 | 2.0 | Changes authored in Fluent; the mirror is read-only | Released 2026-10-17 |
 | 2.1 to 2.19 | Verified documentation, accelerator installs by plan, store applications, secret scanning, security hardening | Released 2026-10-17 to 2026-11-08 |
-| Next | Enterprise readiness: a shared team mirror, load controls an instance owner sets, tests on every platform | Planned |
+| 2.20 | Enterprise readiness: a shared team mirror, load limits an instance owner sets, each developer signs in as themselves, Windows preview | Released 2026-11-12 |
 | Later | Update-set validation before promotion, CI templates, components-only installs on test and production (ADR-0038, section 5), read-only production troubleshooting, premium rule packs | Planned |
 
 ## Known limits

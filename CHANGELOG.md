@@ -4,8 +4,24 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- `snagentic onboard <name> --url <instance> --username <user>` (ADR-0056): one command from nothing to a
+  pulled, integrated workspace on macOS, Linux and Windows. It creates the workspace, adds the profile,
+  signs in (the secret is asked for without echo and kept only once the instance accepts it), says how the
+  instance answered (`asleep` with how to wake it, `unauthorized` with the Brazil-release role
+  `snc_basic_auth_api_access`, `unreachable`, `refused`), runs `doctor`, then `pull` and `integrate`. Run it
+  again to continue. It is for people, not an MCP tool.
+- Guides: [onboard an instance](docs/guides/onboarding.md) (with the PowerShell version of the onboarding script),
+  [sync](docs/guides/sync.md), [spec-driven development](docs/guides/spec-driven-development.md),
+  [generate documentation](docs/guides/generate-documentation.md) and [recipes](docs/guides/recipes.md).
+- Guides: [build a new capability](docs/guides/build-a-capability.md), a worked example from
+  request to development instance, and [extending snagentic](docs/guides/extend-snagentic.md),
+  how to add a use case, a rule or a skill.
+
 ### Changed
 
+- AGENTS.md: the repository layout, where rules live and where test fakes are now match the code.
 - Team mode: the guide and the scheduled-pull template say how to make the first pull of a large
   instance. The job's checkpoint stays on the runner, so a first full pull longer than its
   60-minute limit starts over on each run; make it once from a workstation with `pull --publish`.

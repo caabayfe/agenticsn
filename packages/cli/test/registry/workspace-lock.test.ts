@@ -251,6 +251,8 @@ describe("the workspace lock taken by every write command (REL-03)", () => {
       "instance add": "instance:name",
       "instance remove": "instance:name",
       integrate: "instance:instance",
+      // Like init it may create the workspace; the commands it runs take their own locks.
+      onboard: "none",
       "plugins activate": "instance:instance",
       pull: "instance:instance",
       push: "instance:instance",

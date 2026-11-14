@@ -9,6 +9,10 @@ sets. It writes only to development instances; test and production are read-only
 New to snagentic? The [product overview](product/overview.md) explains what it is for.
 Every command is described in the [command reference](reference/commands.md).
 
+Guides for what comes next: [onboard an instance](guides/onboarding.md), [sync](guides/sync.md),
+[build a capability](guides/build-a-capability.md), [spec-driven development](guides/spec-driven-development.md),
+[generate documentation](guides/generate-documentation.md) and [recipes](guides/recipes.md).
+
 ## 1. Install
 
 macOS (Apple silicon) and Linux:
@@ -52,6 +56,10 @@ itself, and agents cannot run `upgrade`. The notice stays quiet in CI, in agent 
 and with `SNAGENTIC_NO_UPDATE_CHECK=1`.
 
 ## 2. Create a workspace
+
+In a hurry? `snagentic onboard dev --url dev12345 --username <user>` does sections 2 to 4 in one
+command and says what to do if the instance is asleep or refuses the user
+([onboarding](guides/onboarding.md)). The steps below are what it does, one at a time.
 
 Synced data lives in its own git repository, never inside your application code:
 
@@ -110,6 +118,8 @@ Their credential must hold the `snc_read_only` role; snagentic checks it before 
 connection and refuses otherwise. Commands that change an instance do not exist for them.
 
 ## 4. Pull, then integrate
+
+The routine, and what to do when it goes wrong, is in the [sync guide](guides/sync.md).
 
 ```sh
 snagentic pull dev          # the first pull is complete and resumable
@@ -239,6 +249,9 @@ Activation uses ServiceNow's CI/CD API, works on development instances only, and
 retried automatically: if its outcome is unclear, snagentic tells you what to check.
 
 ## 7. Deliver changes to a development instance
+
+For one change followed from request to instance, with the files and commands, see
+[build a new capability](guides/build-a-capability.md).
 
 Changes are written in **Fluent**, the ServiceNow SDK's TypeScript, one project per application
 scope under `source/<scope>/` (ADR-0031). snagentic ships the SDK (4.14.0) inside the binary: no
@@ -388,6 +401,9 @@ instance did not take. Loading again updates or leaves rows unchanged; it never 
 On test and production, load the same templates on the instance itself.
 
 ## 8. Use it from your coding agent
+
+To document a process, the agent uses the `servicenow-document` skill: see
+[generate documentation](guides/generate-documentation.md).
 
 snagentic serves its tools over MCP: `find`, `describe`, `advise` and `validate` for
 understanding and checking changes; `pull`, `status`, `update_sets`, `plugins`, `accelerator`,

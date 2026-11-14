@@ -391,6 +391,27 @@ Options:
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
+### `onboard`
+
+```
+snagentic onboard <name> [options]
+```
+
+Take a new instance from nothing to a pulled, integrated workspace in one command: create the workspace, add the profile, sign in (the password is asked without echo and kept in the OS keychain), check the instance answers, run doctor, pull and integrate. Says what to do when a developer instance is asleep or refuses the user. Run it again to continue after a stop: what is done is skipped. For people: an agent never sees the secret.
+
+Changes the instance: no (writes only to the workspace). MCP tool: none.
+
+Options:
+
+- `--url <value>`: instance name (dev12345) or https address
+- `--username <value>`: the instance user; with --client-id, the OAuth Application User
+- `--client-id <value>`: OAuth client id, for the client-credentials grant
+- `--kind <value>`: only development is written to (one of: development, test, production)
+- `--acknowledge-read-only`: confirm that a test or production credential is read-only
+- `--path <value>`: the workspace folder (default: the workspace you are in, else ~/snagentic/<name>)
+
+All commands also take `--format agent|json|text` and `--workspace <path>`.
+
 ### `plugins list`
 
 ```

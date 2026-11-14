@@ -14,6 +14,7 @@ export {
   RequestBudgetExhaustedError,
   RequestTimedOutError,
 } from "./domain/errors";
+export { answerOf, type InstanceAnswer } from "./domain/instance-answer";
 export {
   defaultLoadLimits,
   effectiveLoadLimits,

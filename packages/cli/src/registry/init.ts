@@ -3,7 +3,7 @@ import { initWorkspace } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase, type HostEnvironment } from "./use-case";
 
-function resolvePath(path: string, host: HostEnvironment): string {
+export function resolvePath(path: string, host: HostEnvironment): string {
   if (path === "~" || path.startsWith("~/")) {
     return join(host.home, path.slice(1));
   }

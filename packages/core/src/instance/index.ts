@@ -13,6 +13,12 @@ export {
   removeInstance,
 } from "./application/manage-instances";
 export {
+  type OnboardResult,
+  type OnboardStep,
+  type OnboardSteps,
+  onboard,
+} from "./application/onboard";
+export {
   DevelopmentInstanceRequiredError,
   ensureDevelopmentInstance,
   ReadOnlyCredentialOnDevelopmentError,

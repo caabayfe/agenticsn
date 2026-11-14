@@ -68,23 +68,23 @@ bun scripts/eval/run.ts --variants A,B --reps 2   # opt-in agent evaluations (re
 
 ```
 packages/
-  core/src/
-    kernel/            SysId, TableName, Scope, canonical text + hash, base errors
-    metadata/          Artifact, ArtifactType registry, Snapshot, ChangeSet
-    <context>/         domain/ application/ ports.ts, one folder per bounded context:
-                       sync (pull, integrate), knowledge (find, describe), advice (rules,
-                       guidance), governance (validate, gate, waivers), authoring (adopt,
-                       Fluent source), delivery (plan, push), updatesets, plugins,
-                       accelerators, documentation, instance, connection, environment,
-                       workspace, upgrade
-  rules-basic/         free rule pack: ESLint script checks, one file per category
-  agent-packs/         skills, instructions, hooks, rendered per host
+  core/src/            one folder per bounded context, each with domain/ application/ ports.ts
+    kernel/ metadata/  SysId, TableName, Scope, canonical text + hash; Artifact, ArtifactType, Snapshot
+    sync/              pull, integrate, shared mirror
+    knowledge/ advice/ model, graph, search; the rule catalogue and `advise`
+    governance/        rules, gate, waivers, reports
+    authoring/         adopt, Fluent projects, ledgers
+    delivery/          plan-push, push, update-set batches
+    accelerators/ documentation/ updatesets/ plugins/ instance/ connection/
+    environment/ upgrade/ workspace/
+  rules-basic/src/     the script rules (ESLint rule API), one file per category in rules/
+  agent-packs/src/     skills/ (one file per skill), instructions, hooks, rendered per host
   cli/src/
-    adapters/          ports implemented: servicenow/ git/ fs/ fluent/ credentials/ ...
     registry/          use cases: zod schemas + handler (single source of truth)
     cli/ mcp/ hooks/   generated interfaces, no logic
-docs/adr/  docs/architecture/
-tests/fixtures/        hash vectors, sample artifacts, recorded HTTP
+    adapters/          implement the ports: servicenow/ git/ fs/ credentials/ yaml/ fluent/ ...
+docs/adr/  docs/architecture/  docs/guides/
+tests/fixtures/        hash vectors, sample artifacts, Fluent projects, recorded HTTP
 ```
 
 ## Architecture rules (enforced by `bun run arch`)
@@ -148,7 +148,7 @@ Choosing the test:
 
 ## Adding things
 
-- **A use case:** a zod input and output schema plus a handler in
+- **A use case** ([worked example](docs/guides/extend-snagentic.md#add-a-use-case)): a zod input and output schema plus a handler in
   `packages/cli/src/registry/`, calling one application service. Set `readOnly`,
   `destructive` and `requiresDevelopmentInstance` correctly. Mark `mcp: true` only if it
   earns a place in the **13-tool MCP budget** (ADR-0002, ADR-0026).
@@ -167,8 +167,9 @@ Choosing the test:
     record check in `packages/core/test/`.
 
   Never reuse or renumber a rule ID.
-- **An artifact type:** register it in the `ArtifactType` registry (script fields,
-  language, file extensions). No per-class special cases elsewhere.
+- **A script class the rules check:** add its script fields and where each runs (server, client
+  or portal client) to `SCRIPT_FIELDS` in `packages/core/src/advice/domain/script-fields.ts`. A
+  field missing there is not checked. No per-class special cases elsewhere.
 - **A dependency:** justify it in the commit message. Prefer the standard library. No
   native add-ons beyond those named in ADR-0005.
 

@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Interrupted pushes can recover verified receipts after a necessary source correction with
+  `plan-push --recover-pending` and `push --recover-pending`. Recovery stays in the original
+  instance and update-set batch, proves current capture/live agreement, loads no metadata and
+  keeps the journal until the ledger commit succeeds. Unrelated changes remain for a normal plan.
+  See [the recovery guide](docs/guides/recover-interrupted-delivery.md). Fixes #269.
+
 ## [2.21.1] - 2026-11-15
 
 Push verifies the reviewed content and keeps unfinished delivery recoverable.

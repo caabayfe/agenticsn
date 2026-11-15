@@ -5,6 +5,7 @@ import {
   compiledCopyAgrees,
   type InstanceCopy,
   isDeletion,
+  type UnitDecision,
   unitSpec,
 } from "../../authoring/index";
 import type { InstanceReader } from "../../connection/index";
@@ -47,4 +48,30 @@ export async function reconcilePending(
         ? compareUnit(unit, copy).length === 0
         : compiledCopyAgrees(unit, content.unit, content.live ?? copy));
   return applied ? { ...pending, observed: copy?.version ?? null, verified: true } : pending;
+}
+
+// Recovery is receipt-only: neither an earlier verified flag nor a matching timestamp is proof.
+export async function recoveryDecision(
+  reader: InstanceReader,
+  unit: BuiltUnit,
+  pending: PendingDelivery,
+  copy: InstanceCopy | null,
+  decode: CaptureDecoder | undefined,
+  signal: AbortSignal,
+): Promise<UnitDecision> {
+  const checked = await reconcilePending(
+    reader,
+    unit,
+    { ...pending, verified: false },
+    copy,
+    decode,
+    signal,
+  );
+  return checked.verified === true
+    ? { kind: "record" }
+    : {
+        kind: "unsafe",
+        reason:
+          "unfinished delivery recovery requires matching live content and its original capture at an unchanged version",
+      };
 }

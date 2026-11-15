@@ -50,6 +50,12 @@ export const push = defineUseCase({
       .default(false)
       .describe("open a draft pull request when the branch has none (needs committed changes)"),
     allowCollisions: z.boolean().default(false),
+    recoverPending: z
+      .boolean()
+      .default(false)
+      .describe(
+        "confirm a receipt-only recovery plan; rechecks original captures and live content without loading metadata",
+      ),
   }),
   output: z.object({
     instance: z.string(),
@@ -150,6 +156,7 @@ export const push = defineUseCase({
         ...(input.label === undefined ? {} : { label: input.label }),
         ...(input.pr === undefined ? {} : { pr: input.pr }),
         draftPr: input.draftPr,
+        ...(input.recoverPending ? { recoverPending: true } : {}),
       },
     );
   },

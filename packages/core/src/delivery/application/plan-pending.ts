@@ -1,7 +1,9 @@
 import type { BuiltUnit } from "../../authoring/index";
 import { isKeyedDeletion, unitDigest } from "../../authoring/index";
 import type { InstanceReader } from "../../connection/index";
+import { InvalidInputError } from "../../kernel/errors";
 import { TableName } from "../../kernel/table-name";
+import { inBatch } from "../domain/batch";
 import type { UnitProblem } from "../domain/unit-plan";
 import type { PushJournal, PushJournalStore } from "../ports";
 
@@ -10,6 +12,7 @@ interface PendingPlanDependencies {
   readonly url?: string;
   readonly reader: InstanceReader;
   readonly signal: AbortSignal;
+  readonly workspace: { readonly branch: () => Promise<string> };
 }
 
 interface PendingProject {
@@ -22,49 +25,43 @@ export function deliveryTarget(
   instance: string,
   label: string,
   journal: PushJournal | null,
+  recoverPending = false,
 ) {
-  return { instance, url: deps.url ?? "", label, pending: journal?.pending ?? [] };
+  return {
+    instance,
+    url: deps.url ?? "",
+    label,
+    pending: journal?.pending ?? [],
+    ...(recoverPending ? { recoverPending: true } : {}),
+  };
 }
 
-export async function pendingJournal(
+function checkedLabel(label: string): string {
+  if (/[\^\r\n[\]]/.test(label))
+    throw new InvalidInputError("label must not contain ^ [ ] or line breaks");
+  return label;
+}
+
+const unsafe = (reason: string): UnitProblem => ({
+  project: "source",
+  updateName: "",
+  kind: "unsafe",
+  reason,
+});
+
+async function pendingSets(
   deps: PendingPlanDependencies,
-  instance: string,
+  journal: PushJournal,
   label: string,
-): Promise<{ journal: PushJournal | null; problems: UnitProblem[] }> {
-  const journal = (await deps.journal?.read()) ?? null;
-  const unsafe = (reason: string): UnitProblem => ({
-    project: "source",
-    updateName: "",
-    kind: "unsafe",
-    reason,
-  });
-  if (journal === null) return { journal, problems: [] };
-  if (journal.pending === undefined && journal.steps.length > 0)
-    return {
-      journal,
-      problems: [
-        unsafe(
-          "legacy interrupted push has no per-unit delivery evidence: inspect its update sets and reconcile before removing the journal",
-        ),
-      ],
-    };
-  if ((journal.pending ?? []).length === 0) return { journal, problems: [] };
-  if (journal.instance !== instance || journal.url !== deps.url || journal.label !== label)
-    return {
-      journal,
-      problems: [
-        unsafe(
-          "unfinished delivery belongs to a different instance URL or batch label: use the original target before reconciling",
-        ),
-      ],
-    };
+  recoverPending: boolean,
+): Promise<UnitProblem[]> {
   const problems: UnitProblem[] = [];
   for (const id of new Set(journal.pending?.map((entry) => entry.updateSet))) {
     const sets = await deps.reader.query(
       {
         table: TableName.parse("sys_update_set"),
         query: `sys_id=${id}`,
-        fields: ["state"],
+        fields: recoverPending ? ["state", "name"] : ["state"],
         limit: 1,
       },
       deps.signal,
@@ -75,8 +72,44 @@ export async function pendingJournal(
           `unfinished delivery's update set ${id} is missing or closed: reconcile it before continuing`,
         ),
       );
+    else if (recoverPending && !inBatch(label, sets[0]?.["name"] ?? ""))
+      problems.push(
+        unsafe(`unfinished delivery's update set ${id} no longer belongs to the original batch`),
+      );
   }
-  return { journal, problems };
+  return problems;
+}
+
+export async function pendingJournal(
+  deps: PendingPlanDependencies,
+  instance: string,
+  requestedLabel: string | undefined,
+  recoverPending = false,
+): Promise<{ journal: PushJournal | null; label: string; problems: UnitProblem[] }> {
+  const journal = (await deps.journal?.read()) ?? null;
+  const label = checkedLabel(
+    requestedLabel ??
+      (recoverPending ? journal?.label : undefined) ??
+      (await deps.workspace.branch()),
+  );
+  const result = (problems: UnitProblem[]) => ({ journal, label, problems });
+  if (recoverPending && (journal?.pending ?? []).length === 0)
+    return result([unsafe("there are no pending delivery receipts to recover")]);
+  if (journal === null) return result([]);
+  if (journal.pending === undefined && journal.steps.length > 0)
+    return result([
+      unsafe(
+        "legacy interrupted push has no per-unit delivery evidence: inspect its update sets and reconcile before removing the journal",
+      ),
+    ]);
+  if ((journal.pending ?? []).length === 0) return result([]);
+  if (journal.instance !== instance || journal.url !== deps.url || journal.label !== label)
+    return result([
+      unsafe(
+        "unfinished delivery belongs to a different instance URL or batch label: use the original target before reconciling",
+      ),
+    ]);
+  return result(await pendingSets(deps, journal, label, recoverPending));
 }
 
 export function orphanedPending(

@@ -19,6 +19,7 @@ import type {
   PushJournalStore,
   SwitchedPreference,
 } from "../ports";
+import { pushNext } from "./delivery-next";
 import { finishPending, startJournal } from "./pending-journal";
 import {
   computeUnitPlan,
@@ -229,18 +230,17 @@ export async function pushUnits(
   });
   const pr = "url" in pullRequest ? pullRequest.url : undefined;
   const batch = await openGlobalBatch(deps, session, journal, { label: plan.label, user, pr });
-  const { installer, username, now } = deps;
   const run: ProjectRun = {
     session,
-    installer,
+    installer: deps.installer,
     decodeCapture: deps.decodeCapture,
     journal,
     store: deps.journal,
-    username,
+    username: deps.username,
     user,
     label: plan.label,
     batch,
-    now,
+    now: deps.now,
   };
   const { updateSets, units, ledgers } = await pushAll(deps, run, loads);
   const ledger = await commitLedgers(deps, query.instance, plan.planId, ledgers);
@@ -257,9 +257,11 @@ export async function pushUnits(
     refused: refusalGroups(units, deps.username),
     ledgerCommit: ledger.commit,
     warnings: ledger.warnings,
-    next:
-      units.some((unit) => !unit.applied || !unit.captured) || ledger.warnings.length > 0
-        ? [{ tool: "plan_push", args: { instance: query.instance, label: plan.label } }]
-        : [{ tool: "status", args: { instance: query.instance } }],
+    next: pushNext(
+      query.instance,
+      plan.label,
+      query.recoverPending,
+      units.some((unit) => !unit.applied || !unit.captured) || ledger.warnings.length > 0,
+    ),
   };
 }

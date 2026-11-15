@@ -16,6 +16,7 @@ const GateFinding = z.object({
 });
 
 export const PlanOutput = z.object({
+  recoverPending: z.boolean().optional(),
   instance: z.string(),
   planId: z.string(),
   label: z.string(),
@@ -127,6 +128,12 @@ export const planPush = defineUseCase({
       .boolean()
       .default(false)
       .describe("accept records already held in someone else's open update set"),
+    recoverPending: z
+      .boolean()
+      .default(false)
+      .describe(
+        "recover only pending receipts proven by original captures and live content; loads nothing and uses the original batch",
+      ),
   }),
   output: PlanOutput,
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
@@ -140,11 +147,15 @@ export const planPush = defineUseCase({
       instance: connection.name,
       allowCollisions: input.allowCollisions,
       ...(input.label === undefined ? {} : { label: input.label }),
+      ...(input.recoverPending ? { recoverPending: true } : {}),
     });
     return plan;
   },
   render(output) {
     const lines = [
+      ...(output.recoverPending
+        ? [`recovery: verified receipts only in ${output.label}; no metadata load`]
+        : []),
       ...output.units.map(
         (u) =>
           `${u.operation.padEnd(6)} ${u.updateName}  ${u.project}${u.changes.length > 0 ? `  (${u.changes.join(", ")})` : ""}${u.alsoSets.length > 0 ? `  also sets: ${u.alsoSets.join(", ")}` : ""}${NOTES[noteOf(u)]}`,
@@ -168,7 +179,7 @@ export const planPush = defineUseCase({
       ),
       `update sets: ${output.updateSets.join(", ") || "none"}`,
       output.ready
-        ? `ready: snagentic push --instance ${output.instance} --plan ${output.planId} --confirm`
+        ? `ready: snagentic push --instance ${output.instance} --plan ${output.planId} --confirm${output.recoverPending ? " --recover-pending" : ""}`
         : output.units.length === 0 && output.problems.length === 0
           ? "nothing to push"
           : "not ready: fix the items above, then plan again",

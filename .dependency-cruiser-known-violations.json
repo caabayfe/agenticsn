@@ -199,60 +199,6 @@
   },
   {
     "type": "dependency",
-    "from": "packages/core/src/delivery/application/plan-units.ts",
-    "to": "packages/core/src/authoring/application/read-units.ts",
-    "rule": {
-      "name": "contexts-meet-through-their-index",
-      "severity": "error"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "packages/core/src/delivery/application/plan-units.ts",
-    "to": "packages/core/src/authoring/domain/digest.ts",
-    "rule": {
-      "name": "contexts-meet-through-their-index",
-      "severity": "error"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "packages/core/src/delivery/application/plan-units.ts",
-    "to": "packages/core/src/authoring/domain/ledger.ts",
-    "rule": {
-      "name": "contexts-meet-through-their-index",
-      "severity": "error"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "packages/core/src/delivery/application/plan-units.ts",
-    "to": "packages/core/src/authoring/domain/unit.ts",
-    "rule": {
-      "name": "contexts-meet-through-their-index",
-      "severity": "error"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "packages/core/src/delivery/application/plan-units.ts",
-    "to": "packages/core/src/authoring/ports.ts",
-    "rule": {
-      "name": "contexts-meet-through-their-index",
-      "severity": "error"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "packages/core/src/delivery/application/plan-units.ts",
-    "to": "packages/core/src/connection/ports.ts",
-    "rule": {
-      "name": "contexts-meet-through-their-index",
-      "severity": "error"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "packages/core/src/delivery/application/push-project.ts",
     "to": "packages/core/src/authoring/application/read-units.ts",
     "rule": {

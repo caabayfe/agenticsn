@@ -294,6 +294,7 @@ Options:
 - `--instance <value>`: default: the workspace's only instance
 - `--label <value>`: names the update sets (default: the git branch)
 - `--allow-collisions`: accept records already held in someone else's open update set
+- `--recover-pending`: recover only pending receipts proven by original captures and live content; loads nothing and uses the original batch
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -316,6 +317,7 @@ Options:
 - `--pr <value>`: the branch's pull request (default: found with the GitHub CLI)
 - `--draft-pr`: open a draft pull request when the branch has none (needs committed changes)
 - `--allow-collisions`: 
+- `--recover-pending`: confirm a receipt-only recovery plan; rechecks original captures and live content without loading metadata
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -775,6 +777,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `instance` (string, optional): default: the workspace's only instance
   - `label` (string, optional): names the update sets (default: the git branch)
   - `allowCollisions` (boolean, optional): accept records already held in someone else's open update set
+  - `recoverPending` (boolean, optional): recover only pending receipts proven by original captures and live content; loads nothing and uses the original batch
 - `push`: Deliver a reviewed plan to the development instance: loads the planned units of the Fluent source (fluent/load) into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, checks each was captured and reads it back, then commits the ledgers. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. Destructive: hosts ask before running it.
   - `instance` (string, required): the development instance
   - `plan` (string, required): the planId from plan_push
@@ -783,6 +786,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `pr` (string, optional): the branch's pull request (default: found with the GitHub CLI)
   - `draftPr` (boolean, optional): open a draft pull request when the branch has none (needs committed changes)
   - `allowCollisions` (boolean, optional)
+  - `recoverPending` (boolean, optional): confirm a receipt-only recovery plan; rechecks original captures and live content without loading metadata
 - `update_sets`: Read a ServiceNow instance's update sets. action=list: open and recently changed sets with update counts. show: one set's updates (needs id). collisions: records held by more than one open set. export: write a set as ServiceNow XML (needs id). Never changes the instance.
   - `instance` (string, required)
   - `action` (list | show | collisions | export, required)

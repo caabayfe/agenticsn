@@ -161,6 +161,7 @@ export function unitPlanId(
     readonly url: string;
     readonly label: string;
     readonly pending: readonly object[];
+    readonly recoverPending?: boolean;
   },
 ): string {
   const material = canonicalJson({
@@ -172,6 +173,7 @@ export function unitPlanId(
             url: delivery.url,
             label: delivery.label,
             pending: delivery.pending.map((entry) => ({ ...entry })),
+            ...(delivery.recoverPending ? { recoverPending: true } : {}),
           },
         }),
     // A deletion's update name holds a random sys_id: it is bound by what it deletes.

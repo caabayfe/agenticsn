@@ -19,6 +19,7 @@ const PROTECTED = [
   ".github/hooks/**",
   ".mcp.json",
   ".vscode/mcp.json",
+  ".codex/config.toml",
 ];
 
 export const CLAUDE_SETTINGS = {
@@ -65,11 +66,14 @@ export const CLAUDE_SETTINGS = {
     // (spec 012, B-11). Instance text can steer an agent; these prompts are where it stops.
     ask: [
       "mcp__snagentic__push",
+      "mcp__snagentic-develop__push",
       "Bash(snagentic push:*)",
       "mcp__snagentic__adopt",
+      "mcp__snagentic-develop__adopt",
       "Bash(snagentic adopt:*)",
       "Bash(snagentic take-over:*)",
       "mcp__snagentic__plugin_activate",
+      "mcp__snagentic-develop__plugin_activate",
       "Bash(snagentic plugins activate:*)",
       "Bash(snagentic apps install:*)",
       "Bash(snagentic accelerator install:*)",

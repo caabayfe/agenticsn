@@ -2,6 +2,7 @@ import { buildSite, listInstances, type MediaRequest } from "@snagentic/core";
 import { z } from "zod";
 import { checkLines, DocsProblemSchema, EvidenceResultSchema } from "./docs-check";
 import { defineUseCase, type UseCaseContext } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 export const DocsBuildOutput = z.object({
@@ -68,6 +69,17 @@ export async function buildDocs(
 }
 
 export const docsBuild = defineUseCase({
+  help: {
+    summary: "Build the verified documentation site",
+    section: "Additional workflows",
+    group: HELP_GROUPS.docs,
+    details:
+      "Build a static site in .snagentic/site/. Stale pages are labelled, not excluded; use " +
+      "snagentic docs check as the gate. Media flags override their own site.yaml settings; " +
+      "generated videos are cached until the animation changes.",
+    effects: "Writes the local site and requested media; does not call the instance.",
+    examples: [["docs", "build"]],
+  },
   group: "docs",
   name: "build",
   description:

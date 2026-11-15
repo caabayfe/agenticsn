@@ -7,9 +7,20 @@ import {
 } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 export const instanceAdd = defineUseCase({
+  help: {
+    summary: "Add an instance profile",
+    section: "Manage",
+    group: HELP_GROUPS.instance,
+    details:
+      "Add an instance URL, kind and authentication identity to this workspace. Store the " +
+      "secret separately with snagentic auth login.",
+    effects: "Writes the workspace profile; stores no secret and makes no instance changes.",
+    examples: [["instance", "add", "dev", "--url", "dev12345", "--username", "your.user"]],
+  },
   group: "instance",
   name: "add",
   description:

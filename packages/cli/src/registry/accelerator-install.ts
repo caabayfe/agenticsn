@@ -23,6 +23,7 @@ import { connectForWrite } from "./connect";
 import { callerFor, installSteps } from "./install-steps";
 import { knowledgeSession } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 const Step = z.object({
   step: z.string(),
@@ -65,6 +66,19 @@ function connectedSteps(connection: Awaited<ReturnType<typeof connectForWrite>>)
 }
 
 export const acceleratorInstall = defineUseCase({
+  help: {
+    summary: "Plan and install a pack on development",
+    section: "Additional workflows",
+    group: HELP_GROUPS.accelerator,
+    details:
+      "Without --confirm, create a local installation plan for review. With --confirm " +
+      "PLAN_ID, execute that exact plan: prerequisites, validated module delivery and data " +
+      "loads. Rerun the same command to resume a stopped installation.",
+    effects:
+      "Writes a local plan; confirmed execution changes the development instance and commits " +
+      "an installation report.",
+    examples: [["accelerator", "install", "itsm", "dev"]],
+  },
   group: "accelerator",
   name: "install",
   description:

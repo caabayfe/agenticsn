@@ -4,6 +4,18 @@ import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
 export const fluentKeys = defineUseCase({
+  help: {
+    summary: "Generate stable Fluent record IDs",
+    section: "Develop",
+    visibility: "internal",
+    details:
+      "Write generated keys.ts files for projects whose build adds IDs. Commit these files " +
+      "with the source. The pre-commit hook uses --staged to build the index and stage the " +
+      "generated keys.",
+    effects:
+      "Writes generated keys.ts files; --staged also stages them. Does not call the instance.",
+    examples: [["fluent-keys"], ["fluent-keys", "--staged"]],
+  },
   name: "fluent-keys",
   description:
     "Write src/fluent/generated/keys.ts for the Fluent projects under source/ whose build adds " +

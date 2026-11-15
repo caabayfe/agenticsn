@@ -9,6 +9,12 @@ sets. It writes only to development instances; test and production are read-only
 New to snagentic? The [product overview](product/overview.md) explains what it is for.
 Every command is described in the [command reference](reference/commands.md).
 
+Use `snagentic --help` for everyday commands grouped by task, and
+`snagentic <command> --help` for required flags, defaults, effects and examples.
+`snagentic --help-all` also lists advanced commands (`init`, `take-over`) and host/hook
+commands (`mcp`, `hook`, `check`, `fluent-keys`). They remain directly callable; hiding
+them from the everyday list changes no permissions or enforcement.
+
 Guides for what comes next: [onboard an instance](guides/onboarding.md), [sync](guides/sync.md),
 [build a capability](guides/build-a-capability.md), [spec-driven development](guides/spec-driven-development.md),
 [generate documentation](guides/generate-documentation.md) and [recipes](guides/recipes.md).
@@ -410,47 +416,90 @@ On test and production, load the same templates on the instance itself.
 To document a process, the agent uses the `servicenow-document` skill: see
 [generate documentation](guides/generate-documentation.md).
 
-snagentic serves its tools over MCP: `find`, `describe`, `advise` and `validate` for
-understanding and checking changes; `pull`, `status`, `update_sets`, `plugins`, `accelerator`,
-`plan_push`; and, when the workspace has a development instance, `adopt`, `push` and
-`plugin_activate`. `doctor` checks a person's setup from the command line.
-
-Install the agent pack, once per workspace, and commit it so the whole team gets it:
+The executable bundles the MCP server, eight workflow skills and query guidance. New
+workspaces created with `init` or `onboard` install the integration automatically. For an
+existing workspace, or on a teammate's machine after cloning, run:
 
 ```sh
 snagentic agent install
-git add AGENTS.md CLAUDE.md .agents .claude .github/hooks .mcp.json .vscode
-git commit -m "Add the snagentic agent pack"
+git add AGENTS.md CLAUDE.md .claude/settings.json .github/hooks .mcp.json .vscode .codex
+git commit -m "Configure the snagentic agent integration"
 ```
 
-That is the whole setup. It adds short instructions to `AGENTS.md` (your own text there is
-kept), six workflow skills in `.agents/skills` (and `.claude/skills`, where Claude Code
-looks), and registers the MCP server for **Claude Code** (`.mcp.json`) and **GitHub Copilot in
-VS Code** (`.vscode/mcp.json`), next to any servers you already have there. Claude Code asks
-each user once to approve the project's server; VS Code shows it in the MCP server list.
+Skills are shared at user level: `~/.agents/skills/servicenow-*` for Codex and Copilot,
+and `~/.claude/skills/servicenow-*` for Claude Code. The binary installs the versions it
+embeds; no separate MCP package, skill checkout or Node runtime is required. It keeps hashes
+in `~/.snagentic/agent-pack/skills.json`, updates unchanged owned files and preserves edited
+or unowned skills. Review every `skipped` path: a preserved project skill may shadow the new
+user skill. Exact generated copies from 2.21.1 are removed from the current workspace after
+successful user installation; other repositories are never scanned or rewritten.
 
-The skills are `servicenow-design` (agree a design before editing), `servicenow-build` (adopt,
-edit the Fluent source, then `validate` until clean), `servicenow-review`, `servicenow-explain`,
-`servicenow-deliver` (plan, approval, push) and `servicenow-document` (process documentation). Run `agent install` again after upgrading
-snagentic; `doctor` warns when the pack is from another version. In Claude Code the workflows
-are also slash commands: `/mcp__snagentic__design`, `/mcp__snagentic__review`,
-`/mcp__snagentic__explain`, `/mcp__snagentic__deliver`, `/mcp__snagentic__document`.
+Each workspace retains its marked `AGENTS.md` block, host hooks, git hook and MCP bindings.
+Your own instructions and unrelated MCP servers are preserved. Upgrading refreshes shared
+user skills and the current workspace integration, and reports refresh failures. Commit this workspace
+configuration; each teammate installs their own personal skills. Outside a workspace,
+`agent install` installs only personal skills. For cloud or ephemeral runners that cannot
+access your home directory, use `snagentic agent install --scope workspace` in that runner.
+Avoid mixing skill scopes in the same environment. Personal skills are not distributed by git.
+
+Two profiles run from the same executable and shared engine:
+
+| Profile | Purpose | Command |
+|---|---|---|
+| Investigate | Mirror context plus live table pages, records, counts and inherited schema; only read operations | `snagentic mcp --profile investigate` |
+| Develop | Advice, adoption, validation, plans and gated delivery to development | `snagentic mcp --profile develop` |
+
+The installer registers both profiles. Enabling both adds their tool definitions to the
+host's context; disable an unused server in the host if you only investigate or develop.
+The existing `snagentic mcp` remains compatible with its 13 tools. Production credentials
+still require verified read-only roles, and write tools are absent without a development
+profile. Separating servers does not create a separate credential security boundary.
+Collaboration servers are configured independently.
+
+The skills cover design, build, review, explain, deliver, document, troubleshoot and test.
+They activate for snagentic workspaces and use CLI/MCP operations. The troubleshooting skill
+includes corrected query guidance. Testing distinguishes executed tests from static
+validation and proposed runtime cases; the binary has no ATF/background-script executor.
+Build Agent/AI Agent and Jira/Confluence/Figma workflows are not installed.
 
 ### Choosing the agent host
 
-By default `agent install` sets up every supported host (`--host all`). Pass `--host` to
-install only what one host reads, for example on a machine where only GitHub Copilot is
-allowed:
+By default `agent install` sets up every supported host (`--host all`). Select one with
+`snagentic agent install --host claude`, `--host copilot` or `--host codex`.
+
+| Host | User skills | Workspace configuration |
+|---|---|---|
+| Claude Code | `~/.claude/skills` | `CLAUDE.md`, `.claude/settings.json`, `.mcp.json` |
+| Copilot CLI / VS Code | `~/.agents/skills` | `.github/hooks/snagentic.json`, `.mcp.json`, `.vscode/mcp.json` |
+| Codex | `~/.agents/skills` | `.codex/config.toml` (trusted projects) |
+
+Custom server entries and invalid configuration files are preserved and reported as skipped.
+An unchanged generated legacy server is migrated to the two profiles. Review customized
+legacy bindings manually to avoid loading duplicate servers. Hosts may ask you to trust the
+workspace or enable its servers; installing files does not bypass that host decision.
+
+### Reading live data
+
+Live investigation needs a configured profile and trusted credentials, but no metadata pull.
+Use the mirror for broad code searches and live reads for the specific runtime evidence:
 
 ```sh
-snagentic agent install --host copilot
-git add AGENTS.md .agents .github/hooks .mcp.json .vscode
+snagentic query schema --instance dev --table incident
+snagentic query record --instance dev --table incident \
+  --sys-id 0123456789abcdef0123456789abcdef --fields number active
+snagentic query table --instance dev --table incident --fields sys_id number active \
+  --query 'sys_updated_on>=2026-11-01 00:00:00^sys_updated_on<2026-11-08 00:00:00' --limit 10
 ```
 
-| Host | Files |
-|---|---|
-| `claude` (Claude Code) | `CLAUDE.md`, `.claude/skills`, `.claude/settings.json` (hooks and deny rules), `.mcp.json` |
-| `copilot` (Copilot CLI, cloud agent, VS Code) | `.agents/skills`, `.github/hooks/snagentic.json`, `.mcp.json`, `.vscode/mcp.json` |
+Choose actual UTC bounds for your investigation. Every `^NQ` branch needs equality/IN on
+`sys_id` or a dictionary-unique field, or explicit UTC `sys_updated_on` bounds within 31 days.
+Validated conditions can refine that selection; executable expressions and unbounded scans
+are refused. `^OR` joins adjacent alternatives; `^NQ` joins whole groups with OR. Field names
+and reference hops are checked against live schema. Secrets are masked before output.
+Reuse `nextCursor` with the same instance, identity, table, query, fields and limit. Results are transient and
+ACL-limited; an empty result cannot establish global absence. Schema inspection pages the
+visible dictionary and includes ancestors, not descendants. Aggregate supports count and
+one group field (maximum 100 groups), rather than arbitrary REST or sum/avg/min/max.
 
 `AGENTS.md` and the git pre-commit hook are always installed. Copilot CLI runs the hooks in
 `.github/hooks` only in folders you have trusted, so trust the workspace when it asks. Copilot

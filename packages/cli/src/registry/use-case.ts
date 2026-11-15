@@ -23,6 +23,7 @@ import type {
   InstanceWriter,
   InventoryReader,
   KnowledgeStore,
+  ManagedAgentFiles,
   MarkdownRenderer,
   MediaTools,
   MirrorFiles,
@@ -52,6 +53,7 @@ import type {
   WorkspaceStore,
 } from "@snagentic/core";
 import type { z } from "zod";
+import type { UseCaseHelp } from "./use-case-help";
 
 export const OUTPUT_FORMATS = ["agent", "json", "text"] as const;
 export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
@@ -170,6 +172,8 @@ export interface UseCaseContext {
   readonly workspaceLock: (root: string, instance: InstanceName | null) => WorkspaceLock;
   // Text files inside the workspace (the agent pack).
   readonly workspaceFiles: WorkspaceFiles;
+  readonly agentFiles: (root: string) => ManagedAgentFiles;
+  readonly parseToml: (text: string) => unknown;
   // New files a use case writes for the person, such as an export; never overwrites.
   readonly files: { create(path: string, content: string): Promise<"created" | "exists"> };
   readonly clock: () => Date;
@@ -242,11 +246,13 @@ export interface UseCase<
   readonly group?: string;
   // Written for a model: what the operation is for and when to use it.
   readonly description: string;
+  readonly help?: UseCaseHelp;
   readonly input: Input;
   readonly output: Output;
   readonly flags: UseCaseFlags;
   // Whether the operation earns a place in the MCP tool budget (ADR-0002).
   readonly mcp: boolean;
+  readonly mcpProfiles?: readonly ("investigate" | "develop")[];
   // The MCP tool's name when it differs from <group>_<name>, as ADR-0002 and the plan name it.
   readonly mcpName?: string;
   // False for an MCP-only use case that gathers several CLI commands into one tool.

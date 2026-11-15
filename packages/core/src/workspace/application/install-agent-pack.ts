@@ -1,9 +1,10 @@
 import { withAgentsImport, withInstructions, withPreCommitHook } from "../domain/agent-pack";
 import { withClaudeSettings } from "../domain/claude-settings";
+import { withCodexMcp } from "../domain/codex-mcp";
 import { withMcpServer } from "../domain/mcp-config";
 import type { WorkspaceFiles } from "../ports";
 
-export const AGENT_HOSTS = ["claude", "copilot"] as const;
+export const AGENT_HOSTS = ["claude", "copilot", "codex"] as const;
 export type AgentHost = (typeof AGENT_HOSTS)[number];
 
 export interface AgentPack {
@@ -21,9 +22,14 @@ export interface AgentPack {
   readonly claudeSettings: Parameters<typeof withClaudeSettings>[1];
   // The MCP server's entry in each host's project config, under that host's key.
   readonly mcpConfigs: readonly McpConfig[];
+  readonly codexServers?: Readonly<
+    Record<string, { readonly command: string; readonly args: readonly string[] }>
+  >;
 }
 
 export interface McpConfig {
+  readonly name?: string;
+  readonly legacy?: Readonly<Record<string, unknown>>;
   readonly path: string;
   readonly key: string;
   readonly server: Readonly<Record<string, unknown>>;
@@ -31,7 +37,7 @@ export interface McpConfig {
 }
 
 // skipped: the file exists but could not be read (for example, settings that are not JSON).
-export type InstallStatus = "created" | "updated" | "unchanged" | "skipped";
+export type InstallStatus = "created" | "updated" | "unchanged" | "skipped" | "removed";
 
 export interface InstalledFile {
   readonly path: string;
@@ -46,6 +52,7 @@ export async function installAgentPack(
   root: string,
   pack: AgentPack,
   hosts: readonly AgentHost[],
+  parseToml?: (text: string) => unknown,
 ): Promise<InstalledFile[]> {
   const wanted = (item: { readonly hosts: readonly AgentHost[] }) =>
     item.hosts.some((host) => hosts.includes(host));
@@ -85,7 +92,16 @@ export async function installAgentPack(
   }
   for (const config of pack.mcpConfigs.filter(wanted)) {
     results.push(
-      await write(config.path, (existing) => withMcpServer(existing, config.key, config.server)),
+      await write(config.path, (existing) =>
+        withMcpServer(existing, config.key, config.server, config.name, config.legacy),
+      ),
+    );
+  }
+  if (hosts.includes("codex") && pack.codexServers !== undefined && parseToml !== undefined) {
+    results.push(
+      await write(".codex/config.toml", (existing) =>
+        withCodexMcp(existing, pack.codexServers ?? {}, parseToml),
+      ),
     );
   }
   results.push(await write(".git/hooks/pre-commit", withPreCommitHook, { executable: true }));

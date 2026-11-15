@@ -2,10 +2,23 @@ import { ConfirmationRequiredError, installStoreApp } from "@snagentic/core";
 import { z } from "zod";
 import { connectForWrite } from "./connect";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 // Store applications through the platform's installer (spec 011, I3; ADR-0038, section 4). CLI
 // only: the MCP budget is full, and accelerator install calls it as one of its steps.
 export const appsInstall = defineUseCase({
+  help: {
+    summary: "Install a store application on development",
+    section: "Additional workflows",
+    group: HELP_GROUPS.apps,
+    details:
+      "Install an available store application at the selected version, or the latest offered " +
+      "version. Never upgrades an existing installation. Optional --demo-data loads data that " +
+      "snagentic cannot remove.",
+    effects:
+      "With --confirm, installs the application and optional demo data on the development instance.",
+    examples: [["apps", "install", "dev", "sn_ztsd", "--confirm"]],
+  },
   group: "apps",
   name: "install",
   description:

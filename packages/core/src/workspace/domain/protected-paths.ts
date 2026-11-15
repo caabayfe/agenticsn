@@ -17,7 +17,7 @@ export function protectedReason(path: string): string | null {
     return GUARDS;
   }
   // They start the snagentic server, and could give it an environment that runs other code.
-  if (clean === ".mcp.json" || clean === ".vscode/mcp.json") {
+  if (clean === ".mcp.json" || clean === ".vscode/mcp.json" || clean === ".codex/config.toml") {
     return GUARDS;
   }
   if (/^instances\/[^/]+\/metadata\//.test(clean)) {

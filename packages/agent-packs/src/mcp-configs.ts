@@ -1,26 +1,38 @@
-// Where each host reads a project's MCP servers, and snagentic's entry there (ADR-0002, tier 2).
-// Written by agent install and committed, so a teammate's agent has the tools on clone.
+// Workspace bindings, backed by the same executable and credential policies (ADR-0057).
+export const CODEX_SERVERS = Object.fromEntries(
+  ["investigate", "develop"].map((profile) => [
+    `snagentic-${profile}`,
+    { command: "snagentic", args: ["mcp", "--profile", profile] },
+  ]),
+);
 
-export const MCP_CONFIGS = [
-  // Claude Code starts project servers in the project's folder, where the workspace is found.
-  // Copilot CLI reads it too.
+export const MCP_CONFIGS = ["investigate", "develop"].flatMap((profile) => [
   {
+    name: `snagentic-${profile}`,
     path: ".mcp.json",
     key: "mcpServers",
-    server: { command: "snagentic", args: ["mcp"] },
-    hosts: ["claude", "copilot"],
+    hosts: ["claude", "copilot"] as const,
+    server: { command: "snagentic", args: ["mcp", "--profile", profile] },
+    legacy: { command: "snagentic", args: ["mcp"] },
   },
-  // VS Code (GitHub Copilot) does not promise a working folder, so it names the workspace.
   {
+    name: `snagentic-${profile}`,
     path: ".vscode/mcp.json",
     key: "servers",
+    hosts: ["copilot"] as const,
     server: {
       type: "stdio",
       command: "snagentic",
-      args: ["mcp"],
-      // biome-ignore lint/suspicious/noTemplateCurlyInString: VS Code's variable, expanded by VS Code.
+      args: ["mcp", "--profile", profile],
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: VS Code expands its workspace variable.
       env: { SNAGENTIC_WORKSPACE: "${workspaceFolder}" },
     },
-    hosts: ["copilot"],
+    legacy: {
+      type: "stdio",
+      command: "snagentic",
+      args: ["mcp"],
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: VS Code expands its workspace variable.
+      env: { SNAGENTIC_WORKSPACE: "${workspaceFolder}" },
+    },
   },
-] as const;
+]);

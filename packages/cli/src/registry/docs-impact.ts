@@ -2,6 +2,7 @@ import { documentationImpact, READERS } from "@snagentic/core";
 import { z } from "zod";
 import { instanceFor } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 const Claim = z.object({ heading: z.string(), reader: z.enum(READERS), text: z.string() });
@@ -71,6 +72,17 @@ export function impactMarkdown(output: ImpactOutput): string {
 }
 
 export const docsImpact = defineUseCase({
+  help: {
+    summary: "Show documentation affected by a change",
+    section: "Additional workflows",
+    group: HELP_GROUPS.docs,
+    details:
+      "Find claims whose supporting evidence changed in Fluent source since --base or in the " +
+      "instance mirror. Includes page, heading and audience. Text output is Markdown suitable " +
+      "for a pull request.",
+    effects: "Reads source, documentation and the local mirror; does not call the instance.",
+    examples: [["docs", "impact", "--base", "origin/main"]],
+  },
   group: "docs",
   name: "impact",
   description:

@@ -89,6 +89,7 @@ const NO_CREDENTIALS: CredentialStore = {
 };
 
 export const FAKE_CONTEXT: UseCaseContext = {
+  parseToml: Bun.TOML.parse,
   spills: workspaceSpills,
   packs: { ids: async () => [], files: async () => new Map(), parse: () => null },
   dataTemplates: {
@@ -181,6 +182,13 @@ export const FAKE_CONTEXT: UseCaseContext = {
     remove: async () => {},
     list: async () => [],
   },
+  agentFiles: () => ({
+    read: async () => null,
+    write: async () => {},
+    remove: async () => {},
+    list: async () => [],
+    guard: async () => {},
+  }),
   delivery: () => {
     throw new Error("no delivery in this test");
   },

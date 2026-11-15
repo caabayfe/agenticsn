@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtemp, realpath, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WorkspaceAuthoring } from "../../src/adapters/fluent/workspace-authoring";
+import { fsWorkspaceFiles } from "../../src/adapters/fs/fs-workspace-files";
+import { managedAgentFiles } from "../../src/adapters/fs/managed-agent-files";
 import { runGit } from "../../src/adapters/git/run-git";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import { executeUseCase } from "../../src/registry/execute";
@@ -21,6 +23,8 @@ async function contextIn(): Promise<UseCaseContext> {
   return {
     ...FAKE_CONTEXT,
     workspaces: new FsWorkspaceStore(),
+    workspaceFiles: fsWorkspaceFiles,
+    agentFiles: managedAgentFiles,
     authoring: (root: string) => ({
       workspace: new WorkspaceAuthoring(root, runtime),
       toolchain: FAKE_CONTEXT.authoring(root).toolchain,
@@ -36,6 +40,24 @@ const runtime = async () => ({
 });
 
 describe("init use case", () => {
+  it("reports personal skills it preserved instead of hiding incomplete integration", async () => {
+    const context = await contextIn();
+    const folder = join(context.host.home, ".agents/skills/servicenow-explain");
+    await mkdir(folder, { recursive: true });
+    await writeFile(join(folder, "SKILL.md"), "personal instructions");
+    const { output } = await executeUseCase(
+      init,
+      { path: join(context.host.home, "workspace") },
+      context,
+    );
+    expect(output["agentWarnings"]).toContain(
+      `${context.host.home}/.agents/skills/servicenow-explain/SKILL.md`,
+    );
+    expect(init.render(output as never, "text")).toContain(
+      "preserved agent file; review before use",
+    );
+    expect(await Bun.file(join(folder, "SKILL.md")).text()).toBe("personal instructions");
+  });
   it("creates a workspace at the given absolute path", async () => {
     const context = await contextIn();
     const root = join(context.host.home, "data", "acme");
@@ -49,7 +71,15 @@ describe("init use case", () => {
       scope: "global",
       type: "configuration",
     });
-    expect((await runGit(["status", "--porcelain"], root)).stdout).toBe("");
+    expect(await Bun.file(join(root, "AGENTS.md")).text()).toContain("# ServiceNow workspace");
+    expect(
+      await Bun.file(
+        join(context.host.home, ".agents/skills/servicenow-troubleshoot/SKILL.md"),
+      ).exists(),
+    ).toBe(true);
+    expect(
+      await Bun.file(join(root, ".agents/skills/servicenow-troubleshoot/SKILL.md")).exists(),
+    ).toBe(false);
   });
 
   it("suggests ~/snagentic/<name> when no path is given", async () => {

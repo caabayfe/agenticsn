@@ -113,6 +113,16 @@ function renderRecord(r: z.infer<typeof RecordOutput>): string[] {
 }
 
 export const describe = defineUseCase({
+  help: {
+    summary: "Explain a table or record from the mirror",
+    section: "Understand",
+    details:
+      "Describe a table's fields and supported behavior in execution order, including " +
+      "inheritance. A record path or sys_id shows its files and references. Table-triggered " +
+      "flows, workflows and global-table business rules are not covered.",
+    effects: "Queries the local mirror and search index; does not call the instance.",
+    examples: [["describe", "incident"]],
+  },
   name: "describe",
   description:
     "Describe a table or a record of the mirrored instance. A table: its fields and everything " +
@@ -138,6 +148,7 @@ export const describe = defineUseCase({
   }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["investigate", "develop"],
   arguments: ["target"],
   async handle(input, context, run) {
     return withKnowledge(context, input.instance, run.progress, async (deps) => ({

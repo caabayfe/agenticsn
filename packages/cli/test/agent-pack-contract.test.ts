@@ -8,6 +8,7 @@ import {
 } from "@snagentic/agent-packs";
 import { z } from "zod";
 import { CLAUDE_HOOK_EVENTS } from "../src/hooks/claude-hooks";
+import { profileUseCases } from "../src/registry/mcp-profile";
 import { USE_CASES } from "../src/registry/registry";
 import { mcpToolName, qualifiedName } from "../src/registry/use-case";
 
@@ -40,7 +41,7 @@ function namesIn(schema: z.core.$ZodType, names: Set<string>): void {
   }
 }
 
-const tools = USE_CASES.filter((useCase) => useCase.mcp);
+const tools = USE_CASES.filter((useCase) => useCase.mcp || (useCase.mcpProfiles?.length ?? 0) > 0);
 const known = new Set<string>(["snagentic", ...SKILLS.map((skill) => skill.name)]);
 // CLI commands a skill may tell the agent to run.
 for (const useCase of USE_CASES) {
@@ -55,6 +56,13 @@ for (const useCase of tools) {
 const codeSpans = (text: string) => [...text.matchAll(/`([^`\n]+)`/g)].map(([, span = ""]) => span);
 
 describe("the agent pack's contract with the tools", () => {
+  it("uses validate's own unit count when deciding whether a review has changes", () => {
+    const review = SKILLS.find((skill) => skill.name === "servicenow-review");
+    expect(review?.decide.join(" ")).toContain("`units`");
+    expect(review?.decide.join(" ")).not.toContain("`records`");
+    const validate = USE_CASES.find((useCase) => useCase.name === "validate");
+    expect(validate?.output.shape).toHaveProperty("units");
+  });
   const texts = [
     { source: "instructions", text: INSTRUCTIONS },
     ...skillFiles("test").map((file) => ({ source: file.path, text: file.content })),
@@ -88,10 +96,12 @@ describe("the Claude Code settings' contract with snagentic", () => {
   });
 
   it("names only existing tools in its permission rules", () => {
-    const toolNames = new Set(USE_CASES.filter((u) => u.mcp).map(mcpToolName));
     const rules = [...CLAUDE_SETTINGS.permissions.ask, ...CLAUDE_SETTINGS.permissions.deny];
-    for (const rule of rules.filter((r) => r.startsWith("mcp__snagentic__"))) {
-      expect(toolNames.has(rule.replace("mcp__snagentic__", ""))).toBe(true);
+    for (const profile of ["legacy", "investigate", "develop"] as const) {
+      const prefix = `mcp__${profile === "legacy" ? "snagentic" : `snagentic-${profile}`}__`;
+      const toolNames = new Set(profileUseCases(USE_CASES, profile).map(mcpToolName));
+      for (const rule of rules.filter((rule) => rule.startsWith(prefix)))
+        expect(toolNames.has(rule.slice(prefix.length))).toBe(true);
     }
   });
 
@@ -106,8 +116,12 @@ describe("the Claude Code settings' contract with snagentic", () => {
     const rules = writes.flatMap((useCase) => [
       ...(useCase.cli === false ? [] : [`Bash(snagentic ${qualifiedName(useCase)}:*)`]),
       ...(useCase.mcp ? [`mcp__snagentic__${mcpToolName(useCase)}`] : []),
+      ...(useCase.mcpProfiles ?? []).map(
+        (profile) => `mcp__snagentic-${profile}__${mcpToolName(useCase)}`,
+      ),
     ]);
     expect(rules).toContain("mcp__snagentic__plugin_activate");
+    expect(rules).toContain("mcp__snagentic-develop__push");
     expect(rules.filter((rule) => !covered(rule))).toEqual([]);
   });
 

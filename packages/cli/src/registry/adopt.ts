@@ -19,6 +19,19 @@ function targetOf(reference: string) {
 }
 
 export const adopt = defineUseCase({
+  help: {
+    summary: "Bring records into editable Fluent source",
+    section: "Develop",
+    order: 2,
+    details:
+      "Convert existing development-instance records into Fluent and verify that the build " +
+      "reproduces them before writing source. With --refresh, merge instance drift into " +
+      "already adopted records. Commit the source and ledger.",
+    effects:
+      "Reads the development instance; writes local Fluent source and its ledger. Does not " +
+      "write to the instance.",
+    examples: [["adopt", "sys_script:0123456789abcdef0123456789abcdef", "--instance", "dev"]],
+  },
   name: "adopt",
   description:
     "Bring records from a development instance into the workspace's Fluent source, to edit " +
@@ -64,6 +77,7 @@ export const adopt = defineUseCase({
   }),
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: true },
   mcp: true,
+  mcpProfiles: ["develop"],
   arguments: ["records"],
   async handle(input, context, run) {
     const records = input.records.map(targetOf);

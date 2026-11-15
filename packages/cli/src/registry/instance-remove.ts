@@ -1,9 +1,21 @@
 import { getInstance, InstanceName, logout, removeInstance } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 export const instanceRemove = defineUseCase({
+  help: {
+    summary: "Remove an instance profile",
+    section: "Manage",
+    group: HELP_GROUPS.instance,
+    details:
+      "Remove a profile without deleting its mirrored data. Use --forget-credentials to also " +
+      "remove its stored credentials.",
+    effects:
+      "Removes the workspace profile and, optionally, stored credentials; does not change the instance.",
+    examples: [["instance", "remove", "dev"]],
+  },
   group: "instance",
   name: "remove",
   description: "Remove an instance profile from this workspace. Synced data is not deleted.",

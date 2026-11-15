@@ -124,6 +124,30 @@ function pullPorts(
 }
 
 export const pull = defineUseCase({
+  help: {
+    summary: "Fetch metadata into the mirror branch",
+    section: "Develop",
+    details:
+      "Fetch metadata into servicenow-remote/<instance>. The first pull is complete and " +
+      "resumable; later pulls are incremental. In team mode, reuse the shared mirror when " +
+      "fresh, or when stale and published by another user, unless --now. Run snagentic " +
+      "integrate afterwards.",
+    effects:
+      "Updates the local mirror and sync state; --publish also pushes the shared git mirror. " +
+      "Reads the instance when needed; never writes to it.",
+    examples: [
+      ["pull", "dev"],
+      ["pull", "dev", "--verify"],
+    ],
+    options: {
+      full: "Recovery: pull all metadata again instead of incrementally",
+      verify: "Recovery: compare mirror counts with the instance and repair differences",
+      now: "Team sync: contact the instance even when a shared mirror would be reused",
+      publish:
+        "Team sync: publish the mirror to its git remote (designated puller; fast-forward only)",
+      cost: "Diagnostics: measure server cost from transaction logs (development only)",
+    },
+  },
   name: "pull",
   description:
     "Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The " +
@@ -136,6 +160,7 @@ export const pull = defineUseCase({
   output: PullOutput,
   flags: { readOnly: false, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["develop"],
   arguments: ["instance"],
   async handle(input, context, run) {
     const root = await workspaceRoot(context);

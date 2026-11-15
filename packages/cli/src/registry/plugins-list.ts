@@ -1,11 +1,21 @@
 import { InstanceName, listPlugins, NothingPulledError } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 const SHOWN = 200;
 
 export const pluginsList = defineUseCase({
+  help: {
+    summary: "List plugins and store applications",
+    section: "Additional workflows",
+    group: HELP_GROUPS.plugins,
+    details:
+      "Inspect plugin and store-application inventory from the last pull. Filter by text or state.",
+    effects: "Reads the mirrored inventory; does not call the instance.",
+    examples: [["plugins", "list", "dev"]],
+  },
   group: "plugins",
   name: "list",
   description:
@@ -40,6 +50,7 @@ export const pluginsList = defineUseCase({
   }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["investigate", "develop"],
   mcpName: "plugins",
   arguments: ["instance", "text"],
   async handle(input, context) {

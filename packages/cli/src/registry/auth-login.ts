@@ -11,9 +11,21 @@ import {
 } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 export const authLogin = defineUseCase({
+  help: {
+    summary: "Sign in to an instance",
+    section: "Manage",
+    group: HELP_GROUPS.auth,
+    details:
+      "Check your password or OAuth client secret with the instance, then store it in the OS " +
+      "keychain. With --username, also remember this clone's identity. Prompts without echo, " +
+      "or reads stdin.",
+    effects: "Reads the instance to verify credentials; writes the keychain and local identity.",
+    examples: [["auth", "login", "dev"]],
+  },
   group: "auth",
   name: "login",
   description:

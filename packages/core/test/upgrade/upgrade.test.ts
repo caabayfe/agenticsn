@@ -66,6 +66,11 @@ function setup(overrides: Partial<UpgradeDependencies> = {}) {
 }
 
 describe("upgrade", () => {
+  it("refreshes bundled user skills when upgrading outside a workspace", async () => {
+    const { deps, calls } = setup();
+    await upgrade(deps, { userHome: "/home/person" });
+    expect(calls.at(-1)).toBe("run agent install --format json in /home/person");
+  });
   it("installs the latest release after checking its sum, and lists the steps it skipped", async () => {
     const { deps, calls } = setup();
     expect(await upgrade(deps, {})).toEqual({
@@ -181,6 +186,7 @@ describe("upgrade", () => {
     expect(await upgrade({ ...garbled.deps, binary: failing }, { workspace: "/w" })).toMatchObject({
       status: "upgraded",
       pack: [],
+      packWarning: expect.stringContaining("binary was upgraded"),
     });
     const noPack = setup();
     expect(await upgrade(noPack.deps, { workspace: "/w" })).toMatchObject({ pack: [] });

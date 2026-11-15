@@ -26,6 +26,7 @@ export interface UpgradeQuery {
   readonly version?: string;
   // The workspace it runs in, if any: its agent pack is refreshed.
   readonly workspace?: string;
+  readonly userHome?: string;
 }
 
 export type UpgradeResult =
@@ -37,6 +38,7 @@ export type UpgradeResult =
       readonly steps: readonly { readonly version: string; readonly sections: readonly string[] }[];
       // Files the new agent pack changed in the workspace, to commit.
       readonly pack: readonly string[];
+      readonly packWarning?: string;
       readonly provenance: Provenance;
     };
 
@@ -51,22 +53,50 @@ async function target(deps: UpgradeDependencies, requested: string | undefined) 
   return version;
 }
 
+interface PackRefresh {
+  readonly pack: readonly string[];
+  readonly packWarning?: string;
+}
+const record = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+const REFRESH_WARNING =
+  "The binary was upgraded, but agent integration needs attention; run snagentic agent install and review skipped paths.";
+
+function refreshedFiles(text: string): PackRefresh {
+  const output: unknown = JSON.parse(text);
+  const files = record(output) ? output["files"] : null;
+  if (
+    !Array.isArray(files) ||
+    !files.every(
+      (file: unknown) =>
+        record(file) && typeof file["path"] === "string" && typeof file["status"] === "string",
+    )
+  )
+    return { pack: [], packWarning: REFRESH_WARNING };
+  return {
+    pack: files
+      .filter((file) => ["created", "updated", "removed"].includes(file.status))
+      .map((file) => String(file.path)),
+    ...(files.some((file) => file.status === "skipped") ? { packWarning: REFRESH_WARNING } : {}),
+  };
+}
+
 // The new agent pack's changed files, written by the new binary (it holds the new pack).
-async function refreshPack(deps: UpgradeDependencies, root: string | undefined) {
+async function refreshPack(deps: UpgradeDependencies, query: UpgradeQuery): Promise<PackRefresh> {
+  const installed =
+    query.workspace !== undefined &&
+    installedPackVersion(await deps.workspaceFiles.read(`${query.workspace}/AGENTS.md`)) !== null;
+  const root = installed ? query.workspace : query.userHome;
   if (root === undefined) {
-    return [];
+    return { pack: [] };
   }
-  if (installedPackVersion(await deps.workspaceFiles.read(`${root}/AGENTS.md`)) === null) {
-    return [];
-  }
-  const ran = await deps.binary.run(["agent", "install", "--format", "json"], root);
   try {
-    const files: unknown = JSON.parse(ran.stdout).files;
-    return Array.isArray(files)
-      ? files.filter((f) => f.status !== "unchanged").map((f) => String(f.path))
-      : [];
+    const ran = await deps.binary.run(["agent", "install", "--format", "json"], root);
+    return ran.exitCode === 0
+      ? refreshedFiles(ran.stdout)
+      : { pack: [], packWarning: REFRESH_WARNING };
   } catch {
-    return [];
+    return { pack: [], packWarning: REFRESH_WARNING };
   }
 }
 
@@ -100,7 +130,7 @@ export async function upgrade(
     from: deps.current,
     to,
     steps,
-    pack: await refreshPack(deps, query.workspace),
+    ...(await refreshPack(deps, query)),
     provenance,
   };
 }

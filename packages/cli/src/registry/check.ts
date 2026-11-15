@@ -5,6 +5,17 @@ import { defineUseCase } from "./use-case";
 import { workspaceRoot } from "./workspace-root";
 
 export const check = defineUseCase({
+  help: {
+    summary: "Check whether paths may be edited",
+    section: "Develop",
+    visibility: "internal",
+    details:
+      "Check edit boundaries for mirror files, ledgers, local state and workspace " +
+      "configuration. Host hooks run this around edits. Use snagentic validate to check the " +
+      "content of a change.",
+    effects: "Checks local paths; does not change files or call the instance.",
+    examples: [["check", "source/global/src/fluent/index.now.ts"]],
+  },
   name: "check",
   description:
     "Check whether files may be edited at all: the mirror of the instance, the ledgers, local " +

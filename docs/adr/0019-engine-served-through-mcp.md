@@ -1,6 +1,6 @@
 # 0019. The engine is served through MCP; the harness only triggers it
 
-- Status: Accepted
+- Status: Accepted (amended by 0057)
 - Date: 2026-10-06
 - Requirements: ASR-02, ASR-03, ASR-15; goals G1–G3
 - Amends: 0002 (item 4: skills), 0011 (where the agent pack's weight lies)

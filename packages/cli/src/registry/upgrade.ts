@@ -10,6 +10,18 @@ const provenanceLine = (output: { to: string; provenance: Provenance | null }) =
       "SHA256SUMS only. To check it: gh attestation verify <path to snagentic> --repo caabayfe/agenticsn";
 
 export const upgrade = defineUseCase({
+  help: {
+    summary: "Update snagentic and refresh its agent pack",
+    section: "Manage",
+    details:
+      "Install the latest release or --to version after verifying checksums and available " +
+      "provenance. Also refresh the current workspace's agent pack. Run this yourself, not " +
+      "through an agent.",
+    effects:
+      "Downloads a release, replaces the binary and may update workspace agent files; does " +
+      "not call the instance.",
+    examples: [["upgrade"]],
+  },
   name: "upgrade",
   description:
     "Replace this snagentic with the latest release (or --to <version>), after checking it against " +
@@ -29,6 +41,7 @@ export const upgrade = defineUseCase({
       .readonly(),
     workspace: z.string().nullable(),
     pack: z.array(z.string()).readonly(),
+    packWarning: z.string().optional(),
     // Null when nothing was installed.
     provenance: z
       .discriminatedUnion("status", [
@@ -49,6 +62,7 @@ export const upgrade = defineUseCase({
         signal: run.signal,
       },
       {
+        userHome: context.host.home,
         ...(input.to === undefined ? {} : { version: input.to }),
         ...(root === null ? {} : { workspace: root }),
       },
@@ -70,13 +84,14 @@ export const upgrade = defineUseCase({
       return `snagentic ${output.to} is the latest release`;
     }
     const lines = [`upgraded snagentic ${output.from} -> ${output.to}`, provenanceLine(output)];
+    if (output.packWarning !== undefined) lines.push(output.packWarning);
     for (const step of output.steps) {
       lines.push("", `before you go on, from the ${step.version} release notes:`, ...step.sections);
     }
     if (output.pack.length > 0) {
       lines.push(
         "",
-        `agent pack updated in ${output.workspace ?? "the workspace"}; commit: ${output.pack.join(" ")}`,
+        `agent pack updated in ${output.workspace ?? "your user skills"}; changed: ${output.pack.join(" ")}`,
       );
     }
     return lines.join("\n");

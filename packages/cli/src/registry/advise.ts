@@ -93,6 +93,16 @@ function render(output: z.output<typeof Output>): string {
 }
 
 export const advise = defineUseCase({
+  help: {
+    summary: "Suggest platform options and guidance",
+    section: "Understand",
+    details:
+      "Match a request to a deterministic catalogue of platform options, least custom first, " +
+      "with facts from the mirror. This is design guidance, not an exhaustive architectural " +
+      "assessment. Choose design, build or review guidance with --phase.",
+    effects: "Reads the local mirror and guidance catalogue; does not call the instance.",
+    examples: [["advise", "Notify the manager on P1 incidents", "--tables", "incident"]],
+  },
   name: "advise",
   description:
     "Advise on a ServiceNow change before or while making it. Give the request in the user's " +
@@ -116,6 +126,7 @@ export const advise = defineUseCase({
   output: Output,
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["investigate", "develop"],
   arguments: ["intent"],
   async handle(input, context, run) {
     return withKnowledge(context, input.instance, run.progress, async (deps) => {

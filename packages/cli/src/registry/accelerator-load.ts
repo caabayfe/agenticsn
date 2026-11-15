@@ -3,6 +3,7 @@ import { z } from "zod";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
 import { connectForWrite } from "./connect";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 const Counts = z.object({
   inserted: z.number(),
@@ -13,6 +14,19 @@ const Counts = z.object({
 });
 
 export const acceleratorLoad = defineUseCase({
+  help: {
+    summary: "Load validated pack data on development",
+    section: "Additional workflows",
+    group: HELP_GROUPS.accelerator,
+    details:
+      "Validate all templates, then load them through the pack's import-set tables in " +
+      "dependency order. Choose --data or --demo. Stops after failed rows and never retries " +
+      "writes automatically.",
+    effects:
+      "With --confirm, loads data onto the development instance; reports failed business keys " +
+      "without customer values.",
+    examples: [["accelerator", "load", "itsm", "dev", "--demo", "--confirm"]],
+  },
   group: "accelerator",
   name: "load",
   description:

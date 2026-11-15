@@ -2,9 +2,22 @@ import { addPack, InstanceName, VERSION } from "@snagentic/core";
 import { z } from "zod";
 import { SelectionInput, selectionOf } from "./accelerator-schemas";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 export const acceleratorAdd = defineUseCase({
+  help: {
+    summary: "Prepare pack source for manual delivery",
+    section: "Additional workflows",
+    group: HELP_GROUPS.accelerator,
+    details:
+      "Add selected modules as Fluent source on an accelerator branch and merge it into the " +
+      "current branch. Resolve prerequisites first with snagentic accelerator check. Then " +
+      "validate, plan and push through the normal delivery workflow.",
+    effects:
+      "Writes source, commits an accelerator branch and merges it locally; does not write to the instance.",
+    examples: [["accelerator", "add", "itsm", "dev"]],
+  },
   group: "accelerator",
   name: "add",
   description:

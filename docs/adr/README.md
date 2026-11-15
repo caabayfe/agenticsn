@@ -12,7 +12,7 @@ when the table is stale.
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-modular-monolith-hexagonal.md) | Modular monolith with hexagonal architecture and bounded contexts | Accepted |
-| [0002](0002-agent-interface-model.md) | Agent interface model: files and CLI first, one small MCP, task-level skills | Accepted (amended by 0011, 0012, 0019, 0026) |
+| [0002](0002-agent-interface-model.md) | Agent interface model: files and CLI first, one small MCP, task-level skills | Accepted (amended by 0011, 0012, 0019, 0026, 0057) |
 | [0003](0003-use-case-registry.md) | One use-case registry generates CLI, MCP and hook interfaces | Accepted (amended by 0012) |
 | [0004](0004-deployment-topology.md) | One binary, git as the distribution layer, three operating modes | Accepted (amended by 0011, 0012, 0022, 0052, 0054) |
 | [0005](0005-typescript-and-bun.md) | TypeScript compiled to a single binary with Bun | Accepted |
@@ -20,16 +20,16 @@ when the table is stale.
 | [0007](0007-disk-format-and-hash-contract.md) | Keep the v1 disk format, mirror branch and hash contract | Accepted (amended by 0014, 0015, 0017) |
 | [0008](0008-commercial-boundary.md) | Open core with a sealed premium engine behind the `Validator` port | Proposed |
 | [0009](0009-engineering-practices.md) | Engineering practices: TDD, strict typing, enforced boundaries | Accepted |
-| [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013, 0024, 0026, 0036, 0039, 0056) |
+| [0010](0010-v1-scope.md) | v1 scope and explicit exclusions | Accepted (amended by 0011, 0012, 0013, 0024, 0026, 0036, 0039, 0056, 0057) |
 | [0011](0011-enforcement-layers.md) | Enforcement layers | Accepted (amended by 0019) |
 | [0012](0012-production-read-only-by-construction.md) | Production access is read-only by construction | Accepted, pending the read-only role spike (amended by 0013, 0020, 0021, 0038) |
 | [0013](0013-v1.0-release-scope.md) | v1.0 release scope | Accepted (amended by 0018) |
 | [0014](0014-workspace-layout.md) | Synced data lives in a workspace with a standard layout | Accepted (amended by 0017, 0020, 0052) |
 | [0015](0015-yaml-writing-style.md) | YAML writing style | Accepted |
-| [0016](0016-instance-load-and-pagination.md) | Instance load and pagination policy | Accepted (amended by 0053) |
+| [0016](0016-instance-load-and-pagination.md) | Instance load and pagination policy | Accepted (amended by 0053, 0057) |
 | [0017](0017-flat-record-layout-and-full-sync.md) | Flat record layout and full sync by default | Accepted (amended by 0025, 0027) |
 | [0018](0018-update-sets-read-live.md) | Update sets are read live, and exported from reads | Accepted |
-| [0019](0019-engine-served-through-mcp.md) | The engine is served through MCP; the harness only triggers it | Accepted |
+| [0019](0019-engine-served-through-mcp.md) | The engine is served through MCP; the harness only triggers it | Accepted (amended by 0057) |
 | [0020](0020-instance-trust-outside-the-repository.md) | Instance kind and address are trusted from outside the repository | Accepted (amended by 0021, 0054) |
 | [0021](0021-oauth-client-credentials.md) | OAuth client credentials, with checks bound to the authenticated session | Accepted |
 | [0022](0022-pull-requests-through-the-platform-cli.md) | Pull requests are linked and opened through the git platform's CLI | Accepted |
@@ -66,6 +66,7 @@ when the table is stale.
 | [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Accepted |
 | [0055](0055-the-sdk-worker-on-windows-runs-at-low-integrity.md) | The SDK worker on Windows: a sandbox in two steps, low integrity first | Accepted |
 | [0056](0056-onboard-an-instance-with-one-command.md) | Onboard an instance with one command, built into the binary | Accepted |
+| [0057](0057-bundled-user-skills-and-mcp-profiles.md) | Bundled user skills and workspace MCP profiles | Accepted |
 <!-- adr-index:end -->
 
 Requirements referenced as `ASR-nn` are in

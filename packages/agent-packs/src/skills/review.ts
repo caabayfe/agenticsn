@@ -14,7 +14,7 @@ export const REVIEW: Skill = {
   ],
   decide: [
     "`passed` is false: the change must not be delivered until its block findings are fixed.",
-    "`records` is 0: nothing changed against `base`; confirm the base with the user.",
+    "`units` is 0: nothing changed against `base`; confirm the base with the user.",
   ],
   output:
     "One line with the `counts`, then one entry per finding: severity, `ruleId`, path and line, what is wrong here, and the fix. Then what was not checked.",

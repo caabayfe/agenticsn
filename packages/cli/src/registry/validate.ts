@@ -7,6 +7,18 @@ import { workspaceRoot } from "./workspace-root";
 const Severity = z.enum(["block", "warn", "info"]);
 
 export const validate = defineUseCase({
+  help: {
+    summary: "Check changed source against platform rules",
+    section: "Develop",
+    order: 3,
+    details:
+      "Build changed Fluent projects and report findings introduced since --base, which " +
+      "defaults to HEAD. Pass paths to select projects, or --staged to check the index for " +
+      "pre-commit. Also reports affected or stale documentation. Fix blocking findings before " +
+      "delivery.",
+    effects: "Builds in local scratch space; does not edit source or write to the instance.",
+    examples: [["validate"], ["validate", "--base", "origin/main"]],
+  },
   name: "validate",
   description:
     "Build the Fluent source the change touched and check what it adds or edits against the " +
@@ -65,6 +77,7 @@ export const validate = defineUseCase({
   }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["develop"],
   arguments: ["paths"],
   async handle(input, context, run) {
     const root = await workspaceRoot(context);

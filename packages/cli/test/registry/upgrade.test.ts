@@ -74,7 +74,7 @@ describe("upgrade", () => {
     expect(text).toStartWith(`upgraded snagentic ${VERSION} -> ${NEXT}`);
     expect(text).toContain(`before you go on, from the ${NEXT} release notes:`);
     expect(text).toContain("Run snagentic auth login.");
-    expect(text).toContain(`agent pack updated in ${ws.root}; commit: AGENTS.md`);
+    expect(text).toContain(`agent pack updated in ${ws.root}; changed: AGENTS.md`);
     expect(text).toContain(`provenance verified: built by the release workflow from v${NEXT}`);
   });
 
@@ -100,7 +100,8 @@ describe("upgrade", () => {
     const outside = { ...ws.context, host: { ...ws.context.host, cwd: "/" } };
     const calls: string[] = [];
     const { output } = await executeUseCase(upgrade, {}, withReleases(outside, calls));
-    expect(output).toMatchObject({ status: "upgraded", workspace: null, pack: [] });
+    expect(output).toMatchObject({ status: "upgraded", workspace: null, pack: ["AGENTS.md"] });
+    expect(calls).toContain("run agent install --format json");
     const current = await executeUseCase(upgrade, { to: VERSION }, withReleases(outside, []));
     expect(upgrade.render(current.output as never, "text")).toBe(
       `snagentic ${VERSION} is the latest release`,

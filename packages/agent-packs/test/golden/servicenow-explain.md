@@ -1,6 +1,6 @@
 ---
 name: servicenow-explain
-description: "Explain how the ServiceNow instance behaves: why a field changes, what runs when a record is saved, where something is defined, what uses a script include. Use for questions, not changes."
+description: "In snagentic workspaces: Explain how the ServiceNow instance behaves: why a field changes, what runs when a record is saved, where something is defined, what uses a script include. Use for questions, not changes."
 metadata:
   generated-by: snagentic 1.2.3
 ---

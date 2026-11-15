@@ -29,7 +29,15 @@ read-only use case. Its parts, in order:
    export const pluginsList = defineUseCase({
      group: "plugins",            // the command: snagentic plugins list
      name: "list",
-     description: "...",          // becomes the help text and the MCP tool description
+     description: "...",          // model-facing MCP description
+     help: {
+       summary: "List plugins and store applications",
+       section: "Additional workflows",
+       group: HELP_GROUPS.plugins,
+       details: "Inspect plugin inventory from the last pull.",
+       effects: "Reads the mirrored inventory; does not call the instance.",
+       examples: [["plugins", "list", "dev"]],
+     },
      input: z.object({ instance: z.string(), text: z.string().optional() }),
      output: z.object({ /* ... */ }),
      flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
@@ -44,6 +52,17 @@ read-only use case. Its parts, in order:
 
    Keep `handle` thin: parse, call one service, shape the output. Business rules belong in the
    context.
+
+   Every CLI use case has human-facing `help` metadata, kept beside its model description.
+   Import `HELP_GROUPS` from `./use-case-help` for existing command groups. `section` orders
+   the root help by task; `order` optionally orders commands within that section. Use
+   `visibility: "advanced"` or `"internal"` to leave a command out of everyday help while
+   keeping it callable and discoverable with `--help-all`. Visibility is never authorization.
+   `effects` must describe actual instance and local effects: the write-gate flags alone do
+   not distinguish an adoption from a push. Examples are argument-token arrays, checked
+   against the parser and schemas without running their effects. Required flags, defaults,
+   enum choices and numeric bounds come from the input schema; `help.options` can provide
+   CLI-specific prose without changing a model-facing schema description.
 4. **Register it** in `packages/cli/src/registry/registry.ts` (import it and add it to the list).
 5. **Flags matter.** A use case that changes an instance sets `readOnly: false` and
    `requiresDevelopmentInstance: true`; for test and production it is then not registered at all

@@ -2,6 +2,7 @@ import { checkPack, InstanceName, listPacks, VERSION } from "@snagentic/core";
 import { z } from "zod";
 import { PackSummary, SelectionInput, selectionOf } from "./accelerator-schemas";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 const Module = z.object({
@@ -30,6 +31,17 @@ const activatedNote = (c: { kind: string; state: string }) =>
   c.kind === "plugin" && c.state === "inactive" ? " (accelerator install activates it)" : "";
 
 export const acceleratorCheck = defineUseCase({
+  help: {
+    summary: "Check pack selection and prerequisites",
+    section: "Additional workflows",
+    group: HELP_GROUPS.accelerator,
+    details:
+      "Check a pack's selected modules and their prerequisites against the last pulled " +
+      "inventory. Reports missing components and next commands. Omit the pack to list " +
+      "available packs.",
+    effects: "Reads pack definitions and the mirrored inventory; does not call the instance.",
+    examples: [["accelerator", "check", "itsm", "--instance", "dev"]],
+  },
   group: "accelerator",
   name: "check",
   description:
@@ -53,6 +65,7 @@ export const acceleratorCheck = defineUseCase({
   }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["investigate", "develop"],
   mcpName: "accelerator",
   arguments: ["pack"],
   async handle(input, context) {

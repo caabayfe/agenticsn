@@ -10,6 +10,7 @@ import {
 } from "@snagentic/core";
 import type { fakeInstance } from "../../../core/test/support/fake-instance";
 import { builtUnitOf } from "../../src/adapters/fluent/built-units";
+import { decodeCapture } from "../../src/adapters/fluent/capture-decoder";
 import { WorkspaceAuthoring } from "../../src/adapters/fluent/workspace-authoring";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import type { UseCaseContext } from "../../src/registry/use-case";
@@ -62,6 +63,7 @@ function installer(
             name: unit.updateName,
             update_set: updateSet,
             sys_updated_by: username,
+            payload: file.content,
           },
         ];
       }
@@ -144,6 +146,7 @@ export async function adoptS11(
   const reader = { ...ws.instance.reader, fluent };
   const context: UseCaseContext = {
     ...ws.context,
+    decodeCapture,
     connections: { open: () => reader, openForWrite: () => reader },
     authoring: () => ({ workspace: authoring, toolchain }),
   };

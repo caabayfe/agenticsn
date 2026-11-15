@@ -192,6 +192,7 @@ export const FAKE_CONTEXT: UseCaseContext = {
     },
     clear: async () => {},
   }),
+  decodeCapture: () => null,
   installJournal: () => {
     throw new Error("no install in this test");
   },

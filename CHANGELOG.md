@@ -4,6 +4,31 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.21.1] - 2026-11-15
+
+Push verifies the reviewed content and keeps unfinished delivery recoverable.
+
+### Fixed
+
+- Flow, subflow and action delivery now compares the captured authored definition with the
+  reviewed build, requires its linked published snapshot, and checks the live head. An old
+  capture or a successful response alone can no longer certify delivery. Missing, duplicate
+  or unexpected publication acknowledgements stop the push.
+- Applied changes without a verified capture remain pending across CLI restarts and appear
+  in a new reviewed plan. The journal stays until capture verification and the ledger commit
+  finish. Verified evidence can recover without another metadata load; later external edits,
+  changed source or changed targets block recovery instead of being overwritten.
+- Published snapshot references and generated fields are compared using payloads recorded
+  on pdi11 (Brazil patch 1, SDK 4.14.0). Unknown authored changes still fail verification.
+  Compiled deletions use their deletion capture and confirmed absence. Multiple deletions
+  from one table keep separate recovery receipts.
+- A failed ledger commit still reports the successful instance writes and a warning, while
+  retaining verified receipts for a new reviewed recovery plan. User preferences are restored.
+
+The pdi11 acceptance run covered publication, changed inputs/scripts/names, missing capture,
+recovery and external-edit refusal. Its five test records were removed and its test update
+sets ignored. No business records were created; flow execution was not part of the test.
+
 ## [2.21.0] - 2026-11-14
 
 One command to onboard an instance on any platform, and a documentation set to learn and show snagentic:

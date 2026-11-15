@@ -18,7 +18,7 @@ export {
   type PullRequestOutcome,
   pullRequestFor,
 } from "./application/pull-request";
-export type { PushedUnit } from "./application/push-project";
+export type { PushedUnit } from "./application/push-types";
 export {
   pushUnits,
   type UnitPushDependencies,
@@ -72,10 +72,13 @@ export {
   waiverFor,
 } from "./domain/waivers";
 export type {
+  CaptureContent,
+  CaptureDecoder,
   DeliveryWorkspace,
   FluentInstaller,
   FluentPublishResult,
   InstanceWriter,
+  PendingDelivery,
   PullRequestLookup,
   PullRequests,
   PushJournal,

@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_flow">
+  <sys_hub_flow action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>a406f5d9e04b46e999b508fb5dd670d5</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_hub_flow_a406f5d9e04b46e999b508fb5dd670d5</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <category/>
+    <description/>
+    <flow_priority>MEDIUM</flow_priority>
+    <generation_source>fluent</generation_source>
+    <label_cache>[{"name":"subflow.threshold","label":"Input➛Threshold","type":"string","base_type":"string","usedInstances":{"52436267-91d5-4875-b68a-10d2c2de92fa":["threshold"]},"attributes":{},"reference_table":null,"reference_display":null},{"name":"52436267-91d5-4875-b68a-10d2c2de92fa.verdict","label":"52436267-91d5-4875-b68a-10d2c2de92fa➛verdict","type":"string","base_type":"string","usedInstances":{"1bf788c0-b004-4da0-83f8-068f8d877370":["verdict"]},"attributes":{}}]</label_cache>
+    <name>p1-accept-pdi11-20261114 subflow</name>
+    <run_as>user</run_as>
+    <run_with_roles/>
+    <show_draft_actions>false</show_draft_actions>
+    <status>draft</status>
+    <sys_policy/>
+    <type>subflow</type>
+    <version>2</version>
+  </sys_hub_flow>
+  <sys_hub_flow_input action="delete_multiple" query="model=a406f5d9e04b46e999b508fb5dd670d5^sys_idNOT IN92dcd18bf1c24c8a9c38dcce0880467d"/>
+  <sys_hub_flow_input action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>92dcd18bf1c24c8a9c38dcce0880467d</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_hub_flow_input_92dcd18bf1c24c8a9c38dcce0880467d</sys_update_name>
+    <active>true</active>
+    <attributes/>
+    <default_value/>
+    <element>threshold</element>
+    <hint/>
+    <internal_type>string</internal_type>
+    <label>Threshold</label>
+    <mandatory>true</mandatory>
+    <max_length>40</max_length>
+    <model>a406f5d9e04b46e999b508fb5dd670d5</model>
+    <model_id>a406f5d9e04b46e999b508fb5dd670d5</model_id>
+    <model_table>sys_hub_flow</model_table>
+    <name>var__m_sys_hub_flow_input_a406f5d9e04b46e999b508fb5dd670d5</name>
+    <order>1</order>
+  </sys_hub_flow_input>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>37244b0c27a14291b96edb2f307f3291</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_flow_input_a406f5d9e04b46e999b508fb5dd670d5_threshold_en</sys_update_name>
+    <element>threshold</element>
+    <hint/>
+    <label>Threshold</label>
+    <language>en</language>
+    <name>var__m_sys_hub_flow_input_a406f5d9e04b46e999b508fb5dd670d5</name>
+    <plural>Thresholds</plural>
+  </sys_documentation>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>9f2e496f4bc345b08d39a3bf8e29e492</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_flow_output_a406f5d9e04b46e999b508fb5dd670d5_verdict_en</sys_update_name>
+    <element>verdict</element>
+    <hint/>
+    <label>Verdict</label>
+    <language>en</language>
+    <name>var__m_sys_hub_flow_output_a406f5d9e04b46e999b508fb5dd670d5</name>
+    <plural>Verdicts</plural>
+  </sys_documentation>
+  <sys_hub_flow_output action="delete_multiple" query="model=a406f5d9e04b46e999b508fb5dd670d5^sys_idNOT INe4e17c9a9d114298be4dfb973c91ea70"/>
+  <sys_hub_flow_output action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>e4e17c9a9d114298be4dfb973c91ea70</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_hub_flow_output_e4e17c9a9d114298be4dfb973c91ea70</sys_update_name>
+    <active>true</active>
+    <attributes/>
+    <default_value/>
+    <element>verdict</element>
+    <hint/>
+    <internal_type>string</internal_type>
+    <label>Verdict</label>
+    <mandatory>false</mandatory>
+    <max_length>40</max_length>
+    <model>a406f5d9e04b46e999b508fb5dd670d5</model>
+    <model_id>a406f5d9e04b46e999b508fb5dd670d5</model_id>
+    <model_table>sys_hub_flow</model_table>
+    <name>var__m_sys_hub_flow_output_a406f5d9e04b46e999b508fb5dd670d5</name>
+    <order>1</order>
+  </sys_hub_flow_output>
+  <sys_hub_action_instance_v2 action="delete_multiple" query="flow=a406f5d9e04b46e999b508fb5dd670d5^sys_idNOT IN5243626791d54875b68a10d2c2de92fa"/>
+  <sys_hub_action_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>5243626791d54875b68a10d2c2de92fa</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_hub_action_instance_v2_5243626791d54875b68a10d2c2de92fa</sys_update_name>
+    <action_type>fb5d0c0eff624c42869015efa47055cd</action_type>
+    <action_type_parent>fb5d0c0eff624c42869015efa47055cd</action_type_parent>
+    <active>true</active>
+    <comment/>
+    <display_text/>
+    <flow>a406f5d9e04b46e999b508fb5dd670d5</flow>
+    <generation_source/>
+    <order>1</order>
+    <parent_ui_id/>
+    <sys_class_name>sys_hub_action_instance_v2</sys_class_name>
+    <ui_id>52436267-91d5-4875-b68a-10d2c2de92fa</ui_id>
+    <updation_source/>
+    <values>H4sIAAAAAAAAE4WMMQ6EMAwE/7J1xAPS3SeuQRQGDEQyENkGhKL8HdFce+3MaNqCjVZGhC/KtuwyIuAkOV5Wih39JPvV/GytCBiTZaH7+yezQVP2z+DpZMSJxDggk9LKzopY4Hd+B+aathm1dg8IxMcrkAAAAA==</values>
+  </sys_hub_action_instance_v2>
+  <sys_hub_alias_mapping action="delete_multiple" query="source_id=5243626791d54875b68a10d2c2de92fa"/>
+  <sys_hub_flow_logic_instance_v2 action="delete_multiple" query="flow=a406f5d9e04b46e999b508fb5dd670d5^sys_idNOT IN1bf788c0b0044da083f8068f8d877370"/>
+  <sys_hub_flow_logic_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>1bf788c0b0044da083f8068f8d877370</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_hub_flow_logic_instance_v2_1bf788c0b0044da083f8068f8d877370</sys_update_name>
+    <comment/>
+    <flow>a406f5d9e04b46e999b508fb5dd670d5</flow>
+    <logic_definition>df4e1945c3e232002841b63b12d3ae3e</logic_definition>
+    <order>2</order>
+    <outputs_assigned>verdict</outputs_assigned>
+    <ui_id>1bf788c0-b004-4da0-83f8-068f8d877370</ui_id>
+    <values>H4sIAAAAAAAAE52PMW/CMBSE/8ubHQRuEsAbIzvqghge9kv7VMeObCcRsvzfkVVUMXc7fac73WXwc5rmFC/+FCN/OVDXDGxAAQhwOBIoWCgY1gkELGjnSnLuZPvRy37fHHema9rDvmvu/QGb3dZILQ0d5YCbV7AUEGA4ThYfn/9v0N9sTaA68SZgwoAjJQqgchEQdeApnXTihUANaCOVWx0cGO+W4m/IkObI3l0qO7t6/GU8HI6s39Hqw89g/frO+E+XJ0tC/E46AQAA</values>
+  </sys_hub_flow_logic_instance_v2>
+</record_update>

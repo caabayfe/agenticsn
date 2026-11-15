@@ -169,30 +169,3 @@ export async function restorePreference(
     await findAndRestore(error);
   }
 }
-
-// The platform recorded the load in the target update set under `updateName`. When it recorded
-// it in the application's Default update set instead, as pdi2 did, and the update is this
-// user's, it is moved into the target (spec 006, B5); an update someone else made is left where
-// it is.
-export async function captured(
-  session: InstanceSession,
-  updateName: string,
-  target: { readonly updateSet: string; readonly username: string },
-): Promise<boolean> {
-  const fields = ["sys_id", "update_set"];
-  const query = `name=${updateName}^update_set=${target.updateSet}`;
-  if ((await first(session, "sys_update_xml", query, fields)) !== null) {
-    return true;
-  }
-  const mine = `name=${updateName}^sys_updated_by=${target.username}`;
-  const update = await first(session, "sys_update_xml", mine, fields);
-  const set = await first(session, "sys_update_set", `sys_id=${update?.["update_set"] ?? ""}`, [
-    "name",
-  ]);
-  if (update === null || set?.["name"] !== "Default") {
-    return false;
-  }
-  const values = { update_set: target.updateSet };
-  await session.writer.update("sys_update_xml", update["sys_id"] ?? "", values, session.signal);
-  return true;
-}

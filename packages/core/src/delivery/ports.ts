@@ -1,3 +1,7 @@
+import type { BuiltUnit, InstanceCopy, PendingDelivery } from "../authoring/index";
+
+export type { PendingDelivery } from "../authoring/index";
+
 // The workspace as delivery sees it: the instance's mirror branch and the git working tree.
 export interface DeliveryWorkspace {
   // instances/<name>/metadata, relative to the workspace root.
@@ -66,6 +70,11 @@ export interface PushJournal {
   readonly planId: string;
   readonly mirrorCommit: string;
   readonly startedAt: string;
+  readonly instance?: string;
+  readonly url?: string;
+  readonly label?: string;
+  // Unfinished delivery, including verified writes until their ledgers are committed.
+  readonly pending?: readonly PendingDelivery[];
   // The user's preferences push switched (current update set, current application), still to
   // be restored.
   readonly preferences: readonly SwitchedPreference[];
@@ -76,6 +85,20 @@ export interface PushJournal {
     readonly state: "sending" | "written";
   }[];
 }
+
+export interface CaptureContent {
+  readonly unit: BuiltUnit;
+  readonly published: boolean;
+  // Transport encodings (gzip/base64 JSON) opened by the adapter before domain comparison.
+  readonly live?: InstanceCopy | null;
+}
+
+// XML decoding belongs to an adapter; checking the decoded content belongs to the domain.
+export type CaptureDecoder = (
+  updateName: string,
+  payload: string,
+  live?: InstanceCopy | null,
+) => CaptureContent | null;
 
 export interface PushJournalStore {
   read(): Promise<PushJournal | null>;

@@ -30,12 +30,18 @@ export {
   SdkUnavailableError,
   TakeOverBuildFailedError,
 } from "./domain/adopt-errors";
+export {
+  capturedContentAgrees,
+  compiledCopyAgrees,
+  publishedCapture,
+} from "./domain/capture-content";
 export { compareUnit, type Difference } from "./domain/compare";
 export {
   CONVERSION_FIXES_SDK_VERSION,
   type ConversionOutcome,
   fixConverted,
 } from "./domain/conversion-fixes";
+export type { PendingDelivery } from "./domain/delivery-receipt";
 export { unitDigest } from "./domain/digest";
 export { driftedUnits, type PulledRecord } from "./domain/drift";
 export { SdkRouteRefusedError, UnreadableBuildError } from "./domain/errors";
@@ -55,8 +61,10 @@ export {
   LOSSES_SDK_VERSION,
   type LossId,
 } from "./domain/losses";
+export { isKeyedDeletion, pendingDecision, pendingFor } from "./domain/pending-delivery";
 export { planUnit, type UnitDecision } from "./domain/plan-unit";
 export { conversionRefusal, knownRefusal } from "./domain/refusals";
+export { ledgerEntryOf } from "./domain/renamed-units";
 export { sdkRouteAllowed } from "./domain/sdk-routes";
 export {
   type BuiltUnit,

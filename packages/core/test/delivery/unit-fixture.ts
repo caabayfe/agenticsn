@@ -1,5 +1,6 @@
 import {
   type BuiltUnit,
+  type CaptureContent,
   type FluentInstaller,
   type LedgerEntry,
   type PushJournal,
@@ -66,6 +67,7 @@ function installer(
   units: () => readonly BuiltUnit[],
   calls: string[],
   refused: ReadonlySet<string>,
+  payloads: Map<string, CaptureContent>,
 ): FluentInstaller {
   return {
     load: async (scopeId, files, updateSet) => {
@@ -78,6 +80,16 @@ function installer(
           // Now.del by keys: the record that has them goes.
           const keys = Object.entries(unit.head.fields).filter(([f]) => !f.startsWith("sys_"));
           tables[unit.head.table] = rows.filter((r) => !keys.every(([f, v]) => r[f] === v));
+          payloads.set(unit.updateName, { unit, published: true });
+          tables["sys_update_xml"] = [
+            ...(tables["sys_update_xml"] ?? []),
+            {
+              sys_id: `x${unit.updateName}`,
+              name: unit.updateName,
+              update_set: updateSet,
+              payload: unit.updateName,
+            },
+          ];
           continue;
         }
         const current = rows.find((r) => r["sys_id"] === unit.head.sysId);
@@ -91,26 +103,49 @@ function installer(
         };
         tables[unit.head.table] = [...rows.filter((r) => r !== current), row];
         const xml = tables["sys_update_xml"] ?? [];
+        const payload = `${unit.updateName}:${count}`;
+        payloads.set(payload, {
+          unit,
+          published: !["sys_hub_flow", "sys_hub_action_type_definition"].includes(unit.head.table),
+        });
         tables["sys_update_xml"] = [
-          ...xml,
+          ...xml.filter(
+            (row) => row["name"] !== unit.updateName || row["update_set"] !== updateSet,
+          ),
           {
             sys_id: `x${unit.updateName}`,
             name: unit.updateName,
             update_set: updateSet,
             sys_updated_by: "admin",
+            payload,
           },
         ];
       }
     },
     publish: async (scope, targets) => {
       calls.push(`publish ${scope} flows=${targets.flows.join(",")}`);
-      return targets.flows.map((sysId) => ({
+      for (const sysId of [...targets.flows, ...targets.actions]) {
+        if (refused.has(sysId)) continue;
+        markPublished(tables, sysId);
+        for (const [key, content] of payloads) {
+          if (content.unit.head.sysId === sysId) payloads.set(key, { ...content, published: true });
+        }
+      }
+      return [...targets.flows, ...targets.actions].map((sysId) => ({
         sysId,
         published: !refused.has(sysId),
         message: "No trigger",
       }));
     },
   };
+}
+
+function markPublished(tables: Record<string, Row[]>, sysId: string) {
+  for (const table of ["sys_hub_flow", "sys_hub_action_type_definition"]) {
+    tables[table] = (tables[table] ?? []).map((row) =>
+      row["sys_id"] === sysId ? { ...row, status: "published" } : row,
+    );
+  }
 }
 
 export function unitSetup(
@@ -134,12 +169,14 @@ export function unitSetup(
   const refused = new Set<string>();
   const calls: string[] = [];
   const journal = memoryJournal();
+  const payloads = new Map<string, CaptureContent>();
   const deps: UnitPushDependencies = {
     ...base.deps,
     authoring: { workspace: authoring.workspace, toolchain: toolchain.chain },
     reader: base.fake.reader,
     writer: memoryWriter(base.tables, calls),
     journal,
+    decodeCapture: (_name, payload) => payloads.get(payload) ?? null,
     username: "admin",
     url: "https://dev.example.com",
     pullRequests: {
@@ -147,9 +184,9 @@ export function unitSetup(
       defaultBranch: async () => "main",
       openDraft: async () => "",
     },
-    installer: installer(base.tables, () => [...builds.values()].flat(), calls, refused),
+    installer: installer(base.tables, () => [...builds.values()].flat(), calls, refused, payloads),
   };
-  return { ...base, deps, authoring, project, builds, calls, journal, xml, refused };
+  return { ...base, deps, authoring, project, builds, calls, journal, xml, refused, payloads };
 }
 
 export const QUERY = { instance: "dev", allowCollisions: false };

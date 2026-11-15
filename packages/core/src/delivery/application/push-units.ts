@@ -10,6 +10,7 @@ import {
 } from "../domain/errors";
 import { type RefusedGroup, refusalGroups } from "../domain/load-refusals";
 import type {
+  CaptureDecoder,
   DeliveryWorkspace,
   FluentInstaller,
   InstanceWriter,
@@ -18,6 +19,7 @@ import type {
   PushJournalStore,
   SwitchedPreference,
 } from "../ports";
+import { finishPending, startJournal } from "./pending-journal";
 import {
   computeUnitPlan,
   type ProjectLoad,
@@ -26,8 +28,9 @@ import {
 } from "./plan-units";
 import { type PullRequestOutcome, pullRequestFor } from "./pull-request";
 import { settle, switchFor } from "./push-preferences";
-import { type ProjectRun, type PushedUnit, pushProject } from "./push-project";
+import { pushProject } from "./push-project";
 import { type InstanceSession, openBatch, restorePreference, userSysId } from "./push-steps";
+import type { ProjectRun, PushedUnit } from "./push-types";
 
 // Loads a reviewed plan into the development instance, into the branch's batch of update sets
 // (ADR-0031 item 4), then commits the ledgers of what now agrees with source (ADR-0033 item 3).
@@ -43,6 +46,7 @@ export interface UnitPushDependencies extends UnitPlanDependencies {
   readonly url: string;
   readonly pullRequests: PullRequests;
   readonly installer: FluentInstaller;
+  readonly decodeCapture: CaptureDecoder;
 }
 
 export interface UnitPushQuery extends UnitPlanQuery {
@@ -79,15 +83,15 @@ export interface UnitPushResult {
   readonly next: readonly NextCall[];
 }
 
-// An interrupted push: put the user's preferences back. What reached the instance needs no
-// journal: plan finds units the instance already holds and only records them.
+// Restoring preferences must not discard the unfinished delivery evidence.
 async function recover(deps: UnitPushDependencies, session: InstanceSession): Promise<void> {
   const unfinished = await deps.journal.read();
   if (unfinished === null) return;
   for (const preference of [...unfinished.preferences].reverse()) {
     await restorePreference(session, preference);
   }
-  await deps.journal.clear();
+  if (unfinished.pending === undefined && unfinished.steps.length === 0) await deps.journal.clear();
+  else await deps.journal.write({ ...unfinished, preferences: [] });
 }
 
 async function preflight(
@@ -96,12 +100,12 @@ async function preflight(
   session: InstanceSession,
 ) {
   if (!query.confirm) throw new PushConfirmationRequiredError();
-  await recover(deps, session);
   const planned = await computeUnitPlan(deps, query);
   if (planned.plan.planId !== query.planId) {
     throw new PlanChangedError(query.planId, planned.plan.planId);
   }
   if (!planned.plan.ready) throw new PlanNotReadyError();
+  await recover(deps, session);
   return planned;
 }
 
@@ -216,17 +220,20 @@ export async function pushUnits(
     ...(query.draftPr === undefined ? {} : { draftPr: query.draftPr }),
   });
   const user = await userSysId(session, deps.username);
-  const startedAt = deps.now().toISOString();
-  const journal: { current: PushJournal } = {
-    current: { planId: plan.planId, mirrorCommit: "", startedAt, preferences: [], steps: [] },
-  };
-  await deps.journal.write(journal.current);
+  const journal = await startJournal(deps.journal, {
+    planId: plan.planId,
+    instance: query.instance,
+    url: deps.url,
+    label: plan.label,
+    startedAt: deps.now().toISOString(),
+  });
   const pr = "url" in pullRequest ? pullRequest.url : undefined;
   const batch = await openGlobalBatch(deps, session, journal, { label: plan.label, user, pr });
   const { installer, username, now } = deps;
   const run: ProjectRun = {
     session,
     installer,
+    decodeCapture: deps.decodeCapture,
     journal,
     store: deps.journal,
     username,
@@ -236,8 +243,8 @@ export async function pushUnits(
     now,
   };
   const { updateSets, units, ledgers } = await pushAll(deps, run, loads);
-  await deps.journal.clear();
   const ledger = await commitLedgers(deps, query.instance, plan.planId, ledgers);
+  if (ledger.warnings.length === 0) await finishPending({ journal, store: deps.journal }, units);
   return {
     instance: query.instance,
     planId: plan.planId,
@@ -250,6 +257,9 @@ export async function pushUnits(
     refused: refusalGroups(units, deps.username),
     ledgerCommit: ledger.commit,
     warnings: ledger.warnings,
-    next: [{ tool: "status", args: { instance: query.instance } }],
+    next:
+      units.some((unit) => !unit.applied || !unit.captured) || ledger.warnings.length > 0
+        ? [{ tool: "plan_push", args: { instance: query.instance, label: plan.label } }]
+        : [{ tool: "status", args: { instance: query.instance } }],
   };
 }

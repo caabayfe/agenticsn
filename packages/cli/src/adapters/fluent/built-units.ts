@@ -55,7 +55,7 @@ function textOf(node: Node): string {
 }
 
 // Flow payloads are gzipped JSON, compressed differently by each build: compared opened.
-function opened(value: string): string {
+export function openFluentValue(value: string): string {
   if (!value.startsWith("H4sI")) return value;
   try {
     return gunzipSync(Buffer.from(value, "base64")).toString("utf8");
@@ -78,7 +78,7 @@ function fieldOf(tag: string, child: Node): { value: string; name?: string } {
   // A form's link to a section names the section by its caption, as the platform matches it.
   const name =
     tag === "sys_ui_section" ? (attributes["caption"] ?? attributes["name"]) : attributes["name"];
-  const value = opened(textOf(child));
+  const value = openFluentValue(textOf(child));
   return name === undefined ? { value } : { value, name };
 }
 

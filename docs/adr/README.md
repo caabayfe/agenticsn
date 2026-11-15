@@ -60,6 +60,7 @@ when the table is stale.
 | [0047](0047-installs-turn-on-test-execution-on-development.md) | An install turns on ATF test execution on a development instance, in an update set that is never promoted | Accepted |
 | [0048](0048-store-application-demo-data-on-request.md) | `--demo` is the one demo switch: demo data, demo modules and store applications' demo data | Accepted (amended by 0049) |
 | [0049](0049-demo-modules-turned-on-with-demo.md) | `--demo` turns on the demo modules it installs, on development only, never promoted | Accepted |
+| [0050](0050-push-requires-content-and-durable-capture-evidence.md) | Push requires content and durable capture evidence | Accepted implementation plan |
 | [0052](0052-the-mirror-carries-its-pull-state.md) | The mirror carries its pull state, so any clone continues a pull from git | Accepted |
 | [0053](0053-instance-owners-set-load-limits.md) | Instance owners set load limits; one scheduler per instance; the cost report is opt-in | Accepted |
 | [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Accepted |

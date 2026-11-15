@@ -1,9 +1,8 @@
 import { readUnits } from "../../authoring/application/read-units";
 import { unitDigest } from "../../authoring/domain/digest";
 import type { Ledger, LedgerEntry } from "../../authoring/domain/ledger";
-import { planUnit } from "../../authoring/domain/plan-unit";
-import { ledgerEntryOf } from "../../authoring/domain/renamed-units";
-import { type BuiltUnit, type InstanceCopy, isDeletion } from "../../authoring/domain/unit";
+import { type BuiltUnit, isDeletion } from "../../authoring/domain/unit";
+import { pendingFor } from "../../authoring/index";
 import type { AuthoringWorkspace, FluentToolchain, SourceProject } from "../../authoring/ports";
 import type { InstanceReader } from "../../connection/ports";
 import type { Finding, ValidateDependencies } from "../../governance/index";
@@ -18,15 +17,17 @@ import {
 } from "../../updatesets/index";
 import { batchUpdateSets, inBatch } from "../domain/batch";
 import type { GateResult } from "../domain/gate";
-import {
-  type PlannedUnit,
-  plannedOrProblem,
-  type UnitProblem,
-  unitPlanId,
-} from "../domain/unit-plan";
-import type { DeliveryWorkspace } from "../ports";
+import { type PlannedUnit, type UnitProblem, unitPlanId } from "../domain/unit-plan";
+import type {
+  CaptureDecoder,
+  DeliveryWorkspace,
+  PendingDelivery,
+  PushJournalStore,
+} from "../ports";
 import { withoutCutValues } from "./field-lengths";
+import { planCandidate } from "./plan-candidate";
 import { gateFor } from "./plan-gate";
+import { deliveryTarget, orphanedPending, pendingJournal } from "./plan-pending";
 import { removedDefinitions } from "./removed-definitions";
 
 // What a push would load, and whether it may (ADR-0031, ADR-0033): every project under source/
@@ -46,6 +47,9 @@ export interface UnitPlanDependencies {
     readonly toolchain: FluentToolchain;
   };
   readonly reader: InstanceReader;
+  readonly journal?: PushJournalStore;
+  readonly url?: string;
+  readonly decodeCapture?: CaptureDecoder;
   readonly workspace: Pick<
     DeliveryWorkspace,
     "branch" | "mirrorCommit" | "uncommittedSource" | "waivers" | "metadataRoot"
@@ -104,15 +108,6 @@ const problem = (project: string, kind: UnitProblem["kind"], reason: string, nam
   reason,
 });
 
-// The platform refuses to publish a flow its publishing user's domain cannot see (spike S11),
-// leaving the loaded flow an inactive draft: such a flow is never loaded.
-const COMPILED = new Set(["sys_hub_flow", "sys_hub_action_type_definition"]);
-
-function outsideDomain(unit: PlannedUnit, copy: InstanceCopy | null, userDomain: string) {
-  const domain = copy?.head["sys_domain"] ?? "global";
-  return unit.operation === "load" && COMPILED.has(unit.table) && domain !== userDomain;
-}
-
 // The signed-in user's domain, read once per plan and only when a flow would be loaded.
 function sessionDomain(deps: UnitPlanDependencies): () => Promise<string> {
   let domain: Promise<string> | undefined;
@@ -137,6 +132,7 @@ async function planProject(
   project: SourceProject,
   instance: string,
   userDomain: () => Promise<string>,
+  pending: readonly PendingDelivery[],
 ): Promise<{ load: ProjectLoad | null; problems: UnitProblem[] }> {
   const build = await deps.authoring.toolchain.build(project);
   if (!build.ok) return { load: null, problems: [problem(project.path, "build", build.message)] };
@@ -145,7 +141,9 @@ async function planProject(
   const digests = new Map(build.units.map((unit) => [unit.updateName, unitDigest(unit)]));
   const candidates = build.units.filter(
     (unit) =>
-      isDeletion(unit) || entries.get(unit.updateName)?.build !== digests.get(unit.updateName),
+      isDeletion(unit) ||
+      entries.get(unit.updateName)?.build !== digests.get(unit.updateName) ||
+      pendingFor(pending, unit, digests.get(unit.updateName) ?? "") !== undefined,
   );
   const copies = await readUnits(deps.reader, candidates, deps.signal);
   const deleted = new Map(
@@ -167,24 +165,21 @@ async function planProject(
   const units: PlannedUnit[] = [...removed.forgotten];
   const problems = removed.problems;
   for (const unit of candidates) {
-    const copy = copies.get(unit.updateName) ?? null;
-    const entry = ledgerEntryOf(unit, copy, entries);
-    const digest = digests.get(unit.updateName) ?? "";
-    const outcome = plannedOrProblem(planUnit(unit, digest, copy, entry), unit, {
-      project: project.path,
-      scope: project.scope,
-      scopeId: project.scopeId,
-      digest,
-      ledger: entry?.instance ?? null,
-      version: copy?.version ?? null,
+    const outcome = await planCandidate(unit, {
+      project,
+      entries,
+      digest: digests.get(unit.updateName) ?? "",
+      copy: copies.get(unit.updateName) ?? null,
+      pending,
       removes: deleted.get(unit.updateName) ?? null,
+      userDomain,
+      reader: deps.reader,
+      decodeCapture: deps.decodeCapture,
+      signal: deps.signal,
     });
     if (outcome === null) continue;
     if (!("operation" in outcome)) problems.push(outcome);
-    else if (outsideDomain(outcome, copy, await userDomain())) {
-      const reason = `it is in domain ${copy?.head["sys_domain"]}, which the signed-in user is not in: the instance would refuse to publish it`;
-      problems.push(problem(project.path, "unsafe", reason, unit.updateName));
-    } else units.push(outcome);
+    else units.push(outcome);
   }
   const built = new Map(
     candidates.map((unit) => [unit.updateName, { unit, xml: build.files.get(unit.file) ?? "" }]),
@@ -244,12 +239,21 @@ export async function computeUnitPlan(
   const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
   const built: ProjectLoad[] = [];
   const problems: UnitProblem[] = await uncommittedSource(deps);
+  const pending = await pendingJournal(deps, query.instance, label);
+  problems.push(...pending.problems);
   const userDomain = sessionDomain(deps);
   for (const project of await deps.authoring.workspace.projects()) {
-    const planned = await planProject(deps, project, query.instance, userDomain);
+    const planned = await planProject(
+      deps,
+      project,
+      query.instance,
+      userDomain,
+      (pending.journal?.pending ?? []).filter((entry) => entry.project === project.path),
+    );
     if (planned.load !== null) built.push(planned.load);
     problems.push(...planned.problems);
   }
+  problems.push(...orphanedPending(pending.journal, built));
   const { loads, problems: cut } = await withoutCutValues(deps.reader, built, deps.signal);
   problems.push(...cut);
   const units = loads.flatMap((load) => load.units);
@@ -263,7 +267,7 @@ export async function computeUnitPlan(
     problems.length === 0 &&
     gate.passed &&
     (collisions.length === 0 || query.allowCollisions);
-  const id = unitPlanId(units, gate);
+  const id = unitPlanId(units, gate, deliveryTarget(deps, query.instance, label, pending.journal));
   const plan: UnitPushPlan = {
     instance: query.instance,
     planId: id,
@@ -278,7 +282,7 @@ export async function computeUnitPlan(
     collisions,
     ready,
     next: ready
-      ? [{ tool: "push", args: { instance: query.instance, plan: id, confirm: true } }]
+      ? [{ tool: "push", args: { instance: query.instance, label, plan: id, confirm: true } }]
       : gate.passed
         ? []
         : [{ tool: "validate", args: { base } }],

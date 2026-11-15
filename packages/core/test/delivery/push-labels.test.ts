@@ -57,6 +57,32 @@ async function push(context: ReturnType<typeof unitSetup>) {
 }
 
 describe("labels of fields a push creates", () => {
+  it("reuses a verified dictionary capture for its carried label after a failed ledger commit", async () => {
+    const context = unitSetup({ ledger: null });
+    context.builds.get(context.project.path)?.push(field("u_name"), label("u_name"));
+    labelsUnrecorded(context, ["sys_documentation_u_acc_t_u_name_en"]);
+    const workspace = context.deps.workspace;
+    context.deps = {
+      ...context.deps,
+      workspace: {
+        ...workspace,
+        commitFiles: async () => {
+          throw new Error("git failed");
+        },
+      },
+    };
+    await expect(push(context)).resolves.toMatchObject({
+      ledgerCommit: null,
+      warnings: [expect.stringContaining("git failed")],
+    });
+    context.deps = { ...context.deps, workspace };
+    const loads = context.calls.filter((call) => call.startsWith("load")).length;
+    const result = await push(context);
+    expect(result).toMatchObject({ notApplied: 0, notCaptured: 0 });
+    expect(context.calls.filter((call) => call.startsWith("load"))).toHaveLength(loads);
+    expect(await context.journal.read()).toBeNull();
+  });
+
   it("counts a new field's label as captured with its dictionary entry", async () => {
     const context = unitSetup({ ledger: null });
     context.builds.get(context.project.path)?.push(field("u_name"), label("u_name"));

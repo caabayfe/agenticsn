@@ -2,8 +2,19 @@ import { listPacks } from "@snagentic/core";
 import { z } from "zod";
 import { PackSummary } from "./accelerator-schemas";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 export const acceleratorList = defineUseCase({
+  help: {
+    summary: "List packs, modules and profiles",
+    section: "Additional workflows",
+    group: HELP_GROUPS.accelerator,
+    details:
+      "Discover bundled accelerator packs and packs configured in the workspace. Lists their " +
+      "modules and installation profiles.",
+    effects: "Reads local pack definitions; does not call the instance.",
+    examples: [["accelerator", "list"]],
+  },
   group: "accelerator",
   name: "list",
   description:

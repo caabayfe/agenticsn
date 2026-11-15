@@ -40,7 +40,9 @@ export function addHookCommand(
   done: (outcome: HookOutcome) => void,
 ): void {
   program
-    .command("hook")
+    .command("hook", { hidden: true })
+    .helpGroup("Internal:")
+    .summary("Run an installed coding-agent host hook")
     .description(
       "Run a coding-agent host hook (agent install configures them). Reads the host's JSON on stdin.",
     )

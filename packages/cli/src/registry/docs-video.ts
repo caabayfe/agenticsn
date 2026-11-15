@@ -1,9 +1,21 @@
 import { renderVideo } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 export const docsVideo = defineUseCase({
+  help: {
+    summary: "Record a documentation animation as MP4",
+    section: "Additional workflows",
+    group: HELP_GROUPS.docs,
+    details:
+      "Record an animation in headless Chrome with ffmpeg. Optional narration uses piper or " +
+      "the system voice. Recording runs in real time and takes as long as the animation.",
+    effects:
+      "Writes a local MP4 and generated media under .snagentic/; does not call the instance.",
+    examples: [["docs", "video", "overview"]],
+  },
   group: "docs",
   name: "video",
   description:

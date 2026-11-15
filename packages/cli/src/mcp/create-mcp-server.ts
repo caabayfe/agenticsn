@@ -4,6 +4,7 @@ import type { ServerNotification, ServerRequest } from "@modelcontextprotocol/sd
 import { z } from "zod";
 import { describeError, executeUseCase, type RunControl } from "../registry/execute";
 import { assertMcpBudget } from "../registry/mcp-budget";
+import { type McpProfile, profileUseCases } from "../registry/mcp-profile";
 import { mcpToolName, type UseCase, type UseCaseContext } from "../registry/use-case";
 
 type ToolExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
@@ -51,6 +52,7 @@ export interface AgentInterface {
   readonly resultNote?: string;
   readonly prompts: readonly {
     readonly name: string;
+    readonly mcpProfiles?: readonly ("investigate" | "develop")[];
     readonly description: string;
     readonly message: (request: string) => string;
   }[];
@@ -78,13 +80,23 @@ export function createMcpServer(
   version: string,
   developmentInstances: readonly string[] = [],
   agent: AgentInterface = { instructions: "", prompts: [] },
+  profile: McpProfile = "legacy",
 ): McpServer {
+  useCases = profileUseCases(useCases, profile);
   assertMcpBudget(useCases);
   const server = new McpServer(
-    { name: "snagentic", version },
+    { name: profile === "legacy" ? "snagentic" : `snagentic-${profile}`, version },
     agent.instructions === "" ? {} : { instructions: agent.instructions },
   );
-  registerPrompts(server, agent.prompts);
+  registerPrompts(
+    server,
+    agent.prompts.filter(
+      (prompt) =>
+        profile === "legacy" ||
+        prompt.mcpProfiles === undefined ||
+        prompt.mcpProfiles.includes(profile),
+    ),
+  );
   for (const useCase of useCases.filter((candidate) => candidate.mcp)) {
     const inputSchema = toolInput(useCase, developmentInstances);
     if (inputSchema === null) {

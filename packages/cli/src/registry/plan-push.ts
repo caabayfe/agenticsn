@@ -112,6 +112,21 @@ const noteOf = (u: { operation: string; ledger?: string | null | undefined }) =>
       : "none";
 
 export const planPush = defineUseCase({
+  help: {
+    summary: "Review delivery changes and collisions",
+    section: "Develop",
+    order: 4,
+    details:
+      "Build the Fluent source, compare it with the live instance, run validation and check " +
+      "open update-set ownership. Review the changes and any SDK losses before approving the " +
+      "returned plan ID. Reuse --label and --allow-collisions values when pushing.",
+    effects: "Builds locally and reads the instance; applies no instance changes.",
+    examples: [["plan-push", "--instance", "dev"]],
+    options: {
+      allowCollisions:
+        "Accept records held in other open update sets; review ownership before using this override",
+    },
+  },
   name: "plan-push",
   mcpName: "plan_push",
   description:
@@ -131,6 +146,7 @@ export const planPush = defineUseCase({
   output: PlanOutput,
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["develop"],
   async handle(input, context, run) {
     const root = await workspaceRoot(context);
     const instance = await instanceFor(root, context, input.instance);

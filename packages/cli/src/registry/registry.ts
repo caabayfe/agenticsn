@@ -34,6 +34,10 @@ import { pluginsActivate } from "./plugins-activate";
 import { pluginsList } from "./plugins-list";
 import { pull } from "./pull";
 import { push } from "./push";
+import { queryAggregate } from "./query-aggregate";
+import { queryRecord } from "./query-record";
+import { querySchema } from "./query-schema";
+import { queryTable } from "./query-table";
 import { status } from "./status";
 import { takeOver } from "./take-over";
 import { updateSetsCollisions } from "./update-sets-collisions";
@@ -58,6 +62,10 @@ export const USE_CASES: readonly UseCase[] = [
   integrate,
   status,
   find,
+  queryTable,
+  queryRecord,
+  queryAggregate,
+  querySchema,
   describe,
   advise,
   validate,

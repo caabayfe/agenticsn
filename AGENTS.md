@@ -150,8 +150,9 @@ Choosing the test:
 
 - **A use case** ([worked example](docs/guides/extend-snagentic.md#add-a-use-case)): a zod input and output schema plus a handler in
   `packages/cli/src/registry/`, calling one application service. Set `readOnly`,
-  `destructive` and `requiresDevelopmentInstance` correctly. Mark `mcp: true` only if it
-  earns a place in the **13-tool MCP budget** (ADR-0002, ADR-0026).
+  `destructive` and `requiresDevelopmentInstance` correctly. `mcp: true` controls the legacy
+  interface; `mcpProfiles` selects investigate/develop. Every profile has a **13-tool MCP
+  budget** (ADR-0057); investigate may contain only read-only operations.
 - **A rule:** three parts.
   - Metadata (ID, category, severity, title, why, remediation, which scripts or classes it
     applies to): an entry in the catalog in `packages/core/src/advice/domain/` (`rules.ts`,
@@ -202,6 +203,8 @@ Instance load is a product requirement (ASR-16), not an optimization.
   page (ACLs shorten pages).
 - Every request names its fields, asks for raw values, excludes reference links, and
   filters only on indexed fields. No `LIKE` or `CONTAINS` on large tables.
+  Bounded live investigation may refine a selective indexed anchor with schema-validated
+  post-filters (ADR-0057); every NQ branch needs its own anchor.
 - Every request goes through the instance's request scheduler (concurrency, rate limit,
   `Retry-After`, budget). Never call `fetch` around it.
 - Honor the use case's cancellation signal in every loop and request.

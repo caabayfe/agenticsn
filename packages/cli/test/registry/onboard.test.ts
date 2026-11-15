@@ -236,10 +236,10 @@ describe("onboard, the whole way", () => {
       expect(prompts).toHaveLength(1);
       expect(credentials.secrets.get("pdi")).toBe("typed-secret");
       expect(JSON.stringify(first.output)).not.toContain("typed-secret");
-      expect(first.output["nextSteps"]).toContain("snagentic agent install");
+      expect(first.output["nextSteps"]).toContain("snagentic status");
       const shown = onboard.render(first.output as Parameters<typeof onboard.render>[0], "text");
       expect(shown).toContain("pdi is onboarded");
-      expect(shown).toContain("snagentic agent install");
+      expect(shown).toContain("snagentic status");
 
       // From inside the workspace, with the password already kept: nothing is asked again.
       const inside = { ...context, host: { ...context.host, cwd: root } };

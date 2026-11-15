@@ -2,8 +2,19 @@ import { activatePlugin, ConfirmationRequiredError } from "@snagentic/core";
 import { z } from "zod";
 import { connectForWrite } from "./connect";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 export const pluginsActivate = defineUseCase({
+  help: {
+    summary: "Activate a development-instance plugin",
+    section: "Additional workflows",
+    group: HELP_GROUPS.plugins,
+    details:
+      "Activate a plugin through the platform CI/CD API and follow its progress. This cannot " +
+      "be undone. An uncertain outcome is not retried automatically.",
+    effects: "With --confirm, activates a plugin on the development instance.",
+    examples: [["plugins", "activate", "dev", "com.snc.incident", "--confirm"]],
+  },
   group: "plugins",
   name: "activate",
   description:
@@ -24,6 +35,7 @@ export const pluginsActivate = defineUseCase({
   }),
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
   mcp: true,
+  mcpProfiles: ["develop"],
   mcpName: "plugin_activate",
   arguments: ["instance", "id"],
   async handle(input, context, run) {

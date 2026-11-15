@@ -32,6 +32,11 @@ export interface WorkspaceFiles {
   list(directory: string): Promise<readonly string[]>;
 }
 
+// Personal installation destinations must stay below their root without following links.
+export interface ManagedAgentFiles extends WorkspaceFiles {
+  guard(root: string, path: string): Promise<void>;
+}
+
 // Who holds a workspace lock, so a refused command can name it.
 export interface LockHolder {
   readonly command: string;

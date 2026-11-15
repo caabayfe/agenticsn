@@ -32,7 +32,10 @@ function withOrder(filter: string, order: string): string {
 export function keysetQuery(filter: KeysetFilter, cursor: Cursor | null): string {
   if (filter.kind === "snapshot") {
     return withOrder(
-      group(filter.base, cursor === null ? undefined : `sys_id>${cursor.sysId}`),
+      filter.base
+        .split("^NQ")
+        .map((base) => group(base, cursor === null ? undefined : `sys_id>${cursor.sysId}`))
+        .join("^NQ"),
       SNAPSHOT_ORDER,
     );
   }

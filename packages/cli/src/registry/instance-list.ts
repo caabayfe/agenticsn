@@ -1,9 +1,18 @@
 import { INSTANCE_KINDS, listInstances, usernameSourceLabel } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 export const instanceList = defineUseCase({
+  help: {
+    summary: "List configured instances",
+    section: "Manage",
+    group: HELP_GROUPS.instance,
+    details: "List the instance profiles in the current workspace.",
+    effects: "Reads workspace profiles; does not call the instance.",
+    examples: [["instance", "list"]],
+  },
   group: "instance",
   name: "list",
   description: "List the instance profiles in this workspace.",

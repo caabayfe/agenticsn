@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connect } from "./connect";
 import { UpdateSetSummary } from "./update-sets-list";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 const Entry = z.object({
   sysId: z.string(),
@@ -16,6 +17,14 @@ const Entry = z.object({
 });
 
 export const updateSetsShow = defineUseCase({
+  help: {
+    summary: "Inspect an update set and its updates",
+    section: "Manage",
+    group: HELP_GROUPS.updateSets,
+    details: "Show update types, actions, targets, authors and dates without payloads.",
+    effects: "Reads the instance; makes no instance changes.",
+    examples: [["update-sets", "show", "dev", "0123456789abcdef0123456789abcdef"]],
+  },
   group: "update-sets",
   name: "show",
   description:

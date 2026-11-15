@@ -1,4 +1,5 @@
 import {
+  AGENT_HOSTS,
   answerOf,
   createProfile,
   getInstance,
@@ -18,6 +19,7 @@ import {
 import { doctor } from "./doctor";
 import { runUseCase } from "./execute";
 import { init, resolvePath } from "./init";
+import { installAgentIntegration } from "./install-agent-integration";
 import { type CallUseCase, callerFor } from "./install-steps";
 import { instanceAdd } from "./instance-add";
 import { integrate } from "./integrate";
@@ -42,6 +44,7 @@ interface Session {
   readonly context: UseCaseContext;
   readonly run: RunControl;
   root: string | null;
+  agentWarnings: readonly string[];
 }
 
 const rootOf = (session: Session): string => session.root ?? "";
@@ -78,12 +81,18 @@ async function workspaceStep(session: Session): Promise<"done" | "already"> {
   const found = await foundWorkspace(session);
   if (found !== null) {
     session.root = found;
+    const installed = await installAgentIntegration(session.context, found, AGENT_HOSTS);
+    session.agentWarnings = installed
+      .filter((file) => file.status === "skipped")
+      .map((file) => file.path);
     return "already";
   }
   const { input, context, run } = session;
   run.progress({ message: "creating the workspace" });
   const where = input.path === undefined ? { name: input.name } : { path: input.path };
-  session.root = (await runUseCase(init, where, context, run)).root;
+  const created = await runUseCase(init, where, context, run);
+  session.root = created.root;
+  session.agentWarnings = created.agentWarnings ?? [];
   return "done";
 }
 
@@ -140,17 +149,22 @@ export function onboardSteps(
   input: OnboardInput,
   context: UseCaseContext,
   run: RunControl,
-): OnboardSteps & { readonly root: () => string | null } {
+): OnboardSteps & {
+  readonly root: () => string | null;
+  readonly agentWarnings: () => readonly string[];
+} {
   const session: Session = {
     input,
     name: InstanceName.parse(input.name),
     context,
     run,
     root: null,
+    agentWarnings: [],
   };
   const instance = session.name;
   return {
     root: () => session.root,
+    agentWarnings: () => session.agentWarnings,
     workspace: () => workspaceStep(session),
     profile: () => profileStep(session),
     signIn: () => signInStep(session),

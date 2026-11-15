@@ -1,6 +1,7 @@
 import { docsCensus as takeDocsCensus } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 const Group = z.object({
@@ -19,6 +20,17 @@ const Group = z.object({
 const NAMES_SHOWN = 6;
 
 export const docsCensus = defineUseCase({
+  help: {
+    summary: "List behavior affecting a documented process",
+    section: "Additional workflows",
+    group: HELP_GROUPS.docs,
+    details:
+      "Find applications and supported behavior reaching a process's tables in the mirror. " +
+      "Reports applications not yet covered by a feature decision. Features visible only on " +
+      "screen still need a role-based form walkthrough.",
+    effects: "Reads documentation and the local mirror; does not call the instance.",
+    examples: [["docs", "census", "incident"]],
+  },
   group: "docs",
   name: "census",
   description:

@@ -64,10 +64,11 @@ Two larger workflows build on these steps. **Accelerators** are versioned conten
 installed by a plan a platform admin reads first. **Verified documentation** is a site whose
 pages are anchored to the mirror, so a change shows which sentences it makes stale.
 
-The agent gets all of this through one MCP server (13 tools), six workflow skills (design,
-build, review, explain, deliver, document) and short instructions. `snagentic agent install` installs
-them and registers the MCP server for Claude Code and GitHub Copilot in VS Code; the team
-commits the result so everyone gets the same setup.
+The binary bundles investigate/develop MCP profiles (the legacy interface retains 13 tools),
+eight workflow skills (design, build, review, explain, deliver, document, troubleshoot, test)
+and short workspace instructions. `snagentic agent install` shares skills at user level and
+registers workspace MCP bindings for Claude Code, Copilot and Codex. The team commits the
+workspace configuration; each teammate installs their own user skills.
 
 ## Who it's for
 

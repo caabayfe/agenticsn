@@ -2,6 +2,7 @@ import { listUpdateSets } from "@snagentic/core";
 import { z } from "zod";
 import { connect } from "./connect";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 const Summary = z.object({
   sysId: z.string(),
@@ -17,6 +18,14 @@ const Summary = z.object({
 export const UpdateSetSummary = Summary;
 
 export const updateSetsList = defineUseCase({
+  help: {
+    summary: "List open and recently changed update sets",
+    section: "Manage",
+    group: HELP_GROUPS.updateSets,
+    details: "List open update sets and sets changed within --days, including update counts.",
+    effects: "Reads the instance; makes no instance changes.",
+    examples: [["update-sets", "list", "dev"]],
+  },
   group: "update-sets",
   name: "list",
   description:

@@ -9,7 +9,9 @@ export {
   type InstallStatus,
   installAgentPack,
 } from "./application/install-agent-pack";
+export { installUserSkills } from "./application/install-user-skills";
 export { type LocatedWorkspace, locateWorkspace } from "./application/locate-workspace";
+export { migrateWorkspaceSkills } from "./application/migrate-workspace-skills";
 export { applyRepositoryTuning } from "./application/tune-repository";
 export { withWorkspaceLock } from "./application/with-workspace-lock";
 export {
@@ -61,6 +63,7 @@ export {
 } from "./domain/repository-tuning";
 export type {
   LockHolder,
+  ManagedAgentFiles,
   WorkspaceFiles,
   WorkspaceLock,
   WorkspaceStore,

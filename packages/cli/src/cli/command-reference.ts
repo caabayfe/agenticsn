@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { mcpToolName, qualifiedName, type UseCase } from "../registry/use-case";
+import { exampleLine } from "./command-help";
 import { argumentSyntax, optionsFor } from "./zod-options";
 
 // docs/reference/commands.md, generated from the registry (plan M7): the CLI commands with
@@ -13,13 +14,23 @@ function optionLine(option: ReturnType<typeof optionsFor>[number]): string {
   return `- \`${option.flags}\`: ${option.description ?? ""}${extras.length > 0 ? ` (${extras.join("; ")})` : ""}`;
 }
 
-function changes(useCase: UseCase): string {
-  if (useCase.flags.readOnly) {
-    return "Changes the instance: no.";
-  }
-  return useCase.flags.requiresDevelopmentInstance
-    ? "Changes the instance: **yes, development instances only**."
-    : "Changes the instance: no (writes only to the workspace).";
+function optionLines(useCase: UseCase): string[] {
+  const options = optionsFor(useCase.input, useCase.arguments ?? [], useCase.help?.options);
+  return ["Required:", "Options:"].flatMap((heading) => {
+    const group = options.filter((option) => option.helpGroupHeading === heading);
+    return group.length === 0 ? [] : [heading, "", ...group.map(optionLine), ""];
+  });
+}
+
+function examples(useCase: UseCase): string[] {
+  return useCase.help === undefined
+    ? []
+    : [
+        "Examples:",
+        "",
+        ...useCase.help.examples.map((tokens) => `- \`${exampleLine(tokens)}\``),
+        "",
+      ];
 }
 
 function command(useCase: UseCase): string {
@@ -30,7 +41,7 @@ function command(useCase: UseCase): string {
     ...positional.map((key) => argumentSyntax(useCase.input, key)),
     "[options]",
   ];
-  const options = optionsFor(useCase.input, positional).map(optionLine);
+  const help = useCase.help;
   return [
     `### \`${qualifiedName(useCase)}\``,
     "",
@@ -38,11 +49,14 @@ function command(useCase: UseCase): string {
     usage.join(" "),
     "```",
     "",
-    useCase.description,
+    help?.summary ?? useCase.description,
     "",
-    `${changes(useCase)} MCP tool: ${useCase.mcp ? `\`${mcpToolName(useCase)}\`` : "none"}.`,
+    ...(help === undefined ? [] : [help.details, "", `**Effects:** ${help.effects}`, ""]),
+    `MCP tool: ${useCase.mcp ? `\`${mcpToolName(useCase)}\`` : "none"}.`,
+    ...(help?.visibility === undefined ? [] : [`Help visibility: ${help.visibility}.`]),
     "",
-    ...(options.length > 0 ? ["Options:", "", ...options, ""] : []),
+    ...optionLines(useCase),
+    ...examples(useCase),
     "All commands also take `--format agent|json|text` and `--workspace <path>`.",
     "",
   ].join("\n");
@@ -75,6 +89,10 @@ export function commandReference(useCases: readonly UseCase[]): string {
     "# Command reference",
     "",
     "Generated from the use-case registry; do not edit. Regenerate with `bun run docs`.",
+    "",
+    "`snagentic --help` groups everyday commands by task. `snagentic --help-all` also lists",
+    "advanced and internal commands. Every command remains directly callable; use",
+    "`snagentic <command> --help` for required flags, defaults, effects and examples.",
     "",
     "## Commands",
     "",

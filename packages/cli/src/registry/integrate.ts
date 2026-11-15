@@ -4,6 +4,18 @@ import { defineUseCase } from "./use-case";
 import { tuneClone, workspaceRoot } from "./workspace-root";
 
 export const integrate = defineUseCase({
+  help: {
+    summary: "Bring the mirror into your working branch",
+    section: "Develop",
+    order: 1,
+    details:
+      "Merge the latest mirror into the current branch, fetching a newer shared mirror when " +
+      "configured. The instance mirror wins over local mirror edits; discarded edits are " +
+      "reported. Refresh adopted records with drift before planning.",
+    effects:
+      "Updates the working branch and files; may fetch the shared git mirror. Does not call the instance.",
+    examples: [["integrate", "dev"]],
+  },
   name: "integrate",
   description:
     "Merge the latest pull of an instance into the workspace's current branch, after taking a " +

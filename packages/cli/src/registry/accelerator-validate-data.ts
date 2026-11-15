@@ -2,8 +2,20 @@ import { validateData } from "@snagentic/core";
 import { z } from "zod";
 import { DataSourceInput, dataSourceOf, SelectionInput, selectionOf } from "./accelerator-schemas";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 export const acceleratorValidateData = defineUseCase({
+  help: {
+    summary: "Validate pack data before loading",
+    section: "Additional workflows",
+    group: HELP_GROUPS.accelerator,
+    details:
+      "Check mandatory fields, references and repeated keys before loading data. Choose " +
+      "--data for a customer directory outside git, or --demo for fictional pack data. " +
+      "Tracked customer data is refused.",
+    effects: "Reads pack definitions and local data files; does not call the instance.",
+    examples: [["accelerator", "validate-data", "itsm", "--demo"]],
+  },
   group: "accelerator",
   name: "validate-data",
   description:

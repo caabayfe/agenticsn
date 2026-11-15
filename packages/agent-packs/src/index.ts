@@ -4,7 +4,8 @@
 export { CLAUDE_SETTINGS, SHELL_DENY } from "./claude-settings";
 export { COPILOT_HOOKS, COPILOT_HOOKS_PATH } from "./copilot-hooks";
 export { RESULT_NOTE } from "./instructions";
-export { MCP_CONFIGS } from "./mcp-configs";
+export { LEGACY_SKILL_HASHES } from "./legacy-skills";
+export { CODEX_SERVERS, MCP_CONFIGS } from "./mcp-configs";
 export {
   type AgentHost,
   copilotHookFile,
@@ -12,6 +13,7 @@ export {
   type PackFile,
   type PackPrompt,
   PROMPTS,
+  referenceFiles,
   SKILLS,
   skillFiles,
 } from "./pack";

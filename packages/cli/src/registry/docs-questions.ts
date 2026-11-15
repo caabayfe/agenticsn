@@ -1,6 +1,7 @@
 import { listQuestions, QUESTION_KINDS } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 const Listed = z.object({
@@ -15,6 +16,19 @@ const Listed = z.object({
 });
 
 export const docsQuestions = defineUseCase({
+  help: {
+    summary: "Find recorded documentation questions",
+    section: "Additional workflows",
+    group: HELP_GROUPS.docs,
+    details:
+      "Search existing questions before asking a new one. Filter by record, words, process or " +
+      "status; open questions are shown by default.",
+    effects: "Reads local question records; does not call the instance.",
+    examples: [
+      ["docs", "questions"],
+      ["docs", "questions", "--status", "all"],
+    ],
+  },
   group: "docs",
   name: "questions",
   description:

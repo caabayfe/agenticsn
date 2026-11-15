@@ -2,6 +2,9 @@ import { canonicalJson } from "../../kernel/canonical-json";
 import { compareUnit, isComparedField } from "./compare";
 import { authoredCaptureRows } from "./compiled-graph";
 import { compiledFields, exportedDefaults, orderedAttributes } from "./compiled-values";
+import { normalizeEmptySlaInputs } from "./empty-sla-input";
+import { normalizeNativeDefaults } from "./native-input-defaults";
+import { type NativeTriggerContract, withNativeTriggerInputs } from "./native-trigger-capture";
 import type { BuiltUnit, InstanceCopy, UnitRecord } from "./unit";
 import { unitSpec } from "./unit-specs";
 import { comparedValue, keyedReference, namedField, sameValue } from "./values";
@@ -115,30 +118,40 @@ export function capturedContentAgrees(
   built: BuiltUnit,
   actual: BuiltUnit,
   references: ReadonlyMap<string, string> = new Map(),
+  nativeTriggers: readonly NativeTriggerContract[] = [],
 ): boolean {
-  if (built.head.table !== actual.head.table) return false;
-  if (built.head.action !== actual.head.action) return false;
-  if (!sameIdentity(built, actual)) return false;
-  if (built.head.action === "DELETE") return recordAgrees(built.head, actual.head, false);
-  const compiled = !unitSpec(built.head.table).comparable;
-  if (!recordAgrees(built.head, actual.head, compiled)) return false;
+  const expected = withNativeTriggerInputs(built, actual, nativeTriggers);
+  if (expected === null) return false;
+  const held = normalizeNativeDefaults(
+    built,
+    normalizeEmptySlaInputs(built, actual, nativeTriggers),
+    nativeTriggers,
+  );
+  if (expected.head.table !== held.head.table) return false;
+  if (expected.head.action !== held.head.action) return false;
+  if (!sameIdentity(built, held)) return false;
+  if (expected.head.action === "DELETE") return recordAgrees(expected.head, held.head, false);
+  const compiled = !unitSpec(expected.head.table).comparable;
+  if (!recordAgrees(expected.head, held.head, compiled)) return false;
   if (!compiled) {
     return (
-      completeChildren(built, actual) &&
-      compareUnit(built, {
-        head: instanceFields(actual.head),
-        children: actual.children.map(instanceFields),
+      completeChildren(expected, held) &&
+      compareUnit(expected, {
+        head: instanceFields(held.head),
+        children: held.children.map(instanceFields),
         version: "",
         foreignRows: 0,
       }).length === 0
     );
   }
-  const authoredTables = new Set(built.children.map((record) => record.table));
-  const rows = authoredCaptureRows(built, actual);
+  const authoredTables = new Set(expected.children.map((record) => record.table));
+  const rows = authoredCaptureRows(expected, held);
   if (rows.some((record) => !authoredTables.has(record.table) && !SNAPSHOTS.has(record.table)))
     return false;
-  return [...new Set(built.children.map((record) => record.table))].every((table) => {
-    const wanted = built.children.filter((record) => record.table === table && record.sysId !== "");
+  return [...new Set(expected.children.map((record) => record.table))].every((table) => {
+    const wanted = expected.children.filter(
+      (record) => record.table === table && record.sysId !== "",
+    );
     const held = rows.filter((record) => record.table === table);
     return (
       wanted.length === held.length &&

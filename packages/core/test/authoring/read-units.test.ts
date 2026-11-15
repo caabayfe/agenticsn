@@ -64,6 +64,17 @@ const column = (sysId: string, element: string) =>
   );
 
 describe("readUnits (ADR-0033 item 1)", () => {
+  it("reads action publication state even when it was omitted from the authored head", async () => {
+    const fake = instance();
+    const action = unit(
+      "sys_hub_action_type_definition_action",
+      record("sys_hub_action_type_definition", "a".repeat(32), { name: "Calculate" }),
+    );
+    await readUnits(fake.reader, [action], signal);
+    expect(fake.queries[0]?.fields).toContain("state");
+    expect(fake.queries[0]?.fields).toContain("master_snapshot");
+  });
+
   it("reads a record by sys_id, with the fields the build wrote and its version", async () => {
     const fake = instance();
     const copies = await readUnits(fake.reader, [scriptInclude("new")], signal);

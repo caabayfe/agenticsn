@@ -23,6 +23,10 @@ const chunks = <T>(items: readonly T[]): T[][] =>
 function fieldsFor(table: string, records: readonly Fields[], extra: readonly string[]): string[] {
   // sys_update_name ties a Now.del found by its keys to the ledger entry it removes.
   const fields = new Set<string>([...VERSION_FIELDS, "sys_domain", "sys_update_name", ...extra]);
+  if (table === "sys_hub_flow" || table === "sys_hub_action_type_definition") {
+    fields.add(table === "sys_hub_flow" ? "status" : "state");
+    fields.add("master_snapshot");
+  }
   for (const record of records) {
     for (const [field, value] of Object.entries(record)) {
       fields.add(field);

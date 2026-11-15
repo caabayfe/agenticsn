@@ -27,7 +27,7 @@ export async function readBack(
       ledger.set(unit.updateName, undefined);
       continue;
     }
-    if (unit.operation === "delete") {
+    if (unit.operation === "delete" || builtUnit?.head.action === "DELETE") {
       applied.set(unit.updateName, copy === null);
       if (copy === null && unit.removes !== null) ledger.set(unit.removes, undefined);
       continue;
@@ -50,19 +50,14 @@ function loadedEntry(
 ): LedgerEntry | null {
   if (copy === null) return null;
   if (same) return { build: unit.digest, instance: copy.version, losses: unit.losses };
-  return unit.operation === "create"
-    ? { build: NOT_BUILT, instance: copy.version, losses: [] }
-    : null;
+  return null;
 }
-
-// The build of a record this push created but that reads back otherwise (the platform sets a
-// new table's label its own way): no build matches it, so the next plan loads it again rather
-// than asking to adopt a record the push itself made.
-const NOT_BUILT = "0".repeat(32);
 
 // What keeps the instance's copy from agreeing with the build: nothing when it agrees.
 function mismatchesAfterLoad(unit: BuiltUnit | undefined, copy: InstanceCopy | null): string[] {
   if (copy === null) return ["not on the instance after the load"];
   if (unit === undefined) return ["not in the build"];
-  return unitSpec(unit.head.table).comparable ? mismatchesOf(compareUnit(unit, copy)) : [];
+  return unitSpec(unit.head.table).comparable
+    ? mismatchesOf(compareUnit(unit, copy))
+    : ["compiled definition requires verified capture"];
 }

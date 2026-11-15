@@ -227,24 +227,6 @@
   {
     "type": "dependency",
     "from": "packages/core/src/delivery/application/plan-units.ts",
-    "to": "packages/core/src/authoring/domain/plan-unit.ts",
-    "rule": {
-      "name": "contexts-meet-through-their-index",
-      "severity": "error"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "packages/core/src/delivery/application/plan-units.ts",
-    "to": "packages/core/src/authoring/domain/renamed-units.ts",
-    "rule": {
-      "name": "contexts-meet-through-their-index",
-      "severity": "error"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "packages/core/src/delivery/application/plan-units.ts",
     "to": "packages/core/src/authoring/domain/unit.ts",
     "rule": {
       "name": "contexts-meet-through-their-index",
@@ -273,15 +255,6 @@
     "type": "dependency",
     "from": "packages/core/src/delivery/application/push-project.ts",
     "to": "packages/core/src/authoring/application/read-units.ts",
-    "rule": {
-      "name": "contexts-meet-through-their-index",
-      "severity": "error"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "packages/core/src/delivery/application/push-project.ts",
-    "to": "packages/core/src/authoring/domain/ledger.ts",
     "rule": {
       "name": "contexts-meet-through-their-index",
       "severity": "error"

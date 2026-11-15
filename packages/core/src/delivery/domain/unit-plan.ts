@@ -153,8 +153,27 @@ export function plannedOrProblem(
 
 // Binds a plan to exactly what it would load, against which instance versions, under which
 // gate: any edit, any save on the instance, any finding or waiver gives another id.
-export function unitPlanId(units: readonly PlannedUnit[], gate: GateResult): string {
+export function unitPlanId(
+  units: readonly PlannedUnit[],
+  gate: GateResult,
+  delivery?: {
+    readonly instance: string;
+    readonly url: string;
+    readonly label: string;
+    readonly pending: readonly object[];
+  },
+): string {
   const material = canonicalJson({
+    ...(delivery === undefined
+      ? {}
+      : {
+          delivery: {
+            instance: delivery.instance,
+            url: delivery.url,
+            label: delivery.label,
+            pending: delivery.pending.map((entry) => ({ ...entry })),
+          },
+        }),
     // A deletion's update name holds a random sys_id: it is bound by what it deletes.
     units: units.map((u) =>
       [

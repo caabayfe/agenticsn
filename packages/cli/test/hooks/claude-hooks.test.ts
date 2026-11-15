@@ -217,6 +217,21 @@ describe("pre-shell hook", () => {
 });
 
 describe("snagentic hook claude", () => {
+  it("accepts malformed host input without blocking an unrelated edit", async () => {
+    const ws = await instanceWorkspace({});
+    cleanups.push(ws.cleanup);
+    const io = captureIo();
+    const result = await runCli(
+      ["hook", "claude", "pre-edit", "--workspace", ws.root],
+      USE_CASES,
+      ws.context,
+      io,
+      { version: "test", serveMcp: async () => {}, readStdin: async () => "not JSON" },
+    );
+    expect(result).toBe(0);
+    expect(io.err()).toBe("");
+  });
+
   const cleanups: (() => Promise<void>)[] = [];
   afterEach(async () => {
     await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));

@@ -64,7 +64,7 @@ describe("push on built units (ADR-0031 item 4)", () => {
     expect(authoring.ledgers.get(project.path)?.get("dev")?.get(SI_UNIT)?.instance).toBe(
       "2|2026-10-16 12:00:00",
     );
-    expect(await journal.read()).toBeNull();
+    expect((await journal.read())?.pending).toMatchObject([{ verified: true }]);
     const message = `chore(snagentic): ledger after push ${plan.planId} to dev`;
     expect(result.warnings).toEqual([
       "the push succeeded, but committing the ledger failed (git commit failed: commit-msg hook: no ticket key). " +

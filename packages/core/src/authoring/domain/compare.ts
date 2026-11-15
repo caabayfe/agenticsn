@@ -51,6 +51,10 @@ export type Difference =
       readonly instance: readonly string[];
     };
 
+export function isComparedField(table: string, field: string): boolean {
+  return !IGNORED.has(field) && !platformWritten(table, field);
+}
+
 // A key the build writes as NULL is an empty reference, which the instance reads as "" (a
 // catalog item's variable in no variable set).
 const sameKey = (built: string, actual: string) =>
@@ -125,7 +129,7 @@ function fieldDifferences(
     .sort()
     .flatMap((field) =>
       // A field the platform rewrites on save (an ACL's description) never equals what was sent.
-      IGNORED.has(field) || skip.has(field) || platformWritten(record.table, field)
+      !isComparedField(record.table, field) || skip.has(field)
         ? []
         : fieldDifference(record, field, instance, row),
     );

@@ -33,6 +33,17 @@ export class PlanNotReadyError extends SnagenticError {
   }
 }
 
+export class PendingDeliveryTargetError extends SnagenticError {
+  constructor(updateName: string) {
+    super(
+      "pending-delivery-target",
+      "precondition",
+      `${updateName} has unfinished delivery in another update set`,
+      "inspect the push journal and original target update set, then reconcile before pushing",
+    );
+  }
+}
+
 export class RecordChangedOnInstanceError extends SnagenticError {
   constructor(path: string, written: number) {
     super(

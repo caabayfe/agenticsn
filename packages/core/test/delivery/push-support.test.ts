@@ -170,7 +170,7 @@ describe("push's update sets and checks", () => {
       sys_id: "d1",
       name: "Default",
       state: "in progress",
-      application: "x",
+      application: context.project.scopeId,
     });
     const intoDefault = {
       ...context.deps,

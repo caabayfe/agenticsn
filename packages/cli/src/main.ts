@@ -29,6 +29,7 @@ import { FsSiteOutput } from "./adapters/documentation/fs-site-output";
 import { GitDocumentationHistory } from "./adapters/documentation/git-documentation-history";
 import { mediaTools } from "./adapters/documentation/media-tools";
 import { serveSite } from "./adapters/documentation/static-site-server";
+import { decodeCapture } from "./adapters/fluent/capture-decoder";
 import { fluentProbe } from "./adapters/fluent/fluent-probe";
 import { loadFluentRuntime, loadInProcessRuntime } from "./adapters/fluent/fluent-runtime-loader";
 import { SdkToolchain } from "./adapters/fluent/fluent-toolchain";
@@ -170,6 +171,7 @@ const context: UseCaseContext = {
   fluentProjects: (root, options = {}) =>
     new WorkspaceFluentProjects(root, loadFluentRuntime, options),
   files: { create: createTextFile },
+  decodeCapture,
   workspaceFiles: fsWorkspaceFiles,
   delivery: (root, instance) => new GitDeliveryWorkspace(root, instance),
   // Run from source, the packs in the repository; in the binary, the packs it embeds (the

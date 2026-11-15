@@ -91,7 +91,7 @@ describe("captured update decoding", () => {
 
   it("requires an action snapshot linked to the action definition", () => {
     const xml = (id: string) =>
-      `<record_update table="sys_hub_action_type_definition"><sys_hub_action_type_definition action="INSERT_OR_UPDATE"><sys_id>action1</sys_id><name>Notify</name></sys_hub_action_type_definition><sys_hub_action_type_snapshot action="INSERT_OR_UPDATE"><sys_id>snapshot1</sys_id><action_type>${id}</action_type></sys_hub_action_type_snapshot></record_update>`;
+      `<record_update table="sys_hub_action_type_definition"><sys_hub_action_type_definition action="INSERT_OR_UPDATE"><sys_id>action1</sys_id><name>Notify</name><state>published</state></sys_hub_action_type_definition><sys_hub_action_type_snapshot action="INSERT_OR_UPDATE"><sys_id>snapshot1</sys_id><action_type>${id}</action_type></sys_hub_action_type_snapshot></record_update>`;
     expect(decodeCapture("action1", xml("action1"))?.published).toBe(true);
     expect(decodeCapture("action1", xml("other"))?.published).toBe(false);
   });

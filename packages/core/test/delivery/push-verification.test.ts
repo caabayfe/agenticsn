@@ -62,6 +62,7 @@ describe("delivery evidence", () => {
     const { plan } = await computeUnitPlan(context.deps, QUERY);
     const result = await pushUnits(context.deps, { ...QUERY, planId: plan.planId, confirm: true });
     expect(result).toMatchObject({ notApplied: 0, notCaptured: 0, ledgerCommit: "commit-1" });
+    expect(result.units[0]?.mismatches).toEqual([]);
     expect(await context.journal.read()).toBeNull();
     expect((await computeUnitPlan(context.deps, QUERY)).plan.units).toEqual([]);
   });

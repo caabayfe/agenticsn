@@ -1,6 +1,8 @@
+import { unitDigest } from "../../authoring/domain/digest";
 import type { BuiltUnit } from "../../authoring/domain/unit";
 import type { InstanceReader } from "../../connection/ports";
 import { TableName } from "../../kernel/table-name";
+import { isKeyedDeletion } from "../domain/pending-delivery";
 import type { UnitProblem } from "../domain/unit-plan";
 import type { PushJournal, PushJournalStore } from "../ports";
 
@@ -14,7 +16,6 @@ interface PendingPlanDependencies {
 interface PendingProject {
   readonly project: { readonly path: string };
   readonly built: ReadonlyMap<string, { readonly unit: BuiltUnit }>;
-  readonly units: readonly { readonly digest: string }[];
 }
 
 export function deliveryTarget(
@@ -88,7 +89,9 @@ export function orphanedPending(
     const found = [...(load?.built.values() ?? [])].some(
       ({ unit }) =>
         unit.updateName === entry.updateName ||
-        (entry.operation === "delete" && load?.units.some((u) => u.digest === entry.digest)),
+        (entry.operation === "delete" &&
+          isKeyedDeletion(unit) &&
+          entry.digest === unitDigest(unit)),
     );
     return found
       ? []

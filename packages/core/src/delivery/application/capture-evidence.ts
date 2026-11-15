@@ -2,6 +2,7 @@ import type { BuiltUnit, InstanceCopy } from "../../authoring/domain/unit";
 import { TableName } from "../../kernel/table-name";
 import { capturedContentAgrees } from "../domain/capture-content";
 import type { CaptureContent, CaptureDecoder } from "../ports";
+import { captureReferences } from "./capture-references";
 import type { InstanceSession } from "./push-steps";
 
 async function first(
@@ -17,14 +18,17 @@ async function first(
   return rows[0] ?? null;
 }
 
-function decoded(
+async function decoded(
+  session: InstanceSession,
   unit: BuiltUnit,
   payload: string,
   decode: CaptureDecoder,
   live: InstanceCopy | null,
-): CaptureContent | null {
+): Promise<CaptureContent | null> {
   const content = decode(unit.updateName, payload, live);
-  return content?.published && capturedContentAgrees(unit, content.unit) ? content : null;
+  if (content?.published !== true) return null;
+  const references = await captureReferences(session.reader, unit, content.unit, session.signal);
+  return capturedContentAgrees(unit, content.unit, references) ? content : null;
 }
 
 // Only matching content may count as captured or be moved from Default. Names and dates
@@ -48,7 +52,7 @@ export async function captureEvidence(
     `name=${target.captureName}^update_set=${target.updateSet}`,
     fields,
   );
-  const held = decoded(unit, found?.["payload"] ?? "", decode, live);
+  const held = await decoded(session, unit, found?.["payload"] ?? "", decode, live);
   if (held !== null) return held;
   const set = await first(session, "sys_update_set", `name=Default^application=${target.scopeId}`, [
     "sys_id",
@@ -60,7 +64,7 @@ export async function captureEvidence(
     `name=${target.captureName}^update_set=${set["sys_id"] ?? ""}^sys_updated_by=${target.username}`,
     fields,
   );
-  const content = decoded(unit, mine?.["payload"] ?? "", decode, live);
+  const content = await decoded(session, unit, mine?.["payload"] ?? "", decode, live);
   if (mine === null || content === null) return null;
   await session.writer.update(
     "sys_update_xml",
@@ -70,6 +74,6 @@ export async function captureEvidence(
   );
   const moved = await first(session, "sys_update_xml", `sys_id=${mine["sys_id"] ?? ""}`, fields);
   return moved?.["update_set"] === target.updateSet
-    ? decoded(unit, moved["payload"] ?? "", decode, live)
+    ? decoded(session, unit, moved["payload"] ?? "", decode, live)
     : null;
 }

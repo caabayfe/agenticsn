@@ -1,4 +1,4 @@
-import { compareUnit } from "../../authoring/domain/compare";
+import { compareUnit, isComparedField } from "../../authoring/domain/compare";
 import type { BuiltUnit, InstanceCopy, UnitRecord } from "../../authoring/domain/unit";
 import { unitSpec } from "../../authoring/domain/unit-specs";
 import {
@@ -8,9 +8,11 @@ import {
   sameValue,
 } from "../../authoring/domain/values";
 import { canonicalJson } from "../../kernel/canonical-json";
+import { authoredCaptureRows } from "./compiled-graph";
+import { compiledFields, exportedDefaults, orderedAttributes } from "./compiled-values";
 
 // Publish changes lifecycle fields, not the authored trigger, actions or inputs.
-const PUBLISH_FIELDS = new Set(["active", "status", "version"]);
+const PUBLISH_FIELDS = new Set(["active", "status", "version", "state", "label_cache"]);
 const SNAPSHOTS = new Set(["sys_hub_flow_snapshot", "sys_hub_action_type_snapshot"]);
 
 function jsonValue(value: string): string {
@@ -29,7 +31,12 @@ function normalized(record: UnitRecord, publishedHead: boolean): UnitRecord {
   const fields = Object.fromEntries(
     Object.entries(record.fields)
       .filter(([field]) => !lifecycle || !PUBLISH_FIELDS.has(field))
-      .map(([field, value]) => [field, jsonValue(value)]),
+      .map(([field, value]) => [
+        field,
+        field === "attributes" && record.table.startsWith("sys_hub_")
+          ? orderedAttributes(value)
+          : jsonValue(value),
+      ]),
   );
   return { ...record, fields };
 }
@@ -45,13 +52,26 @@ function instanceFields(record: UnitRecord): Readonly<Record<string, string>> {
   return fields;
 }
 
-function recordAgrees(wanted: UnitRecord, actual: UnitRecord, head: boolean): boolean {
+function recordAgrees(
+  wanted: UnitRecord,
+  actual: UnitRecord,
+  head: boolean,
+  references: ReadonlyMap<string, string> = new Map(),
+): boolean {
   if (wanted.table !== actual.table || wanted.action !== actual.action) return false;
-  const built = normalized(wanted, head);
-  const captured = normalized(actual, head);
+  const built = normalized(exportedDefaults(wanted, actual), head);
+  const captured = normalized(
+    { ...actual, fields: compiledFields(wanted, actual, references) },
+    head,
+  );
   // A missing payload field is missing evidence, unlike a live Table API column absent on an
   // older release. Never let compareUnit's compatibility handling turn it into agreement.
-  if (Object.keys(built.fields).some((field) => captured.fields[field] === undefined)) return false;
+  if (
+    Object.keys(built.fields).some(
+      (field) => isComparedField(built.table, field) && captured.fields[field] === undefined,
+    )
+  )
+    return false;
   return (
     compareUnit(
       { updateName: "", file: "", head: built, children: [] },
@@ -73,7 +93,9 @@ function completeChildren(built: BuiltUnit, actual: BuiltUnit): boolean {
           const held = comparedValue(candidate, field)[0];
           return sameValue(wanted, held) || (wanted === "NULL" && held === "");
         }) &&
-        Object.keys(row.fields).every((field) => candidate.fields[field] !== undefined),
+        Object.keys(row.fields).every(
+          (field) => !isComparedField(row.table, field) || candidate.fields[field] !== undefined,
+        ),
     ),
   );
 }
@@ -94,7 +116,11 @@ function sameIdentity(built: BuiltUnit, actual: BuiltUnit): boolean {
 // The captured authored graph must agree, even though the platform adds compiled snapshots.
 // Empty-ID child records are the SDK's delete_multiple instructions: their table is still
 // checked, so old rows left behind cannot silently survive in a captured flow.
-export function capturedContentAgrees(built: BuiltUnit, actual: BuiltUnit): boolean {
+export function capturedContentAgrees(
+  built: BuiltUnit,
+  actual: BuiltUnit,
+  references: ReadonlyMap<string, string> = new Map(),
+): boolean {
   if (built.head.table !== actual.head.table) return false;
   if (built.head.action !== actual.head.action) return false;
   if (!sameIdentity(built, actual)) return false;
@@ -113,20 +139,17 @@ export function capturedContentAgrees(built: BuiltUnit, actual: BuiltUnit): bool
     );
   }
   const authoredTables = new Set(built.children.map((record) => record.table));
-  if (
-    actual.children.some(
-      (record) => !authoredTables.has(record.table) && !SNAPSHOTS.has(record.table),
-    )
-  )
+  const rows = authoredCaptureRows(built, actual);
+  if (rows.some((record) => !authoredTables.has(record.table) && !SNAPSHOTS.has(record.table)))
     return false;
   return [...new Set(built.children.map((record) => record.table))].every((table) => {
     const wanted = built.children.filter((record) => record.table === table && record.sysId !== "");
-    const held = actual.children.filter((record) => record.table === table && record.sysId !== "");
+    const held = rows.filter((record) => record.table === table);
     return (
       wanted.length === held.length &&
       wanted.every((record) => {
         const found = held.find((candidate) => candidate.sysId === record.sysId);
-        return found !== undefined && recordAgrees(record, found, false);
+        return found !== undefined && recordAgrees(record, found, false, references);
       })
     );
   });
@@ -141,6 +164,8 @@ export function compiledCopyAgrees(
 ): boolean {
   if (copy === null) return false;
   if (built.head.table === "sys_hub_flow" && copy.head["status"] !== "published") return false;
+  if (built.head.table === "sys_hub_action_type_definition" && copy.head["state"] !== "published")
+    return false;
   const snapshot = captured.head.fields["master_snapshot"];
   if (snapshot !== undefined && snapshot !== "" && copy.head["master_snapshot"] !== snapshot)
     return false;
@@ -148,10 +173,24 @@ export function compiledCopyAgrees(
 }
 
 // A snapshot must belong to this definition, not merely appear somewhere in the payload.
+function snapshotOwner(snapshot: UnitRecord, unit: BuiltUnit): boolean {
+  const fields =
+    unit.head.table === "sys_hub_flow"
+      ? ["flow", "parent_flow"]
+      : ["parent_action", "action_type", "action_type_definition"];
+  const owners = fields.flatMap((field) =>
+    snapshot.fields[field] ? [snapshot.fields[field]] : [],
+  );
+  return owners.length > 0 && owners.every((id) => id === unit.head.sysId);
+}
+
 export function publishedCapture(unit: BuiltUnit): boolean {
+  if (unit.head.action === "DELETE") return true;
   const table = unit.head.table;
   if (table !== "sys_hub_flow" && table !== "sys_hub_action_type_definition") return true;
   if (table === "sys_hub_flow" && unit.head.fields["status"] !== "published") return false;
+  if (table === "sys_hub_action_type_definition" && unit.head.fields["state"] !== "published")
+    return false;
   const snapshotTable =
     table === "sys_hub_flow" ? "sys_hub_flow_snapshot" : "sys_hub_action_type_snapshot";
   const master = unit.head.fields["master_snapshot"] ?? "";
@@ -160,10 +199,8 @@ export function publishedCapture(unit: BuiltUnit): boolean {
       snapshot.table === snapshotTable &&
       snapshot.sysId !== "" &&
       snapshot.action !== "DELETE" &&
-      (master !== ""
-        ? master === snapshot.sysId
-        : ["flow", "action_type", "action_type_definition"].some(
-            (field) => snapshot.fields[field] === unit.head.sysId,
-          )),
+      (master === "" || master === snapshot.sysId) &&
+      (snapshot.fields["master"] === undefined || snapshot.fields["master"] === "true") &&
+      snapshotOwner(snapshot, unit),
   );
 }

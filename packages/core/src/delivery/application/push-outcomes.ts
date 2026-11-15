@@ -57,8 +57,11 @@ async function outcome(
   const applied = compiled
     ? compiledAgrees(built, evidence, back)
     : (back.applied.get(updateName) ?? true);
-  const mismatches =
-    compiled && !applied ? [CAPTURE_MISMATCH] : (back.mismatches.get(updateName) ?? []);
+  const mismatches = applied
+    ? []
+    : compiled
+      ? [CAPTURE_MISMATCH]
+      : (back.mismatches.get(updateName) ?? []);
   return {
     project,
     updateName,

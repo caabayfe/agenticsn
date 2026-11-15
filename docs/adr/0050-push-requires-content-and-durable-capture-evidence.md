@@ -21,9 +21,9 @@ already-equal shortcut recorded it without attempting capture.
    subflow and action. Missing, duplicate, failed and unexpected acknowledgements stop push.
 2. Capture is content evidence. Decode the target update's payload and compare the reviewed
    authored fields and child graph. Compare decoded JSON deterministically. Publication's
-   active/status/version changes on compiled heads are lifecycle changes; authored child
+   active/status/state/version and label-cache changes on compiled heads are lifecycle changes; authored child
    changes are not. A published flow requires published status and a snapshot linked to its
-   definition; an action requires its linked snapshot. Compare the live head and master
+   definition; an action requires published state and its linked snapshot. Compare the live head and master
    snapshot with that evidence. An unknown shape or unreadable payload fails closed.
 3. An update in the application's Default set may be moved only when its content agrees and
    the signed-in user saved it. Read it back after moving. Dictionary capture may still carry
@@ -53,6 +53,21 @@ fixture. That is preferable to reporting an undeliverable change as complete. Re
 reviewed and target-specific. No immutable receipt history, new deployment UI, transaction
 protocol or other P2 capability is introduced.
 
-Offline validation uses recorded SDK build graphs and explicitly synthetic published
-lifecycle/snapshot examples. This decision does not claim live compatibility for every
-ServiceNow release; the development-instance checks in spec 014 remain a release check.
+Live acceptance on pdi11 (Brazil patch 1, embedded SDK 4.14.0) verified creation and changed
+scripts, inputs and names for a flow, subflow and action. Recorded captures establish the
+supported normalization: snapshot-owned graph copies, generated runtime rows, parameter
+descriptor enrichment, omitted SDK defaults and generated attributes. Authored values and
+rows still require evidence. Snapshot references resolve to their definition through indexed
+reads of the referenced snapshot's parent; names alone cannot establish identity. An unreadable
+reference remains a mismatch. Deletions require absence and their deletion capture, rather
+than a surviving published snapshot.
+
+Receipts for deletions by ID match the exact update name, even when two deletion digests are
+equal. Digest fallback applies only to keyed deletions whose synthetic ID changes on rebuild.
+
+The missing-capture test remained pending across fresh CLI processes and a reviewed reload.
+The unchanged reload did not generate a new capture on this release. Restoring the deliberately
+withheld, verified test capture to its original set enabled a reviewed record-only recovery.
+A separate external edit blocked both a new plan and the previous reviewed push without
+overwriting the edit. This does not establish compatibility with every ServiceNow release;
+see spec 014 for the tested scope and remaining checks.

@@ -1,5 +1,7 @@
 import type { InstanceCopy } from "../../authoring/domain/unit";
 import { PendingDeliveryTargetError } from "../domain/errors";
+import { pendingFor } from "../domain/pending-delivery";
+import type { PlannedUnit } from "../domain/unit-plan";
 import type { PendingDelivery, PushJournal, PushJournalStore } from "../ports";
 import type { ProjectLoad } from "./plan-units";
 import type { PushedUnit } from "./push-types";
@@ -38,12 +40,7 @@ export async function startJournal(
 export async function stagePending(run: JournalRun, load: ProjectLoad, updateSet: string) {
   const pending: PendingDelivery[] = [...(run.journal.current.pending ?? [])];
   for (const unit of load.units) {
-    const old = pending.find(
-      (p) =>
-        p.project === unit.project &&
-        (p.updateName === unit.updateName ||
-          (p.operation === "delete" && p.digest === unit.digest)),
-    );
+    const old = previousPending(pending, load, unit);
     if (old !== undefined && old.updateSet !== updateSet)
       throw new PendingDeliveryTargetError(unit.updateName);
     if (unit.operation === "record" && old !== undefined && old.updateName !== unit.updateName) {
@@ -67,6 +64,21 @@ export async function stagePending(run: JournalRun, load: ProjectLoad, updateSet
   }
   run.journal.current = { ...run.journal.current, pending };
   await run.store.write(run.journal.current);
+}
+
+function previousPending(
+  pending: readonly PendingDelivery[],
+  load: ProjectLoad,
+  unit: PlannedUnit,
+) {
+  const built = load.built.get(unit.updateName)?.unit;
+  return built === undefined
+    ? undefined
+    : pendingFor(
+        pending.filter((entry) => entry.project === unit.project),
+        built,
+        unit.digest,
+      );
 }
 
 // Evidence survives until git has committed the ledgers, not just until fluent/load returns.

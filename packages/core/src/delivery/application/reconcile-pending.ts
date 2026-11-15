@@ -5,6 +5,7 @@ import type { InstanceReader } from "../../connection/ports";
 import { TableName } from "../../kernel/table-name";
 import { capturedContentAgrees, compiledCopyAgrees } from "../domain/capture-content";
 import type { CaptureDecoder, PendingDelivery } from "../ports";
+import { captureReferences } from "./capture-references";
 
 // Read-only reconciliation can resolve an unknown acknowledgement. It cannot bless a
 // different known remote version, or infer success from a timestamp or update name.
@@ -31,7 +32,9 @@ export async function reconcilePending(
     signal,
   );
   const content = decode(unit.updateName, rows[0]?.["payload"] ?? "", copy);
-  if (content?.published !== true || !capturedContentAgrees(unit, content.unit)) return pending;
+  if (content?.published !== true) return pending;
+  const references = await captureReferences(reader, unit, content.unit, signal);
+  if (!capturedContentAgrees(unit, content.unit, references)) return pending;
   const applied = isDeletion(unit)
     ? copy === null
     : copy !== null &&

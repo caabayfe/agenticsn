@@ -5,16 +5,24 @@ import { type BuiltUnit, type InstanceCopy, isDeletion } from "../../authoring/d
 import { unitSpec } from "../../authoring/domain/unit-specs";
 import type { PendingDelivery } from "./delivery-receipt";
 
+export function isKeyedDeletion(unit: BuiltUnit): boolean {
+  return (
+    isDeletion(unit) && Object.keys(unit.head.fields).some((field) => !field.startsWith("sys_"))
+  );
+}
+
 export function pendingFor(
   pending: readonly PendingDelivery[],
   unit: BuiltUnit,
   digest: string,
 ): PendingDelivery | undefined {
-  return pending.find(
-    (entry) =>
-      entry.updateName === unit.updateName ||
-      (isDeletion(unit) && entry.operation === "delete" && entry.digest === digest),
-  );
+  const exact = pending.find((entry) => entry.updateName === unit.updateName);
+  if (exact !== undefined) return exact;
+  // Only deletions by keys receive a regenerated synthetic update name. A deletion by ID
+  // must never borrow another record's receipt, even if their deletion digests are equal.
+  return isKeyedDeletion(unit)
+    ? pending.find((entry) => entry.operation === "delete" && entry.digest === digest)
+    : undefined;
 }
 
 // An observed write is owned only while its version is unchanged. With no read-back (a

@@ -99,6 +99,6 @@ only the recorded metadata keys, and leave the assignment value and script uncha
 branch inputs additionally require indexed native logic-input evidence. Referenced subflow
 snapshots still require independently proven ownership; numeric string exports preserve the
 exact authored integer, and generated reference captions preserve the exact execution value.
-These indexed reads are confined to changed subflow captures with logic. Missing native
+These indexed reads are confined to changed flow/subflow captures with logic; SLA captures reuse their existing contract reads. Missing native
 contracts, changed conditions/scripts/defaults, duplicate assignments, unknown descriptor keys
 and changed live versions remain refused by the recorded negative cases.

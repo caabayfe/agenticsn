@@ -45,7 +45,11 @@ describe("native trigger capture evidence", () => {
       attributes: "",
     };
     const fake = fakeInstance({ sys_hub_flow_logic_input: [row] });
-    const built = { ...unit(), head: record("sys_hub_flow", ID, { type: "subflow" }) };
+    const built = {
+      ...unit(),
+      head: record("sys_hub_flow", ID, { type: "subflow" }),
+      children: unit().children.filter((row) => row.table !== "sys_hub_trigger_instance_v2"),
+    };
     expect(await captureLogicInputs(fake.reader, built, signal)).toEqual([row]);
     expect(fake.queries).toHaveLength(2);
     expect(
@@ -57,10 +61,23 @@ describe("native trigger capture evidence", () => {
     expect(fake.writes).toEqual([]);
   });
 
+  it("reads the same independently defined branch inputs for ordinary flows", async () => {
+    const fake = fakeInstance({});
+    const built = {
+      ...unit(),
+      head: record("sys_hub_flow", ID, { type: "flow" }),
+      children: unit().children.filter((row) => row.table !== "sys_hub_trigger_instance_v2"),
+    };
+    expect(await captureLogicInputs(fake.reader, built, signal)).toEqual([]);
+    expect(fake.queries).toHaveLength(1);
+    expect(String(fake.queries[0]?.table)).toBe("sys_hub_flow_logic_input");
+  });
+
   it("adds no logic-contract reads for unrelated definitions or subflows without logic", async () => {
     const fake = fakeInstance({});
     for (const built of [
       unit(),
+      { ...unit(), head: record("sys_hub_flow", ID, { type: "flow" }) },
       { ...unit(), head: record("sys_hub_flow", ID, { type: "subflow" }), children: [] },
     ])
       expect(await captureLogicInputs(fake.reader, built, signal)).toEqual([]);

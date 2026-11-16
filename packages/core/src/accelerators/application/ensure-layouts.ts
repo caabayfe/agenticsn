@@ -3,7 +3,9 @@ import { TableName } from "../../kernel/table-name";
 import { KeysetPager } from "../../sync/application/keyset-pager";
 import {
   type EnsureFact,
+  ensureEntryId,
   ensureSource,
+  factStatus,
   isFormFieldFact,
   isListFact,
   type ListFact,
@@ -96,12 +98,17 @@ export async function ensureLayouts(
   facts: readonly EnsureFact[],
   delivery: FormDelivery,
   signal: AbortSignal,
-): Promise<{ readonly adoptions: Adoption[]; readonly written: readonly string[] }> {
+): Promise<{
+  readonly adoptions: Adoption[];
+  readonly written: readonly string[];
+  readonly recheckUnits: readonly string[];
+}> {
   const lists = await ensureLists(deps, pack, facts.filter(isListFact), signal);
   const forms = await ensureForms(deps, pack, facts.filter(isFormFieldFact), delivery, signal);
   return {
     adoptions: [...lists.adoptions, ...forms.adoptions],
     written: [...lists.written, ...forms.written],
+    recheckUnits: lists.recheckUnits,
   };
 }
 
@@ -119,8 +126,15 @@ async function ensureLists(
   pack: string,
   facts: readonly ListFact[],
   signal: AbortSignal,
-): Promise<{ readonly adoptions: Adoption[]; readonly written: readonly string[] }> {
-  const written = facts.length === 0 ? [] : await writeEntries(deps, pack, facts, signal);
+): Promise<{
+  readonly adoptions: Adoption[];
+  readonly written: readonly string[];
+  readonly recheckUnits: readonly string[];
+}> {
+  const { written, recheckUnits } =
+    facts.length === 0
+      ? { written: [], recheckUnits: [] }
+      : await writeEntries(deps, pack, facts, signal);
   const removed = await removeContainerFiles(deps);
   if (written.length + removed.length > 0) {
     await deps.steps.commit(
@@ -128,7 +142,7 @@ async function ensureLists(
       "chore(snagentic): the layouts the accelerator adds to",
     );
   }
-  return { adoptions: [], written };
+  return { adoptions: [], written, recheckUnits };
 }
 
 async function writeEntries(
@@ -136,7 +150,7 @@ async function writeEntries(
   pack: string,
   facts: readonly ListFact[],
   signal: AbortSignal,
-): Promise<string[]> {
+): Promise<{ written: string[]; recheckUnits: string[] }> {
   const states = await deps.steps.layouts(facts, signal);
   const resolved = facts.flatMap((fact, i) => {
     const state = states[i];
@@ -154,7 +168,11 @@ async function writeEntries(
     await deps.steps.writeFile(path, source.text);
     written.push(path);
   }
-  return written;
+  const recheckUnits = resolved.flatMap(({ fact, state }) => {
+    const id = ensureEntryId(pack, fact);
+    return factStatus(fact, state, id) === "missing" ? [`sys_ui_related_list_entry_${id}`] : [];
+  });
+  return { written, recheckUnits };
 }
 
 const FLUENT = "source/global/src/fluent";

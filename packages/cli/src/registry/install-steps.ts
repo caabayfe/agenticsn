@@ -18,6 +18,7 @@ import type { RunControl, UseCase, UseCaseContext } from "./use-case";
 export type CallUseCase = <I extends z.ZodObject, O extends z.ZodObject>(
   useCase: UseCase<I, O>,
   input: z.input<I>,
+  observations?: { readonly recheckUnits: readonly string[] },
 ) => Promise<z.output<O>>;
 
 // What each use case does for an install, in the admin's words.
@@ -40,11 +41,12 @@ const RESTATED = new Set(["plan-push", "push"]);
 // a sub-step of the install's step; its own progress goes one level deeper.
 export const callerFor =
   (context: UseCaseContext, run: RunControl): CallUseCase =>
-  (useCase, input) => {
+  (useCase, input, observations) => {
     const named = [useCase.group, useCase.name].filter(Boolean).join(" ");
     run.progress({ message: DOING[useCase.name] ?? named, depth: 2 });
     const nested: RunControl = {
       signal: run.signal,
+      ...observations,
       progress: (event) => {
         if (!RESTATED.has(useCase.name)) run.progress({ ...event, depth: 3 });
       },
@@ -84,15 +86,17 @@ function deliverySteps(
   instance: string,
 ): Pick<InstallSteps, "planPush" | "push"> {
   const allowed = new Set<string>();
+  const observed = new Map<string, { readonly recheckUnits: readonly string[] }>();
   return {
-    async planPush(label, _signal, own) {
-      let out = await call(planPush, { instance, label });
+    async planPush(label, _signal, own, recheckUnits = []) {
+      observed.set(label, { recheckUnits });
+      let out = await call(planPush, { instance, label }, observed.get(label));
       const ours = out.collisions.every((c) =>
         c.heldBy.every((h) => ownedBy(own, h.updateSetName)),
       );
       if (out.collisions.length > 0 && ours) {
         allowed.add(label);
-        out = await call(planPush, { instance, label, allowCollisions: true });
+        out = await call(planPush, { instance, label, allowCollisions: true }, observed.get(label));
       }
       const problems = [
         ...out.problems.map((p) => `${p.updateName || p.project}: ${p.reason}`),
@@ -105,13 +109,17 @@ function deliverySteps(
     },
     async push(planId, label) {
       const allowCollisions = allowed.has(label);
-      const out = await call(push, {
-        instance,
-        plan: planId,
-        confirm: true,
-        label,
-        allowCollisions,
-      });
+      const out = await call(
+        push,
+        {
+          instance,
+          plan: planId,
+          confirm: true,
+          label,
+          allowCollisions,
+        },
+        observed.get(label),
+      );
       return {
         units: out.units.length,
         notApplied: out.notApplied,

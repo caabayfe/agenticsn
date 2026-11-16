@@ -15,11 +15,13 @@ export function unitPlanDependencies(
   context: UseCaseContext,
   connection: Connection,
   signal: AbortSignal,
+  recheckUnits?: readonly string[],
 ): UnitPlanDependencies {
   const { root, reader, pager } = connection;
   const instance = InstanceName.parse(connection.name);
   return {
     authoring: context.authoring(root),
+    ...(recheckUnits === undefined ? {} : { recheckUnits }),
     reader,
     journal: context.pushJournal(root, instance),
     url: connection.profile.url,

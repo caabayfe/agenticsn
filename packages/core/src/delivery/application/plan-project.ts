@@ -22,6 +22,7 @@ interface ProjectDependencies {
     readonly toolchain: FluentToolchain;
   };
   readonly reader: InstanceReader;
+  readonly recheckUnits?: readonly string[];
   readonly decodeCapture?: CaptureDecoder;
   readonly signal: AbortSignal;
 }
@@ -48,14 +49,29 @@ function candidatesOf(
   entries: ReadonlyMap<string, LedgerEntry>,
   pending: readonly PendingDelivery[],
   recoverPending: boolean,
+  recheck: ReadonlySet<string>,
 ) {
   return units.filter((unit) => {
     const digest = digests.get(unit.updateName) ?? "";
     const receipt = pendingFor(pending, unit, digest);
     return recoverPending
       ? receipt !== undefined
-      : isDeletion(unit) || entries.get(unit.updateName)?.build !== digest || receipt !== undefined;
+      : isDeletion(unit) ||
+          recheck.has(unit.updateName) ||
+          entries.get(unit.updateName)?.build !== digest ||
+          receipt !== undefined;
   });
+}
+
+function deletionNames(units: readonly BuiltUnit[], copies: Awaited<ReturnType<typeof readUnits>>) {
+  return new Map(
+    units
+      .filter(isDeletion)
+      .map((unit) => [
+        unit.updateName,
+        copies.get(unit.updateName)?.head["sys_update_name"] ?? null,
+      ]),
+  );
 }
 
 export async function planProject(
@@ -71,16 +87,16 @@ export async function planProject(
   const ledger = await deps.authoring.workspace.readLedger(project);
   const entries = ledger.get(instance) ?? new Map<string, LedgerEntry>();
   const digests = new Map(build.units.map((unit) => [unit.updateName, unitDigest(unit)]));
-  const candidates = candidatesOf(build.units, digests, entries, pending, recoverPending);
-  const copies = await readUnits(deps.reader, candidates, deps.signal);
-  const deleted = new Map(
-    candidates
-      .filter(isDeletion)
-      .map((unit) => [
-        unit.updateName,
-        copies.get(unit.updateName)?.head["sys_update_name"] ?? null,
-      ]),
+  const candidates = candidatesOf(
+    build.units,
+    digests,
+    entries,
+    pending,
+    recoverPending,
+    new Set(deps.recheckUnits),
   );
+  const copies = await readUnits(deps.reader, candidates, deps.signal);
+  const deleted = deletionNames(candidates, copies);
   const removed = recoverPending
     ? { forgotten: [], problems: [] }
     : await removedDefinitions(

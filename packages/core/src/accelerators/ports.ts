@@ -134,6 +134,7 @@ export interface InstallSteps {
     label: string,
     signal: AbortSignal,
     own: readonly string[],
+    recheckUnits?: readonly string[],
   ): Promise<{
     readonly planId: string;
     readonly ready: boolean;

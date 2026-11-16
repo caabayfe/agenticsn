@@ -34,6 +34,8 @@ export interface UnitPlanQuery {
 }
 
 export interface UnitPlanDependencies {
+  // Live ensure facts already observed missing by the installer (ADR-0042).
+  readonly recheckUnits?: readonly string[];
   readonly authoring: {
     readonly workspace: AuthoringWorkspace;
     readonly toolchain: FluentToolchain;

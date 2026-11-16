@@ -1,3 +1,4 @@
+import { withoutUnassignedFields } from "./compiled-input-defaults";
 import type { Fields, UnitRecord } from "./unit";
 
 const ATTRIBUTES = new Set(["timeFromCreateToActivate", "element_mapping_provider", "uiType"]);
@@ -9,6 +10,28 @@ const DEFAULTS: Readonly<Record<string, unknown>> = {
 };
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+// Brazil clears the SDK's duplicated display label for computed record and relative-date inputs.
+// The execution value and parameter descriptor still have to match exactly.
+function generatedDisplay(wanted: Record<string, unknown>, held: Record<string, unknown>): boolean {
+  if (
+    typeof wanted["value"] !== "string" ||
+    wanted["displayValue"] !== wanted["value"] ||
+    held["value"] !== wanted["value"] ||
+    held["displayValue"] !== "" ||
+    !object(wanted["parameter"])
+  )
+    return false;
+  if (wanted["parameter"]["type"] === "document_id")
+    return /^\{\{[^{}]+\}\}$/.test(wanted["value"]);
+  if (wanted["parameter"]["type"] !== "schedule_date_time") return false;
+  try {
+    const date: unknown = JSON.parse(wanted["value"]);
+    return object(date) && date["date_type"] === "relative";
+  } catch {
+    return false;
+  }
+}
 
 // Publication fills parameter descriptors from the referenced input/output definitions.
 // Values, scripts, array membership/order and every authored descriptor still have to agree.
@@ -23,7 +46,8 @@ function jsonAgrees(wanted: unknown, held: unknown, parameter = false): boolean 
   if (!object(held)) return false;
   const complete = Object.entries(wanted).every(
     ([key, value]) =>
-      Object.hasOwn(held, key) && jsonAgrees(value, held[key], parameter || key === "parameter"),
+      (key === "displayValue" && generatedDisplay(wanted, held)) ||
+      (Object.hasOwn(held, key) && jsonAgrees(value, held[key], parameter || key === "parameter")),
   );
   return (
     complete &&
@@ -38,7 +62,9 @@ function jsonAgrees(wanted: unknown, held: unknown, parameter = false): boolean 
 
 function sameJson(wanted: string, held: string): boolean {
   try {
-    return jsonAgrees(JSON.parse(wanted), JSON.parse(held));
+    const built: unknown = JSON.parse(wanted);
+    const captured: unknown = JSON.parse(held);
+    return jsonAgrees(built, withoutUnassignedFields(built, captured));
   } catch {
     return false;
   }

@@ -83,3 +83,11 @@ withheld, verified test capture to its original set enabled a reviewed record-on
 A separate external edit blocked both a new plan and the previous reviewed push without
 overwriting the edit. This does not establish compatibility with every ServiceNow release;
 see spec 014 for the tested scope and remaining checks.
+
+Native approval capture on pdi12 (Brazil, SDK 4.14.0) additionally records two publication
+defaults: computed document references and relative approval deadlines lose only the SDK's
+duplicated display label, and Ask for Approval adds an unassigned optional journal-field
+descriptor. Recognize only the recorded shapes with unchanged execution values, empty defaults
+and disabled scripting. Explicit labels, supplied or missing authored values, changed parameter
+types, duplicate descriptors and unknown shapes remain mismatches. The recorded fixture and
+negative mutations establish this compatibility; receipt and live-snapshot checks are unchanged.

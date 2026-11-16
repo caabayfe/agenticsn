@@ -1,9 +1,24 @@
 import { normalizeScalarInput } from "./compiled-scalar-defaults";
-import { PARAMETER_DESCRIPTOR_KEYS } from "./compiled-variable-defaults";
+import { emptyParameterMetadata, PARAMETER_DESCRIPTOR_KEYS } from "./compiled-variable-defaults";
 import type { Fields } from "./unit";
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+function attributesAgree(value: unknown, expected: string | undefined): boolean {
+  if (!object(value) || expected === undefined) return false;
+  const parts = expected.split(",").filter(Boolean);
+  if (parts.some((part) => part.indexOf("=") < 1)) return false;
+  const entries = parts.map((part) => {
+    const separator = part.indexOf("=");
+    return [part.slice(0, separator), part.slice(separator + 1)] as const;
+  });
+  return (
+    new Set(entries.map(([key]) => key)).size === entries.length &&
+    Object.keys(value).length === entries.length &&
+    entries.every(([key, expectedValue]) => value[key] === expectedValue)
+  );
+}
 
 function definitionOf(wanted: unknown, held: unknown, definitions: readonly Fields[]) {
   if (!object(wanted) || !object(held) || !object(held["parameter"])) return undefined;
@@ -68,6 +83,9 @@ export function normalizeContractInput(
     wanted["parameter"] === undefined &&
     definition["internal_type"] === "records" &&
     object(held["parameter"]) &&
+    emptyParameterMetadata(held["parameter"]) &&
+    held["parameter"]["maxsize"] === Number(definition["max_length"]) &&
+    attributesAgree(held["parameter"]["attributes"], definition["attributes"]) &&
     Object.keys(held["parameter"]).every((key) => PARAMETER_DESCRIPTOR_KEYS.has(key)) &&
     held["parameter"]["scriptActive"] !== true &&
     held["parameter"]["script"] === undefined

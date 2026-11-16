@@ -16,6 +16,7 @@ const PARAMETER_FIELDS = [
   "default_value",
   "mandatory",
   "attributes",
+  "max_length",
 ];
 const attribute = (value: string, key: string) =>
   value

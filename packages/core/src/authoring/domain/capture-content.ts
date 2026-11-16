@@ -1,7 +1,12 @@
 import { canonicalJson } from "../../kernel/canonical-json";
 import { compareUnit, isComparedField } from "./compare";
 import { authoredCaptureRows } from "./compiled-graph";
-import { compiledFields, exportedDefaults, orderedAttributes } from "./compiled-values";
+import {
+  compiledFields,
+  exportedDefaults,
+  exportedDefaultsAgree,
+  orderedAttributes,
+} from "./compiled-values";
 import { normalizeEmptySlaInputs } from "./empty-sla-input";
 import { normalizeNativeDefaults } from "./native-input-defaults";
 import { type NativeTriggerContract, withNativeTriggerInputs } from "./native-trigger-capture";
@@ -57,6 +62,7 @@ function recordAgrees(
   references: ReadonlyMap<string, string> = new Map(),
 ): boolean {
   if (wanted.table !== actual.table || wanted.action !== actual.action) return false;
+  if (!exportedDefaultsAgree(wanted, actual)) return false;
   const built = normalized(exportedDefaults(wanted, actual), head);
   const captured = normalized(
     { ...actual, fields: compiledFields(wanted, actual, references) },

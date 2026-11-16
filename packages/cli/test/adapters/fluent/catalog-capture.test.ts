@@ -110,26 +110,34 @@ describe("published native Service Catalog capture", () => {
   ] as const)
     it(`refuses changed ${name}: ${JSON.stringify(patch)}`, () =>
       expect(agrees(input(name, patch))).toBe(false));
-  it("refuses unknown keys in a generated records parameter", () => {
-    const altered = {
-      ...actual,
-      children: actual.children.map((row) => {
-        if (
-          row.table !== "sys_hub_flow_logic_instance_v2" ||
-          !built.children.some((wanted) => wanted.sysId === row.sysId)
-        )
-          return row;
-        const values = JSON.parse(row.fields["values"] ?? "{}");
-        if (!Array.isArray(values.inputs)) return row;
-        for (const entry of values.inputs.filter(
-          (entry: Record<string, unknown>) => entry["name"] === "items",
-        ))
-          entry.parameter.unreviewed = true;
-        return { ...row, fields: { ...row.fields, values: JSON.stringify(values) } };
-      }),
-    };
-    expect(agrees(altered)).toBe(false);
-  });
+  for (const patch of [
+    { unreviewed: true },
+    { table: "incident" },
+    { reference: "incident" },
+    { maxsize: 1 },
+    { readOnly: true },
+    { attributes: { unreviewed: "true" } },
+  ])
+    it(`refuses changed generated records parameter ${Object.keys(patch)[0]}`, () => {
+      const altered = {
+        ...actual,
+        children: actual.children.map((row) => {
+          if (
+            row.table !== "sys_hub_flow_logic_instance_v2" ||
+            !built.children.some((wanted) => wanted.sysId === row.sysId)
+          )
+            return row;
+          const values = JSON.parse(row.fields["values"] ?? "{}");
+          if (!Array.isArray(values.inputs)) return row;
+          for (const entry of values.inputs.filter(
+            (entry: Record<string, unknown>) => entry["name"] === "items",
+          ))
+            Object.assign(entry.parameter, patch);
+          return { ...row, fields: { ...row.fields, values: JSON.stringify(values) } };
+        }),
+      };
+      expect(agrees(altered)).toBe(false);
+    });
   it("requires independently matching native parameter identities", () => {
     expect(
       agrees(actual, [

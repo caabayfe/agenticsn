@@ -1,6 +1,7 @@
 import { withoutUnassignedFields } from "./compiled-input-defaults";
 import { normalizeScalarInput } from "./compiled-scalar-defaults";
 import type { Fields, UnitRecord } from "./unit";
+import { sameValue } from "./values";
 
 const ATTRIBUTES = new Set(["timeFromCreateToActivate", "element_mapping_provider", "uiType"]);
 const JSON_FIELDS = new Set(["values", "trigger_inputs", "subflow_inputs"]);
@@ -92,10 +93,21 @@ const REFERENCE: Readonly<Record<string, string>> = {
 };
 
 const OMITTED_DEFAULTS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  // SDK 4.14 emits this empty default for a column absent from the Brazil catalog dictionary.
+  sc_cat_item: { view: "" },
   sys_hub_action_instance_v2: { active: "true" },
   sys_hub_step_instance: { active: "true" },
   sys_hub_trigger_instance_v2: { category: "" },
 };
+
+export function exportedDefaultsAgree(wanted: UnitRecord, actual: UnitRecord): boolean {
+  return Object.entries(OMITTED_DEFAULTS[wanted.table] ?? {}).every(
+    ([field, value]) =>
+      wanted.fields[field] !== value ||
+      actual.fields[field] === undefined ||
+      sameValue(value, actual.fields[field]),
+  );
+}
 
 // Recorded Brazil exports omit these SDK defaults. A non-default authored value still
 // requires evidence; this never turns a missing script, input or disabled step into a match.

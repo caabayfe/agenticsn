@@ -114,3 +114,10 @@ records remain mismatches. Reads are bounded and indexed, confined to changed ca
 logic contracts reuse those reads. Both normal capture and pending reconciliation use the same
 comparison. The linked snapshot, unchanged live version and original pending receipt remain
 required for recovery.
+
+The recorded catalog-item capture omits the SDK's generated empty `sc_cat_item.view` default;
+that column is absent from the native dictionary. Only the empty value is compatible. Nonempty
+authored/captured values and missing ordinary fields still fail. Known omitted defaults also
+refuse conflicting captured values, including where reference-name compatibility would otherwise
+lack evidence. Catalog-item names, active flags, descriptions and fulfilment flow bindings
+remain compared. No capture, live-base, receipt or target check is skipped.

@@ -9,7 +9,8 @@
       "attributes": "element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper",
       "internal_type": "records",
       "mandatory": "true",
-      "element": "items"
+      "element": "items",
+      "max_length": "100"
     },
     {
       "sys_id": "9a5f5105c32632002841b63b12d3ae46",
@@ -18,7 +19,8 @@
       "attributes": "is_scriptable=false,element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper",
       "internal_type": "string",
       "mandatory": "true",
-      "element": "condition"
+      "element": "condition",
+      "max_length": "2000"
     },
     {
       "sys_id": "f0af19c1c32632002841b63b12d3aea3",
@@ -27,7 +29,8 @@
       "attributes": "use_basic_input=true,element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper",
       "internal_type": "string",
       "mandatory": "false",
-      "element": "condition_name"
+      "element": "condition_name",
+      "max_length": "255"
     }
   ],
   "outputs": [

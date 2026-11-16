@@ -2,7 +2,7 @@ import type { BuiltUnit, Fields, UnitRecord } from "./unit";
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
-export const PARAMETER_DESCRIPTOR_KEYS = new Set([
+export const PARAMETER_DESCRIPTOR_KEYS: ReadonlySet<string> = new Set([
   "children",
   "id",
   "label",
@@ -34,7 +34,7 @@ export const PARAMETER_DESCRIPTOR_KEYS = new Set([
   "dependent_on",
 ]);
 
-function emptyMetadata(value: Record<string, unknown>): boolean {
+export function emptyParameterMetadata(value: Record<string, unknown>): boolean {
   if (
     ["extended", "readOnly", "use_dependent", "fShowReferenceFinder", "local"].some(
       (key) => value[key] !== false,
@@ -84,7 +84,7 @@ function descriptor(value: unknown, definition: Fields): boolean {
   )
     return false;
   if (value["mandatory"] !== (definition["mandatory"] === "true")) return false;
-  if (!emptyMetadata(value)) return false;
+  if (!emptyParameterMetadata(value)) return false;
   const attributes = value["attributes"];
   return (
     definition["attributes"] === "" &&

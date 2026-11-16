@@ -1,5 +1,16 @@
 # Incident delivery CLI integration verification
 
+**Continuation:** owner authorized GitHub pushes, pdi12 install/browser end-to-end and merges
+conditional on success. This branch is pushed in [#274](https://github.com/caabayfe/agenticsn/pull/274).
+The integrated candidate completed pdi12 zero-data install `1ba4f0fa857fbea9`, report
+`c684ba9d241f45fedd09df47bac300d9078c1835`: instance already as built, no metadata reload,
+no activations, zero rows, 26/26 layouts/forms. GitHub verify run `43843028262` / 837 passed on
+initial head `3cca67fb`. Browser ordinary resolution/closure, actual SOW refused-save/reload,
+non-admin MIM manager native Publish and caller Close visibility in classic/SOW passed. The
+manager's final native Close awaits renewed browser sign-in; merge remains gated on it and
+the final head's checks. No release, tag or installed CLI upgrade has occurred. Earlier no-push
+and no-integrated-live statements below describe the prior checkpoint.
+
 ## Candidate
 
 - Branch: `fix/incident-delivery-integration`, worktree `snagentic20-sla-capture`.

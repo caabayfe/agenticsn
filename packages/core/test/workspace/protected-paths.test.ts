@@ -39,6 +39,7 @@ describe("protected paths", () => {
       // The MCP configs say how the snagentic server starts, and with which environment.
       ".mcp.json",
       ".vscode/mcp.json",
+      ".codex/config.toml",
       "waivers.yaml",
     ]) {
       expect(protectedReason(path)).not.toBeNull();

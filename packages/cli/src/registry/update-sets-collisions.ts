@@ -2,6 +2,7 @@ import { updateSetCollisions } from "@snagentic/core";
 import { z } from "zod";
 import { connect } from "./connect";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 const Holder = z.object({
   updateSet: z.string(),
@@ -12,6 +13,16 @@ const Holder = z.object({
 });
 
 export const updateSetsCollisions = defineUseCase({
+  help: {
+    summary: "Find records held in multiple open update sets",
+    section: "Manage",
+    group: HELP_GROUPS.updateSets,
+    details:
+      "Find overlapping ownership in open update sets. Exits with 1 when collisions exist, so " +
+      "CI can stop before promotion.",
+    effects: "Reads the instance; makes no instance changes.",
+    examples: [["update-sets", "collisions", "dev"]],
+  },
   group: "update-sets",
   name: "collisions",
   description:

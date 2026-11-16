@@ -40,6 +40,8 @@ import { WorkspaceFluentProjects } from "./adapters/fluent/workspace-fluent-proj
 import { createTextFile } from "./adapters/fs/create-text-file";
 import { workspaceSpills } from "./adapters/fs/file-spill";
 import { fsWorkspaceFiles } from "./adapters/fs/fs-workspace-files";
+import { managedAgentFiles } from "./adapters/fs/managed-agent-files";
+import { parseToml } from "./adapters/fs/toml-parser";
 import { gitInspector } from "./adapters/git/git-inspector";
 import { gitIntegrator } from "./adapters/git/git-integrator";
 import { gitInventoryReader } from "./adapters/git/git-inventory-reader";
@@ -173,6 +175,8 @@ const context: UseCaseContext = {
   files: { create: createTextFile },
   decodeCapture,
   workspaceFiles: fsWorkspaceFiles,
+  agentFiles: managedAgentFiles,
+  parseToml,
   delivery: (root, instance) => new GitDeliveryWorkspace(root, instance),
   // Run from source, the packs in the repository; in the binary, the packs it embeds (the
   // minimal test pack lives in tests/fixtures and never ships).
@@ -219,13 +223,20 @@ process.exitCode = await runCli(
     version: versionLine(),
     signal: cancellation.signal,
     readStdin: () => new Response(Bun.stdin.stream()).text(),
-    serveMcp: async () => {
+    serveMcp: async (profile) => {
       const development = await developmentInstances(context);
-      await createMcpServer(USE_CASES, context, versionLine(), development, {
-        instructions: INSTRUCTIONS,
-        resultNote: RESULT_NOTE,
-        prompts: PROMPTS,
-      }).connect(new StdioServerTransport());
+      await createMcpServer(
+        USE_CASES,
+        context,
+        versionLine(),
+        development,
+        {
+          instructions: INSTRUCTIONS,
+          resultNote: RESULT_NOTE,
+          prompts: PROMPTS,
+        },
+        profile,
+      ).connect(new StdioServerTransport());
     },
   },
 );

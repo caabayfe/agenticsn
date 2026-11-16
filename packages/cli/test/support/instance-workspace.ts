@@ -7,6 +7,7 @@ import { GitDeliveryWorkspace } from "../../src/adapters/delivery/git-delivery-w
 import { loadInProcessRuntime } from "../../src/adapters/fluent/fluent-runtime-loader";
 import { WorkspaceFluentProjects } from "../../src/adapters/fluent/workspace-fluent-projects";
 import { fsWorkspaceFiles } from "../../src/adapters/fs/fs-workspace-files";
+import { managedAgentFiles } from "../../src/adapters/fs/managed-agent-files";
 import { gitInspector } from "../../src/adapters/git/git-inspector";
 import { gitIntegrator } from "../../src/adapters/git/git-integrator";
 import { gitInventoryReader } from "../../src/adapters/git/git-inventory-reader";
@@ -93,6 +94,7 @@ export async function instanceWorkspace(
     }),
     pushJournal: (r, name) => new JsonPushJournalStore(join(r, instancePaths(name).localState)),
     ...DELIVERY_ADAPTERS,
+    agentFiles: managedAgentFiles,
     files: {
       create: async (path, content) => {
         if (written.has(path)) {

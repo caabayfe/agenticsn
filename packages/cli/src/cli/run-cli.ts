@@ -1,7 +1,9 @@
 import { EXIT_CODES } from "@snagentic/core";
 import { Command, CommanderError, Option } from "commander";
+import { z } from "zod";
 import { addHookCommand } from "../hooks/hook-command";
 import { describeError, executeUseCase, type ProgressEvent } from "../registry/execute";
+import { MCP_PROFILES, type McpProfile } from "../registry/mcp-profile";
 import {
   isOutputFormat,
   OUTPUT_FORMATS,
@@ -9,7 +11,8 @@ import {
   type UseCase,
   type UseCaseContext,
 } from "../registry/use-case";
-import { argumentSyntax, optionsFor } from "./zod-options";
+import { commandHelp, configureRootHelp, helpSection } from "./command-help";
+import { argumentSyntax, inputDescription, optionsFor } from "./zod-options";
 
 export interface CliIo {
   stdout(text: string): void;
@@ -18,7 +21,7 @@ export interface CliIo {
 
 export interface CliOptions {
   readonly version: string;
-  readonly serveMcp: () => Promise<void>;
+  readonly serveMcp: (profile: McpProfile) => Promise<void>;
   // The process's standard input, for host hooks.
   readonly readStdin?: () => Promise<string>;
   // Aborted on Ctrl-C by the composition root.
@@ -88,12 +91,18 @@ function inputFrom(
 }
 
 // Use cases with a group become subcommands: `snagentic <group> <name>`.
-function parentFor(program: Command, group: string | undefined): Command {
-  if (group === undefined) {
+function parentFor(program: Command, useCase: UseCase): Command {
+  if (useCase.group === undefined) {
     return program;
   }
-  const existing = program.commands.find((command) => command.name() === group);
-  return existing ?? program.command(group).description(`${group} commands`);
+  const existing = program.commands.find((command) => command.name() === useCase.group);
+  return (
+    existing ??
+    program
+      .command(useCase.group)
+      .description(useCase.help?.group ?? useCase.group)
+      .helpGroup(`${useCase.help?.section ?? "Commands"}:`)
+  );
 }
 
 function withWorkspaceOverride(
@@ -104,6 +113,25 @@ function withWorkspaceOverride(
   return typeof workspace === "string"
     ? { ...context, host: { ...context.host, workspaceOverride: workspace } }
     : context;
+}
+
+function useCaseCommand(program: Command, useCase: UseCase): Command {
+  const positional = useCase.arguments ?? [];
+  const command = parentFor(program, useCase).command(useCase.name, {
+    hidden: helpSection(useCase) === "Advanced:" || helpSection(useCase) === "Internal:",
+  });
+  commandHelp(command, useCase);
+  for (const key of positional) {
+    const field = useCase.input.shape[key];
+    command.argument(argumentSyntax(useCase.input, key), field && inputDescription(key, field));
+  }
+  for (const option of optionsFor(useCase.input, positional, useCase.help?.options)) {
+    command.addOption(option);
+  }
+  command.addOption(
+    new Option("--format <format>", "output format").choices(OUTPUT_FORMATS).default("text"),
+  );
+  return command;
 }
 
 // Builds the CLI from the registry. Contains no knowledge of any specific use case.
@@ -117,15 +145,22 @@ export async function runCli(
   let exitCode = 0;
   const signal = options.signal ?? new AbortController().signal;
   const program = new Command("snagentic")
-    .description("Develop, audit and validate ServiceNow with any coding agent.")
+    .description("Understand and develop ServiceNow with coding agents, git and guardrails.")
     .version(options.version)
     .exitOverride()
     .configureOutput({ writeOut: io.stdout, writeErr: io.stderr });
 
   program
-    .command("mcp")
+    .command("mcp", { hidden: true })
+    .helpGroup("Internal:")
+    .summary("Serve MCP tools for coding-agent hosts")
     .description("Serve snagentic's MCP tools over stdio. Agent hosts start this themselves.")
-    .action(options.serveMcp);
+    .addOption(
+      new Option("--profile <profile>", "tool surface to expose")
+        .choices([...MCP_PROFILES])
+        .default("legacy"),
+    )
+    .action((args) => options.serveMcp(z.enum(MCP_PROFILES).parse(args.profile)));
 
   addHookCommand(
     program,
@@ -139,24 +174,13 @@ export async function runCli(
     },
   );
 
-  program.option("--workspace <path>", "workspace folder (default: found from the current folder)");
+  program.option("--workspace <path>", "workspace folder (default: found from current folder)");
+  configureRootHelp(program, useCases);
   const contextFor = (): UseCaseContext => withWorkspaceOverride(context, program.opts());
 
   for (const useCase of useCases.filter((candidate) => candidate.cli !== false)) {
     const positional = useCase.arguments ?? [];
-    const command = parentFor(program, useCase.group)
-      .command(useCase.name)
-      .description(useCase.description);
-    for (const key of positional) {
-      command.argument(argumentSyntax(useCase.input, key));
-    }
-    for (const option of optionsFor(useCase.input, positional)) {
-      command.addOption(option);
-    }
-    command.addOption(
-      new Option("--format <format>", "output format").choices(OUTPUT_FORMATS).default("text"),
-    );
-    command.action(async (...values: unknown[]) => {
+    useCaseCommand(program, useCase).action(async (...values: unknown[]) => {
       const input = inputFrom(positional, values);
       exitCode = await runUseCase(useCase, input, contextFor(), io, signal);
     });

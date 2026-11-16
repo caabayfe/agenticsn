@@ -1,6 +1,7 @@
 import { checkDocs, DOCS_PROBLEM_KINDS } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 export const EvidenceResultSchema = z.object({
@@ -33,6 +34,16 @@ export function checkLines(check: {
 }
 
 export const docsCheck = defineUseCase({
+  help: {
+    summary: "Check documentation evidence and structure",
+    section: "Additional workflows",
+    group: HELP_GROUPS.docs,
+    details:
+      "Check evidence hashes, citations, missing animations and required guide sections. " +
+      "Exits with 1 when a claim is stale or a source has an error.",
+    effects: "Reads documentation and the local mirror; does not change the instance.",
+    examples: [["docs", "check"]],
+  },
   group: "docs",
   name: "check",
   description:

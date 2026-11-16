@@ -159,6 +159,16 @@ function renderOne(status: InstanceStatusOutput): string {
 }
 
 export const status = defineUseCase({
+  help: {
+    summary: "Show mirror freshness and pending changes",
+    section: "Understand",
+    details:
+      "Show pull freshness, interrupted work, pending integration, local changes and " +
+      "unfinished deliveries. Follow the suggested next command.",
+    effects:
+      "Reads local state; fetches the shared git mirror when configured. Does not call the instance.",
+    examples: [["status"], ["status", "dev"]],
+  },
   name: "status",
   description:
     "Show how fresh each instance's mirror is: last pull, interrupted pulls, pulls not yet " +
@@ -168,6 +178,7 @@ export const status = defineUseCase({
   output: z.object({ instances: z.array(InstanceStatusOutput) }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["investigate", "develop"],
   arguments: ["instance"],
   async handle(input, context) {
     const root = await workspaceRoot(context);

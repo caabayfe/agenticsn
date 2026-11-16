@@ -10,6 +10,7 @@ export function instructions(skills: readonly string[]): string {
     "instance as YAML, read-only: the context to search, describe and review. Use snagentic's MCP",
     "tools (or the `snagentic` CLI) for everything about the instance.",
     "",
+    "MCP profiles: investigate for evidence, develop for gated changes. Install shared skills on each machine with snagentic agent install.",
     "Golden rules",
     "- Understand before changing: `describe` the tables and records involved, `advise` on",
     "  the intent, and agree the design with the user before editing.",

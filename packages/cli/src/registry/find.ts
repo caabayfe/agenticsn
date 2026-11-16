@@ -5,6 +5,20 @@ import { withKnowledge } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
 
 export const find = defineUseCase({
+  help: {
+    summary: "Find records or search their code",
+    section: "Understand",
+    details:
+      "Find records by name, or use --code to search script contents. Omit text to list " +
+      "records filtered by class, table or scope. Use snagentic describe on a result to " +
+      "investigate it.",
+    effects: "Queries the local mirror and search index; does not call the instance.",
+    examples: [
+      ["find", "assignment", "--class", "sys_script"],
+      ["find", "--table", "incident"],
+    ],
+    options: { limit: "Maximum number of results" },
+  },
   name: "find",
   description:
     "Find where something lives in the mirrored instance: records by name (business rules, " +
@@ -50,6 +64,7 @@ export const find = defineUseCase({
   }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["investigate", "develop"],
   arguments: ["text"],
   async handle(input, context, run) {
     return withKnowledge(context, input.instance, run.progress, async (deps) => {

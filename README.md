@@ -34,7 +34,7 @@ advice, and enforces checks in code instead of trusting prompts.
 | **Develop** | Mirror every metadata record into git and keep it fresh with almost no instance load; adopt records into Fluent source with the ServiceNow SDK; push a reviewed plan to a development update set, recorded as the platform records it | `pull`, `integrate`, `adopt`, `status`, `plan-push`, `push` |
 | **Understand and audit** | Find anything in the instance in milliseconds; explain a table's behavior in execution order (client scripts, UI policies, business rules, notifications, ACLs); show who uses a record | `find`, `describe`, `update-sets`, `plugins` |
 | **Guardrails** | Advice before building (least custom option first); 41 platform rules for security, performance, upgradability, manageability and UX, reporting only what a change introduced; checks after each agent edit, at commit and inside `push` | `advise`, `validate`, `check`, hooks |
-| **Agents** | One MCP server with 13 tools, six workflow skills (design, build, review, explain, deliver, document), short instructions and host hooks, installed with one command and shared through git | `mcp`, `agent install` |
+| **Agents** | Bundled investigate/develop MCP profiles (legacy interface: 13 tools), eight workflow skills at user level, workspace instructions and host hooks, installed with one command | `mcp`, `agent install` |
 
 ## Safe by design
 

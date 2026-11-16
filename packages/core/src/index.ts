@@ -28,6 +28,7 @@ export {
 export type { EnvironmentProbe } from "./environment/ports";
 export * from "./governance/index";
 export * from "./instance/index";
+export * from "./investigation/index";
 export { canonicalJson, type JsonValue } from "./kernel/canonical-json";
 export { canonicalText } from "./kernel/canonical-text";
 export {

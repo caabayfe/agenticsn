@@ -49,7 +49,7 @@ async function workspaceChecks(context: UseCaseContext): Promise<Check[]> {
     const root = await workspaceRoot(context);
     return [
       await checkAgentPack(context.workspaceFiles, root, VERSION),
-      await checkMcpConfigs(context.workspaceFiles, root, MCP_CONFIGS),
+      await checkMcpConfigs(context.workspaceFiles, root, MCP_CONFIGS, context.parseToml),
       await checkRepositoryTuning(context.workspaces, root),
       await checkMirrorAttributes(context.workspaceFiles, root),
     ];
@@ -69,6 +69,17 @@ function renderCheck(check: Check, width: number): string[] {
 }
 
 export const doctor = defineUseCase({
+  help: {
+    summary: "Diagnose workspace and connection problems",
+    section: "Manage",
+    details:
+      "Check local prerequisites, git settings, search index, keychain, proxy and " +
+      "certificates. With --instance, also check credentials, connection, roles and timestamp " +
+      "handling.",
+    effects:
+      "Runs local checks and optional read-only instance checks; never writes to the instance.",
+    examples: [["doctor"], ["doctor", "--instance", "dev"]],
+  },
   name: "doctor",
   description:
     "Check that snagentic can work: git, OS keychain, search index and the proxy and extra " +

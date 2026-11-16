@@ -1,9 +1,18 @@
 import { credentialAccount, getInstance, InstanceName, logout } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 export const authLogout = defineUseCase({
+  help: {
+    summary: "Remove stored credentials",
+    section: "Manage",
+    group: HELP_GROUPS.auth,
+    details: "Remove the instance's stored credentials from the OS keychain.",
+    effects: "Removes stored credentials; does not change the instance.",
+    examples: [["auth", "logout", "dev"]],
+  },
   group: "auth",
   name: "logout",
   description:

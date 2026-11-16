@@ -2,11 +2,22 @@ import { z } from "zod";
 import { AudioInput, docsBuild } from "./docs-build";
 import { runUseCase } from "./execute";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 const DEFAULT_PORT = 4173;
 
 export const docsServe = defineUseCase({
+  help: {
+    summary: "Build and preview documentation locally",
+    section: "Additional workflows",
+    group: HELP_GROUPS.docs,
+    details:
+      "Build the documentation site and serve it on the loopback interface until Ctrl-C. " +
+      "Publish by copying .snagentic/site/ to your web server.",
+    effects: "Writes the local site and starts a local preview server; does not call the instance.",
+    examples: [["docs", "serve"]],
+  },
   group: "docs",
   name: "serve",
   description:

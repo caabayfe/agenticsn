@@ -1,6 +1,8 @@
 // A workflow skill (spec 003, section 5.1): a short procedure that routes the agent to the
 // right tool at the right moment. ServiceNow knowledge lives in the engine, not here.
 export interface Skill {
+  readonly mcpProfiles?: readonly ("investigate" | "develop")[];
+  readonly references?: readonly { readonly name: string; readonly content: string }[];
   readonly name: string;
   // The trigger: the situations it covers, in the user's words.
   readonly description: string;

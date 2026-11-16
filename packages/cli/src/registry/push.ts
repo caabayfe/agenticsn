@@ -24,6 +24,26 @@ function pullRequestLine(pr: {
 }
 
 export const push = defineUseCase({
+  help: {
+    summary: "Deliver an approved plan to development",
+    section: "Develop",
+    order: 5,
+    details:
+      "Recheck the workspace and instance against the plan from snagentic plan-push, then " +
+      "deliver the approved changes to development update sets. Stops if the plan no longer " +
+      "matches. Pass --confirm only after the user approved the plan. Reuse any planning " +
+      "overrides.",
+    effects:
+      "Writes to the development instance and commits delivery ledgers locally; --draft-pr " +
+      "may also create a pull request.",
+    examples: [["push", "--instance", "dev", "--plan", "PLAN_ID", "--confirm"]],
+    options: {
+      plan: "Plan ID returned by snagentic plan-push",
+      confirm: "Confirm that the user approved the plan",
+      label: "Update-set label; reuse the value used for planning (default: git branch)",
+      allowCollisions: "Accept ownership collisions; also use this override when planning",
+    },
+  },
   name: "push",
   description:
     "Deliver a reviewed plan to the development instance: loads the planned units of the " +
@@ -130,6 +150,7 @@ export const push = defineUseCase({
   }),
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
   mcp: true,
+  mcpProfiles: ["develop"],
   async handle(input, context, run) {
     const connection = await connectForWrite(context, input.instance, run.signal);
     const { root, profile, reader } = connection;

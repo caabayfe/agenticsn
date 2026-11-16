@@ -2,6 +2,7 @@ import type { Skill } from "../skill";
 
 export const EXPLAIN: Skill = {
   name: "servicenow-explain",
+  mcpProfiles: ["investigate", "develop"],
   description:
     "Explain how the ServiceNow instance behaves: why a field changes, what runs when a record is saved, where something is defined, what uses a script include. Use for questions, not changes.",
   when: "Questions about existing behavior. For a change, use servicenow-design.",

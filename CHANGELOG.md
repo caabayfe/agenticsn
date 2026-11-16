@@ -16,6 +16,40 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   keeps the journal until the ledger commit succeeds. Unrelated changes remain for a normal plan.
   See [the recovery guide](docs/guides/recover-interrupted-delivery.md). Fixes #269.
 
+## [2.22.0] - 2026-11-15
+
+Bundled agent setup with shared user skills, focused MCP profiles and bounded live investigation.
+
+### ⚠️ Changed: shared skills and workspace MCP bindings
+
+Upgrade snagentic on each developer machine before using the new workspace MCP bindings.
+Run `snagentic agent install` in existing workspaces to install shared user skills and update
+AGENTS.md, hooks and MCP configuration, then restart the agent host. New workspaces are
+configured by init/onboard. Each teammate installs their own user skills; cloud runners can
+use `snagentic agent install --scope workspace`. Review skipped paths: personal edits and
+custom server entries are preserved. The unprofiled `snagentic mcp` interface remains available.
+
+### Added
+
+- Bundled investigate/develop MCP profiles and bounded live table, record, count/group-count
+  and inherited-schema reads. Live reads validate fields and selective literal filters, use
+  keyset paging, verify production read-only roles and redact sensitive values.
+- Troubleshooting and testing workflows, with corrected query guidance. Eight workflows ship
+  inside the executable.
+
+### Changed
+
+- Agent installation defaults to user-level skills, with atomic writes, ownership hashes and
+  preservation of personal edits. Workspace AGENTS.md, hooks and MCP bindings remain local;
+  Codex is now explicit. Init/onboard install the integration; workspace scope supports cloud
+  runners. Exact generated old project skills and MCP bindings migrate safely.
+
+- CLI help now groups everyday commands by task with one-line summaries. `--help-all` also
+  lists advanced and internal commands; all existing commands remain callable. Individual
+  command help and the generated reference show required flags, defaults, numeric bounds,
+  local and instance effects, and checked examples. Existing unprofiled MCP descriptions and
+  schemas, existing command behavior, exit codes and enforcement remain compatible.
+
 ## [2.21.1] - 2026-11-15
 
 Push verifies the reviewed content and keeps unfinished delivery recoverable.

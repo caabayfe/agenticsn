@@ -16,6 +16,20 @@ const Record = z.object({ table: z.string(), sysId: z.string() });
 const Named = Record.extend({ updateName: z.string(), project: z.string() });
 
 export const takeOver = defineUseCase({
+  help: {
+    summary: "Record ownership of whole out-of-box records",
+    section: "Develop",
+    visibility: "advanced",
+    details:
+      "Record ownership of out-of-box records that source declares whole, such as layouts. " +
+      "Customer customizations are refused unless explicitly listed with --restated as " +
+      "restating the current instance copy. Review ownership before planning.",
+    effects:
+      "Reads the development instance and updates local ownership ledgers; does not write to the instance.",
+    examples: [
+      ["take-over", "sys_ui_section:0123456789abcdef0123456789abcdef", "--instance", "dev"],
+    ],
+  },
   name: "take-over",
   description:
     "Take over out-of-box records the workspace's source declares whole, such as a form " +

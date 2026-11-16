@@ -52,6 +52,7 @@ export const updateSetsTool = defineUseCase({
   }),
   flags: { readOnly: true, destructive: false, requiresDevelopmentInstance: false },
   mcp: true,
+  mcpProfiles: ["investigate", "develop"],
   mcpName: "update_sets",
   cli: false,
   async handle(input, context, run) {

@@ -16,6 +16,10 @@ the same operations with identical behavior.
   A use case has:
   - a name and a one-line description written for a model ("what it is for, when to use
     it");
+  - human-facing help metadata beside that description: a short summary, task section,
+    visibility, details, effects and examples. CLI help and the command reference use this
+    metadata; MCP keeps the model description. Requiredness, defaults and bounds are derived
+    from the input schema. Help visibility never changes registration or authorization;
   - a **zod** input schema and a zod output schema;
   - flags: `readOnly`, `destructive`, `requiresDevelopmentInstance`;
   - a handler that calls one application service in `packages/core`.

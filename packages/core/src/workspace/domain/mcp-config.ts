@@ -9,12 +9,30 @@ const SERVER_NAME = "snagentic";
 const isObject = (value: Json): value is Record<string, Json> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
+function conflicts(
+  servers: Readonly<Record<string, Json>>,
+  name: string,
+  server: Readonly<Record<string, Json>>,
+  legacy: Readonly<Record<string, Json>> | undefined,
+): boolean {
+  return (
+    (legacy !== undefined &&
+      SERVER_NAME in servers &&
+      JSON.stringify(servers[SERVER_NAME]) !== JSON.stringify(legacy)) ||
+    (name !== SERVER_NAME &&
+      name in servers &&
+      JSON.stringify(servers[name]) !== JSON.stringify(server))
+  );
+}
+
 // The config file's new text, or null when the existing one cannot be read as a config
 // (left as is).
 export function withMcpServer(
   existing: string | null,
   key: string,
   server: Readonly<Record<string, Json>>,
+  name = SERVER_NAME,
+  legacy?: Readonly<Record<string, Json>>,
 ): string | null {
   let config: Json = {};
   if (existing !== null && existing.trim() !== "") {
@@ -28,16 +46,24 @@ export function withMcpServer(
   if (!isObject(config) || !isObject(servers)) {
     return null;
   }
-  if (SERVER_NAME in servers && existing !== null) {
+  if (conflicts(servers, name, server, legacy)) return null;
+  if (name in servers && existing !== null && !(legacy !== undefined && SERVER_NAME in servers)) {
     return existing;
   }
-  const merged = { ...config, [key]: { ...servers, [SERVER_NAME]: server } };
+  const retained = Object.fromEntries(
+    Object.entries(servers).filter(([key]) => !(legacy !== undefined && key === SERVER_NAME)),
+  );
+  const merged = { ...config, [key]: { ...retained, [name]: retained[name] ?? server } };
   return `${JSON.stringify(merged, null, 2)}\n`;
 }
 
 // The environment variable names a config gives snagentic's server; none when the config can't be
 // read. The server inherits them, so they reach every request it sends.
-export function mcpServerEnvironment(text: string | null, key: string): string[] {
+export function mcpServerEnvironment(
+  text: string | null,
+  key: string,
+  name = SERVER_NAME,
+): string[] {
   let config: Json = null;
   try {
     config = text === null ? null : JSON.parse(text);
@@ -45,7 +71,7 @@ export function mcpServerEnvironment(text: string | null, key: string): string[]
     return [];
   }
   const servers = isObject(config) ? config[key] : null;
-  const server = isObject(servers) ? servers[SERVER_NAME] : null;
+  const server = isObject(servers) ? servers[name] : null;
   const env = isObject(server) ? server["env"] : null;
   return isObject(env) ? Object.keys(env) : [];
 }

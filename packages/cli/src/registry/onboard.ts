@@ -10,6 +10,18 @@ const Answer = z.object({
 });
 
 export const onboard = defineUseCase({
+  help: {
+    summary: "Connect an instance and prepare its workspace",
+    section: "Get started",
+    order: -1,
+    details:
+      "Create a workspace, add the profile, sign in, check connectivity, then pull and " +
+      "integrate metadata. Rerun to continue after a stop. Wake a sleeping PDI before " +
+      "retrying. Installs bundled user skills and workspace agent integration.",
+    effects:
+      "Writes workspace files and credentials to the OS keychain; reads the instance without changing it.",
+    examples: [["onboard", "dev", "--url", "dev12345", "--username", "your.user"]],
+  },
   name: "onboard",
   description:
     "Take a new instance from nothing to a pulled, integrated workspace in one command: create " +
@@ -44,6 +56,7 @@ export const onboard = defineUseCase({
     answer: Answer,
     failedChecks: z.array(z.string()),
     nextSteps: z.array(z.string()),
+    agentWarnings: z.array(z.string()).readonly().optional(),
   }),
   flags: {
     readOnly: false,
@@ -62,15 +75,14 @@ export const onboard = defineUseCase({
     const root = steps.root();
     return {
       root,
+      agentWarnings: steps.agentWarnings(),
       instance: input.name,
       steps: [...result.steps],
       stoppedAt: result.stoppedAt,
       answer: result.answer,
       failedChecks: [...result.failedChecks],
       nextSteps:
-        result.stoppedAt === null && root !== null
-          ? [`cd ${root}`, "snagentic agent install", "snagentic status"]
-          : [],
+        result.stoppedAt === null && root !== null ? [`cd ${root}`, "snagentic status"] : [],
     };
   },
   render(output) {
@@ -79,6 +91,9 @@ export const onboard = defineUseCase({
       return [
         `${output.instance} is onboarded`,
         ...done,
+        ...(output.agentWarnings ?? []).map(
+          (path) => `preserved agent file; review before use: ${path}`,
+        ),
         "next:",
         ...output.nextSteps.map((step) => `  ${step}`),
       ].join("\n");

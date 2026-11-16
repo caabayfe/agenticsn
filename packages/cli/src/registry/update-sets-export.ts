@@ -3,8 +3,19 @@ import { ExportFileExistsError, exportUpdateSet, instancePaths, slug } from "@sn
 import { z } from "zod";
 import { connect } from "./connect";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 
 export const updateSetsExport = defineUseCase({
+  help: {
+    summary: "Export an update set as XML",
+    section: "Manage",
+    group: HELP_GROUPS.updateSets,
+    details:
+      "Export ServiceNow update-set XML for manual import or archival. The destination must " +
+      "not already exist.",
+    effects: "Reads the instance and creates a local XML export; makes no instance changes.",
+    examples: [["update-sets", "export", "dev", "0123456789abcdef0123456789abcdef"]],
+  },
   group: "update-sets",
   name: "export",
   description:

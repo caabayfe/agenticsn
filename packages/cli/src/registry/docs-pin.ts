@@ -1,11 +1,23 @@
 import { pinDocs } from "@snagentic/core";
 import { z } from "zod";
 import { defineUseCase } from "./use-case";
+import { HELP_GROUPS } from "./use-case-help";
 import { workspaceRoot } from "./workspace-root";
 
 const Item = z.object({ page: z.string(), id: z.string(), anchor: z.string() });
 
 export const docsPin = defineUseCase({
+  help: {
+    summary: "Update evidence hashes after reverification",
+    section: "Additional workflows",
+    group: HELP_GROUPS.docs,
+    details:
+      "Record the mirror's current hash for all documentation or selected pages. Reverify the " +
+      "claims first: pinning records a hash, it does not establish that the prose is correct. " +
+      "Missing records require rewriting their claims.",
+    effects: "Updates local documentation evidence; does not call the instance.",
+    examples: [["docs", "pin"]],
+  },
   group: "docs",
   name: "pin",
   description:

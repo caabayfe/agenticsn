@@ -67,7 +67,7 @@ function triggerDefinitions(built: BuiltUnit): string[] {
           (row) =>
             row.table === "sys_hub_trigger_instance_v2" &&
             row.sysId !== "" &&
-            row.fields["trigger_type"] === "sla_task",
+            ["sla_task", "service_catalog"].includes(row.fields["trigger_type"] ?? ""),
         )
         .flatMap((row) => {
           const id = row.fields["trigger_definition"];
@@ -77,7 +77,7 @@ function triggerDefinitions(built: BuiltUnit): string[] {
   ];
 }
 
-// Additional indexed reads are confined to SLA Task captures, whose compiler generates
+// Additional indexed reads are confined to SLA Task and Service Catalog captures, whose compiler generates
 // executable input contracts absent from the SDK build. Missing/unreadable evidence cannot
 // certify generated inputs or schemas. All I/O uses the shared reader/pager and scheduler.
 export async function captureTriggerContracts(

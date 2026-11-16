@@ -2,7 +2,7 @@ import type { BuiltUnit, Fields, UnitRecord } from "./unit";
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
-const KEYS = new Set([
+export const PARAMETER_DESCRIPTOR_KEYS = new Set([
   "children",
   "id",
   "label",
@@ -66,7 +66,8 @@ function emptyMetadata(value: Record<string, unknown>): boolean {
 }
 
 function descriptor(value: unknown, definition: Fields): boolean {
-  if (!object(value) || Object.keys(value).some((key) => !KEYS.has(key))) return false;
+  if (!object(value) || Object.keys(value).some((key) => !PARAMETER_DESCRIPTOR_KEYS.has(key)))
+    return false;
   if (definition["internal_type"] !== "string" || definition["active"] !== "true") return false;
   const fields = {
     id: "sys_id",

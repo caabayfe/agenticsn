@@ -102,3 +102,15 @@ exact authored integer, and generated reference captions preserve the exact exec
 These indexed reads are confined to changed flow/subflow captures with logic; SLA captures reuse their existing contract reads. Missing native
 contracts, changed conditions/scripts/defaults, duplicate assignments, unknown descriptor keys
 and changed live versions remain refused by the recorded negative cases.
+
+The recorded pdi12 Service Catalog capture extends the same independent native-output and
+parameter evidence to its generated request-item input and runtime catalog trigger. Hidden test
+outputs are not runtime inputs. The runtime ID belongs to the published head; execution mode
+comes from the authored trigger. Native optional action inputs must match independent identity,
+type, mandatory flag and empty default. Recorded boolean/integer serialization and implicit
+choice captions keep their execution values, while explicit captions, nonempty added inputs,
+unknown records-parameter keys, changed trigger mode/target and duplicate/deleted generated
+records remain mismatches. Reads are bounded and indexed, confined to changed catalog captures;
+logic contracts reuse those reads. Both normal capture and pending reconciliation use the same
+comparison. The linked snapshot, unchanged live version and original pending receipt remain
+required for recovery.

@@ -142,6 +142,34 @@ describe("native trigger capture evidence", () => {
     expect(fake.reader.stats().requests).toBe(0);
   });
 
+  it("reads catalog output and parameter evidence once, without duplicating logic reads", async () => {
+    const built = {
+      ...unit(),
+      head: record("sys_hub_flow", ID, { type: "flow" }),
+      children: unit().children.map((row) =>
+        row.table === "sys_hub_trigger_instance_v2"
+          ? { ...row, fields: { ...row.fields, trigger_type: "service_catalog" } }
+          : row,
+      ),
+    };
+    const fake = fakeInstance({});
+    const contracts = await captureTriggerContracts(fake.reader, built, signal);
+    expect(contracts).toHaveLength(1);
+    expect(await captureLogicInputs(fake.reader, built, signal)).toEqual([]);
+    expect(fake.queries.map((query) => String(query.table))).toEqual([
+      "sys_hub_trigger_output",
+      "sys_hub_action_input",
+      "sys_hub_flow_logic_input",
+    ]);
+    expect(
+      fake.queries.every(
+        (query) =>
+          query.fields !== "all" && query.fields.length > 0 && query.query.includes("modelIN"),
+      ),
+    ).toBe(true);
+    expect(fake.writes).toEqual([]);
+  });
+
   it("preserves missing native evidence instead of guessing a generated schema", async () => {
     const contracts = await captureTriggerContracts(fakeInstance({}).reader, unit(), signal);
     expect(contracts[0]?.outputs).toEqual([]);

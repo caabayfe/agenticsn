@@ -1,5 +1,5 @@
-import { normalizeScalarInput } from "./compiled-scalar-defaults";
 import { normalizeVariableDescriptors } from "./compiled-variable-defaults";
+import { normalizeContractInput } from "./native-parameter-input";
 import type { NativeTriggerContract } from "./native-trigger-capture";
 import type { BuiltUnit, Fields, UnitRecord } from "./unit";
 
@@ -66,9 +66,7 @@ function array(
     const definition = matching[0];
     return matching.length !== 1 || definition === undefined || !optional(entry, definition, owner);
   });
-  return kept.map((entry, index) =>
-    definitions.length > 0 ? normalizeScalarInput(wanted[index], entry) : entry,
-  );
+  return kept.map((entry, index) => normalizeContractInput(wanted[index], entry, definitions));
 }
 
 function row(

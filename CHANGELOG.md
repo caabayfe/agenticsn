@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.22.1] - 2026-11-16
+
 ### Fixed
 
 - Published SLA Task flow captures now verify compiler-added runtime inputs and complex schemas

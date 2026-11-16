@@ -135,3 +135,21 @@ export async function captureTriggerContracts(
     logicInputs,
   }));
 }
+
+// Subflow branch labels are optional native inputs. Only changed subflows with logic need
+// these indexed reads; ordinary reads and no-change pulls do not acquire extra requests.
+export async function captureLogicInputs(
+  reader: InstanceReader,
+  built: BuiltUnit,
+  signal: AbortSignal,
+) {
+  if (built.head.table !== "sys_hub_flow" || built.head.fields["type"] !== "subflow") return [];
+  return read(
+    reader,
+    "sys_hub_flow_logic_input",
+    "model",
+    references(built, "sys_hub_flow_logic_instance_v2", "logic_definition"),
+    PARAMETER_FIELDS,
+    signal,
+  );
+}

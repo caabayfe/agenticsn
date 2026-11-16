@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { type BuiltUnit, TRIGGER_OUTPUT_FIELDS, type UnitRecord } from "@snagentic/core";
-import { captureTriggerContracts } from "../../src/delivery/application/capture-trigger-contracts";
+import {
+  captureLogicInputs,
+  captureTriggerContracts,
+} from "../../src/delivery/application/capture-trigger-contracts";
 import { reconcilePending } from "../../src/delivery/application/reconcile-pending";
 import { fakeInstance } from "../support/fake-instance";
 
@@ -31,6 +34,39 @@ const unit = (definition = ID): BuiltUnit => ({
 });
 
 describe("native trigger capture evidence", () => {
+  it("reads independent optional logic contracts for changed subflows through bounded keyset pages", async () => {
+    const row = {
+      sys_id: "input",
+      model: LOGIC,
+      element: "condition_name",
+      internal_type: "string",
+      default_value: "",
+      mandatory: "false",
+      attributes: "",
+    };
+    const fake = fakeInstance({ sys_hub_flow_logic_input: [row] });
+    const built = { ...unit(), head: record("sys_hub_flow", ID, { type: "subflow" }) };
+    expect(await captureLogicInputs(fake.reader, built, signal)).toEqual([row]);
+    expect(fake.queries).toHaveLength(2);
+    expect(
+      fake.queries.every(
+        (query) =>
+          query.table === "sys_hub_flow_logic_input" && query.query.includes(`modelIN${LOGIC}`),
+      ),
+    ).toBe(true);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("adds no logic-contract reads for unrelated definitions or subflows without logic", async () => {
+    const fake = fakeInstance({});
+    for (const built of [
+      unit(),
+      { ...unit(), head: record("sys_hub_flow", ID, { type: "subflow" }), children: [] },
+    ])
+      expect(await captureLogicInputs(fake.reader, built, signal)).toEqual([]);
+    expect(fake.queries).toEqual([]);
+  });
+
   it("reads native output, schema and parameter contracts through indexed paged queries", async () => {
     const output = {
       ...Object.fromEntries(TRIGGER_OUTPUT_FIELDS.map((field) => [field, ""])),

@@ -5,7 +5,7 @@ import { compiledFields, exportedDefaults, orderedAttributes } from "./compiled-
 import { normalizeEmptySlaInputs } from "./empty-sla-input";
 import { normalizeNativeDefaults } from "./native-input-defaults";
 import { type NativeTriggerContract, withNativeTriggerInputs } from "./native-trigger-capture";
-import type { BuiltUnit, InstanceCopy, UnitRecord } from "./unit";
+import type { BuiltUnit, Fields, InstanceCopy, UnitRecord } from "./unit";
 import { unitSpec } from "./unit-specs";
 import { comparedValue, keyedReference, namedField, sameValue } from "./values";
 
@@ -119,13 +119,14 @@ export function capturedContentAgrees(
   actual: BuiltUnit,
   references: ReadonlyMap<string, string> = new Map(),
   nativeTriggers: readonly NativeTriggerContract[] = [],
+  logicInputs: readonly Fields[] = [],
 ): boolean {
   const expected = withNativeTriggerInputs(built, actual, nativeTriggers);
   if (expected === null) return false;
   const held = normalizeNativeDefaults(
     built,
     normalizeEmptySlaInputs(built, actual, nativeTriggers),
-    nativeTriggers,
+    [...nativeTriggers, { logicInputs }],
   );
   if (expected.head.table !== held.head.table) return false;
   if (expected.head.action !== held.head.action) return false;

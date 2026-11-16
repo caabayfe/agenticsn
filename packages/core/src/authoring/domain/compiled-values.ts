@@ -1,4 +1,5 @@
 import { withoutUnassignedFields } from "./compiled-input-defaults";
+import { normalizeScalarInput } from "./compiled-scalar-defaults";
 import type { Fields, UnitRecord } from "./unit";
 
 const ATTRIBUTES = new Set(["timeFromCreateToActivate", "element_mapping_provider", "uiType"]);
@@ -43,15 +44,17 @@ function jsonAgrees(wanted: unknown, held: unknown, parameter = false): boolean 
       wanted.every((value, index) => jsonAgrees(value, held[index], parameter))
     );
   if (!object(wanted)) return wanted === held;
-  if (!object(held)) return false;
+  const actual = normalizeScalarInput(wanted, held, false);
+  if (!object(actual)) return false;
   const complete = Object.entries(wanted).every(
     ([key, value]) =>
-      (key === "displayValue" && generatedDisplay(wanted, held)) ||
-      (Object.hasOwn(held, key) && jsonAgrees(value, held[key], parameter || key === "parameter")),
+      (key === "displayValue" && generatedDisplay(wanted, actual)) ||
+      (Object.hasOwn(actual, key) &&
+        jsonAgrees(value, actual[key], parameter || key === "parameter")),
   );
   return (
     complete &&
-    Object.entries(held).every(
+    Object.entries(actual).every(
       ([key, value]) =>
         Object.hasOwn(wanted, key) ||
         parameter ||

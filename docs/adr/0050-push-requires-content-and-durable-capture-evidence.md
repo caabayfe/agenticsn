@@ -91,3 +91,14 @@ descriptor. Recognize only the recorded shapes with unchanged execution values, 
 and disabled scripting. Explicit labels, supplied or missing authored values, changed parameter
 types, duplicate descriptors and unknown shapes remain mismatches. The recorded fixture and
 negative mutations establish this compatibility; receipt and live-snapshot checks are unchanged.
+
+The recorded pdi12 request subflows extend that evidence to string-variable assignment
+parameters and optional branch captions. A generated variable descriptor must match its
+independently authored variable identity, type, size, order, mandatory flag and default, contain
+only the recorded metadata keys, and leave the assignment value and script unchanged. Empty
+branch inputs additionally require indexed native logic-input evidence. Referenced subflow
+snapshots still require independently proven ownership; numeric string exports preserve the
+exact authored integer, and generated reference captions preserve the exact execution value.
+These indexed reads are confined to changed subflow captures with logic. Missing native
+contracts, changed conditions/scripts/defaults, duplicate assignments, unknown descriptor keys
+and changed live versions remain refused by the recorded negative cases.

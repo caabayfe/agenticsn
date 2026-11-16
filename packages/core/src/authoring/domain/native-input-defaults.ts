@@ -1,3 +1,5 @@
+import { normalizeScalarInput } from "./compiled-scalar-defaults";
+import { normalizeVariableDescriptors } from "./compiled-variable-defaults";
 import type { NativeTriggerContract } from "./native-trigger-capture";
 import type { BuiltUnit, Fields, UnitRecord } from "./unit";
 
@@ -46,37 +48,6 @@ function optional(entry: Record<string, unknown>, definition: Fields, owner: str
   );
 }
 
-function scalars(wanted: unknown, held: unknown): unknown {
-  if (
-    !object(wanted) ||
-    !object(held) ||
-    !object(wanted["parameter"]) ||
-    !object(held["parameter"]) ||
-    wanted["parameter"]["type"] !== held["parameter"]["type"] ||
-    wanted["name"] !== held["name"]
-  )
-    return held;
-  const type = wanted["parameter"]["type"];
-  const normalized = { ...held };
-  if (type === "integer") {
-    for (const field of ["value", "displayValue"]) {
-      const value = wanted[field];
-      if (typeof value === "number" && Number.isSafeInteger(value) && held[field] === String(value))
-        normalized[field] = value;
-    }
-  }
-  if (
-    ["reference", "document_id"].includes(String(type)) &&
-    typeof wanted["value"] === "string" &&
-    (/^[a-f0-9]{32}$/.test(wanted["value"]) || /^\{\{[^{}]+\}\}$/.test(wanted["value"])) &&
-    wanted["value"] === held["value"] &&
-    (wanted["displayValue"] === "" || wanted["displayValue"] === wanted["value"]) &&
-    typeof held["displayValue"] === "string"
-  )
-    normalized["displayValue"] = wanted["displayValue"];
-  return normalized;
-}
-
 function array(
   wanted: readonly unknown[],
   held: readonly unknown[],
@@ -95,13 +66,15 @@ function array(
     const definition = matching[0];
     return matching.length !== 1 || definition === undefined || !optional(entry, definition, owner);
   });
-  return kept.map((entry, index) => scalars(wanted[index], entry));
+  return kept.map((entry, index) =>
+    definitions.length > 0 ? normalizeScalarInput(wanted[index], entry) : entry,
+  );
 }
 
 function row(
   wanted: UnitRecord,
   actual: UnitRecord,
-  contracts: readonly NativeTriggerContract[],
+  contracts: readonly Pick<NativeTriggerContract, "actionInputs" | "logicInputs">[],
 ): UnitRecord {
   try {
     const before: unknown = JSON.parse(wanted.fields["values"] ?? "");
@@ -146,9 +119,8 @@ function row(
 export function normalizeNativeDefaults(
   built: BuiltUnit,
   actual: BuiltUnit,
-  contracts: readonly NativeTriggerContract[],
+  contracts: readonly Pick<NativeTriggerContract, "actionInputs" | "logicInputs">[],
 ): BuiltUnit {
-  if (contracts.length === 0) return actual;
   return {
     ...actual,
     children: actual.children.map((held) => {
@@ -161,7 +133,9 @@ export function normalizeNativeDefaults(
           candidate.sysId === held.sysId &&
           candidate.sysId !== "",
       );
-      return wanted === undefined ? held : row(wanted, held, contracts);
+      return wanted === undefined
+        ? held
+        : row(wanted, normalizeVariableDescriptors(built, wanted, held), contracts);
     }),
   };
 }

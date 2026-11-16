@@ -7,8 +7,10 @@ The integrated candidate completed pdi12 zero-data install `1ba4f0fa857fbea9`, r
 no activations, zero rows, 26/26 layouts/forms. GitHub verify run `43843028262` / 837 passed on
 initial head `3cca67fb`. Browser ordinary resolution/closure, actual SOW refused-save/reload,
 non-admin MIM manager native Publish and caller Close visibility in classic/SOW passed. The
-manager's final native Close awaits renewed browser sign-in; merge remains gated on it and
-the final head's checks. No release, tag or installed CLI upgrade has occurred. Earlier no-push
+resumed manager native Close also passed (7/7, manager actor/time), as did classic refused-save
+feedback, reload, legitimate retry and ordinary Close. The administrator was restored. Browser
+acceptance is complete; merge remains gated on final-head CI. Verify run 838 also passed on
+head `0f385cf7`. No release, tag or installed CLI upgrade has occurred. Earlier no-push
 and no-integrated-live statements below describe the prior checkpoint.
 
 ## Candidate

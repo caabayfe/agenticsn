@@ -61,6 +61,7 @@ export {
   LOSSES_SDK_VERSION,
   type LossId,
 } from "./domain/losses";
+export { type NativeTriggerContract, TRIGGER_OUTPUT_FIELDS } from "./domain/native-trigger-capture";
 export { isKeyedDeletion, pendingDecision, pendingFor } from "./domain/pending-delivery";
 export { planUnit, type UnitDecision } from "./domain/plan-unit";
 export { conversionRefusal, knownRefusal } from "./domain/refusals";

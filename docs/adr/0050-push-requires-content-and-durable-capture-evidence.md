@@ -62,6 +62,18 @@ reads of the referenced snapshot's parent; names alone cannot establish identity
 reference remains a mismatch. Deletions require absence and their deletion capture, rather
 than a surviving published snapshot.
 
+The pdi12 SLA Task fixture (SDK 4.14.0, 2026-11-15, #271) extends known capture shapes with the
+native application trigger's runtime input/schema projection. Verification reads the referenced
+native output, schema and optional parameter definitions through indexed paged queries. Only
+owned rows matching those contracts count as generated. An SDK empty complex default may be
+rehydrated into the same empty native value; integer string serialization and reference captions
+retain the authored execution values. Native optional empty inputs require an independently
+read optional/empty default, matching identity and inactive scripts. Changed scripts/values,
+unknown or duplicated inputs, unrelated schemas and generated-record deletions still fail.
+Both normal delivery and pending reconciliation use this comparison; published snapshot,
+live version, source and target checks remain unchanged. Support is confined to the recorded
+SLA Task shape; unavailable native evidence fails closed.
+
 Receipts for deletions by ID match the exact update name, even when two deletion digests are
 equal. Digest fallback applies only to keyed deletions whose synthetic ID changes on rebuild.
 

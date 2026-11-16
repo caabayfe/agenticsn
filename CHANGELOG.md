@@ -4,6 +4,18 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Published SLA Task flow captures now verify compiler-added runtime inputs and complex schemas
+  against the native trigger and parameter definitions. Empty defaults, integer serialization
+  and reference captions are normalized without accepting changed values, scripts, unknown
+  inputs or generated-record deletions. The same checks apply during pending recovery. Fixes #271.
+- Interrupted pushes can recover verified receipts after a necessary source correction with
+  `plan-push --recover-pending` and `push --recover-pending`. Recovery stays in the original
+  instance and update-set batch, proves current capture/live agreement, loads no metadata and
+  keeps the journal until the ledger commit succeeds. Unrelated changes remain for a normal plan.
+  See [the recovery guide](docs/guides/recover-interrupted-delivery.md). Fixes #269.
+
 ## [2.22.0] - 2026-11-15
 
 Bundled agent setup with shared user skills, focused MCP profiles and bounded live investigation.

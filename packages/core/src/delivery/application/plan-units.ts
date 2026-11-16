@@ -1,12 +1,6 @@
-import { readUnits } from "../../authoring/application/read-units";
-import { unitDigest } from "../../authoring/domain/digest";
-import type { Ledger, LedgerEntry } from "../../authoring/domain/ledger";
-import { type BuiltUnit, isDeletion } from "../../authoring/domain/unit";
-import { pendingFor } from "../../authoring/index";
-import type { AuthoringWorkspace, FluentToolchain, SourceProject } from "../../authoring/ports";
-import type { InstanceReader } from "../../connection/ports";
+import type { AuthoringWorkspace, FluentToolchain } from "../../authoring/index";
+import type { InstanceReader } from "../../connection/index";
 import type { Finding, ValidateDependencies } from "../../governance/index";
-import { InvalidInputError } from "../../kernel/errors";
 import { SESSION_USER } from "../../kernel/session-user";
 import { TableName } from "../../kernel/table-name";
 import type { NextCall } from "../../knowledge/index";
@@ -18,17 +12,14 @@ import {
 import { batchUpdateSets, inBatch } from "../domain/batch";
 import type { GateResult } from "../domain/gate";
 import { type PlannedUnit, type UnitProblem, unitPlanId } from "../domain/unit-plan";
-import type {
-  CaptureDecoder,
-  DeliveryWorkspace,
-  PendingDelivery,
-  PushJournalStore,
-} from "../ports";
+import type { CaptureDecoder, DeliveryWorkspace, PushJournal, PushJournalStore } from "../ports";
+import { planNext } from "./delivery-next";
 import { withoutCutValues } from "./field-lengths";
-import { planCandidate } from "./plan-candidate";
 import { gateFor } from "./plan-gate";
 import { deliveryTarget, orphanedPending, pendingJournal } from "./plan-pending";
-import { removedDefinitions } from "./removed-definitions";
+import { type ProjectLoad, planProject } from "./plan-project";
+
+export type { ProjectLoad } from "./plan-project";
 
 // What a push would load, and whether it may (ADR-0031, ADR-0033): every project under source/
 // built, each unit whose build moved away from its ledger entry compared with the instance's
@@ -39,6 +30,7 @@ export interface UnitPlanQuery {
   // Names the branch's batch of update sets (domain/batch). Default: the git branch.
   readonly label?: string;
   readonly allowCollisions: boolean;
+  readonly recoverPending?: boolean;
 }
 
 export interface UnitPlanDependencies {
@@ -72,6 +64,7 @@ export interface HeldRecord {
 }
 
 export interface UnitPushPlan {
+  readonly recoverPending?: boolean;
   readonly instance: string;
   readonly planId: string;
   readonly label: string;
@@ -82,23 +75,6 @@ export interface UnitPushPlan {
   readonly collisions: readonly HeldRecord[];
   readonly ready: boolean;
   readonly next: readonly NextCall[];
-}
-
-// One project's share of a plan: what push loads, and what it reads back.
-export interface ProjectLoad {
-  readonly project: SourceProject;
-  readonly ledger: Ledger;
-  readonly units: readonly PlannedUnit[];
-  // Built units and their XML, by update name, for the units planned.
-  readonly built: ReadonlyMap<string, { readonly unit: BuiltUnit; readonly xml: string }>;
-}
-
-// The label is part of an encoded query (^ separates terms) and of "[<scope>]".
-function checkedLabel(label: string): string {
-  if (/[\^\r\n[\]]/.test(label)) {
-    throw new InvalidInputError("label must not contain ^ [ ] or line breaks");
-  }
-  return label;
 }
 
 const problem = (project: string, kind: UnitProblem["kind"], reason: string, name = "") => ({
@@ -125,66 +101,6 @@ function sessionDomain(deps: UnitPlanDependencies): () => Promise<string> {
       .then((rows) => rows[0]?.["sys_domain"] || "global");
     return domain;
   };
-}
-
-async function planProject(
-  deps: UnitPlanDependencies,
-  project: SourceProject,
-  instance: string,
-  userDomain: () => Promise<string>,
-  pending: readonly PendingDelivery[],
-): Promise<{ load: ProjectLoad | null; problems: UnitProblem[] }> {
-  const build = await deps.authoring.toolchain.build(project);
-  if (!build.ok) return { load: null, problems: [problem(project.path, "build", build.message)] };
-  const ledger = await deps.authoring.workspace.readLedger(project);
-  const entries = ledger.get(instance) ?? new Map<string, LedgerEntry>();
-  const digests = new Map(build.units.map((unit) => [unit.updateName, unitDigest(unit)]));
-  const candidates = build.units.filter(
-    (unit) =>
-      isDeletion(unit) ||
-      entries.get(unit.updateName)?.build !== digests.get(unit.updateName) ||
-      pendingFor(pending, unit, digests.get(unit.updateName) ?? "") !== undefined,
-  );
-  const copies = await readUnits(deps.reader, candidates, deps.signal);
-  const deleted = new Map(
-    candidates
-      .filter(isDeletion)
-      .map((unit) => [
-        unit.updateName,
-        copies.get(unit.updateName)?.head["sys_update_name"] ?? null,
-      ]),
-  );
-  const removed = await removedDefinitions(
-    deps.reader,
-    deps.signal,
-    project,
-    entries,
-    build.units,
-    new Set(deleted.values()),
-  );
-  const units: PlannedUnit[] = [...removed.forgotten];
-  const problems = removed.problems;
-  for (const unit of candidates) {
-    const outcome = await planCandidate(unit, {
-      project,
-      entries,
-      digest: digests.get(unit.updateName) ?? "",
-      copy: copies.get(unit.updateName) ?? null,
-      pending,
-      removes: deleted.get(unit.updateName) ?? null,
-      userDomain,
-      reader: deps.reader,
-      decodeCapture: deps.decodeCapture,
-      signal: deps.signal,
-    });
-    if (outcome === null) continue;
-    if (!("operation" in outcome)) problems.push(outcome);
-    else units.push(outcome);
-  }
-  const built = new Map(
-    candidates.map((unit) => [unit.updateName, { unit, xml: build.files.get(unit.file) ?? "" }]),
-  );
-  return { load: { project, ledger, units, built }, problems };
 }
 
 async function collisionsOf(
@@ -232,15 +148,13 @@ async function ledgerBases(
   return bases;
 }
 
-export async function computeUnitPlan(
+async function projectPlans(
   deps: UnitPlanDependencies,
   query: UnitPlanQuery,
-): Promise<{ readonly plan: UnitPushPlan; readonly loads: readonly ProjectLoad[] }> {
-  const label = checkedLabel(query.label ?? (await deps.workspace.branch()));
+  journal: PushJournal | null,
+) {
   const built: ProjectLoad[] = [];
-  const problems: UnitProblem[] = await uncommittedSource(deps);
-  const pending = await pendingJournal(deps, query.instance, label);
-  problems.push(...pending.problems);
+  const problems: UnitProblem[] = [];
   const userDomain = sessionDomain(deps);
   for (const project of await deps.authoring.workspace.projects()) {
     const planned = await planProject(
@@ -248,11 +162,27 @@ export async function computeUnitPlan(
       project,
       query.instance,
       userDomain,
-      (pending.journal?.pending ?? []).filter((entry) => entry.project === project.path),
+      (journal?.pending ?? []).filter((entry) => entry.project === project.path),
+      query.recoverPending === true,
     );
     if (planned.load !== null) built.push(planned.load);
     problems.push(...planned.problems);
   }
+  return { built, problems };
+}
+
+export async function computeUnitPlan(
+  deps: UnitPlanDependencies,
+  query: UnitPlanQuery,
+): Promise<{ readonly plan: UnitPushPlan; readonly loads: readonly ProjectLoad[] }> {
+  const { label, ...pending } = await pendingJournal(
+    deps,
+    query.instance,
+    query.label,
+    query.recoverPending,
+  );
+  const { built, problems } = await projectPlans(deps, query, pending.journal);
+  problems.push(...(await uncommittedSource(deps)), ...pending.problems);
   problems.push(...orphanedPending(pending.journal, built));
   const { loads, problems: cut } = await withoutCutValues(deps.reader, built, deps.signal);
   problems.push(...cut);
@@ -267,7 +197,11 @@ export async function computeUnitPlan(
     problems.length === 0 &&
     gate.passed &&
     (collisions.length === 0 || query.allowCollisions);
-  const id = unitPlanId(units, gate, deliveryTarget(deps, query.instance, label, pending.journal));
+  const id = unitPlanId(
+    units,
+    gate,
+    deliveryTarget(deps, query.instance, label, pending.journal, query.recoverPending),
+  );
   const plan: UnitPushPlan = {
     instance: query.instance,
     planId: id,
@@ -281,11 +215,8 @@ export async function computeUnitPlan(
     gate,
     collisions,
     ready,
-    next: ready
-      ? [{ tool: "push", args: { instance: query.instance, label, plan: id, confirm: true } }]
-      : gate.passed
-        ? []
-        : [{ tool: "validate", args: { base } }],
+    ...(query.recoverPending ? { recoverPending: true } : {}),
+    next: planNext(query, { label, planId: id, ready, gatePassed: gate.passed, base }),
   };
   return { plan, loads };
 }

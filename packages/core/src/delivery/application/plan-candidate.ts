@@ -3,7 +3,7 @@ import { ledgerEntryOf, pendingDecision, pendingFor, planUnit } from "../../auth
 import type { InstanceReader } from "../../connection/index";
 import { type PlannedUnit, plannedOrProblem, type UnitProblem } from "../domain/unit-plan";
 import type { CaptureDecoder, PendingDelivery } from "../ports";
-import { reconcilePending } from "./reconcile-pending";
+import { reconcilePending, recoveryDecision } from "./reconcile-pending";
 
 const COMPILED = new Set(["sys_hub_flow", "sys_hub_action_type_definition"]);
 
@@ -20,13 +20,14 @@ export async function planCandidate(
     readonly reader: InstanceReader;
     readonly decodeCapture: CaptureDecoder | undefined;
     readonly signal: AbortSignal;
+    readonly recoverPending?: boolean;
   },
 ): Promise<PlannedUnit | UnitProblem | null> {
   const { project, copy, digest, entries, pending } = context;
   const entry = ledgerEntryOf(unit, copy, entries);
   const receipt = pendingFor(pending, unit, digest);
   const unfinished =
-    receipt === undefined || receipt.digest !== digest
+    receipt === undefined || receipt.digest !== digest || context.recoverPending
       ? receipt
       : await reconcilePending(
           context.reader,
@@ -37,9 +38,18 @@ export async function planCandidate(
           context.signal,
         );
   const decision =
-    unfinished === undefined
-      ? planUnit(unit, digest, copy, entry)
-      : pendingDecision(unit, digest, copy, unfinished, entry);
+    context.recoverPending && receipt !== undefined
+      ? await recoveryDecision(
+          context.reader,
+          unit,
+          receipt,
+          copy,
+          context.decodeCapture,
+          context.signal,
+        )
+      : unfinished === undefined
+        ? planUnit(unit, digest, copy, entry)
+        : pendingDecision(unit, digest, copy, unfinished, entry);
   const outcome = plannedOrProblem(decision, unit, {
     project: project.path,
     scope: project.scope,

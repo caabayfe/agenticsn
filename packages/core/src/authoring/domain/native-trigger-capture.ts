@@ -1,3 +1,4 @@
+import { nativeRuntimeTrigger } from "./native-runtime-trigger";
 import type { BuiltUnit, Fields, UnitRecord } from "./unit";
 
 export interface NativeTriggerContract {
@@ -180,7 +181,7 @@ export function withNativeTriggerInputs(
     (row) =>
       row.table === "sys_hub_trigger_instance_v2" &&
       row.sysId !== "" &&
-      row.fields["trigger_type"] === "sla_task",
+      ["sla_task", "service_catalog"].includes(row.fields["trigger_type"] ?? ""),
   );
   if (triggers.length === 0) return built;
   const trigger = triggers[0];
@@ -190,31 +191,22 @@ export function withNativeTriggerInputs(
   );
   const contract = matching[0];
   if (matching.length !== 1 || contract === undefined) return null;
-  const runtime = actual.children.filter(
-    (row) =>
-      row.table === "sys_flow_trigger" &&
-      row.sysId !== "" &&
-      row.sysId === actual.head.fields["remote_trigger_id"],
-  );
-  const row = runtime[0];
-  const generatedInputs = inputs(built, actual, contract);
-  const generatedSchemas = schemas(actual, contract);
-  if (
-    runtime.length !== 1 ||
-    row === undefined ||
-    generatedInputs === null ||
-    generatedSchemas === null
-  )
-    return null;
-  const documentation = documentationRows(built, actual, contract);
+  const row = nativeRuntimeTrigger(actual, trigger);
+  const projected =
+    trigger.fields["trigger_type"] === "service_catalog"
+      ? {
+          ...contract,
+          outputs: contract.outputs.filter(
+            (output) => !output["attributes"]?.split(",").includes("test_input_hidden=true"),
+          ),
+        }
+      : contract;
+  const generatedInputs = inputs(built, actual, projected);
+  const generatedSchemas = schemas(actual, projected);
+  if (row === null || generatedInputs === null || generatedSchemas === null) return null;
+  const documentation = documentationRows(built, actual, projected);
   return {
     ...built,
-    children: [
-      ...built.children,
-      expected(row, { name: trigger.fields["trigger_type"] ?? "", active: "true" }),
-      ...generatedInputs,
-      ...generatedSchemas,
-      ...documentation,
-    ],
+    children: [...built.children, row, ...generatedInputs, ...generatedSchemas, ...documentation],
   };
 }

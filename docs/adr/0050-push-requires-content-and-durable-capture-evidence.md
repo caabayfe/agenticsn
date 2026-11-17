@@ -109,6 +109,14 @@ receipt clearing, plus stale captures, direct child edits, extra branches/mappin
 pointers, domains, changed source/versions, unreadable evidence and request/row bounds.
 Native recovery acceptance remains required; these tests alone do not certify PDI13 delivery.
 
+Complete native draft captures also contain empty `delete_multiple` cleanup directives.
+These are not authored rows. Their known native ownership shapes are still read live,
+including compiled trigger/subflow plans and input links. Empty choice cleanup directives
+query all three exact flow-variable namespaces; an unexpected live row still refuses the
+reload. Unknown ownership shapes remain refused. Regression tests run all five complete
+recorded native captures through reconciliation with the actual XML decoder.
+
+
 The mutable draft read projects only fields present in the independently read inherited
 native schema. SDK XML defaults such as action-instance `active` and trigger `category`
 are absent from the native child tables; a Table API empty projection cannot stand in for

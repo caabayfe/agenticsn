@@ -16,6 +16,7 @@ const PARAMETER_FIELDS = [
   "default_value",
   "mandatory",
   "attributes",
+  "max_length",
 ];
 const attribute = (value: string, key: string) =>
   value
@@ -67,7 +68,7 @@ function triggerDefinitions(built: BuiltUnit): string[] {
           (row) =>
             row.table === "sys_hub_trigger_instance_v2" &&
             row.sysId !== "" &&
-            row.fields["trigger_type"] === "sla_task",
+            ["sla_task", "service_catalog"].includes(row.fields["trigger_type"] ?? ""),
         )
         .flatMap((row) => {
           const id = row.fields["trigger_definition"];
@@ -77,7 +78,7 @@ function triggerDefinitions(built: BuiltUnit): string[] {
   ];
 }
 
-// Additional indexed reads are confined to SLA Task captures, whose compiler generates
+// Additional indexed reads are confined to SLA Task and Service Catalog captures, whose compiler generates
 // executable input contracts absent from the SDK build. Missing/unreadable evidence cannot
 // certify generated inputs or schemas. All I/O uses the shared reader/pager and scheduler.
 export async function captureTriggerContracts(
@@ -134,4 +135,27 @@ export async function captureTriggerContracts(
     actionInputs,
     logicInputs,
   }));
+}
+
+// Flow and subflow branch labels are optional native inputs. Only changed definitions with logic need
+// these indexed reads; ordinary reads and no-change pulls do not acquire extra requests.
+export async function captureLogicInputs(
+  reader: InstanceReader,
+  built: BuiltUnit,
+  signal: AbortSignal,
+) {
+  if (
+    built.head.table !== "sys_hub_flow" ||
+    !["flow", "subflow"].includes(built.head.fields["type"] ?? "") ||
+    triggerDefinitions(built).length > 0
+  )
+    return [];
+  return read(
+    reader,
+    "sys_hub_flow_logic_input",
+    "model",
+    references(built, "sys_hub_flow_logic_instance_v2", "logic_definition"),
+    PARAMETER_FIELDS,
+    signal,
+  );
 }

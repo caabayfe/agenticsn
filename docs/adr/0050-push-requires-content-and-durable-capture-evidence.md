@@ -83,3 +83,41 @@ withheld, verified test capture to its original set enabled a reviewed record-on
 A separate external edit blocked both a new plan and the previous reviewed push without
 overwriting the edit. This does not establish compatibility with every ServiceNow release;
 see spec 014 for the tested scope and remaining checks.
+
+Native approval capture on pdi12 (Brazil, SDK 4.14.0) additionally records two publication
+defaults: computed document references and relative approval deadlines lose only the SDK's
+duplicated display label, and Ask for Approval adds an unassigned optional journal-field
+descriptor. Recognize only the recorded shapes with unchanged execution values, empty defaults
+and disabled scripting. Explicit labels, supplied or missing authored values, changed parameter
+types, duplicate descriptors and unknown shapes remain mismatches. The recorded fixture and
+negative mutations establish this compatibility; receipt and live-snapshot checks are unchanged.
+
+The recorded pdi12 request subflows extend that evidence to string-variable assignment
+parameters and optional branch captions. A generated variable descriptor must match its
+independently authored variable identity, type, size, order, mandatory flag and default, contain
+only the recorded metadata keys, and leave the assignment value and script unchanged. Empty
+branch inputs additionally require indexed native logic-input evidence. Referenced subflow
+snapshots still require independently proven ownership; numeric string exports preserve the
+exact authored integer, and generated reference captions preserve the exact execution value.
+These indexed reads are confined to changed flow/subflow captures with logic; SLA captures reuse their existing contract reads. Missing native
+contracts, changed conditions/scripts/defaults, duplicate assignments, unknown descriptor keys
+and changed live versions remain refused by the recorded negative cases.
+
+The recorded pdi12 Service Catalog capture extends the same independent native-output and
+parameter evidence to its generated request-item input and runtime catalog trigger. Hidden test
+outputs are not runtime inputs. The runtime ID belongs to the published head; execution mode
+comes from the authored trigger. Native optional action inputs must match independent identity,
+type, mandatory flag and empty default. Recorded boolean/integer serialization and implicit
+choice captions keep their execution values, while explicit captions, nonempty added inputs,
+unknown records-parameter keys, changed trigger mode/target and duplicate/deleted generated
+records remain mismatches. Reads are bounded and indexed, confined to changed catalog captures;
+logic contracts reuse those reads. Both normal capture and pending reconciliation use the same
+comparison. The linked snapshot, unchanged live version and original pending receipt remain
+required for recovery.
+
+The recorded catalog-item capture omits the SDK's generated empty `sc_cat_item.view` default;
+that column is absent from the native dictionary. Only the empty value is compatible. Nonempty
+authored/captured values and missing ordinary fields still fail. Known omitted defaults also
+refuse conflicting captured values, including where reference-name compatibility would otherwise
+lack evidence. Catalog-item names, active flags, descriptions and fulfilment flow bindings
+remain compared. No capture, live-base, receipt or target check is skipped.

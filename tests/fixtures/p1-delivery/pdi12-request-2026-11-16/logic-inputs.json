@@ -1,0 +1,38 @@
+[
+  {
+    "sys_id": "9a5f5105c32632002841b63b12d3ae46",
+    "model": "af4e1945c3e232002841b63b12d3ae3e",
+    "default_value": "",
+    "attributes": "is_scriptable=false,element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper",
+    "internal_type": "string",
+    "mandatory": "true",
+    "element": "condition"
+  },
+  {
+    "sys_id": "f0af19c1c32632002841b63b12d3aea1",
+    "model": "666e5545c3e232002841b63b12d3ae99",
+    "default_value": "",
+    "attributes": "is_scriptable=false,element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper",
+    "internal_type": "string",
+    "mandatory": "true",
+    "element": "condition"
+  },
+  {
+    "sys_id": "f0af19c1c32632002841b63b12d3aea2",
+    "model": "666e5545c3e232002841b63b12d3ae99",
+    "default_value": "",
+    "attributes": "use_basic_input=true,element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper",
+    "internal_type": "string",
+    "mandatory": "false",
+    "element": "condition_name"
+  },
+  {
+    "sys_id": "f0af19c1c32632002841b63b12d3aea3",
+    "model": "af4e1945c3e232002841b63b12d3ae3e",
+    "default_value": "",
+    "attributes": "use_basic_input=true,element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper",
+    "internal_type": "string",
+    "mandatory": "false",
+    "element": "condition_name"
+  }
+]

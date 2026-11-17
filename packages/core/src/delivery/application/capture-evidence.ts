@@ -3,7 +3,7 @@ import { capturedContentAgrees } from "../../authoring/index";
 import { TableName } from "../../kernel/table-name";
 import type { CaptureContent, CaptureDecoder } from "../ports";
 import { captureReferences } from "./capture-references";
-import { captureTriggerContracts } from "./capture-trigger-contracts";
+import { captureLogicInputs, captureTriggerContracts } from "./capture-trigger-contracts";
 import type { InstanceSession } from "./push-steps";
 
 async function first(
@@ -30,7 +30,10 @@ async function decoded(
   if (content?.published !== true) return null;
   const references = await captureReferences(session.reader, unit, content.unit, session.signal);
   const nativeTriggers = await captureTriggerContracts(session.reader, unit, session.signal);
-  return capturedContentAgrees(unit, content.unit, references, nativeTriggers) ? content : null;
+  const logicInputs = await captureLogicInputs(session.reader, unit, session.signal);
+  return capturedContentAgrees(unit, content.unit, references, nativeTriggers, logicInputs)
+    ? content
+    : null;
 }
 
 // Only matching content may count as captured or be moved from Default. Names and dates

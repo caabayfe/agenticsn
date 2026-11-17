@@ -9,6 +9,7 @@ import {
 } from "@snagentic/core";
 import { runGit, runGitOrThrow } from "../git/run-git";
 import { fromYamlStrings } from "../yaml/own-style";
+import { readCommitIndex, reconcileCommitIndex } from "./commit-index";
 
 // What plan and push need of git (ADR-0031): the mirror branch as validate's base, the branch,
 // committed waivers, uncommitted source, and the ledger commit.
@@ -65,6 +66,7 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
   }
 
   async commitFiles(paths: readonly string[], message: string): Promise<string> {
+    const index = await readCommitIndex(this.root);
     await runGitOrThrow(["add", "--", ...paths], this.root);
     // Files already as committed (a resumed install writes the same ones again): nothing to commit.
     const staged = await runGit(["diff", "--cached", "--quiet", "--", ...paths], this.root);
@@ -79,7 +81,9 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
       [...identity, "commit", "--quiet", "-m", message, "--", ...paths],
       this.root,
     );
-    return (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
+    const committed = (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
+    await reconcileCommitIndex(this.root, index, committed);
+    return committed;
   }
 
   async publishBranch(branch: string): Promise<void> {

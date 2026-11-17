@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+<record_update table="sys_hub_flow">
+  <sys_hub_flow action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>d2c69d6476b9c20cf69f5d332f6519ca</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_hub_flow_d2c69d6476b9c20cf69f5d332f6519ca</sys_update_name>
+    <access>public</access>
+    <active>false</active>
+    <allow_high_security_roles>false</allow_high_security_roles>
+    <annotation/>
+    <category/>
+    <description>problem-review: one risk approval, retaining every earlier approval round.</description>
+    <flow_priority>MEDIUM</flow_priority>
+    <generation_source>fluent</generation_source>
+    <internal_name>acc_problem_risk_approval</internal_name>
+    <label_cache>[{"name":"subflow.approver","label":"Input➛Approver","type":"reference","base_type":"reference","usedInstances":{"644e0462-f9b7-4511-a8ea-5737e21c2a47":["approval_conditions"]},"attributes":{},"reference_table":null,"reference_display":null},{"name":"subflow.problem","label":"Input➛Problem","type":"reference","base_type":"reference","usedInstances":{"644e0462-f9b7-4511-a8ea-5737e21c2a47":["record"]},"attributes":{},"reference_table":null,"reference_display":null}]</label_cache>
+    <name>ACC problem risk approval</name>
+    <run_as>system</run_as>
+    <run_with_roles/>
+    <show_draft_actions>false</show_draft_actions>
+    <status>draft</status>
+    <sys_policy/>
+    <type>subflow</type>
+    <version>2</version>
+  </sys_hub_flow>
+  <sys_hub_flow_input action="delete_multiple" query="model=d2c69d6476b9c20cf69f5d332f6519ca^sys_idNOT INadb04308ae474a288234f7811a354b7f,5e1e2a7fffa2407a96f806863f980dea"/>
+  <sys_hub_flow_input action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>adb04308ae474a288234f7811a354b7f</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_hub_flow_input_adb04308ae474a288234f7811a354b7f</sys_update_name>
+    <active>true</active>
+    <attributes/>
+    <default_value/>
+    <element>problem</element>
+    <hint/>
+    <internal_type>reference</internal_type>
+    <label>Problem</label>
+    <mandatory>true</mandatory>
+    <max_length>32</max_length>
+    <model>d2c69d6476b9c20cf69f5d332f6519ca</model>
+    <model_id>d2c69d6476b9c20cf69f5d332f6519ca</model_id>
+    <model_table>sys_hub_flow</model_table>
+    <name>var__m_sys_hub_flow_input_d2c69d6476b9c20cf69f5d332f6519ca</name>
+    <order>1</order>
+    <reference>problem</reference>
+  </sys_hub_flow_input>
+  <sys_hub_flow_input action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>5e1e2a7fffa2407a96f806863f980dea</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_hub_flow_input_5e1e2a7fffa2407a96f806863f980dea</sys_update_name>
+    <active>true</active>
+    <attributes/>
+    <default_value/>
+    <element>approver</element>
+    <hint/>
+    <internal_type>reference</internal_type>
+    <label>Approver</label>
+    <mandatory>true</mandatory>
+    <max_length>32</max_length>
+    <model>d2c69d6476b9c20cf69f5d332f6519ca</model>
+    <model_id>d2c69d6476b9c20cf69f5d332f6519ca</model_id>
+    <model_table>sys_hub_flow</model_table>
+    <name>var__m_sys_hub_flow_input_d2c69d6476b9c20cf69f5d332f6519ca</name>
+    <order>2</order>
+    <reference>sys_user</reference>
+  </sys_hub_flow_input>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>b243040355e84f4692664b8b26c4d98e</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_flow_input_d2c69d6476b9c20cf69f5d332f6519ca_problem_en</sys_update_name>
+    <element>problem</element>
+    <hint/>
+    <label>Problem</label>
+    <language>en</language>
+    <name>var__m_sys_hub_flow_input_d2c69d6476b9c20cf69f5d332f6519ca</name>
+    <plural>Problems</plural>
+  </sys_documentation>
+  <sys_documentation action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>91a9c6dc429342229251e552661bbda6</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_documentation_var__m_sys_hub_flow_input_d2c69d6476b9c20cf69f5d332f6519ca_approver_en</sys_update_name>
+    <element>approver</element>
+    <hint/>
+    <label>Approver</label>
+    <language>en</language>
+    <name>var__m_sys_hub_flow_input_d2c69d6476b9c20cf69f5d332f6519ca</name>
+    <plural>Approvers</plural>
+  </sys_documentation>
+  <sys_hub_action_instance_v2 action="delete_multiple" query="flow=d2c69d6476b9c20cf69f5d332f6519ca^sys_idNOT IN644e0462f9b74511a8ea5737e21c2a47"/>
+  <sys_hub_action_instance_v2 action="INSERT_OR_UPDATE" apply_defaults="true">
+    <sys_id>644e0462f9b74511a8ea5737e21c2a47</sys_id>
+    <sys_scope display_value="global">global</sys_scope>
+    <sys_update_name>sys_hub_action_instance_v2_644e0462f9b74511a8ea5737e21c2a47</sys_update_name>
+    <action_type>f8f2e9920b10030085c083eb37673abd</action_type>
+    <action_type_parent>f8f2e9920b10030085c083eb37673abd</action_type_parent>
+    <active>true</active>
+    <comment/>
+    <display_text/>
+    <flow>d2c69d6476b9c20cf69f5d332f6519ca</flow>
+    <generation_source/>
+    <order>1</order>
+    <parent_ui_id/>
+    <sys_class_name>sys_hub_action_instance_v2</sys_class_name>
+    <ui_id>644e0462-f9b7-4511-a8ea-5737e21c2a47</ui_id>
+    <updation_source/>
+    <values>H4sIAAAAAAAAE9VTTU/DMAz9K5PPFQogxrbbtH+ABJd1qtzEhUDaVPkYmqr8d9S06rp1QuXIMX5+frafs2+gwpJgA1jXRh9RZYUkJSCBIyo/BiABIW2t8PQ2RSw3snZb7uSRYFOgspRAjQZLcmRg04A71S0nVs+iZgjJoC48ZQIdjXSbFJA7qasUNikY+iTuUkhSaPOytlwPKGxVByhGm9C9vcG+xJqN3mf6h/bGxlzLP0h41YXZquCCrR4ZMmT5w5Ix9rwunpb5PYp8jXTByBTmpCIvhTDd0z+eZLavQ4VuJnnl73BdXFdCto3bkdXbiJJ9iaux2+r0um8a6/NC6e+7jksmhMN0t3+hzh5m6NZ4RfZiEIe5Gl9pbXSuqJw2dgZmy8ba079hiGsz/pHn+XqRcOvobibN7kVo7kuqXCbFbSMNodXV2MTdbtFLLYy0XwvknGqHFW/3dW3br8nzr84ZWb1DCIcfxUfWpMkEAAA=</values>
+  </sys_hub_action_instance_v2>
+  <sys_hub_alias_mapping action="delete_multiple" query="source_id=644e0462f9b74511a8ea5737e21c2a47"/>
+</record_update>

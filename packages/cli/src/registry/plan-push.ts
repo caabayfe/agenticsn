@@ -159,12 +159,15 @@ export const planPush = defineUseCase({
     const instance = await instanceFor(root, context, input.instance);
     const connection = await connect(context, instance, run.signal);
     run.progress({ message: "building the source and reading the instance" });
-    const { plan } = await computeUnitPlan(unitPlanDependencies(context, connection, run.signal), {
-      instance: connection.name,
-      allowCollisions: input.allowCollisions,
-      ...(input.label === undefined ? {} : { label: input.label }),
-      ...(input.recoverPending ? { recoverPending: true } : {}),
-    });
+    const { plan } = await computeUnitPlan(
+      unitPlanDependencies(context, connection, run.signal, run.recheckUnits),
+      {
+        instance: connection.name,
+        allowCollisions: input.allowCollisions,
+        ...(input.label === undefined ? {} : { label: input.label }),
+        ...(input.recoverPending ? { recoverPending: true } : {}),
+      },
+    );
     return plan;
   },
   render(output) {

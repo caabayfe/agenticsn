@@ -214,6 +214,8 @@ export interface ProgressEvent {
 // Per-run controls. Cancelling the signal must stop all further work, including requests
 // to an instance (ADR-0016).
 export interface RunControl {
+  // Internal install observations; never a CLI or MCP override.
+  readonly recheckUnits?: readonly string[];
   readonly signal: AbortSignal;
   progress(event: ProgressEvent): void;
 }

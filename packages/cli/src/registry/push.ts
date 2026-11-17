@@ -158,7 +158,7 @@ export const push = defineUseCase({
     const instance = InstanceName.parse(input.instance);
     return pushUnits(
       {
-        ...unitPlanDependencies(context, connection, run.signal),
+        ...unitPlanDependencies(context, connection, run.signal, run.recheckUnits),
         decodeCapture: context.decodeCapture,
         workspace: context.delivery(root, instance),
         reader,

@@ -72,7 +72,7 @@ export async function deliverAs(
   const layouts = await ensureLayouts(deps, changes.pack, changes.ensures, changes.forms, signal);
   await deps.steps.keys([...added.copied, ...layouts.written], signal);
   await takeOver(deps, [...changes.adoptions, ...layouts.adoptions], signal);
-  const planned = await deps.steps.planPush(label, signal, own);
+  const planned = await deps.steps.planPush(label, signal, own, layouts.recheckUnits);
   if (planned.units === 0 && planned.problems.length === 0) {
     return { outcome: "skipped", detail: "the instance already holds it as built" };
   }

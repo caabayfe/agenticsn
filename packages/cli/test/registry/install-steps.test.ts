@@ -66,11 +66,13 @@ const ANSWERS: Readonly<Record<string, unknown>> = {
 
 function fakes() {
   const calls: [string, unknown][] = [];
+  const observations: unknown[] = [];
   const commits: [readonly string[], string][] = [];
   const written: [string, string][] = [];
   // The fake answers any use case by name; the install only reads the fields listed above.
-  const call = (async (useCase: { name: string }, input: unknown) => {
+  const call = (async (useCase: { name: string }, input: unknown, observed: unknown) => {
     calls.push([useCase.name, input]);
+    observations.push(observed);
     return ANSWERS[useCase.name];
   }) as CallUseCase;
   const context: UseCaseContext = {
@@ -96,12 +98,20 @@ function fakes() {
     { root: "/w", instance: InstanceName.parse("pdi"), pack: "itsm" },
     call,
   );
-  return { steps, calls, commits, written };
+  return { steps, calls, commits, written, observations };
 }
 
 const signal = new AbortController().signal;
 
 describe("an install's steps are the existing use cases (ADR-0038, item 2)", () => {
+  it("carries observed missing entries into both planning and push without exposing a command override", async () => {
+    const { steps, observations, calls } = fakes();
+    const names = [`sys_ui_related_list_entry_${"e".repeat(32)}`];
+    await steps.planPush("L", signal, ["L"], names);
+    await steps.push("p1", "L", signal);
+    expect(observations).toEqual([{ recheckUnits: names }, { recheckUnits: names }]);
+    expect(calls[0]?.[1]).toEqual({ instance: "pdi", label: "L" });
+  });
   it("activates a plugin with the install's confirmation, and refreshes with pull then integrate", async () => {
     const { steps, calls } = fakes();
     expect(await steps.activatePlugin("com.snc.cmdb.csdm", signal)).toEqual({ seconds: 42 });

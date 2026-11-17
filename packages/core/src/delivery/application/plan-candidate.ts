@@ -3,9 +3,35 @@ import { ledgerEntryOf, pendingDecision, pendingFor, planUnit } from "../../auth
 import type { InstanceReader } from "../../connection/index";
 import { type PlannedUnit, plannedOrProblem, type UnitProblem } from "../domain/unit-plan";
 import type { CaptureDecoder, PendingDelivery } from "../ports";
+import type { DraftSchemaCache } from "./draft-flow-graph";
 import { reconcilePending, recoveryDecision } from "./reconcile-pending";
 
 const COMPILED = new Set(["sys_hub_flow", "sys_hub_action_type_definition"]);
+
+async function inWritableDomain(
+  outcome: PlannedUnit | UnitProblem | null,
+  unit: BuiltUnit,
+  copy: InstanceCopy | null,
+  project: string,
+  userDomain: () => Promise<string>,
+): Promise<PlannedUnit | UnitProblem | null> {
+  const domain = copy?.head["sys_domain"] ?? "global";
+  if (
+    outcome !== null &&
+    "operation" in outcome &&
+    outcome.operation === "load" &&
+    COMPILED.has(unit.head.table) &&
+    domain !== (await userDomain())
+  ) {
+    return {
+      project,
+      updateName: unit.updateName,
+      kind: "unsafe",
+      reason: `it is in domain ${domain}, which the signed-in user is not in: the instance would refuse to publish it`,
+    };
+  }
+  return outcome;
+}
 
 export async function planCandidate(
   unit: BuiltUnit,
@@ -21,6 +47,7 @@ export async function planCandidate(
     readonly decodeCapture: CaptureDecoder | undefined;
     readonly signal: AbortSignal;
     readonly recoverPending?: boolean;
+    readonly draftSchemas?: DraftSchemaCache;
   },
 ): Promise<PlannedUnit | UnitProblem | null> {
   const { project, copy, digest, entries, pending } = context;
@@ -36,6 +63,10 @@ export async function planCandidate(
           copy,
           context.decodeCapture,
           context.signal,
+          {
+            allowDraftLoad: true,
+            draftSchemas: context.draftSchemas,
+          },
         );
   const decision =
     context.recoverPending && receipt !== undefined
@@ -59,20 +90,5 @@ export async function planCandidate(
     version: copy?.version ?? null,
     removes: context.removes ?? unfinished?.removes ?? null,
   });
-  const domain = copy?.head["sys_domain"] ?? "global";
-  if (
-    outcome !== null &&
-    "operation" in outcome &&
-    outcome.operation === "load" &&
-    COMPILED.has(unit.head.table) &&
-    domain !== (await context.userDomain())
-  ) {
-    return {
-      project: project.path,
-      updateName: unit.updateName,
-      kind: "unsafe",
-      reason: `it is in domain ${domain}, which the signed-in user is not in: the instance would refuse to publish it`,
-    };
-  }
-  return outcome;
+  return inWritableDomain(outcome, unit, copy, project.path, context.userDomain);
 }

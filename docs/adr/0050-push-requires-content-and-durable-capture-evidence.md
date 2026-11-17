@@ -84,6 +84,47 @@ A separate external edit blocked both a new plan and the previous reviewed push 
 overwriting the edit. This does not establish compatibility with every ServiceNow release;
 see spec 014 for the tested scope and remaining checks.
 
+### New-flow draft evidence for a reviewed reload
+
+A load can finish after its client times out, before publication. An original capture of
+an inactive draft is not published delivery evidence and cannot advance the ledger. For a
+new flow only (create receipt, absent before, no observed acknowledgement, unchanged build),
+normal planning may establish ownership for an explicit reload by proving the original
+draft capture and independently reading its current authored graph. Read runtime families
+even when absent from the build, so an extra branch/action is not hidden by a stale capture.
+Use indexed owner queries and the shared keyset pager, with bounds on graph size; unknown
+ownership shapes, unreadable evidence, snapshots, foreign domains, changed values or versions
+remain refused. Re-read the head, including both snapshot pointers, after the graph reads.
+
+This proof produces an observed version for a **load**, never a verified receipt or record
+operation. Source, target, update-set ownership, gate and fresh plan approval still apply;
+normal load/publication acknowledgements, published snapshot, capture and live read-back are
+required before completion. Receipt-only recovery stays read-only and rejects unpublished
+drafts. Existing-flow updates with an unknown outcome remain conservative. No public flag,
+new command, automatic retry, journal edit or capture-checker exemption is introduced.
+
+PDI13's recorded native schema confirms the supported ownership field names. Simulated
+completed-load/client-timeout tests cover an explicit reviewed reload, publication and final
+receipt clearing, plus stale captures, direct child edits, extra branches/mappings, snapshot
+pointers, domains, changed source/versions, unreadable evidence and request/row bounds.
+Native recovery acceptance remains required; these tests alone do not certify PDI13 delivery.
+
+Complete native draft captures also contain empty `delete_multiple` cleanup directives.
+These are not authored rows. Their known native ownership shapes are still read live,
+including compiled trigger/subflow plans and input links. Empty choice cleanup directives
+query all three exact flow-variable namespaces; an unexpected live row still refuses the
+reload. Unknown ownership shapes remain refused. Regression tests run all five complete
+recorded native captures through reconciliation with the actual XML decoder.
+
+
+The mutable draft read projects only fields present in the independently read inherited
+native schema. SDK XML defaults such as action-instance `active` and trigger `category`
+are absent from the native child tables; a Table API empty projection cannot stand in for
+an authored value. Reuse the existing recorded-default comparison only for schema-absent
+fields. Preserve readable empty values, require visible owner columns before listing,
+and refuse unreadable schema. Cache only schema field sets within one project plan, while
+re-reading live content and versions for each proof. Foreign declared domains still refuse.
+
 Native approval capture on pdi12 (Brazil, SDK 4.14.0) additionally records two publication
 defaults: computed document references and relative approval deadlines lose only the SDK's
 duplicated display label, and Ask for Approval adds an unassigned optional journal-field

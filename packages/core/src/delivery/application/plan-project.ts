@@ -109,6 +109,7 @@ export async function planProject(
       );
   const units: PlannedUnit[] = [...removed.forgotten];
   const problems = removed.problems;
+  const draftSchemas = new Map<string, Promise<ReadonlySet<string>>>();
   for (const unit of candidates) {
     const outcome = await planCandidate(unit, {
       project,
@@ -122,6 +123,7 @@ export async function planProject(
       decodeCapture: deps.decodeCapture,
       signal: deps.signal,
       recoverPending,
+      draftSchemas,
     });
     if (outcome === null) continue;
     if (!("operation" in outcome)) problems.push(outcome);

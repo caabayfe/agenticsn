@@ -33,6 +33,7 @@ export {
 export {
   capturedContentAgrees,
   compiledCopyAgrees,
+  draftContentAgrees,
   publishedCapture,
 } from "./domain/capture-content";
 export { compareUnit, type Difference } from "./domain/compare";

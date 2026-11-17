@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.22.1] - 2026-11-16
+
 ### Fixed
 
 - Reinstalling an accelerator recreates missing owned related-list entries even when their

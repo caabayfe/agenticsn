@@ -36,6 +36,7 @@ export async function planCandidate(
           copy,
           context.decodeCapture,
           context.signal,
+          { allowDraftLoad: true },
         );
   const decision =
     context.recoverPending && receipt !== undefined

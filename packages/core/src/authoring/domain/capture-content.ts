@@ -170,6 +170,34 @@ export function capturedContentAgrees(
   });
 }
 
+// A raw inactive draft has no publication-generated rows. This proves only the authored
+// pre-publication graph for a reviewed reload; it cannot certify published delivery.
+export function draftContentAgrees(
+  built: BuiltUnit,
+  actual: BuiltUnit,
+  references: ReadonlyMap<string, string> = new Map(),
+): boolean {
+  if (built.head.table !== "sys_hub_flow" || actual.head.table !== built.head.table) return false;
+  if (actual.head.fields["status"] !== "draft" || actual.head.fields["active"] !== "false")
+    return false;
+  if (actual.head.fields["master_snapshot"] || actual.head.fields["latest_snapshot"]) return false;
+  if (!sameIdentity(built, actual) || !recordAgrees(built.head, actual.head, true)) return false;
+  const wanted = built.children.filter((row) => row.sysId !== "");
+  const held = actual.children.filter((row) => row.sysId !== "");
+  return (
+    wanted.length === held.length &&
+    wanted.every((row) => {
+      const matches = held.filter(
+        (candidate) => candidate.table === row.table && candidate.sysId === row.sysId,
+      );
+      const found = matches[0];
+      return (
+        matches.length === 1 && found !== undefined && recordAgrees(row, found, false, references)
+      );
+    })
+  );
+}
+
 // Capture proves the authored graph; live head fields and the master snapshot must still
 // agree. A stale capture cannot certify another published version on the instance.
 export function compiledCopyAgrees(

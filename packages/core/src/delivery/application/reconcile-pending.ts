@@ -10,9 +10,18 @@ import {
 } from "../../authoring/index";
 import type { InstanceReader } from "../../connection/index";
 import { TableName } from "../../kernel/table-name";
-import type { CaptureDecoder, PendingDelivery } from "../ports";
+import type { CaptureContent, CaptureDecoder, PendingDelivery } from "../ports";
 import { captureReferences } from "./capture-references";
 import { captureLogicInputs, captureTriggerContracts } from "./capture-trigger-contracts";
+import { reconcileDraftFlow } from "./reconcile-draft-flow";
+
+function liveAgrees(unit: BuiltUnit, content: CaptureContent, copy: InstanceCopy | null): boolean {
+  if (isDeletion(unit)) return copy === null;
+  if (copy === null) return false;
+  return unitSpec(unit.head.table).comparable
+    ? compareUnit(unit, copy).length === 0
+    : compiledCopyAgrees(unit, content.unit, content.live ?? copy);
+}
 
 // Read-only reconciliation can resolve an unknown acknowledgement. It cannot bless a
 // different known remote version, or infer success from a timestamp or update name.
@@ -23,6 +32,7 @@ export async function reconcilePending(
   copy: InstanceCopy | null,
   decode: CaptureDecoder | undefined,
   signal: AbortSignal,
+  options: { readonly allowDraftLoad?: boolean } = {},
 ): Promise<PendingDelivery> {
   if (
     decode === undefined ||
@@ -39,18 +49,16 @@ export async function reconcilePending(
     signal,
   );
   const content = decode(unit.updateName, rows[0]?.["payload"] ?? "", copy);
-  if (content?.published !== true) return pending;
+  if (content?.published !== true)
+    return options.allowDraftLoad === true
+      ? reconcileDraftFlow(reader, unit, pending, copy, rows[0]?.["payload"] ?? "", decode, signal)
+      : pending;
   const references = await captureReferences(reader, unit, content.unit, signal);
   const nativeTriggers = await captureTriggerContracts(reader, unit, signal);
   const logicInputs = await captureLogicInputs(reader, unit, signal);
   if (!capturedContentAgrees(unit, content.unit, references, nativeTriggers, logicInputs))
     return pending;
-  const applied = isDeletion(unit)
-    ? copy === null
-    : copy !== null &&
-      (unitSpec(unit.head.table).comparable
-        ? compareUnit(unit, copy).length === 0
-        : compiledCopyAgrees(unit, content.unit, content.live ?? copy));
+  const applied = liveAgrees(unit, content, copy);
   return applied ? { ...pending, observed: copy?.version ?? null, verified: true } : pending;
 }
 

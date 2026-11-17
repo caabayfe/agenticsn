@@ -109,6 +109,14 @@ receipt clearing, plus stale captures, direct child edits, extra branches/mappin
 pointers, domains, changed source/versions, unreadable evidence and request/row bounds.
 Native recovery acceptance remains required; these tests alone do not certify PDI13 delivery.
 
+The mutable draft read projects only fields present in the independently read inherited
+native schema. SDK XML defaults such as action-instance `active` and trigger `category`
+are absent from the native child tables; a Table API empty projection cannot stand in for
+an authored value. Reuse the existing recorded-default comparison only for schema-absent
+fields. Preserve readable empty values, require visible owner columns before listing,
+and refuse unreadable schema. Cache only schema field sets within one project plan, while
+re-reading live content and versions for each proof. Foreign declared domains still refuse.
+
 Native approval capture on pdi12 (Brazil, SDK 4.14.0) additionally records two publication
 defaults: computed document references and relative approval deadlines lose only the SDK's
 duplicated display label, and Ask for Approval adds an unassigned optional journal-field

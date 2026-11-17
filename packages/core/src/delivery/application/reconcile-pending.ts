@@ -13,6 +13,7 @@ import { TableName } from "../../kernel/table-name";
 import type { CaptureContent, CaptureDecoder, PendingDelivery } from "../ports";
 import { captureReferences } from "./capture-references";
 import { captureLogicInputs, captureTriggerContracts } from "./capture-trigger-contracts";
+import type { DraftSchemaCache } from "./draft-flow-graph";
 import { reconcileDraftFlow } from "./reconcile-draft-flow";
 
 function liveAgrees(unit: BuiltUnit, content: CaptureContent, copy: InstanceCopy | null): boolean {
@@ -32,7 +33,10 @@ export async function reconcilePending(
   copy: InstanceCopy | null,
   decode: CaptureDecoder | undefined,
   signal: AbortSignal,
-  options: { readonly allowDraftLoad?: boolean } = {},
+  options: {
+    readonly allowDraftLoad?: boolean;
+    readonly draftSchemas?: DraftSchemaCache | undefined;
+  } = {},
 ): Promise<PendingDelivery> {
   if (
     decode === undefined ||
@@ -51,7 +55,16 @@ export async function reconcilePending(
   const content = decode(unit.updateName, rows[0]?.["payload"] ?? "", copy);
   if (content?.published !== true)
     return options.allowDraftLoad === true
-      ? reconcileDraftFlow(reader, unit, pending, copy, rows[0]?.["payload"] ?? "", decode, signal)
+      ? reconcileDraftFlow(
+          reader,
+          unit,
+          pending,
+          copy,
+          rows[0]?.["payload"] ?? "",
+          decode,
+          signal,
+          options.draftSchemas,
+        )
       : pending;
   const references = await captureReferences(reader, unit, content.unit, signal);
   const nativeTriggers = await captureTriggerContracts(reader, unit, signal);

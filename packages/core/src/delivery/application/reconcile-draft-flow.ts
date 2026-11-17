@@ -9,7 +9,7 @@ import type { InstanceReader } from "../../connection/index";
 import { TableName } from "../../kernel/table-name";
 import type { CaptureDecoder, PendingDelivery } from "../ports";
 import { captureReferences } from "./capture-references";
-import { readDraftFlowGraph } from "./draft-flow-graph";
+import { type DraftSchemaCache, readDraftFlowGraph } from "./draft-flow-graph";
 
 function newUnacknowledged(unit: BuiltUnit, pending: PendingDelivery): boolean {
   return (
@@ -77,6 +77,7 @@ export async function reconcileDraftFlow(
   payload: string,
   decode: CaptureDecoder,
   signal: AbortSignal,
+  schemas?: DraftSchemaCache,
 ): Promise<PendingDelivery> {
   if (copy === null || !newUnacknowledged(unit, pending)) return pending;
   const fresh = await freshHead(reader, copy, unit, signal);
@@ -85,7 +86,7 @@ export async function reconcileDraftFlow(
     return pending;
   const references = await captureReferences(reader, unit, captured.unit, signal);
   if (!draftContentAgrees(unit, captured.unit, references)) return pending;
-  const graph = await readDraftFlowGraph(reader, unit, captured.unit, fresh, signal);
+  const graph = await readDraftFlowGraph(reader, unit, captured.unit, fresh, signal, schemas);
   if (graph === null) return pending;
   const opened = decode(unit.updateName, payload, { ...fresh, children: graph.rows })?.live;
   if (

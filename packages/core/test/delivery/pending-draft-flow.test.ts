@@ -11,6 +11,7 @@ import {
   unitDigest,
 } from "@snagentic/core";
 import { reconcilePending } from "../../src/delivery/application/reconcile-pending";
+import { draftSchemas } from "../support/draft-schema-fixture";
 import { fakeInstance } from "../support/fake-instance";
 import { QUERY, unitSetup } from "./unit-fixture";
 
@@ -71,12 +72,20 @@ function fixture() {
   };
   const denied: string[] = [];
   const native = fakeInstance(tables, denied);
+  draftSchemas(native.tables);
   const { reader } = native;
   const decode: CaptureDecoder = (_name, payload, live) =>
     payload === "draft" ? { unit: captured, published: false, ...(live ? { live } : {}) } : null;
-  const run = (pending = receipt, wanted = unit, remote = copy, decoder = decode) =>
+  const run = (
+    pending = receipt,
+    wanted = unit,
+    remote = copy,
+    decoder = decode,
+    cache = new Map<string, Promise<ReadonlySet<string>>>(),
+  ) =>
     reconcilePending(reader, wanted, pending, remote, decoder, new AbortController().signal, {
       allowDraftLoad: true,
+      draftSchemas: cache,
     });
   return { unit, captured, copy, receipt, tables, native, denied, reader, decode, run };
 }
@@ -239,6 +248,104 @@ it("refuses documentation bound to another flow even when source and capture agr
   expect(await c.run(pending, unit, c.copy, decode)).toEqual(pending);
 });
 
+it("distinguishes unavailable native columns from empty projections of SDK XML defaults", async () => {
+  const c = fixture();
+  const source = c.unit.children[0];
+  if (!source) throw new Error("Action fixture required");
+  const action = { ...source, fields: { ...source.fields, active: "true" } };
+  const unit = { ...c.unit, children: [action] };
+  const captured = { ...c.captured, children: unit.children };
+  const pending = { ...c.receipt, digest: unitDigest(unit) };
+  const query = c.reader.query;
+  c.reader.query = async (...args) => {
+    const rows = await query(...args);
+    if (args[0].table !== "sys_hub_action_instance_v2") return rows;
+    return rows.map((row) => ({ ...row, active: "", sys_domain: "" }));
+  };
+  const decode: CaptureDecoder = (_name, _payload, live) => ({
+    unit: captured,
+    published: false,
+    ...(live ? { live } : {}),
+  });
+  expect(await c.run(pending, unit, c.copy, decode)).toEqual({
+    ...pending,
+    observed: c.copy.version,
+  });
+});
+
+it("preserves a real readable empty value instead of substituting an SDK default", async () => {
+  const c = fixture();
+  const source = c.unit.children[0];
+  if (!source) throw new Error("Action fixture required");
+  const action = { ...source, fields: { ...source.fields, active: "true" } };
+  const unit = { ...c.unit, children: [action] };
+  const captured = { ...c.captured, children: unit.children };
+  const pending = { ...c.receipt, digest: unitDigest(unit) };
+  c.native.tables["sys_dictionary"]?.push({
+    sys_id: "9".repeat(32),
+    name: "sys_hub_action_instance_v2",
+    element: "active",
+    internal_type: "boolean",
+    reference: "",
+    unique: "false",
+  });
+  c.native.tables["sys_hub_action_instance_v2"] = [{ ...source.fields, active: "" }];
+  const decode: CaptureDecoder = (_name, _payload, live) => ({
+    unit: captured,
+    published: false,
+    ...(live ? { live } : {}),
+  });
+  expect(await c.run(pending, unit, c.copy, decode)).toEqual(pending);
+});
+
+it("refuses a declared foreign child domain", async () => {
+  const c = fixture();
+  c.native.tables["sys_dictionary"]?.push({
+    sys_id: "9".repeat(32),
+    name: "sys_hub_action_instance_v2",
+    element: "sys_domain",
+    internal_type: "domain_id",
+    reference: "",
+    unique: "false",
+  });
+  c.native.tables["sys_hub_action_instance_v2"] = [
+    { ...c.unit.children[0]?.fields, sys_domain: "foreign" },
+  ];
+  expect(await c.run()).toEqual(c.receipt);
+});
+
+it("requires a visible native owner column before listing a child table", async () => {
+  const c = fixture();
+  c.native.tables["sys_dictionary"] = (c.native.tables["sys_dictionary"] ?? []).filter(
+    (row) => row["name"] !== "sys_hub_action_instance_v2" || row["element"] !== "flow",
+  );
+  expect(await c.run()).toEqual(c.receipt);
+  expect(c.native.queries.some((query) => query.table === "sys_hub_action_instance_v2")).toBe(
+    false,
+  );
+});
+
+it("reuses schema reads within a plan while reading live child content again", async () => {
+  const c = fixture();
+  const cache = new Map<string, Promise<ReadonlySet<string>>>();
+  expect(await c.run(c.receipt, c.unit, c.copy, c.decode, cache)).toEqual({
+    ...c.receipt,
+    observed: c.copy.version,
+  });
+  const reads = c.native.queries.filter((query) => query.table === "sys_dictionary").length;
+  c.tables.sys_hub_action_instance_v2 = [
+    { ...c.unit.children[0]?.fields, values: '{"script":"external"}' },
+  ];
+  expect(await c.run(c.receipt, c.unit, c.copy, c.decode, cache)).toEqual(c.receipt);
+  expect(c.native.queries.filter((query) => query.table === "sys_dictionary")).toHaveLength(reads);
+});
+
+it("refuses unreadable schema without treating missing fields as known defaults", async () => {
+  const c = fixture();
+  c.denied.push("sys_dictionary");
+  await expect(c.run()).rejects.toMatchObject({ code: "access-denied" });
+});
+
 it("refuses a missing original capture", async () => {
   const c = fixture();
   c.tables.sys_update_xml = [];
@@ -293,6 +400,7 @@ it("bounds extra owned rows rather than scanning an unbounded graph", async () =
 
 it("requires a new approved load after a timed-out new flow and commits only after publication and capture verification", async () => {
   const c = unitSetup({ ledger: null });
+  draftSchemas(c.tables);
   const unit = fixture().unit;
   c.builds.set(c.project.path, [unit]);
   c.xml.set(

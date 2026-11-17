@@ -1,7 +1,26 @@
 import type { BuiltUnit, Fields, InstanceCopy, UnitRecord } from "../../authoring/index";
 import type { InstanceReader } from "../../connection/index";
+import { readLiveSchema } from "../../investigation/index";
 import { TableName } from "../../kernel/table-name";
 import { KeysetPager } from "../../sync/index";
+
+export type DraftSchemaCache = Map<string, Promise<ReadonlySet<string>>>;
+
+async function nativeFields(
+  reader: InstanceReader,
+  table: string,
+  cache: DraftSchemaCache,
+  signal: AbortSignal,
+) {
+  let fields = cache.get(table);
+  if (fields === undefined) {
+    fields = readLiveSchema(reader, TableName.parse(table), signal).then(
+      (schema) => new Set(schema.fields.map((field) => field.name)),
+    );
+    cache.set(table, fields);
+  }
+  return fields;
+}
 
 // Only recorded draft-flow ownership shapes. Unknown tables fail closed; a capture alone
 // cannot establish that the mutable live draft still has the reviewed authored graph.
@@ -46,7 +65,11 @@ const RUNTIME = [
   "sys_hub_alias_mapping",
 ];
 
-function queryFor(table: string, rows: readonly UnitRecord[], captured: BuiltUnit): string | null {
+function queryFor(
+  table: string,
+  rows: readonly UnitRecord[],
+  captured: BuiltUnit,
+): { readonly base: string; readonly key: string } | null {
   if (table === "sys_documentation" || table === "sys_choice") {
     const names = [...new Set(rows.map((row) => row.fields["name"]).filter(Boolean))];
     if (
@@ -59,7 +82,7 @@ function queryFor(table: string, rows: readonly UnitRecord[], captured: BuiltUni
       )
     )
       return null;
-    return `nameIN${names.join(",")}`;
+    return { base: `nameIN${names.join(",")}`, key: "name" };
   }
   const owner = OWNERS[table];
   if (owner === undefined) return null;
@@ -70,13 +93,21 @@ function queryFor(table: string, rows: readonly UnitRecord[], captured: BuiltUni
       ]
     : [captured.head.sysId];
   if (ids.length > 100) return null;
-  return `${owner}IN${[...new Set(ids)].join(",")}`;
+  return { base: `${owner}IN${[...new Set(ids)].join(",")}`, key: owner };
+}
+
+function projectChild(table: string, row: Fields, columns: ReadonlySet<string>): UnitRecord | null {
+  const fields = Object.fromEntries(Object.entries(row).filter(([field]) => columns.has(field)));
+  const id = fields["sys_id"] ?? "";
+  if (!ID.test(id) || (fields["sys_domain"] ?? "global") !== "global") return null;
+  return { table, sysId: id, action: "INSERT_OR_UPDATE", fields, referenceNames: {} };
 }
 
 async function children(
   reader: InstanceReader,
   built: BuiltUnit,
   captured: BuiltUnit,
+  schemas: DraftSchemaCache,
   signal: AbortSignal,
 ): Promise<UnitRecord[] | null> {
   const groups = Map.groupBy([...built.children, ...captured.children], (row) => row.table);
@@ -84,19 +115,26 @@ async function children(
   const live: UnitRecord[] = [];
   const pager = new KeysetPager(reader);
   for (const [table, rows] of groups) {
-    const base = queryFor(table, rows, captured);
-    if (base === null) return null;
+    const query = queryFor(table, rows, captured);
+    if (query === null) return null;
+    const columns = await nativeFields(reader, table, schemas, signal);
+    if (!columns.has(query.key)) return null;
     const fields = [
       ...new Set(["sys_id", "sys_domain", ...rows.flatMap((row) => Object.keys(row.fields))]),
-    ];
+    ].filter((field) => columns.has(field));
     for await (const row of pager.rows(
-      { kind: "snapshot", table: TableName.parse(table), base, fields, allDomains: true },
+      {
+        kind: "snapshot",
+        table: TableName.parse(table),
+        base: query.base,
+        fields,
+        allDomains: true,
+      },
       signal,
     )) {
-      const id = row["sys_id"] ?? "";
-      if (!ID.test(id) || (row["sys_domain"] ?? "global") !== "global" || live.length >= 1000)
-        return null;
-      live.push({ table, sysId: id, action: "INSERT_OR_UPDATE", fields: row, referenceNames: {} });
+      const child = projectChild(table, row, columns);
+      if (child === null || live.length >= 1000) return null;
+      live.push(child);
     }
   }
   return live;
@@ -108,8 +146,9 @@ export async function readDraftFlowGraph(
   captured: BuiltUnit,
   copy: InstanceCopy,
   signal: AbortSignal,
+  schemas: DraftSchemaCache = new Map(),
 ): Promise<{ readonly unit: BuiltUnit; readonly rows: readonly Fields[] } | null> {
-  const rows = await children(reader, built, captured, signal);
+  const rows = await children(reader, built, captured, schemas, signal);
   if (rows === null) return null;
   return {
     unit: {

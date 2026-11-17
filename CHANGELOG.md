@@ -20,6 +20,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - Installer commits keep hook-generated keys clean in Git's index while preserving existing
   partial staging and working edits, so the next normal source-readiness check can proceed.
 
+### Security
+
+- Recorded a seven-day review of the unpatched `picomatch` 4.0.7 repeated-extglob advisory.
+  Its patterns come from local project settings or repository-owned architecture inputs;
+  hostile local configuration can still stall a build worker. See the
+  [advisory register](docs/security/advisories.md) for the scope and review date.
+
 ## [2.22.1] - 2026-11-16
 
 ### Fixed

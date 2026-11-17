@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { InstanceName } from "@snagentic/core";
@@ -55,6 +55,82 @@ describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
     expect(await workspace.commitFiles(["source/global/src/fluent/ensure-m.now.ts"], "again")).toBe(
       first,
     );
+  });
+
+  it.each(["new", "existing"])(
+    "keeps %s hook-generated keys clean while preserving unrelated partial staging",
+    async (kind) => {
+      const { root, write, workspace } = await repository();
+      const keys = "source/global/src/fluent/generated/keys.ts";
+      const other = "source/other/src/fluent/change.now.ts";
+      const ledger = "source/global/snagentic.ledger.yaml";
+      await write(other, "baseline\n");
+      if (kind === "existing") await write(keys, "old keys\n");
+      await git(root, "add", "source");
+      await git(root, "commit", "-qm", "initial source");
+      await write(other, "staged edit\n");
+      await git(root, "add", other);
+      await write(other, "unstaged draft\n");
+      await write(ledger, "units: {}\n");
+      await write(
+        ".hooks/pre-commit",
+        `#!/bin/sh\nmkdir -p source/global/src/fluent/generated\nprintf 'generated keys\\n' > ${keys}\ngit add -- ${keys}\n`,
+      );
+      await chmod(join(root, ".hooks/pre-commit"), 0o755);
+      await git(root, "config", "core.hooksPath", ".hooks");
+
+      await workspace.commitFiles([ledger], "record the delivery");
+
+      expect(await git(root, "show", `HEAD:${keys}`)).toBe("generated keys\n");
+      expect(await workspace.uncommittedSource()).toEqual([other]);
+      expect(await git(root, "show", `HEAD:${other}`)).toBe("baseline\n");
+      expect(await git(root, "show", `:${other}`)).toBe("staged edit\n");
+      expect(await readFile(join(root, other), "utf8")).toBe("unstaged draft\n");
+    },
+  );
+
+  it("preserves an existing staged change to a hook's generated output", async () => {
+    const { root, write, workspace } = await repository();
+    const keys = "source/global/src/fluent/generated/keys.ts";
+    const ledger = "source/global/snagentic.ledger.yaml";
+    await write(keys, "old keys\n");
+    await git(root, "add", keys);
+    await git(root, "commit", "-qm", "initial keys");
+    await write(keys, "user staged keys\n");
+    await git(root, "add", keys);
+    await write(ledger, "units: {}\n");
+    await write(
+      ".hooks/pre-commit",
+      `#!/bin/sh\nprintf 'generated keys\\n' > ${keys}\ngit add -- ${keys}\n`,
+    );
+    await chmod(join(root, ".hooks/pre-commit"), 0o755);
+    await git(root, "config", "core.hooksPath", ".hooks");
+
+    await workspace.commitFiles([ledger], "record the delivery");
+
+    expect(await git(root, "show", `HEAD:${keys}`)).toBe("generated keys\n");
+    expect(await git(root, "show", `:${keys}`)).toBe("user staged keys\n");
+    expect(await workspace.uncommittedSource()).toEqual([keys]);
+  });
+
+  it("preserves a working edit made after a hook stages its generated output", async () => {
+    const { root, write, workspace } = await repository();
+    const keys = "source/global/src/fluent/generated/keys.ts";
+    const ledger = "source/global/snagentic.ledger.yaml";
+    await write(ledger, "units: {}\n");
+    await write(
+      ".hooks/pre-commit",
+      `#!/bin/sh\nmkdir -p source/global/src/fluent/generated\nprintf 'generated keys\\n' > ${keys}\ngit add -- ${keys}\nprintf 'post-hook draft\\n' > ${keys}\n`,
+    );
+    await chmod(join(root, ".hooks/pre-commit"), 0o755);
+    await git(root, "config", "core.hooksPath", ".hooks");
+
+    await workspace.commitFiles([ledger], "record the delivery");
+
+    expect(await git(root, "show", `HEAD:${keys}`)).toBe("generated keys\n");
+    expect(await git(root, "show", `:${keys}`)).toBe("generated keys\n");
+    expect(await readFile(join(root, keys), "utf8")).toBe("post-hook draft\n");
+    expect(await workspace.uncommittedSource()).toEqual([keys]);
   });
 
   it("fails a commit a commit-msg hook rejects with git's message and a hint, committing nothing", async () => {

@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.22.3] - 2026-11-17
+
+### Fixed
+
+- Verify the native Record Updated trigger’s projected `changed_fields` output during delivery
+  and receipt recovery. The verifier compares the output with its native definition and checks
+  the capture’s execution fields, model, and ownership. This lets an interrupted installer
+  recover the verified receipt and continue from the original plan. [#284](https://github.com/caabayfe/agenticsn/pull/284)
+
 ## [2.22.2] - 2026-11-17
 
 ### Fixed

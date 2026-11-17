@@ -17,7 +17,7 @@ How to decide: fix it with an `overrides` entry in the root `package.json` when 
 patched version exists. Otherwise accept it for at most 90 days, with the reason it can't hurt
 snagentic, and look again by the review date.
 
-## How the packages reach snagentic (2026-10-22, updated 2026-11-10)
+## How the packages reach snagentic (2026-10-22, updated 2026-11-17)
 
 Most of them come in through the ServiceNow SDK (4.14.0 since 2026-11-02), which the binary
 embeds (ADR-0032); the others through the MCP server or ESLint, as noted. snagentic calls only `Orchestrator.build` and `Orchestrator.transform`, on
@@ -71,6 +71,20 @@ the developer's own project.
   pattern; the patterns are ESLint's and the SDK's own, and snagentic's script checker builds
   its ESLint configuration in code, so no pattern comes from a workspace or an instance.
 
+- **`picomatch` 4.0.7** (2026-11-17; review 2026-11-24) is pinned by SDK 4.14's API and
+  build plugins, also reached through SDK build-core's `tinyglobby`, and used by the
+  development-only `dependency-cruiser`. The [reviewed advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
+  lists no patched version; the package registry's latest release is still 4.0.7. SDK calls
+  take patterns from the developer's local project settings, including `staticContent.assets`;
+  the architecture command uses the repository-owned `packages` input and configuration.
+  ServiceNow record content is not used as a glob pattern and there is no remote glob-pattern
+  input in the MCP interface. SDK serve/watch entry points are not called. The acceptance is
+  limited to this local, developer-controlled use and is reviewed in seven days, rather than
+  the maximum ninety. A hostile local project configuration can still stall its build worker:
+  this is not a fix for the dependency, and no worker deadline is claimed. Reassess immediately
+  if a patched release appears or a new caller accepts externally supplied patterns. The audit's
+  installed version and all four direct dependency paths are bound in the row below.
+
 ## Register
 
 | Advisory | Package | Versions | Through | Severity | Decision | Reason | Review by |
@@ -81,3 +95,4 @@ the developer's own project.
 | GHSA-333x-w4r6-6crp | fast-uri | 3.1.8, 4.2.2 | `@modelcontextprotocol/sdk`, `@servicenow/sdk`, `@servicenow/sdk-api` | low | accepted | Scheme injection via a first-segment colon; same reason | 2027-02-08 |
 | GHSA-3g3m-2fjr-6pw4 | glob | 10.5.0, 13.0.6 | `@servicenow/sdk`, `@servicenow/sdk-api` | moderate | accepted | AbortSignal cancellation ignored after a timeout; 13.x and 10.x come with the SDK and its optional build tooling, the only fix is a new major; snagentic serves no files and runs no node-gyp | 2027-02-01 |
 | GHSA-g3hv-75wg-m249 | minimatch | 9.0.9, 10.2.6 | `@servicenow/sdk`, `@servicenow/sdk-api`, `@servicenow/sdk-build-core`, `eslint` | moderate | accepted | Slow expansion of a hostile pattern; 9.x and 10.x come with ts-morph, ESLint and glob, the only fix is a new major; every pattern is the tools' own or set in code | 2027-02-01 |
+| GHSA-fc5q-39xc-vjpf | picomatch | 4.0.7 | `@servicenow/sdk`, `@servicenow/sdk-api`, `@servicenow/sdk-build-core`, `dependency-cruiser` | high | accepted | No patched release; patterns are local developer project settings or repository-owned architecture inputs, with no ServiceNow or remote MCP pattern input. Hostile local configuration can still stall its SDK build worker; seven-day review of this local availability exposure | 2026-11-24 |

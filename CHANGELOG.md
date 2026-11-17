@@ -4,7 +4,7 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
-## [2.22.1] - 2026-11-16
+## [2.22.2] - 2026-11-17
 
 ### Fixed
 
@@ -12,6 +12,20 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   generated source is unchanged. Only facts the installer observed missing become additional
   plan candidates. Normal drift, plan confirmation, SDK load and capture checks still apply;
   native containers and other entries are not rewritten.
+- Published risk, request and catalog captures verify recorded native compiler defaults and
+  runtime contracts without accepting changed values, scripts, ownership or unpublished flows.
+- Interrupted first loads can offer a reviewed reload of new inactive flow drafts only after
+  independently proving the original capture and unchanged live graph. Publication and final
+  capture verification remain required before receipts clear.
+- Installer commits keep hook-generated keys clean in Git's index while preserving existing
+  partial staging and working edits, so the next normal source-readiness check can proceed.
+
+### Security
+
+- Recorded a seven-day review of the unpatched `picomatch` 4.0.7 repeated-extglob advisory.
+  Its patterns come from local project settings or repository-owned architecture inputs;
+  hostile local configuration can still stall a build worker. See the
+  [advisory register](docs/security/advisories.md) for the scope and review date.
 
 ## [2.22.1] - 2026-11-16
 

@@ -130,6 +130,24 @@ describe("native trigger capture evidence", () => {
     expect(fake.queries.every((query) => !/LIKE|CONTAINS|offset/i.test(query.query))).toBe(true);
   });
 
+  it("reads the native Changed Fields projection for a Record Updated trigger", async () => {
+    const output = { sys_id: "1", model: ID, element: "changed_fields" };
+    const fake = fakeInstance({ sys_hub_trigger_output: [output] });
+    const built = {
+      ...unit(),
+      children: unit().children.map((row) =>
+        row.table === "sys_hub_trigger_instance_v2"
+          ? { ...row, fields: { ...row.fields, trigger_type: "record_update" } }
+          : row,
+      ),
+    };
+    expect((await captureTriggerContracts(fake.reader, built, signal))[0]?.outputs).toEqual([
+      output,
+    ]);
+    expect(await captureLogicInputs(fake.reader, built, signal)).toEqual([]);
+    expect(fake.writes).toEqual([]);
+  });
+
   it("does not query native contracts for unrelated or malformed definitions", async () => {
     const fake = fakeInstance({});
     for (const built of [

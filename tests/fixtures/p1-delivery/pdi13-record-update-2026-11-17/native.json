@@ -1,0 +1,44 @@
+{
+  "definitionId": "bb695e60c31322002841b63b12d3aea5",
+  "outputs": [
+    {
+      "sys_id": "e99267570f022300ecf0cc52ff767ed0",
+      "model": "bb695e60c31322002841b63b12d3aea5",
+      "element": "changed_fields",
+      "active": "true",
+      "array": "false",
+      "attributes": "child_label=FDChangeDetails,child_name=FDChangeDetails,child_type=object,child_type_label=Object,co_type_name=FDCollection,element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper,pwd2droppable=true,uiType=array.object,uiTypeLabel=Array.Object",
+      "internal_type": "string",
+      "reference": "",
+      "mandatory": "false",
+      "max_length": "4000",
+      "default_value": "",
+      "calculation": "(function calculatedFieldValue(current) {\n\n\t// Add your code here\n\treturn '';  // return the calculated value\n\n})(current);",
+      "reference_qual": "",
+      "reference_qual_condition": ""
+    }
+  ],
+  "schemas": [],
+  "logicInputs": [
+    {
+      "sys_id": "9a5f5105c32632002841b63b12d3ae46",
+      "model": "af4e1945c3e232002841b63b12d3ae3e",
+      "element": "condition",
+      "internal_type": "string",
+      "default_value": "",
+      "mandatory": "true",
+      "attributes": "is_scriptable=false,element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper",
+      "max_length": "2000"
+    },
+    {
+      "sys_id": "f0af19c1c32632002841b63b12d3aea3",
+      "model": "af4e1945c3e232002841b63b12d3ae3e",
+      "element": "condition_name",
+      "internal_type": "string",
+      "default_value": "",
+      "mandatory": "false",
+      "attributes": "use_basic_input=true,element_mapping_provider=com.glide.flow_design.action.data.FlowDesignVariableMapper",
+      "max_length": "255"
+    }
+  ]
+}

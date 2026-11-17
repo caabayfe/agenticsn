@@ -43,6 +43,9 @@ const OWNERS: Readonly<Record<string, string>> = {
   sys_flow_cat_variable_model: "id",
   sys_flow_cat_variable: "flow_catalog_model",
   sys_translated_text: "documentkey",
+  sys_flow_trigger_plan: "plan_id",
+  sys_flow_subflow_plan: "plan_id",
+  sys_hub_action_input_action_instance: "action_input",
 };
 const NESTED = new Set([
   "sys_hub_alias_mapping",
@@ -51,6 +54,7 @@ const NESTED = new Set([
   "sys_hub_pill_compound",
   "sys_flow_cat_variable",
   "sys_translated_text",
+  "sys_hub_action_input_action_instance",
 ]);
 const ID = /^[a-f0-9]{32}$/;
 const RUNTIME = [
@@ -72,6 +76,19 @@ function queryFor(
 ): { readonly base: string; readonly key: string } | null {
   if (table === "sys_documentation" || table === "sys_choice") {
     const names = [...new Set(rows.map((row) => row.fields["name"]).filter(Boolean))];
+    // Native captures include empty delete_multiple directives, not authored records.
+    // Read the three owned variable namespaces instead of treating missing name fields
+    // as an unknown graph or trusting the capture to prove that they are still empty.
+    if (
+      names.length === 0 &&
+      rows.every((row) => row.sysId === "" && Object.keys(row.fields).length === 0)
+    ) {
+      names.push(
+        ...["input", "output", "variable"].map(
+          (kind) => `var__m_sys_hub_flow_${kind}_${captured.head.sysId}`,
+        ),
+      );
+    }
     if (
       names.length === 0 ||
       names.some(

@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Reinstalling an accelerator recreates missing owned related-list entries even when their
+  generated source is unchanged. Only facts the installer observed missing become additional
+  plan candidates. Normal drift, plan confirmation, SDK load and capture checks still apply;
+  native containers and other entries are not rewritten.
+
 ## [2.22.1] - 2026-11-16
 
 ### Fixed

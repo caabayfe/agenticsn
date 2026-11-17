@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { type ListFact, readLayouts } from "@snagentic/core";
+import { ensureEntryId, ensureLayouts, type ListFact, readLayouts } from "@snagentic/core";
 import { fakeInstance } from "../support/fake-instance";
+import { fakeSteps } from "../support/install-fakes";
 
 // ADR-0042: a fact's layout is read live, by table and view, in the global domain.
 
@@ -30,6 +31,33 @@ const instance = () =>
   });
 
 describe("reading the layouts the facts name (ADR-0042)", () => {
+  it("rechecks only missing entries whose container exists, not present or absent facts", async () => {
+    const facts = [fact("Default view"), fact("sow"), fact("missing")];
+    const { steps } = fakeSteps();
+    const result = await ensureLayouts(
+      {
+        steps: {
+          ...steps,
+          layouts: async () => [
+            { container: "a".repeat(32), view: "Default view", entries: [] },
+            {
+              container: "b".repeat(32),
+              view: "sow",
+              entries: [{ sysId: "f".repeat(32), relatedList: facts[1]?.list ?? "", position: 0 }],
+            },
+            { container: null, view: "missing", entries: [] },
+          ],
+        },
+      },
+      "itsm",
+      facts,
+      { modules: [], record: "sections.json" },
+      signal,
+    );
+    expect(result.recheckUnits).toEqual([
+      `sys_ui_related_list_entry_${ensureEntryId("itsm", facts[0] ?? fact("Default view"))}`,
+    ]);
+  });
   it("finds the default view's container in the global domain, with its entries", async () => {
     const [state] = await readLayouts(instance().reader, [fact("Default view")], signal);
     expect(state).toEqual({

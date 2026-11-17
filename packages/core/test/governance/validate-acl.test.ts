@@ -38,7 +38,7 @@ const deletion: BuiltUnit = {
     table: "sys_security_acl",
     sysId: "d".repeat(32),
     action: "DELETE",
-    fields: { sys_id: "d".repeat(32), name: "incident", operation: "read" },
+    fields: { name: "incident", operation: "read" },
     referenceNames: {},
   },
   children: [],
@@ -108,6 +108,44 @@ describe("validate: ACL units", () => {
         }),
       ]);
     }
+  });
+
+  it("does not mistake an unrelated deny ACL for an absent sys-id deletion", async () => {
+    const deny = acl({ decision_type: "deny" });
+    const absent: BuiltUnit = {
+      ...deletion,
+      head: { ...deletion.head, fields: { sys_id: deletion.head.sysId } },
+    };
+    const result = await run([deny, absent], [deny]);
+    expect(result.findings).toEqual([]);
+  });
+
+  it("never matches an empty deletion selector to an unrelated deny ACL", async () => {
+    const deny = acl({ decision_type: "deny" });
+    const empty: BuiltUnit = {
+      ...deletion,
+      head: { ...deletion.head, fields: {} },
+    };
+    expect((await run([deny, empty], [deny])).findings).toEqual([]);
+  });
+
+  it("checks the exact sys-id deletion even when another ACL comes first", async () => {
+    const deny = acl({ decision_type: "deny" });
+    const other = unitOf("sys_security_acl", {
+      active: "true",
+      decision_type: "allow",
+      name: "other",
+      operation: "read",
+    });
+    const exact: BuiltUnit = {
+      ...deletion,
+      updateName: deny.updateName,
+      file: deny.file,
+      head: { ...deletion.head, sysId: ACL_ID, fields: { sys_id: ACL_ID } },
+    };
+    const result = await run([other, exact], [other, deny]);
+    expect(RULE_IDS(result)).toEqual(["SN-SEC-007"]);
+    expect(result.findings[0]?.message).toContain("deny write ACL incident");
   });
 
   it("does not report deleting a deny ACL that was already inactive", async () => {

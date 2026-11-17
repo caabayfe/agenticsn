@@ -137,7 +137,12 @@ export const withRule = (ruleId: string, at: Omit<Finding, keyof Rule | "ruleId"
 
 // The ACL a Now.del removes: its definition at the base, found by the keys the Now.del names.
 function deletedAcl(unit: BuiltUnit, base: readonly BuiltUnit[]): BuiltUnit | undefined {
+  const id = unit.head.fields["sys_id"];
+  if (id !== undefined && id !== "") {
+    return base.find((old) => old.head.table === ACL_CLASS && old.head.sysId === id);
+  }
   const keys = Object.entries(unit.head.fields).filter(([field]) => !field.startsWith("sys_"));
+  if (keys.length === 0) return undefined;
   return base.find(
     (old) => old.head.table === ACL_CLASS && keys.every(([f, v]) => old.head.fields[f] === v),
   );

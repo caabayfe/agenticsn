@@ -169,6 +169,35 @@ function documentationRows(
     );
 }
 
+// Record Updated already has its runtime-row check. Compare the compiler's
+// built-in collection output using the published native trigger definition.
+function withChangedFields(
+  built: BuiltUnit,
+  actual: BuiltUnit,
+  contract: NativeTriggerContract,
+): BuiltUnit | null {
+  const projection = {
+    ...contract,
+    outputs: contract.outputs.filter((output) => output["element"] === "changed_fields"),
+  };
+  if (projection.outputs.length !== 1) return null;
+  const generated = inputs(built, actual, projection);
+  if (generated === null) return null;
+  const rows = generated.map((row) => ({
+    ...row,
+    fields: {
+      ...row.fields,
+      model_id: built.head.sysId,
+      model_table: "sys_hub_flow",
+      name: `var__m_sys_hub_flow_input_${built.head.sysId}`,
+    },
+  }));
+  return {
+    ...built,
+    children: [...built.children, ...rows, ...documentationRows(built, actual, projection)],
+  };
+}
+
 // Enrich only the expected graph, from independently read native metadata. No captured
 // execution values become expectations. Unsupported trigger shapes still fail closed.
 export function withNativeTriggerInputs(
@@ -181,7 +210,7 @@ export function withNativeTriggerInputs(
     (row) =>
       row.table === "sys_hub_trigger_instance_v2" &&
       row.sysId !== "" &&
-      ["sla_task", "service_catalog"].includes(row.fields["trigger_type"] ?? ""),
+      ["sla_task", "service_catalog", "record_update"].includes(row.fields["trigger_type"] ?? ""),
   );
   if (triggers.length === 0) return built;
   const trigger = triggers[0];
@@ -191,6 +220,8 @@ export function withNativeTriggerInputs(
   );
   const contract = matching[0];
   if (matching.length !== 1 || contract === undefined) return null;
+  if (trigger.fields["trigger_type"] === "record_update")
+    return withChangedFields(built, actual, contract);
   const row = nativeRuntimeTrigger(actual, trigger);
   const projected =
     trigger.fields["trigger_type"] === "service_catalog"

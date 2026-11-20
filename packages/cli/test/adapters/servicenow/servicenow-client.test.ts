@@ -261,6 +261,24 @@ describe("ServiceNowClient.fingerprint", () => {
     });
   });
 
+  it("asks for the rows updated up to a moment, by the indexed raw timestamp", async () => {
+    const { client, sent } = clientWith(async () =>
+      response(
+        200,
+        '{"result":{"stats":{"max":{"sys_updated_on":"2026-10-05 17:30:04"},"count":"655257"}}}',
+      ),
+    );
+    expect(await client.fingerprint(TABLE, LIVE, "2026-10-05 17:35:00")).toEqual({
+      count: 655257,
+      maxUpdatedOn: "2026-10-05 17:30:04",
+    });
+    expect(Object.fromEntries(new URL(sent[0]?.url ?? "").searchParams)).toEqual({
+      sysparm_count: "true",
+      sysparm_max_fields: "sys_updated_on",
+      sysparm_query: "sys_updated_on<=2026-10-05 17:35:00",
+    });
+  });
+
   it.each([
     '{"result":{"stats":"655259"}}',
     '{"result":{"stats":{"count":"3","max":"2026-10-05"}}}',

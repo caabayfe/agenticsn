@@ -93,10 +93,17 @@ export class ServiceNowClient implements InstanceReader, TableStatistics, Server
     return rows.data;
   }
 
-  // Count and latest raw sys_updated_on in one aggregate request.
-  async fingerprint(table: TableName, signal: AbortSignal): Promise<TableFingerprint> {
+  // Count and latest raw sys_updated_on in one aggregate request; with `updatedUpTo`, of the
+  // rows updated no later (sys_updated_on is indexed).
+  async fingerprint(
+    table: TableName,
+    signal: AbortSignal,
+    updatedUpTo?: string,
+  ): Promise<TableFingerprint> {
     const what = `statistics of ${table}`;
-    const params = { sysparm_count: "true", sysparm_max_fields: "sys_updated_on" };
+    const only =
+      updatedUpTo === undefined ? {} : { sysparm_query: `sys_updated_on<=${updatedUpTo}` };
+    const params = { sysparm_count: "true", sysparm_max_fields: "sys_updated_on", ...only };
     const { response, result } = await this.aggregate(table, params, signal, what);
     const stats = StatsResult.safeParse(result);
     const count = stats.success ? countOf(stats.data) : null;

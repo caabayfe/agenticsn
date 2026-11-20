@@ -293,3 +293,20 @@ tables' 19 fingerprints together cost less than that one request.
   applications (read through `sys_scope`, since `sys_store_app` is not readable even by admin)
   when the `sys_scope` fingerprint moves. Two aggregate requests: an idle pull is now 22
   requests, 4.4 s (3.2 s of server time).
+
+## Appendix: records dated in the future (2026-11-20)
+
+- **Seen on a Brazil demo instance.** Two shipped `sn_na_analytics` records carry
+  `sys_updated_on` 2099-01-01. The latest update of `sys_metadata` is then 2099 for ever, so its
+  fingerprint moves only when the row count does: a record changed in place was not pulled, and
+  two pulls minutes after the change answered "up to date".
+- **Rule.** A latest update more than five minutes ahead of the instance's own clock (the
+  response's `Date` header) is not credible. The pull then asks that source for a second
+  aggregate, the latest update at or before the clock plus five minutes, and compares that; the
+  count stays the whole table's. With no instance clock there is no second request.
+- **Cost.** One more aggregate per pull, only for a source that holds a future-dated row: 25
+  requests instead of 24 on an idle pull of that instance. This is the measured reason the
+  "one aggregate request per change source" target above is exceeded for such a source.
+  *measure*: the second aggregate's server time on a real instance.
+- **Not covered.** The inventory signals (`sys_scope`, plugins) read the same kind of
+  fingerprint and keep the blind spot.

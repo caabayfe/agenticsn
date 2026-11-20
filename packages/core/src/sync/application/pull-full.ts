@@ -6,7 +6,12 @@ import type { PullCheckpoint, SyncState } from "../ports";
 import { fetchFingerprints } from "./fetch-fingerprints";
 import { pullApplications } from "./pull-applications";
 import { pullChildren } from "./pull-children";
-import { type PullDependencies, type PullProgress, rawTimestamp } from "./pull-dependencies";
+import {
+  instanceClock,
+  type PullDependencies,
+  type PullProgress,
+  rawTimestamp,
+} from "./pull-dependencies";
 import { inventorySignatures, pullOperational } from "./pull-operational";
 import { pullRecords } from "./pull-records";
 import { migrateExistingSecrets, SECRET_SCAN_VERSION } from "./secret-migration";
@@ -48,7 +53,8 @@ async function startCheckpoint(
       startedAt: rawTimestamp(deps.now()),
       completedClasses: [],
       records: 0,
-      fingerprints: (await fetchFingerprints(deps.statistics, signal)).fingerprints,
+      fingerprints: (await fetchFingerprints(deps.statistics, signal, instanceClock(deps)))
+        .fingerprints,
       inventory: await inventorySignatures(deps.statistics, signal),
       redactionVersion: deps.policy.version,
       secretScanVersion: SECRET_SCAN_VERSION,

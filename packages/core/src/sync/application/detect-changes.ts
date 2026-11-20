@@ -7,6 +7,7 @@ import { INVENTORY } from "../domain/inventory";
 import type { Fingerprints, SyncState } from "../ports";
 import { fetchFingerprints } from "./fetch-fingerprints";
 import type { IncrementalDependencies } from "./incremental-dependencies";
+import { instanceClock } from "./pull-dependencies";
 import { inventorySignatures } from "./pull-operational";
 
 function compareAll(previous: Fingerprints | undefined, current: Fingerprints) {
@@ -35,7 +36,7 @@ export async function detectChanges(
   verify: boolean,
   signal: AbortSignal,
 ) {
-  const current = await fetchFingerprints(deps.statistics, signal);
+  const current = await fetchFingerprints(deps.statistics, signal, instanceClock(deps));
   const fingerprintChanges = compareAll(state.fingerprints, current.fingerprints);
   const changes = verify ? verifyAllChildren(fingerprintChanges) : fingerprintChanges;
   const inventory = await inventorySignatures(deps.statistics, signal);

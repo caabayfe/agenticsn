@@ -1,6 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { FINGERPRINT_SOURCES, SECRET_SCAN_VERSION } from "@snagentic/core";
-import { CHANGED, FLOW, pulledInstance, RULE, sid, touch } from "../support/incremental-fixture";
+import {
+  BEFORE,
+  CHANGED,
+  FLOW,
+  pulledInstance,
+  RULE,
+  sid,
+  touch,
+} from "../support/incremental-fixture";
 
 describe("pullIncremental: nothing changed", () => {
   it("asks one aggregate per change source and nothing else, then moves the watermark", async () => {
@@ -65,6 +73,27 @@ describe("pullIncremental: nothing changed", () => {
 });
 
 describe("pullIncremental: records", () => {
+  // pdi15, 2026-11-20: a job set active again was not pulled, twice, minutes after the change.
+  it("pulls a record changed in place when another record is dated in the future", async () => {
+    const { incremental, tables, files, state, clock } = await pulledInstance((shape) => {
+      const rules = shape["sys_script"] ?? [];
+      rules[1] = { ...rules[1], sys_updated_on: "2099-01-01 00:00:00" };
+    });
+    clock.time = Date.parse("2026-10-05T11:00:00Z");
+    // The state of an earlier version holds 2099 as the latest update: read again once.
+    state.saved.state = (await incremental()).summary.next;
+    expect(state.saved.state.fingerprints?.["sys_metadata"]?.maxUpdatedOn).toBe(BEFORE);
+    const rules = tables["sys_script"] ?? [];
+    rules[0] = { ...rules[0], script: "changed();", sys_updated_on: "2026-10-05 10:55:00" };
+    const { summary } = await incremental();
+    expect(summary.changedSources).toEqual(["sys_metadata"]);
+    expect(files.get(`${RULE}.script.js`)).toBe("changed();\n");
+    state.saved.state = summary.next;
+    const again = await incremental();
+    expect(again.summary).toMatchObject({ idle: true, changedSources: [] });
+    expect(again.queries).toEqual([]);
+  });
+
   it("reads the change feed from ten minutes before the watermark", async () => {
     const { incremental, tables } = await pulledInstance();
     touch(tables["sys_script"]?.[0], { script: "changed();" });

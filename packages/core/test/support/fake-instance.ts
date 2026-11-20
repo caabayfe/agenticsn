@@ -229,12 +229,18 @@ export function fakeInstance(
       }
       return page.filter((row) => row["__hidden"] !== "true");
     },
-    fingerprint: async (table: TableName): Promise<TableFingerprint> => {
-      fingerprints.push(table);
+    fingerprint: async (
+      table: TableName,
+      _signal?: AbortSignal,
+      updatedUpTo?: string,
+    ): Promise<TableFingerprint> => {
+      fingerprints.push(updatedUpTo === undefined ? table : `${table} up to ${updatedUpTo}`);
       if (denied.includes(table)) {
         throw new AccessDeniedError(`statistics of ${table}`, "Insufficient rights");
       }
-      const rows = rowsOf(table);
+      const rows = rowsOf(table).filter(
+        (row) => updatedUpTo === undefined || (row["sys_updated_on"] ?? "") <= updatedUpTo,
+      );
       const latest = rows
         .map((row) => row["sys_updated_on"] ?? "")
         .sort()

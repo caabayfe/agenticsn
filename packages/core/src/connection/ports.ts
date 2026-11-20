@@ -48,7 +48,12 @@ export interface InstanceReader {
 
 // One aggregate request per table: its row count and latest update (ADR-0016, M4 appendix).
 export interface TableStatistics {
-  fingerprint(table: TableName, signal: AbortSignal): Promise<TableFingerprint>;
+  // With `updatedUpTo` (raw UTC), of the rows updated no later than that: one request too.
+  fingerprint(
+    table: TableName,
+    signal: AbortSignal,
+    updatedUpTo?: string,
+  ): Promise<TableFingerprint>;
   // Row count per value of `field`, in one aggregate request.
   countBy(
     table: TableName,

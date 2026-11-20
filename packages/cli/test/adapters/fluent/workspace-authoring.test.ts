@@ -111,6 +111,26 @@ describe("fromCommit", () => {
     ).rejects.toMatchObject({ code: "git-command-failed" });
   });
 
+  // git commit gives its hooks GIT_INDEX_FILE=.git/index, relative to the repository; with the
+  // scratch work tree git looked for it there and failed on its lock (pdi15, 2026-11-20).
+  it("copies a commit's project inside a git hook, where the index is named relative to the repository", async () => {
+    const { root, authoring, project } = await repository();
+    await authoring.writeFiles(project, new Map([[SCRIPT, lines("var a = 1;")]]));
+    const base = await commitAll(root, "adopt");
+    const staged = await runGitOrThrow(["ls-files", "-s"], root);
+    const scratch = mkdtempSync(join(tmpdir(), "snagentic-from-commit-"));
+    const inherited = process.env["GIT_INDEX_FILE"];
+    process.env["GIT_INDEX_FILE"] = ".git/index";
+    try {
+      await fromCommit(root, project.path, base)(join(scratch, "copy"));
+    } finally {
+      if (inherited === undefined) delete process.env["GIT_INDEX_FILE"];
+      else process.env["GIT_INDEX_FILE"] = inherited;
+    }
+    expect(readFileSync(join(scratch, "copy", SCRIPT), "utf8")).toBe(lines("var a = 1;"));
+    expect(await runGitOrThrow(["ls-files", "-s"], root)).toBe(staged);
+  });
+
   // Git alone reads the commit: no tar program, which on Windows read "C:\..." as a remote host.
   it("copies the project when the workspace is a folder inside the repository", async () => {
     const outer = mkdtempSync(join(tmpdir(), "snagentic-authoring-outer-"));

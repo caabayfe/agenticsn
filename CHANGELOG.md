@@ -6,6 +6,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- An incremental `pull` reports the changed records it could not store: those the change feed
+  named and their own table did not return to the pulling user. It counts them, names the first
+  twenty, says which the mirror still holds as they were, and points to `pull --verify`. The
+  JSON output carries them as `incremental.unstored`.
 - A full pull that stops after committing the mirror (while packing the repository, or a moment
   before) no longer makes the next pull replace the mirror with a nearly empty one. Packing runs
   after the pull is complete and a failure is reported as a warning (`warnings` in the pull

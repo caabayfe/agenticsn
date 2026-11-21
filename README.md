@@ -118,7 +118,7 @@ MCP tool is in the [command reference](docs/reference/commands.md).
 | Building a change | [Build a new capability: a worked example](docs/guides/build-a-capability.md), [with spec-driven development](docs/guides/spec-driven-development.md), [recipes for everything else](docs/guides/recipes.md) |
 | Documenting | [Generate verified documentation](docs/guides/generate-documentation.md) |
 | Teams | [Team mode: one pull per instance](docs/guides/team-mode.md), with a scheduled CI pull template |
-| Contributors | [AGENTS.md](AGENTS.md), [extending snagentic: use case, rule, skill](docs/guides/extend-snagentic.md), [requirements](docs/architecture/significant-requirements.md), [decisions (ADRs)](docs/adr/README.md) |
+| Contributors | [AGENTS.md](AGENTS.md), [extending snagentic: use case, rule, skill](docs/guides/extend-snagentic.md), [the live tests and their nightly run](docs/guides/live-tests.md), [requirements](docs/architecture/significant-requirements.md), [decisions (ADRs)](docs/adr/README.md) |
 | Evidence | [Pull baseline](docs/reports/pull-baseline-pdi.md), [performance targets](docs/reports/v1.0-targets.md), [agent evaluation baseline](docs/reports/agent-eval-baseline-2026-10-06.md) |
 
 ## Build from source

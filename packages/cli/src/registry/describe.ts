@@ -3,12 +3,14 @@ import {
   describeRecord,
   describeTable,
   type KnowledgeDependencies,
+  metadataPath,
   PHASE_ORDER,
 } from "@snagentic/core";
 import { z } from "zod";
 import { BehaviorItems, Freshness, NextCalls } from "./knowledge-schemas";
 import { withKnowledge } from "./knowledge-session";
 import { defineUseCase } from "./use-case";
+import { workspaceRoot } from "./workspace-root";
 
 const Details = z.record(z.string(), z.string());
 const TableOutput = Freshness.extend({
@@ -118,7 +120,8 @@ export const describe = defineUseCase({
     section: "Understand",
     details:
       "Describe a table's fields and supported behavior in execution order, including " +
-      "inheritance. A record path or sys_id shows its files and references. Table-triggered " +
+      "inheritance. A record path or sys_id shows its files and references; the path is the one " +
+      "find prints, or the file's path in the workspace. Table-triggered " +
       "flows, workflows and global-table business rules are not covered.",
     effects: "Queries the local mirror and search index; does not call the instance.",
     examples: [["describe", "incident"]],
@@ -130,7 +133,12 @@ export const describe = defineUseCase({
     "after/async, notifications, ACLs), including what it inherits. A record (path or sys_id): " +
     "its files and what refers to it. Reads the workspace only.",
   input: z.object({
-    target: z.string().min(1).describe("a table name, a record path, or a sys_id"),
+    target: z
+      .string()
+      .min(1)
+      .describe(
+        "a table name, a sys_id, or a record's path: as find prints it, or the path of one of its files in the workspace (instances/<instance>/metadata/...)",
+      ),
     instance: z.string().optional().describe("default: the workspace's only instance"),
     inactive: z.boolean().default(false).describe("tables: also list inactive behavior"),
     phase: z
@@ -151,9 +159,11 @@ export const describe = defineUseCase({
   mcpProfiles: ["investigate", "develop"],
   arguments: ["target"],
   async handle(input, context, run) {
+    const root = await workspaceRoot(context);
     return withKnowledge(context, input.instance, run.progress, async (deps) => ({
       instance: deps.instance,
-      ...(await describeTarget(deps, input.target, {
+      // A record's path as find prints it, however the caller wrote it (workspace or disk).
+      ...(await describeTarget(deps, metadataPath(deps.instance, root, input.target), {
         includeInactive: input.inactive,
         ...(input.phase === undefined ? {} : { phase: input.phase }),
       })),

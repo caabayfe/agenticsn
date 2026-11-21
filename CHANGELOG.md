@@ -4,8 +4,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- A nightly workflow runs the live tests against a dedicated developer instance, from a
+  protected GitHub environment, and reports a failure in an issue. A sleeping instance ends the
+  run with a notice, not a failure ([guide](docs/guides/live-tests.md); spec 016, T1).
 ### Fixed
 
+- `describe` accepts a record's path as the workspace shows it (`instances/<instance>/metadata/...`,
+  relative or absolute) and the path of any of the record's files, not only the path `find`
+  prints. A path into another instance's mirror than the one asked for is refused, and the
+  `record-not-found` hint names the accepted forms (spec 016, U6).
 - Delivery messages name what the developer can do. A record that moved between plan and load
   names `adopt --refresh` and counts the projects already loaded; a flow or action that fails
   verification says whether its capture is missing, unpublished or different, and names the

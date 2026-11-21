@@ -500,6 +500,11 @@ Choose actual UTC bounds for your investigation. Every `^NQ` branch needs equali
 Validated conditions can refine that selection; executable expressions and unbounded scans
 are refused. `^OR` joins adjacent alternatives; `^NQ` joins whole groups with OR. Field names
 and reference hops are checked against live schema. Secrets are masked before output.
+
+On a test or production instance these commands are off until the instance's committed
+`instance.yaml` has `live_queries: { enabled: true }`. Each query that runs adds one line,
+without filter values or results, to `.snagentic/<name>/live-queries.jsonl`; see "Live queries"
+in [security and governance](product/security-and-governance.md).
 Reuse `nextCursor` with the same instance, identity, table, query, fields and limit. Results are transient and
 ACL-limited; an empty result cannot establish global absence. Schema inspection pages the
 visible dictionary and includes ancestors, not descendants. Aggregate supports count and

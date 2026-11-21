@@ -45,6 +45,12 @@ export interface LoadSettings {
 // the identity auth login --username stored for this clone; "profile" (or absent): instance.yaml.
 export type UsernameSource = "environment" | "clone" | "profile";
 
+// Spec 016, D4: whether live queries (the `query` commands) may run on a test or production
+// instance; instance.yaml's `live_queries:` block. A development instance needs none.
+export interface LiveQuerySetting {
+  readonly enabled: boolean;
+}
+
 export interface InstanceProfile {
   readonly name: InstanceName;
   readonly url: string;
@@ -54,6 +60,7 @@ export interface InstanceProfile {
   readonly sharedMirror?: SharedMirrorSetting;
   // From instance.yaml's `load:` block, when it has one.
   readonly load?: LoadSettings;
+  readonly liveQueries?: LiveQuerySetting;
   // Set only when the username isn't the one instance.yaml names; never written to the file.
   readonly usernameSource?: UsernameSource;
 }

@@ -116,6 +116,47 @@ group("find and describe", () => {
     expect(text).not.toContain("not in the mirror");
   });
 
+  it("describes a record named by its path in the workspace", async () => {
+    const { context, root } = await workspace();
+    const mirror = "global/sys_script_include/prioritizer--s1.yaml";
+    const forms = [
+      mirror,
+      `instances/pdi/metadata/${mirror}`,
+      `./instances/pdi/metadata/${mirror}`,
+      join(root, "instances/pdi/metadata", mirror),
+      "instances/pdi/metadata/global/sys_script_include/prioritizer--s1.script.js",
+    ];
+    for (const target of forms) {
+      const { output } = await executeUseCase(describe, { target, instance: "pdi" }, context);
+      expect(output).toMatchObject({ kind: "record", record: { path: mirror, sysId: "s1" } });
+    }
+  });
+
+  it("refuses a record path that names another instance than the one asked for", async () => {
+    const { context } = await workspace();
+    await expect(
+      executeUseCase(
+        describe,
+        { target: "instances/other/metadata/global/sys_script_include/prioritizer--s1.yaml" },
+        context,
+      ),
+    ).rejects.toMatchObject({
+      code: "path-names-other-instance",
+      message: expect.stringContaining("other"),
+      hint: expect.stringContaining("--instance other"),
+    });
+  });
+
+  it("says which forms name a record when it finds none", async () => {
+    const { context } = await workspace();
+    await expect(
+      executeUseCase(describe, { target: "global/sys_script/nothing--zz.yaml" }, context),
+    ).rejects.toMatchObject({
+      code: "record-not-found",
+      hint: expect.stringContaining("instances/<instance>/metadata/"),
+    });
+  });
+
   it("find searches names and code, and sees local edits", async () => {
     const { context, root } = await workspace();
     expect(

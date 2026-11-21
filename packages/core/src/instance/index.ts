@@ -68,6 +68,7 @@ export {
   instanceHost,
   instanceVariable,
   isCredentialVariable,
+  type LiveQuerySetting,
   type LoadSettings,
   maxAgeProblem,
   type NewProfile,

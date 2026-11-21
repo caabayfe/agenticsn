@@ -4,7 +4,7 @@ export const liveTarget = {
   instance: z
     .string()
     .describe(
-      "configured instance profile; test/production require a verified read-only credential",
+      "configured instance profile; test/production require live_queries enabled in instance.yaml and a verified read-only credential",
     ),
   table: z
     .string()

@@ -200,6 +200,9 @@ export const FAKE_CONTEXT: UseCaseContext = {
     },
     clear: async () => {},
   }),
+  liveQueryLog: () => {
+    throw new Error("no live query in this test");
+  },
   decodeCapture: () => null,
   installJournal: () => {
     throw new Error("no install in this test");

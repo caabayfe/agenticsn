@@ -38,6 +38,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   values are masked in output wherever it could influence the result: in a filter condition
   (including `^OR` and `^NQ` branches and reference paths) and as the group field. The refusal has
   the code `masked-field`. (SEC3-03)
+- Live queries (`query table`, `query record`, `query aggregate`, `query schema`) are off on
+  test and production instances unless the instance's `instance.yaml` has
+  `live_queries: { enabled: true }`; the refusal has the code `live-queries-disabled`.
+  Development instances are unchanged. Every live query that runs adds a line to
+  `.snagentic/<name>/live-queries.jsonl` (time, instance, user name, command, table, the filter's
+  field names and operators; never values or results), and is refused when that line cannot be
+  written. `docs/product/security-and-governance.md`, "Live queries", states the limits
+  (SEC3-04, ADR-0057 amendment A1).
 ### Changed
 
 - Documentation matches the code (spec 016, P0): the README states the released version and a

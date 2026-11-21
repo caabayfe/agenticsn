@@ -263,13 +263,13 @@ Read a bounded live table page
 
 Read explicit fields with a selective literal filter. Use the returned cursor with the same query, fields and limit for another page. No mirror pull is required.
 
-**Effects:** Reads live schema and records; masks secrets; writes no records or local files.
+**Effects:** Reads live schema and records; masks secrets; writes no records. Adds one line to the local query log.
 
 MCP tool: none.
 
 Required:
 
-- `--instance <instance>`: configured instance profile; test/production require a verified read-only credential
+- `--instance <instance>`: configured instance profile; test/production require live_queries enabled in instance.yaml and a verified read-only credential
 - `--table <table>`: table name, validated against the live dictionary
 - `--fields <fields...>`: explicit field names; at most two reference hops, no wildcard
 - `--query <query>`: literal encoded query: each NQ branch needs sys_id/unique equality or IN, or explicit UTC sys_updated_on bounds within 31 days; no JavaScript/dynamic filters
@@ -295,13 +295,13 @@ Read one live record
 
 Read explicit fields by table and sys_id. A missing or ACL-hidden record returns null.
 
-**Effects:** Reads live schema and one record; writes nothing.
+**Effects:** Reads live schema and one record; writes no records. Adds one line to the local query log.
 
 MCP tool: none.
 
 Required:
 
-- `--instance <instance>`: configured instance profile; test/production require a verified read-only credential
+- `--instance <instance>`: configured instance profile; test/production require live_queries enabled in instance.yaml and a verified read-only credential
 - `--table <table>`: table name, validated against the live dictionary
 - `--fields <fields...>`: explicit field names; at most two reference hops, no wildcard
 - `--sys-id <sys-id>`: record sys_id
@@ -322,13 +322,13 @@ Count live records or groups
 
 Count matches, optionally grouped by one non-sensitive field. Supports count only; refuses more than 100 groups.
 
-**Effects:** Reads live schema and aggregate counts; writes nothing.
+**Effects:** Reads live schema and aggregate counts; writes no records. Adds one line to the local query log.
 
 MCP tool: none.
 
 Required:
 
-- `--instance <instance>`: configured instance profile; test/production require a verified read-only credential
+- `--instance <instance>`: configured instance profile; test/production require live_queries enabled in instance.yaml and a verified read-only credential
 - `--table <table>`: table name, validated against the live dictionary
 - `--query <query>`: literal encoded query: each NQ branch needs sys_id/unique equality or IN, or explicit UTC sys_updated_on bounds within 31 days; no JavaScript/dynamic filters
 
@@ -352,13 +352,13 @@ Inspect live inherited table fields
 
 Read the live dictionary through the parent chain. Pages fields instead of silently truncating at 1000. Does not list descendants.
 
-**Effects:** Reads table definitions and dictionary fields; writes nothing.
+**Effects:** Reads table definitions and dictionary fields; writes no records. Adds one line to the local query log.
 
 MCP tool: none.
 
 Required:
 
-- `--instance <instance>`: configured instance profile; test/production require a verified read-only credential
+- `--instance <instance>`: configured instance profile; test/production require live_queries enabled in instance.yaml and a verified read-only credential
 - `--table <table>`: table name, validated against the live dictionary
 
 Examples:

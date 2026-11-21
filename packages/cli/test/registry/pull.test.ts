@@ -612,6 +612,7 @@ describe("a pull's records their table did not return", () => {
     records: 0,
     unreadable: [],
     secretRedactions: [],
+    warnings: [],
     watermark: "w",
     requests: 24,
     retries: 0,

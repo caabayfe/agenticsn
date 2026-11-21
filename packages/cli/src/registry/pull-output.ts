@@ -52,6 +52,8 @@ export const PullOutput = z.object({
       semaphoreWaitMs: z.number(),
     })
     .nullable(),
+  // Housekeeping that failed after the mirror commit; the mirror itself is complete.
+  warnings: z.array(z.string()),
   full: z
     .object({
       classes: z.number(),
@@ -80,6 +82,14 @@ export const PullOutput = z.object({
       childFiles: z.number(),
       removedChildFiles: z.number(),
       lostRecords: z.number(),
+      // Changed records their own table did not return to this user (a read ACL or the domain
+      // hides them, or they were deleted since): all counted, the first of them named. inMirror:
+      // the mirror holds the record as it was before the change.
+      unstored: z.object({
+        count: z.number(),
+        inMirror: z.number(),
+        records: z.array(z.object({ table: z.string(), sysId: z.string(), inMirror: z.boolean() })),
+      }),
       inventoryRefreshed: z.array(z.string()),
       verification: z
         .object({
@@ -134,6 +144,7 @@ function common(
     timeouts: facts.stats.timeouts,
     serverCostRequested: facts.serverCostRequested,
     serverCost: facts.serverCost,
+    warnings: [...facts.warnings],
   };
 }
 
@@ -172,6 +183,7 @@ export function incrementalOutput(facts: RunFacts, summary: IncrementalSummary):
       childFiles: summary.childFiles,
       removedChildFiles: summary.removedChildFiles,
       lostRecords: summary.lostRecords,
+      unstored: { ...summary.unstored, records: [...summary.unstored.records] },
       inventoryRefreshed: [...summary.inventoryRefreshed],
       verification: summary.verification,
     },

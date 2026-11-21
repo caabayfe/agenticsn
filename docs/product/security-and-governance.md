@@ -97,11 +97,26 @@ every one of these:
 1. **A plan id** from `plan-push`, bound to the exact content of the workspace. If anything
    changes after planning, the push is refused.
 2. **A passing gate:** `validate` finds no blocking finding, or each one is covered by a
-   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. Only waivers
-   committed to git apply, agents cannot edit the file, and a waiver path must name an
-   instance and a scope, so an agent cannot waive its own findings.
-3. **Explicit confirmation** (`--confirm`). MCP hosts ask the user first because the tool is
-   marked destructive.
+   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. The code
+   enforces this much: the gate reads `waivers.yaml` as committed on the current branch
+   (uncommitted changes are reported and don't apply); a waiver path must start with
+   `source/<scope>/`, so no waiver covers a whole workspace; and the expiry is at most 366
+   days ahead. The approver is text, not a checked identity. Where the host runs snagentic's
+   hooks (Claude Code, Copilot CLI), they refuse an agent's edit to the file, and Claude Code
+   also has a permission rule for it; other hosts have no such protection. The control is
+   therefore review: every change to `waivers.yaml` is reviewed in the pull request.
+3. **The confirm flag** (`--confirm`, or `confirm=true` over MCP). `push` refuses without it.
+   What asks the user depends on the host:
+
+   | Host | What asks the user before a push |
+   |---|---|
+   | Claude Code | A permission rule (`ask`) on the `push` MCP tool and on `snagentic push` in the shell: the host prompts the user |
+   | Copilot CLI | No ask rule. It runs snagentic's hooks, and they don't ask about a push |
+   | Codex | No ask rule and no hooks |
+
+   The MCP tool is also marked destructive, a hint each host handles in its own way. On a
+   host without an ask rule the flag is an instruction to the agent, not a control. The
+   controls that always apply are the plan id, the gate and development-only writes.
 4. **An unchanged remote base:** each record is compared with the version last pulled. If
    someone changed it on the instance since then, the push stops.
 5. **No collisions** with records held in another open update set, unless overridden
@@ -137,6 +152,25 @@ refuses the same commands. The shell hook matches command text, so it stops an a
 mistakes, not a determined bypass; layers 3 to 9 cover that. VS Code runs these hooks only
 with `chat.useClaudeHooks` enabled, and the Copilot cloud agent doesn't run them.
 
+## The runtime inside the binary
+
+The binary is a compiled Bun program, and the runtime inside it reads two environment variables
+before snagentic's own code starts:
+
+- `BUN_OPTIONS` gives the runtime arguments of its own. snagentic refuses to start when it is
+  set (`runtime-options-set`): it runs only with the options it was built with. The runtime has
+  applied the options by then, so the refusal stops the command; it does not undo them.
+- `BUN_BE_BUN` makes the runtime start as itself and not as snagentic. No snagentic code runs
+  in that mode, so snagentic cannot refuse it, and Bun 1.4 has no build option that turns it
+  off.
+
+The environment that starts the binary is therefore trusted input, like the binary's own file.
+What snagentic does about it: the binary reads no `bunfig.toml`, `.env`, `tsconfig.json` or
+`package.json` from its working directory; its SDK worker starts with a reduced environment
+(ADR-0044); the MCP configs and hooks the agent pack writes set neither variable; the shell hook
+refuses commands that set them (guidance, layer 2); and `doctor` fails when a committed MCP
+config or the host's settings file sets one.
+
 ## Guardrail content
 
 `validate` applies 41 rules, each with an id, severity, rationale and remediation, in five
@@ -154,6 +188,29 @@ categories:
 Only findings a change introduces are reported; what already exists in the base version is
 left out, matched by rule, field and line. Lines flagged as containing credentials are masked
 in every finding.
+
+## Live queries
+
+The `query` commands (`query table`, `query record`, `query aggregate`, `query schema`) and
+the matching tools of the investigate MCP profile read live rows from an instance of any
+kind, with the credential checks above ([ADR-0057](../adr/0057-bundled-user-skills-and-mcp-profiles.md)).
+They write nothing, to the instance or to disk. Unlike the mirror, they can read business
+records. The validator enforces these bounds:
+
+- **Tables.** Credential, OAuth, certificate, token, session and user preference tables are
+  refused.
+- **Fields.** 1 to 40 named fields, each checked against the live dictionary.
+- **Filters.** Literal comparisons only, at most 32 terms and 4,096 characters; no scripts
+  or dynamic filters. Each `^NQ` branch needs an equality or `IN` on `sys_id` or a unique
+  field, or `sys_updated_on` bounds at most 31 days apart.
+- **Size.** At most 100 rows a page and about 100,000 characters; a text value is cut at
+  8,000 characters and marked. An aggregate only counts, and refuses more than 100 groups or
+  grouping by a sensitive field.
+
+Password and encrypted field types, fields with secret-like names and the values the mirror
+redacts are returned as `[redacted]`; other text is scanned for secrets first. Results go to
+the agent that asked, and so to that agent's model provider, under your agreement with it.
+Check what a credential can read before giving an agent these commands on test or production.
 
 ## Load on the instance
 

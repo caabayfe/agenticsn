@@ -91,9 +91,9 @@ describe("delivery evidence", () => {
     const { plan } = await computeUnitPlan(deps, QUERY);
     const result = await pushUnits(deps, { ...QUERY, planId: plan.planId, confirm: true });
     expect(result).toMatchObject({ notApplied: 1, notCaptured: 1, ledgerCommit: null });
-    expect(result.units[0]?.mismatches).toContain(
-      "captured definition does not match the reviewed build, or lacks its published snapshot",
-    );
+    expect(result.units[0]?.mismatches).toEqual([
+      "the captured definition does not match the reviewed build: sys_hub_action_instance [a1].inputs",
+    ]);
     const next = await computeUnitPlan(deps, QUERY);
     expect(next.plan.units).toMatchObject([{ updateName: FLOW_NAME, operation: "load" }]);
   });

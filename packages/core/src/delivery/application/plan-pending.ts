@@ -1,5 +1,10 @@
 import type { BuiltUnit } from "../../authoring/index";
-import { isKeyedDeletion, unitDigest } from "../../authoring/index";
+import {
+  isKeyedDeletion,
+  NO_PENDING_EXIT,
+  RECOVERY_GUIDE,
+  unitDigest,
+} from "../../authoring/index";
 import type { InstanceReader } from "../../connection/index";
 import { InvalidInputError } from "../../kernel/errors";
 import { TableName } from "../../kernel/table-name";
@@ -68,9 +73,7 @@ async function pendingSets(
     );
     if (sets[0]?.["state"] !== "in progress")
       problems.push(
-        unsafe(
-          `unfinished delivery's update set ${id} is missing or closed: reconcile it before continuing`,
-        ),
+        unsafe(`unfinished delivery's update set ${id} is missing or closed: ${NO_PENDING_EXIT}`),
       );
     else if (recoverPending && !inBatch(label, sets[0]?.["name"] ?? ""))
       problems.push(
@@ -79,6 +82,9 @@ async function pendingSets(
   }
   return problems;
 }
+
+const otherTarget = (journal: PushJournal): string =>
+  `unfinished delivery belongs to a different instance URL or batch label: finish it first on instance ${journal.instance ?? "(not recorded)"} (${journal.url ?? "URL not recorded"}) with --label ${JSON.stringify(journal.label ?? "")}`;
 
 export async function pendingJournal(
   deps: PendingPlanDependencies,
@@ -99,16 +105,12 @@ export async function pendingJournal(
   if (journal.pending === undefined && journal.steps.length > 0)
     return result([
       unsafe(
-        "legacy interrupted push has no per-unit delivery evidence: inspect its update sets and reconcile before removing the journal",
+        `legacy interrupted push has no per-unit delivery evidence: check on the instance what its update sets hold; ${NO_PENDING_EXIT}`,
       ),
     ]);
   if ((journal.pending ?? []).length === 0) return result([]);
   if (journal.instance !== instance || journal.url !== deps.url || journal.label !== label)
-    return result([
-      unsafe(
-        "unfinished delivery belongs to a different instance URL or batch label: use the original target before reconciling",
-      ),
-    ]);
+    return result([unsafe(otherTarget(journal))]);
   return result(await pendingSets(deps, journal, label, recoverPending));
 }
 
@@ -132,8 +134,7 @@ export function orphanedPending(
             project: entry.project,
             updateName: entry.updateName,
             kind: "unsafe" as const,
-            reason:
-              "unfinished delivery no longer has its source definition: reconcile the journal and target update set first",
+            reason: `unfinished delivery no longer has its source definition: restore the definition that was pushed (git) and plan again (${RECOVERY_GUIDE})`,
           },
         ];
   });

@@ -23,6 +23,7 @@ export { withClaudeSettings } from "./domain/claude-settings";
 export {
   DirectoryNotEmptyError,
   NestedRepositoryError,
+  OtherInstancePathError,
   WorkspaceExistsError,
   WorkspaceLayoutError,
   WorkspaceLockedError,

@@ -42,7 +42,10 @@ export async function stagePending(run: JournalRun, load: ProjectLoad, updateSet
   for (const unit of load.units) {
     const old = previousPending(pending, load, unit);
     if (old !== undefined && old.updateSet !== updateSet)
-      throw new PendingDeliveryTargetError(unit.updateName);
+      throw new PendingDeliveryTargetError(
+        unit.updateName,
+        run.journal.current.instance ?? "<instance>",
+      );
     if (unit.operation === "record" && old !== undefined && old.updateName !== unit.updateName) {
       pending.splice(pending.indexOf(old), 1, {
         ...old,

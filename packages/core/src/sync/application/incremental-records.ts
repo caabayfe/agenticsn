@@ -6,6 +6,7 @@ import { propertyValueVerdict } from "../../metadata/domain/redaction";
 import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domain/secret-scan";
 import { classesToPull } from "../domain/pull-scope";
 import { chunks, type RecordChanges } from "../domain/record-changes";
+import { type UnreturnedRecord, unreturnedRecords } from "../domain/unstored-records";
 import { forEachConcurrently } from "./concurrently";
 import type { IncrementalDependencies } from "./incremental-dependencies";
 import { replaceRecord } from "./replace-record";
@@ -25,6 +26,8 @@ export interface RecordOutcome {
   // Changed records that could not be written: unreadable or unknown class, invalid sys_id,
   // or not returned by their class table.
   readonly unwritten: readonly string[];
+  // Of those, the records a readable class table did not return (see unreturnedRecords).
+  readonly unreturned: readonly UnreturnedRecord[];
   // Records new to the mirror (base and class): their child rows may predate them (B4).
   readonly created: readonly { readonly base: string; readonly className: string }[];
   readonly secretRedactions: readonly SecretRedaction[];
@@ -269,6 +272,7 @@ export async function applyRecordChanges(
     ...totals,
     unreadable: unreadable.sort(),
     unwritten,
+    unreturned: unreturnedRecords(changes, { classes, unreadable, received }),
     created,
     secretRedactions: sortSecretRedactions(secretRedactions),
   };

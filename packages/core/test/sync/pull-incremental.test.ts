@@ -252,6 +252,91 @@ describe("pullIncremental: limited access", () => {
   });
 });
 
+describe("pullIncremental: records its table does not return", () => {
+  const hiddenNew = (n: number) => ({
+    sys_id: sid(n),
+    sys_class_name: "sys_script",
+    name: "Hidden",
+    sys_scope: "global",
+    sys_updated_on: CHANGED,
+    __hidden_in_class: "true",
+  });
+
+  it("reports records the change feed named and it could not store", async () => {
+    const { incremental, tables, files } = await pulledInstance();
+    touch(tables["sys_script"]?.[0], { script: "changed();", __hidden_in_class: "true" });
+    tables["sys_script"]?.push(hiddenNew(9));
+    const { summary, queries } = await incremental();
+    expect(files.get(`${RULE}.script.js`)).toBe("one();\n");
+    expect(summary.unstored).toEqual({
+      count: 2,
+      inMirror: 1,
+      records: [
+        { table: "sys_script", sysId: sid(1), inMirror: true },
+        { table: "sys_script", sysId: sid(9), inMirror: false },
+      ],
+    });
+    // Reported from what the pull already read: one download for the class, as before.
+    expect(queries.filter((query) => query.table === "sys_script")).toHaveLength(1);
+  });
+
+  it("lists at most twenty of them and counts them all", async () => {
+    const { incremental, tables } = await pulledInstance();
+    for (let n = 100; n < 125; n += 1) {
+      tables["sys_script"]?.push(hiddenNew(n));
+    }
+    const { summary } = await incremental();
+    expect(summary.unstored.count).toBe(25);
+    expect(summary.unstored.records).toHaveLength(20);
+    expect(summary.unstored.records[0]?.sysId).toBe(sid(100));
+  });
+
+  it("leaves out what the pull reports another way, or never mirrors", async () => {
+    const { incremental, tables, deny } = await pulledInstance();
+    // An unreadable class is named as such.
+    touch(tables["sys_hub_flow"]?.[0], { label: "x" });
+    deny("sys_hub_flow");
+    // A row whose sys_id cannot be a path is counted as skipped.
+    tables["sys_script"]?.push({ ...hiddenNew(9), sys_id: "bad/id", __hidden_in_class: "" });
+    // A class a pull never mirrors.
+    touch(tables["sys_cred"]?.[0], { name: "Rotated" });
+    // Deleted between the feed and the download: its deletion record says so.
+    touch(tables["wf_workflow"]?.[0], { __hidden_in_class: "true" });
+    tables["sys_metadata_delete"]?.push({
+      sys_id: "x1",
+      sys_class_name: "sys_metadata_delete",
+      sys_metadata: sid(5),
+      sys_created_on: CHANGED,
+      sys_updated_on: CHANGED,
+    });
+    const { summary } = await incremental();
+    expect(summary.unreadable).toContain("sys_hub_flow");
+    expect(summary.skippedRows).toBe(1);
+    expect(summary.deleted).toBe(1);
+    expect(summary.unstored).toEqual({ count: 0, inMirror: 0, records: [] });
+  });
+
+  it("reports none when nothing changed", async () => {
+    const { incremental } = await pulledInstance();
+    const { summary } = await incremental();
+    expect(summary.unstored).toEqual({ count: 0, inMirror: 0, records: [] });
+  });
+
+  it("with verify, reports only those the verification does not account for", async () => {
+    const { incremental, tables } = await pulledInstance();
+    touch(tables["sys_script"]?.[0], { script: "changed();", __hidden_in_class: "true" });
+    tables["sys_script"]?.push(hiddenNew(9));
+    const { summary } = await incremental({ verify: true });
+    // The record missing from the mirror is the verification's: it cannot be mirrored.
+    expect(summary.verification?.unmirrorable).toBe(1);
+    expect(summary.unstored).toEqual({
+      count: 1,
+      inMirror: 1,
+      records: [{ table: "sys_script", sysId: sid(1), inMirror: true }],
+    });
+  });
+});
+
 describe("pullIncremental: the operational inventory", () => {
   it("lists plugins again when one is activated, and nothing else of the inventory", async () => {
     const { incremental, tables, files } = await pulledInstance();

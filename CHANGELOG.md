@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Security
+
+- `doctor --instance` and `onboard` check that a test or production credential holds
+  `snc_read_only` before asking the instance anything else, as every other command does. A
+  credential that does not is reported as the failed `roles` check (or stops onboarding at
+  sign-in), and the instance is not called again. `auth login` makes the same check before it
+  reads the signed-in user (SEC3-08, ADR-0012).
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

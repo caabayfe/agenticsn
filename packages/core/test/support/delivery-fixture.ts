@@ -41,6 +41,11 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
       state.commits = [...(state.commits ?? []), { paths: [...paths], message }];
       return `commit-${state.commits.length}`;
     },
+    commitRecord: async (message) => {
+      if (state.commitFailure !== undefined) throw new Error(state.commitFailure);
+      state.commits = [...(state.commits ?? []), { paths: [], message }];
+      return `commit-${state.commits.length}`;
+    },
   };
 }
 

@@ -66,8 +66,8 @@ export {
 } from "./domain/losses";
 export { type NativeTriggerContract, TRIGGER_OUTPUT_FIELDS } from "./domain/native-trigger-capture";
 export {
+  ABANDON_PENDING_EXIT,
   isKeyedDeletion,
-  NO_PENDING_EXIT,
   pendingDecision,
   pendingFor,
   RECOVERY_GUIDE,

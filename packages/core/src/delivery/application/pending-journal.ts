@@ -1,5 +1,5 @@
 import type { InstanceCopy } from "../../authoring/index";
-import { pendingFor } from "../../authoring/index";
+import { ABANDON_PENDING_EXIT, pendingFor } from "../../authoring/index";
 import { PendingDeliveryTargetError } from "../domain/errors";
 import type { PlannedUnit } from "../domain/unit-plan";
 import type { PendingDelivery, PushJournal, PushJournalStore } from "../ports";
@@ -45,6 +45,7 @@ export async function stagePending(run: JournalRun, load: ProjectLoad, updateSet
       throw new PendingDeliveryTargetError(
         unit.updateName,
         run.journal.current.instance ?? "<instance>",
+        ABANDON_PENDING_EXIT,
       );
     if (unit.operation === "record" && old !== undefined && old.updateName !== unit.updateName) {
       pending.splice(pending.indexOf(old), 1, {

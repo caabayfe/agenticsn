@@ -94,11 +94,7 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
     const staged = await runGit(["diff", "--cached", "--quiet", "--", ...paths], this.root);
     if (staged.exitCode === 0)
       return (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
-    // A machine (or CI runner) with no git identity still records the ledger, as integrate does.
-    const configured = (await runGit(["config", "user.email"], this.root)).stdout.trim() !== "";
-    const identity = configured
-      ? []
-      : ["-c", "user.name=snagentic", "-c", "user.email=snagentic@localhost"];
+    const identity = await this.identity();
     await runGitOrThrow(
       [...identity, "commit", "--quiet", "-m", message, "--", ...paths],
       this.root,
@@ -106,6 +102,26 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
     const committed = (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
     await reconcileCommitIndex(this.root, index, committed);
     return committed;
+  }
+
+  // Plumbing, as the mirror's commits are: the same tree on top of HEAD, so neither the index
+  // nor the working tree (staged or unstaged work of the user's) is read or changed.
+  async commitRecord(message: string): Promise<string> {
+    const head = (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
+    const commit = (
+      await runGitOrThrow(
+        [...(await this.identity()), "commit-tree", `${head}^{tree}`, "-p", head, "-m", message],
+        this.root,
+      )
+    ).trim();
+    await runGitOrThrow(["update-ref", "-m", "snagentic: record", "HEAD", commit, head], this.root);
+    return commit;
+  }
+
+  // A machine (or CI runner) with no git identity still records the ledger, as integrate does.
+  private async identity(): Promise<string[]> {
+    const configured = (await runGit(["config", "user.email"], this.root)).stdout.trim() !== "";
+    return configured ? [] : ["-c", "user.name=snagentic", "-c", "user.email=snagentic@localhost"];
   }
 
   async publishBranch(branch: string): Promise<void> {

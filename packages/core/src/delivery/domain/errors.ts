@@ -1,12 +1,43 @@
 import { SnagenticError } from "../../kernel/errors";
 
 export class PushConfirmationRequiredError extends SnagenticError {
-  constructor() {
+  // `abandon`: what push --abandon-pending would leave on the instance, for the user to approve.
+  constructor(abandon?: readonly string[]) {
+    if (abandon === undefined)
+      super(
+        "push-confirmation-required",
+        "usage",
+        "push changes the instance and needs explicit confirmation",
+        "show the user the plan from plan_push; once they approve, push with confirm set to true",
+      );
+    else
+      super(
+        "push-confirmation-required",
+        "usage",
+        `abandoning this delivery rolls nothing back and needs explicit confirmation; what stays on the instance:\n${abandon.map((line) => `  ${line}`).join("\n")}`,
+        "show the user this list; once they accept that it stays on the instance, run the same command with confirm set to true (--confirm)",
+      );
+  }
+}
+
+export class NoPendingDeliveryError extends SnagenticError {
+  constructor(instance: string) {
     super(
-      "push-confirmation-required",
-      "usage",
-      "push changes the instance and needs explicit confirmation",
-      "show the user the plan from plan_push; once they approve, push with confirm set to true",
+      "no-pending-delivery",
+      "precondition",
+      `no unfinished delivery to ${instance}: there is nothing to abandon`,
+      `plan as usual: snagentic plan-push --instance ${instance}`,
+    );
+  }
+}
+
+export class PendingDeliveryPlanError extends SnagenticError {
+  constructor(given: string, stopped: string, instance: string) {
+    super(
+      "pending-delivery-plan",
+      "precondition",
+      `the unfinished delivery to ${instance} is push ${stopped}, not ${given}`,
+      `snagentic status --instance ${instance} shows the unfinished push; to abandon it: snagentic push --instance ${instance} --abandon-pending --plan ${stopped}`,
     );
   }
 }
@@ -34,12 +65,13 @@ export class PlanNotReadyError extends SnagenticError {
 }
 
 export class PendingDeliveryTargetError extends SnagenticError {
-  constructor(updateName: string, instance: string) {
+  // `exit`: what to do when recovery refuses (authoring's ABANDON_PENDING_EXIT).
+  constructor(updateName: string, instance: string, exit: string) {
     super(
       "pending-delivery-target",
       "precondition",
       `${updateName} has unfinished delivery in another update set`,
-      `finish it in its original update set first: snagentic plan-push --instance ${instance} --recover-pending; if that refuses, keep the push journal and see "When nothing finishes the delivery" in docs/guides/recover-interrupted-delivery.md`,
+      `finish it in its original update set first: snagentic plan-push --instance ${instance} --recover-pending; if that refuses, ${exit}`,
     );
   }
 }

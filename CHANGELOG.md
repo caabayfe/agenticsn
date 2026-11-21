@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Delivery messages name what the developer can do. A record that moved between plan and load
+  names `adopt --refresh` and counts the projects already loaded; a flow or action that fails
+  verification says whether its capture is missing, unpublished or different, and names the
+  rows and fields that differ; unfinished-delivery refusals name `--recover-pending` or say that
+  no command settles them yet, instead of a "reconcile" step that does not exist.
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

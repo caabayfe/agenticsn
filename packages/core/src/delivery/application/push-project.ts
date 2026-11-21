@@ -5,7 +5,7 @@ import { GLOBAL } from "../domain/batch";
 import { RecordChangedOnInstanceError } from "../domain/errors";
 import type { PlannedUnit } from "../domain/unit-plan";
 import { nextCount, stampedXml } from "../domain/unit-stamp";
-import type { SwitchedPreference } from "../ports";
+import type { PushJournal, SwitchedPreference } from "../ports";
 import { readRefusals } from "./load-refusals";
 import { observePending, stagePending } from "./pending-journal";
 import type { ProjectLoad } from "./plan-units";
@@ -27,11 +27,13 @@ const loaded = (unit: PlannedUnit) => unit.operation !== "record" && unit.operat
 function ensureUnmoved(
   units: readonly PlannedUnit[],
   copies: ReadonlyMap<string, InstanceCopy | null>,
-  written: number,
+  journal: PushJournal,
 ): void {
   for (const unit of units.filter((unit) => unit.operation !== "forget")) {
     const now = copies.get(unit.updateName)?.version ?? null;
-    if (now !== unit.version) throw new RecordChangedOnInstanceError(unit.updateName, written);
+    if (now === unit.version) continue;
+    const loaded = journal.steps.filter((step) => step.state === "written").length;
+    throw new RecordChangedOnInstanceError(unit, journal.instance ?? "<instance>", loaded);
   }
 }
 
@@ -139,7 +141,7 @@ export async function pushProject(run: ProjectRun, load: ProjectLoad): Promise<P
   try {
     const built = units.flatMap((u) => load.built.get(u.updateName)?.unit ?? []);
     const before = await readUnits(session.reader, built, session.signal);
-    ensureUnmoved(units, before, journal.current.steps.length);
+    ensureUnmoved(units, before, journal.current);
     await prefer("apps.current_app", project.scopeId);
     const set = await openSet(run, load);
     // A scoped write makes the platform switch the user's global current update set too, so

@@ -73,7 +73,10 @@ export {
 } from "./domain/unit-plan";
 export { nextCount, stampedXml } from "./domain/unit-stamp";
 export {
+  acceptedWaivers,
+  type BranchWaivers,
   globMatches,
+  type ReviewedWaivers,
   readWaivers,
   type Waiver,
   type WaiverProblem,

@@ -204,3 +204,62 @@ describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
     });
   });
 });
+
+// ADR-0058: in team mode the gate reads waivers.yaml from the remote's default branch, as this
+// clone last fetched it.
+describe("GitDeliveryWorkspace and the reviewed branch's waivers (ADR-0058)", () => {
+  const WAIVERS = "waivers:\n  - rule: SN-SEC-001\n";
+
+  async function clone() {
+    const upstream = await repository();
+    const root = await mkdtemp(join(tmpdir(), "snagentic-clone-"));
+    cleanups.push(root);
+    await git(root, "clone", "-q", upstream.root, ".");
+    return { upstream, root, workspace: new GitDeliveryWorkspace(root, InstanceName.parse("pdi")) };
+  }
+
+  it("reads no waiver from a reviewed branch that has no waivers.yaml", async () => {
+    const { workspace } = await clone();
+    expect(await workspace.reviewedWaivers("origin")).toEqual({
+      kind: "found",
+      branch: "origin/main",
+      document: null,
+    });
+  });
+
+  it("does not read a waiver committed only on the local branch", async () => {
+    const { root, workspace } = await clone();
+    await writeFile(join(root, "waivers.yaml"), WAIVERS);
+    await git(root, "add", "waivers.yaml");
+    await git(root, "commit", "-qm", "waive");
+    expect((await workspace.waivers()).committed).toEqual({ waivers: [{ rule: "SN-SEC-001" }] });
+    expect(await workspace.reviewedWaivers("origin")).toMatchObject({ document: null });
+  });
+
+  it("reads the waivers merged to the reviewed branch once they are fetched, never fetching itself", async () => {
+    const { upstream, root, workspace } = await clone();
+    await upstream.write("waivers.yaml", WAIVERS);
+    await git(upstream.root, "add", "waivers.yaml");
+    await git(upstream.root, "commit", "-qm", "waive");
+    expect(await workspace.reviewedWaivers("origin")).toMatchObject({ document: null });
+    await git(root, "fetch", "-q", "origin");
+    expect(await workspace.reviewedWaivers("origin")).toEqual({
+      kind: "found",
+      branch: "origin/main",
+      document: { waivers: [{ rule: "SN-SEC-001" }] },
+    });
+  });
+
+  it("cannot name the reviewed branch when the clone has no record of the remote's default branch", async () => {
+    const { root, workspace } = await clone();
+    await git(root, "remote", "set-head", "origin", "--delete");
+    expect(await workspace.reviewedWaivers("origin")).toEqual({
+      kind: "unresolved",
+      remote: "origin",
+    });
+    expect(await workspace.reviewedWaivers("nowhere")).toEqual({
+      kind: "unresolved",
+      remote: "nowhere",
+    });
+  });
+});

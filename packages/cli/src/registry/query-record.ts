@@ -1,6 +1,6 @@
 import { getLiveRecord, TableName } from "@snagentic/core";
 import { z } from "zod";
-import { connect } from "./connect";
+import { liveQueryAccess } from "./live-query-access";
 import { liveFields, liveFlags, liveRow, liveTarget } from "./live-query-schemas";
 import { defineUseCase } from "./use-case";
 
@@ -18,7 +18,8 @@ export const queryRecord = defineUseCase({
     group: "Read live ServiceNow data",
     details:
       "Read explicit fields by table and sys_id. A missing or ACL-hidden record returns null.",
-    effects: "Reads live schema and one record; writes nothing.",
+    effects:
+      "Reads live schema and one record; writes no records. Adds one line to the local query log.",
     examples: [
       [
         "query",
@@ -51,8 +52,8 @@ export const queryRecord = defineUseCase({
   }),
   flags: liveFlags,
   async handle(input, context, run) {
-    const { reader } = await connect(context, input.instance, run.signal);
-    return getLiveRecord(reader, { ...input, table: TableName.parse(input.table) }, run.signal);
+    const access = await liveQueryAccess(context, input.instance, run.signal);
+    return getLiveRecord(access, { ...input, table: TableName.parse(input.table) }, run.signal);
   },
   render: (output) => JSON.stringify(output, null, 2),
   exitCode: () => 0,

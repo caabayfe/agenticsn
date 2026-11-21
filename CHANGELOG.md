@@ -13,8 +13,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   instance nothing and rolls nothing back. Refusals that had no exit now name it (ADR-0050,
   amendment A1).
 
+- A nightly workflow runs the live tests against a dedicated developer instance, from a
+  protected GitHub environment, and reports a failure in an issue. A sleeping instance ends the
+  run with a notice, not a failure ([guide](docs/guides/live-tests.md); spec 016, T1).
 ### Fixed
 
+- `describe` accepts a record's path as the workspace shows it (`instances/<instance>/metadata/...`,
+  relative or absolute) and the path of any of the record's files, not only the path `find`
+  prints. A path into another instance's mirror than the one asked for is refused, and the
+  `record-not-found` hint names the accepted forms (spec 016, U6).
 - Delivery messages name what the developer can do. A record that moved between plan and load
   names `adopt --refresh` and counts the projects already loaded; a flow or action that fails
   verification says whether its capture is missing, unpublished or different, and names the
@@ -32,6 +39,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   show with the instance unreachable. No evaluation was run.
 ### Security
 
+- In team mode (a profile with a shared mirror), the push gate accepts only waivers on the
+  remote's default branch, as the clone last fetched it, so every accepted waiver has passed a
+  pull request. A waiver that is only on the developer's branch waives nothing, and the plan
+  says to open a pull request for it. Solo mode keeps reading the waivers committed on the
+  branch. ADR-0058 amends ADR-0006 (SEC3-01).
 - snagentic refuses to start while `BUN_OPTIONS` is set (`runtime-options-set`), and `doctor`
   fails when the `env` block of `.claude/settings.json` or `.claude/settings.local.json` sets a
   runtime variable. The limits of both checks are in `docs/product/security-and-governance.md`,
@@ -47,6 +59,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   values are masked in output wherever it could influence the result: in a filter condition
   (including `^OR` and `^NQ` branches and reference paths) and as the group field. The refusal has
   the code `masked-field`. (SEC3-03)
+- Live queries (`query table`, `query record`, `query aggregate`, `query schema`) are off on
+  test and production instances unless the instance's `instance.yaml` has
+  `live_queries: { enabled: true }`; the refusal has the code `live-queries-disabled`.
+  Development instances are unchanged. Every live query that runs adds a line to
+  `.snagentic/<name>/live-queries.jsonl` (time, instance, user name, command, table, the filter's
+  field names and operators; never values or results), and is refused when that line cannot be
+  written. `docs/product/security-and-governance.md`, "Live queries", states the limits
+  (SEC3-04, ADR-0057 amendment A1).
 ### Changed
 
 - Documentation matches the code (spec 016, P0): the README states the released version and a

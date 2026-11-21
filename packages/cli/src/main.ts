@@ -64,6 +64,7 @@ import { InstanceConnections } from "./adapters/servicenow/instance-connections"
 import { FileWorkspaceLock } from "./adapters/state/file-workspace-lock";
 import { JsonInstallJournal } from "./adapters/state/json-install-journal";
 import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
+import { JsonlLiveQueryLog } from "./adapters/state/jsonl-live-query-log";
 import { syncStateStore } from "./adapters/state/mirror-sync-state-store";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
 import { ExecutableBinary, installedPath } from "./adapters/upgrade/executable-binary";
@@ -197,6 +198,8 @@ const context: UseCaseContext = {
   pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),
+  liveQueryLog: (root, instance) =>
+    new JsonlLiveQueryLog(join(root, instancePaths(instance).localState)),
   installJournal: (root, instance) =>
     new JsonInstallJournal(join(root, instancePaths(instance).localState)),
   workspaceLock: (root, instance) =>

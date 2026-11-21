@@ -42,6 +42,24 @@ describe("YamlProfileStore", () => {
     );
   });
 
+  it("reads and writes the live_queries setting, and leaves it out when unset", async () => {
+    const root = await workspace();
+    await mkdir(join(root, "instances/pdi"), { recursive: true });
+    await writeFile(
+      join(root, "instances/pdi/instance.yaml"),
+      "url: https://dev312411.service-now.com\nkind: production\nauth:\n  method: basic\n  username: reader\nread_only_acknowledged: true\nlive_queries:\n  enabled: true\n",
+    );
+    const profile = await store.read(root, pdi.name);
+    expect(profile?.liveQueries).toEqual({ enabled: true });
+    if (profile === null) throw new Error("expected a profile");
+    await store.write(root, profile);
+    expect(await readFile(join(root, "instances/pdi/instance.yaml"), "utf8")).toContain(
+      "live_queries:\n  enabled: true\n",
+    );
+    await store.write(root, pdi);
+    expect((await store.read(root, pdi.name))?.liveQueries).toBeUndefined();
+  });
+
   it("reads back what it wrote, and lists every profile", async () => {
     const root = await workspace();
     await store.write(root, pdi);

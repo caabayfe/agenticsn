@@ -1,6 +1,6 @@
 # 0009. Engineering practices: TDD, strict typing, enforced boundaries
 
-- Status: Accepted
+- Status: Accepted; amendment A1 accepted (2026-11-21)
 - Date: 2026-10-05
 - Requirements: ASR-10, ASR-13
 
@@ -51,3 +51,20 @@ itself must protect quality.
 
 - Slower first commits, faster and safer change later.
 - The owner can review through ADRs, test names, rule specifications and CLI behavior.
+
+## Amendments
+
+### A1. How the ServiceNow contract is tested (Accepted, 2026-11-21)
+
+Evidence: spec 016, product audit of 2026-11-21. The "Adapter contract" row names msw and
+recorded HTTP. Neither exists: the adapters are tested against hand-written fake transports,
+and no test in the default suite checks what a real instance answers. The row is replaced by:
+
+| Level | Scope | Tools |
+|---|---|---|
+| Adapter | Each ServiceNow adapter against a hand-written fake transport | `bun test` |
+| Live | The same adapters against a PDI: nightly on a schedule (spec 016, T1), and by hand | `SNAGENTIC_LIVE_INSTANCE` |
+
+The fakes can drift from the platform. Until the shapes of the instance's answers are recorded
+during the live run and checked against the fakes (spec 016, T3), the live run is the only
+check of the contract.

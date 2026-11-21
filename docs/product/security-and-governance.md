@@ -97,14 +97,29 @@ every one of these:
 1. **A plan id** from `plan-push`, bound to the exact content of the workspace. If anything
    changes after planning, the push is refused.
 2. **A passing gate:** `validate` finds no blocking finding, or each one is covered by a
-   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. The code
-   enforces this much: the gate reads `waivers.yaml` as committed on the current branch
-   (uncommitted changes are reported and don't apply); a waiver path must start with
-   `source/<scope>/`, so no waiver covers a whole workspace; and the expiry is at most 366
-   days ahead. The approver is text, not a checked identity. Where the host runs snagentic's
-   hooks (Claude Code, Copilot CLI), they refuse an agent's edit to the file, and Claude Code
-   also has a permission rule for it; other hosts have no such protection. The control is
-   therefore review: every change to `waivers.yaml` is reviewed in the pull request.
+   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. Which copy of
+   the file the gate reads depends on the mode (ADR-0058):
+   - **Team mode** (the instance profile names a shared mirror): only waivers on the reviewed
+     branch apply, that is the default branch of that git remote as the clone last fetched it,
+     for example `origin/main`. A waiver that is only on the developer's branch, or not
+     committed, waives nothing, and the plan says so: open a pull request for it, and fetch
+     once it is merged. The gate fetches nothing itself. If the clone has no record of the
+     remote's default branch, no waiver applies (`git remote set-head origin --auto` records
+     it).
+   - **Solo mode:** the gate reads `waivers.yaml` as committed on the current branch.
+     Uncommitted changes are reported and don't apply. The plan lists every waived finding
+     with its approver and reason, for the person who confirms the push.
+
+   In both modes a waiver path must start with `source/<scope>/`, so no waiver covers a whole
+   workspace, and the expiry is at most 366 days ahead. The approver is text, not a checked
+   identity: in team mode, who approved is the reviewer of the pull request. Where the host
+   runs snagentic's hooks (Claude Code, Copilot CLI), they refuse an agent's edit to the file,
+   and Claude Code also has a permission rule for it; other hosts have no such protection.
+
+   Limits: the team rule is as strong as the review of the default branch, so protect that
+   branch and require review. The gate reads the clone's own record of that branch and the
+   committed profile; both are files on the developer's machine. The pull request check and
+   branch protection are the controls that don't depend on it.
 3. **The confirm flag** (`--confirm`, or `confirm=true` over MCP). `push` refuses without it.
    What asks the user depends on the host:
 
@@ -192,25 +207,54 @@ in every finding.
 ## Live queries
 
 The `query` commands (`query table`, `query record`, `query aggregate`, `query schema`) and
-the matching tools of the investigate MCP profile read live rows from an instance of any
-kind, with the credential checks above ([ADR-0057](../adr/0057-bundled-user-skills-and-mcp-profiles.md)).
-They write nothing, to the instance or to disk. Unlike the mirror, they can read business
-records. The validator enforces these bounds:
+the matching tools of the investigate MCP profile read live rows from an instance
+([ADR-0057](../adr/0057-bundled-user-skills-and-mcp-profiles.md), amendment A1). They write
+nothing to the instance. Unlike the mirror, they can read business records.
 
-- **Tables.** Credential, OAuth, certificate, token, session and user preference tables are
-  refused.
+**Which instances.** On a `development` instance they run. On a `test` or `production`
+instance they are off: each of the four commands is refused with the code
+`live-queries-disabled`, before the instance is called. To turn
+them on for one instance, add this to `instances/<name>/instance.yaml` and commit it, so the
+decision passes the team's review:
+
+```yaml
+live_queries:
+  enabled: true
+```
+
+The setting is read from the file in the workspace, like every other profile setting; snagentic
+does not check that the change is committed. On a development instance the key has no effect.
+The credential checks above still apply to an enabled test or production instance.
+
+**The query log.** Every live query that passes the checks below on the instance kind, the
+table and the filter syntax is recorded before its first request, on every kind of instance:
+one line in `.snagentic/<name>/live-queries.jsonl`, in the workspace's local state, which git
+ignores. A line holds the time, the instance's name and kind, the user name the profile signs
+in with, the command (`table`, `record`, `aggregate` or `schema`), the table, and the field
+name and operator of each filter condition. It never holds a filter's values, the fields
+asked for, the rows returned, or a credential. Each page of a paged query is one line. If the
+line cannot be written, the query is refused (`live-query-log-unavailable`) and not run. The
+log is local to one clone: it is not sent anywhere, not rotated, and whoever can write the
+workspace can change it.
+
+The validator enforces these bounds on every kind of instance:
+
+- **Tables.** A table whose name contains `credential`, `oauth`, `certificate`,
+  `private_key`, `sys_auth`, `sys_user_token`, `sys_user_session` or `sys_user_preference` is
+  refused. Every other table the credential can read can be queried, business tables such as
+  `sys_user`, `incident` and `sys_email` included.
 - **Fields.** 1 to 40 named fields, each checked against the live dictionary.
 - **Filters.** Literal comparisons only, at most 32 terms and 4,096 characters; no scripts
   or dynamic filters. Each `^NQ` branch needs an equality or `IN` on `sys_id` or a unique
-  field, or `sys_updated_on` bounds at most 31 days apart.
+  field, or `sys_updated_on` bounds at most 31 days apart. A field whose values are masked in
+  output cannot be used in a filter condition or as the group field (`masked-field`).
 - **Size.** At most 100 rows a page and about 100,000 characters; a text value is cut at
-  8,000 characters and marked. An aggregate only counts, and refuses more than 100 groups or
-  grouping by a sensitive field.
+  8,000 characters and marked. An aggregate only counts, and refuses more than 100 groups.
 
 Password and encrypted field types, fields with secret-like names and the values the mirror
 redacts are returned as `[redacted]`; other text is scanned for secrets first. Results go to
 the agent that asked, and so to that agent's model provider, under your agreement with it.
-Check what a credential can read before giving an agent these commands on test or production.
+Check what a credential can read before you enable these commands on test or production.
 
 ## Load on the instance
 

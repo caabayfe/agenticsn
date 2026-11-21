@@ -1,6 +1,6 @@
 import { aggregateLiveTable, TableName } from "@snagentic/core";
 import { z } from "zod";
-import { connect } from "./connect";
+import { liveQueryAccess } from "./live-query-access";
 import { liveFlags, livePredicate, liveTarget } from "./live-query-schemas";
 import { defineUseCase } from "./use-case";
 
@@ -18,7 +18,8 @@ export const queryAggregate = defineUseCase({
     group: "Read live ServiceNow data",
     details:
       "Count matches, optionally grouped by one non-sensitive field. Supports count only; refuses more than 100 groups.",
-    effects: "Reads live schema and aggregate counts; writes nothing.",
+    effects:
+      "Reads live schema and aggregate counts; writes no records. Adds one line to the local query log.",
     examples: [
       [
         "query",
@@ -49,9 +50,9 @@ export const queryAggregate = defineUseCase({
   }),
   flags: liveFlags,
   async handle(input, context, run) {
-    const { reader } = await connect(context, input.instance, run.signal);
+    const access = await liveQueryAccess(context, input.instance, run.signal);
     return aggregateLiveTable(
-      reader,
+      access,
       { ...input, table: TableName.parse(input.table) },
       run.signal,
     );

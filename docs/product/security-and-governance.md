@@ -137,6 +137,25 @@ refuses the same commands. The shell hook matches command text, so it stops an a
 mistakes, not a determined bypass; layers 3 to 9 cover that. VS Code runs these hooks only
 with `chat.useClaudeHooks` enabled, and the Copilot cloud agent doesn't run them.
 
+## The runtime inside the binary
+
+The binary is a compiled Bun program, and the runtime inside it reads two environment variables
+before snagentic's own code starts:
+
+- `BUN_OPTIONS` gives the runtime arguments of its own. snagentic refuses to start when it is
+  set (`runtime-options-set`): it runs only with the options it was built with. The runtime has
+  applied the options by then, so the refusal stops the command; it does not undo them.
+- `BUN_BE_BUN` makes the runtime start as itself and not as snagentic. No snagentic code runs
+  in that mode, so snagentic cannot refuse it, and Bun 1.4 has no build option that turns it
+  off.
+
+The environment that starts the binary is therefore trusted input, like the binary's own file.
+What snagentic does about it: the binary reads no `bunfig.toml`, `.env`, `tsconfig.json` or
+`package.json` from its working directory; its SDK worker starts with a reduced environment
+(ADR-0044); the MCP configs and hooks the agent pack writes set neither variable; the shell hook
+refuses commands that set them (guidance, layer 2); and `doctor` fails when a committed MCP
+config or the host's settings file sets one.
+
 ## Guardrail content
 
 `validate` applies 41 rules, each with an id, severity, rationale and remediation, in five

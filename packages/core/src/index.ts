@@ -25,6 +25,7 @@ export {
   RUNTIME_VARIABLES,
   TRUST_VARIABLES,
 } from "./environment/domain/network";
+export { RuntimeOptionsError, runtimeOptionsRefusal } from "./environment/domain/runtime-options";
 export type { EnvironmentProbe } from "./environment/ports";
 export * from "./governance/index";
 export * from "./instance/index";

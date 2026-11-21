@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Security
+
+- snagentic refuses to start while `BUN_OPTIONS` is set (`runtime-options-set`), and `doctor`
+  fails when the `env` block of `.claude/settings.json` or `.claude/settings.local.json` sets a
+  runtime variable. The limits of both checks are in `docs/product/security-and-governance.md`,
+  "The runtime inside the binary" (SEC3-05).
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

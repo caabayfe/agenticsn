@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- `integrate` refuses to run while a merge is in progress and names the command that leaves that
+  state (`git merge --abort`), instead of a file restore that does not. It no longer concludes a
+  merge of the user's own.
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

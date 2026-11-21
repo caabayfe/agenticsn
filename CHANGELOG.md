@@ -10,6 +10,23 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   values are masked in output wherever it could influence the result: in a filter condition
   (including `^OR` and `^NQ` branches and reference paths) and as the group field. The refusal has
   the code `masked-field`. (SEC3-03)
+### Changed
+
+- Documentation matches the code (spec 016, P0): the README states the released version and a
+  test keeps it so; the rule count is broken down by kind; the security document says what the
+  code enforces for waivers and push confirmation and what depends on the agent host, and
+  describes the live `query` commands; `AGENTS.md` lists the real contexts and test practice.
+### Fixed
+
+- An incremental `pull` reports the changed records it could not store: those the change feed
+  named and their own table did not return to the pulling user. It counts them, names the first
+  twenty, says which the mirror still holds as they were, and points to `pull --verify`. The
+  JSON output carries them as `incremental.unstored`.
+- A full pull that stops after committing the mirror (while packing the repository, or a moment
+  before) no longer makes the next pull replace the mirror with a nearly empty one. Packing runs
+  after the pull is complete and a failure is reported as a warning (`warnings` in the pull
+  output); a checkpoint the mirror already holds is dropped, and a resumed pull whose progress
+  is gone reads every class again.
 
 ## [2.22.3] - 2026-11-17
 

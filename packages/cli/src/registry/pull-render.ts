@@ -1,3 +1,4 @@
+import type { UnstoredReason } from "@snagentic/core";
 import type { PullOutput } from "./pull-output";
 import { renderCurrent, renderStale, sharedLines } from "./pull-shared-output";
 
@@ -63,27 +64,66 @@ function lostWarning(output: PullOutput, lost: number): string[] {
       ];
 }
 
+// What pull --verify was answered when it asked again for a record (UnstoredReason).
+const ANSWERS: Record<UnstoredReason, string> = {
+  "not-returned": "",
+  hidden:
+    ": the instance lists it and its table does not return it to this user (a read ACL or the domain hides it)",
+  "table-unreadable": ": this user cannot read its table",
+  "not-listed": ": the instance no longer lists it for this user (deleted, or hidden there too)",
+};
+
+type Unstored = NonNullable<PullOutput["incremental"]>["unstored"];
+
+function unstoredRecordLines({ count, records }: Unstored): string[] {
+  return [
+    ...records.map(
+      (record) =>
+        `    ${record.table} ${record.sysId}${ANSWERS[record.reason]}${record.inMirror ? " (in the mirror, not updated)" : ""}`,
+    ),
+    ...(count > records.length ? [`    and ${count - records.length} more`] : []),
+  ];
+}
+
+const heldInMirror = (inMirror: number) =>
+  inMirror === 0
+    ? "the mirror holds none of them"
+    : `the mirror holds ${inMirror} of them as they were before the change`;
+
+// pull --verify asked again for the records earlier pulls could not store: what it stored, and
+// what is still not stored, each with what the instance answered.
+function rereadLines(output: PullOutput, unstored: Unstored): string[] {
+  const { count, inMirror, recovered } = unstored;
+  return [
+    ...(recovered > 0
+      ? [`  ${recovered} records an earlier pull could not store were read again and stored`]
+      : []),
+    ...(count > 0
+      ? [
+          `  ${inMirror > 0 ? "warning: " : ""}${count} records are still not stored after reading them again; ${heldInMirror(inMirror)}`,
+          ...unstoredRecordLines(unstored),
+          `  once this user can read them: snagentic pull ${output.instance} --verify`,
+        ]
+      : []),
+  ];
+}
+
 // Changed records the pull could not store are named, not passed over: the mirror keeps the
 // earlier copy of those it holds. A pull that verified has already compared the two.
 function unstoredLines(
   output: PullOutput,
   changes: NonNullable<PullOutput["incremental"]>,
 ): string[] {
-  const { count, inMirror, records } = changes.unstored;
+  const { count, inMirror, recovered, records } = changes.unstored;
+  if (recovered > 0 || records.some((record) => record.reason !== "not-returned")) {
+    return rereadLines(output, changes.unstored);
+  }
   if (count === 0) return [];
-  const held =
-    inMirror === 0
-      ? "the mirror holds none of them"
-      : `the mirror holds ${inMirror} of them as they were before the change`;
   return [
-    `  ${inMirror > 0 ? "warning: " : ""}${count} changed records were not returned by their table to this user (a read ACL or the domain hides them, or they were deleted since); ${held}`,
-    ...records.map(
-      (record) =>
-        `    ${record.table} ${record.sysId}${record.inMirror ? " (in the mirror, not updated)" : ""}`,
-    ),
-    ...(count > records.length ? [`    and ${count - records.length} more`] : []),
+    `  ${inMirror > 0 ? "warning: " : ""}${count} changed records were not returned by their table to this user (a read ACL or the domain hides them, or they were deleted since); ${heldInMirror(inMirror)}`,
+    ...unstoredRecordLines(changes.unstored),
     ...(changes.verification === null
-      ? [`  to compare the mirror with the instance: snagentic pull ${output.instance} --verify`]
+      ? [`  to read them again: snagentic pull ${output.instance} --verify`]
       : []),
   ];
 }

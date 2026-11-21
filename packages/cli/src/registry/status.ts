@@ -25,6 +25,9 @@ const InstanceStatusOutput = z.object({
   remoteCommit: z.string().nullable(),
   unintegratedPulls: z.number(),
   localChanges: z.array(z.string()),
+  unstoredRecords: z
+    .number()
+    .describe("changed records a pull could not store; pull --verify reads them again"),
   // The team's shared mirror (ADR-0052), as git fetched it now; null without one.
   sharedMirror: z
     .object({
@@ -133,6 +136,15 @@ function sharedLine(shared: InstanceStatusOutput["sharedMirror"]): string[] {
   ];
 }
 
+// The mirror lacks these or holds an earlier copy: said here, where freshness is read.
+function unstoredLine(status: InstanceStatusOutput): string[] {
+  return status.unstoredRecords === 0
+    ? []
+    : [
+        `  ${status.unstoredRecords} changed record(s) not stored: their table did not return them to the pulling user; to read them again: snagentic pull ${status.instance} --verify`,
+      ];
+}
+
 function renderOne(status: InstanceStatusOutput): string {
   const changes = status.localChanges;
   const more = changes.length > SHOWN_CHANGES ? ` (+${changes.length - SHOWN_CHANGES} more)` : "";
@@ -148,6 +160,7 @@ function renderOne(status: InstanceStatusOutput): string {
     ...(status.unintegratedPulls > 0
       ? [`  ${status.unintegratedPulls} pull(s) not integrated yet`]
       : []),
+    ...unstoredLine(status),
     ...(status.domains.length === 0
       ? []
       : [`  domains: ${status.domains.map((d) => `${d.name} (${d.sysId})`).join(", ")}`]),

@@ -20,6 +20,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   verification says whether its capture is missing, unpublished or different, and names the
   rows and fields that differ; unfinished-delivery refusals name `--recover-pending` or say that
   no command settles them yet, instead of a "reconcile" step that does not exist.
+- `pull --verify` reads again, by table and sys_id, the changed records earlier pulls could not
+  store. It stores those their table returns now and reports the rest with what the instance
+  answered: listed and not returned by its table, its table not readable, or no longer listed
+  (deleted, or hidden there too). The pull state carries the list (`unstored`), `status` counts
+  it, and a pull without `--verify` asks nothing more (spec 016, R2).
 - `integrate` refuses to run while a merge is in progress and names the command that leaves that
   state (`git merge --abort`), instead of a file restore that does not. It no longer concludes a
   merge of the user's own.

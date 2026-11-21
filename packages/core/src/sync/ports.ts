@@ -39,6 +39,9 @@ export interface SyncState {
   readonly unreadable?: readonly string[];
   // pull --verify: rows counted per part but not listable by this user (verify-buckets).
   readonly hiddenCounts?: Readonly<Record<string, number>>;
+  // Changed records their table did not return to the pulling user, by table and sys_id: the
+  // mirror lacks them or holds an earlier copy. pull --verify reads them again.
+  readonly unstored?: readonly { readonly table: string; readonly sysId: string }[];
   // The redaction policy version the mirror was pulled with; absent means 1 (ADR-0034 #2).
   readonly redactionVersion?: number;
   // Existing committed files have been scanned under this ASR-08 policy version (ADR-0035).

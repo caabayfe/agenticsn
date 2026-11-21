@@ -1,4 +1,6 @@
 import { afterEach, expect, describe as group, it } from "bun:test";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { runGitOrThrow } from "../../src/adapters/git/run-git";
 import { executeUseCase } from "../../src/registry/execute";
 import { integrate } from "../../src/registry/integrate";
@@ -79,6 +81,54 @@ group("a team on one shared mirror, delivering", () => {
       expect(await runGitOrThrow(["log", "-1", "--format=%s"], dev.root)).toContain(
         "ledger after push",
       );
+    },
+    PLAN_TIMEOUT,
+  );
+  // ADR-0058: a team's gate accepts only waivers on the remote's default branch.
+  it(
+    "reports a waiver committed only in the developer's clone as not applying",
+    async () => {
+      const t = await team({
+        ...s11Tables("", "dev.one"),
+        sys_db_object: [
+          { sys_id: "c0", name: "sys_metadata", super_class: "" },
+          { sys_id: "c2", name: "sys_script_include", super_class: "c0" },
+        ],
+        sys_scope: [
+          { sys_id: "global", scope: "global" },
+          { sys_id: "489da54ae67c4a3e9f1e1e4347e9119b", scope: "x_2222332_s11" },
+        ],
+      });
+      cleanups.push(t.cleanup);
+      const ci = await t.member("svc_ci");
+      await executeUseCase(pull, { instance: "pdi", publish: true }, ci.at("2026-10-17T12:00:00Z"));
+      const dev = await t.member("dev.one");
+      const at = "2026-10-17T12:05:00Z";
+      await executeUseCase(integrate, { instance: "pdi" }, dev.at(at));
+      const ws = { root: dev.root, context: dev.at(at), instance: t.instance };
+      const { context } = await adoptS11(ws, {
+        source: "Edited in source.",
+        instance: "",
+        username: "dev.one",
+      });
+      await writeFile(
+        join(dev.root, "waivers.yaml"),
+        "waivers:\n  - rule: SN-SEC-001\n    path: source/x_2222332_s11/**\n    reason: Legacy\n    approver: dev.one\n    expires: 2026-12-31\n",
+      );
+      const identity = ["-c", "user.name=t", "-c", "user.email=t@t"];
+      await runGitOrThrow([...identity, "add", "waivers.yaml"], dev.root);
+      await runGitOrThrow([...identity, "commit", "-qm", "waive"], dev.root);
+      const plan = await executeUseCase(planPush, {}, context);
+      expect(plan.output["gate"]).toMatchObject({
+        waived: [],
+        waiverProblems: [
+          {
+            index: -1,
+            reason:
+              "the waiver for SN-SEC-001 on source/x_2222332_s11/** is not on origin/main, so it does not apply: open a pull request for it, and run git fetch origin once it is merged",
+          },
+        ],
+      });
     },
     PLAN_TIMEOUT,
   );

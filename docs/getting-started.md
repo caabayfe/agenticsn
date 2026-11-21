@@ -356,10 +356,12 @@ restricts, a deny ACL turned off or deleted, and admin overrides turned off.
 
 ### Waivers
 
-Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. Only waivers committed
-on the current branch apply, and the path must start with `source/<scope>/`. Claude Code and
-Copilot CLI hooks refuse an agent's edit to the file; other hosts have no such protection, so
-review every change to `waivers.yaml` in the pull request:
+Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. The path must start
+with `source/<scope>/`. Working alone, only waivers committed on the current branch apply. In a
+team (the profile has a `shared_mirror`), only waivers already merged to the remote's default
+branch apply, for example `origin/main`: open a pull request for the waiver, and run `git fetch`
+once it is merged. Claude Code and Copilot CLI hooks refuse an agent's edit to the file; other
+hosts have no such protection, so review every change to `waivers.yaml` in the pull request:
 
 ```yaml
 waivers:

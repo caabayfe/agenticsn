@@ -195,7 +195,8 @@ snagentic docs impact --base origin/main   # which documentation the change make
 
 Findings have a severity (`block` stops a push; `warn` should be fixed or accepted) and a rule ID such
 as SN-PERF-001. For one you can't fix, add a reviewed waiver (`waivers.yaml`, getting started,
-[waivers](../getting-started.md#waivers)): only committed waivers apply, and agents can't edit the file.
+[waivers](../getting-started.md#waivers)): only committed waivers apply (in a team, only those
+merged to the default branch), and agents can't edit the file.
 
 ### Let the agent review
 

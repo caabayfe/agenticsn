@@ -46,8 +46,11 @@ export interface UnitPlanDependencies {
   readonly decodeCapture?: CaptureDecoder;
   readonly workspace: Pick<
     DeliveryWorkspace,
-    "branch" | "mirrorCommit" | "uncommittedSource" | "waivers" | "metadataRoot"
+    "branch" | "mirrorCommit" | "uncommittedSource" | "waivers" | "reviewedWaivers" | "metadataRoot"
   >;
+  // Team mode (ADR-0058): the shared mirror's git remote; the gate accepts only waivers on its
+  // default branch.
+  readonly reviewedRemote?: string;
   readonly governance: ValidateDependencies;
   readonly packGate?: (
     paths: readonly string[],

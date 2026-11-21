@@ -32,6 +32,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   show with the instance unreachable. No evaluation was run.
 ### Security
 
+- In team mode (a profile with a shared mirror), the push gate accepts only waivers on the
+  remote's default branch, as the clone last fetched it, so every accepted waiver has passed a
+  pull request. A waiver that is only on the developer's branch waives nothing, and the plan
+  says to open a pull request for it. Solo mode keeps reading the waivers committed on the
+  branch. ADR-0058 amends ADR-0006 (SEC3-01).
 - snagentic refuses to start while `BUN_OPTIONS` is set (`runtime-options-set`), and `doctor`
   fails when the `env` block of `.claude/settings.json` or `.claude/settings.local.json` sets a
   runtime variable. The limits of both checks are in `docs/product/security-and-governance.md`,

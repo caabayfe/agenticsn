@@ -97,14 +97,29 @@ every one of these:
 1. **A plan id** from `plan-push`, bound to the exact content of the workspace. If anything
    changes after planning, the push is refused.
 2. **A passing gate:** `validate` finds no blocking finding, or each one is covered by a
-   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. The code
-   enforces this much: the gate reads `waivers.yaml` as committed on the current branch
-   (uncommitted changes are reported and don't apply); a waiver path must start with
-   `source/<scope>/`, so no waiver covers a whole workspace; and the expiry is at most 366
-   days ahead. The approver is text, not a checked identity. Where the host runs snagentic's
-   hooks (Claude Code, Copilot CLI), they refuse an agent's edit to the file, and Claude Code
-   also has a permission rule for it; other hosts have no such protection. The control is
-   therefore review: every change to `waivers.yaml` is reviewed in the pull request.
+   waiver in `waivers.yaml` with a rule, path, reason, approver and expiry date. Which copy of
+   the file the gate reads depends on the mode (ADR-0058):
+   - **Team mode** (the instance profile names a shared mirror): only waivers on the reviewed
+     branch apply, that is the default branch of that git remote as the clone last fetched it,
+     for example `origin/main`. A waiver that is only on the developer's branch, or not
+     committed, waives nothing, and the plan says so: open a pull request for it, and fetch
+     once it is merged. The gate fetches nothing itself. If the clone has no record of the
+     remote's default branch, no waiver applies (`git remote set-head origin --auto` records
+     it).
+   - **Solo mode:** the gate reads `waivers.yaml` as committed on the current branch.
+     Uncommitted changes are reported and don't apply. The plan lists every waived finding
+     with its approver and reason, for the person who confirms the push.
+
+   In both modes a waiver path must start with `source/<scope>/`, so no waiver covers a whole
+   workspace, and the expiry is at most 366 days ahead. The approver is text, not a checked
+   identity: in team mode, who approved is the reviewer of the pull request. Where the host
+   runs snagentic's hooks (Claude Code, Copilot CLI), they refuse an agent's edit to the file,
+   and Claude Code also has a permission rule for it; other hosts have no such protection.
+
+   Limits: the team rule is as strong as the review of the default branch, so protect that
+   branch and require review. The gate reads the clone's own record of that branch and the
+   committed profile; both are files on the developer's machine. The pull request check and
+   branch protection are the controls that don't depend on it.
 3. **The confirm flag** (`--confirm`, or `confirm=true` over MCP). `push` refuses without it.
    What asks the user depends on the host:
 

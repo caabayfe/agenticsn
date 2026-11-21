@@ -438,6 +438,7 @@ describe("pull and integrate", () => {
         peakConcurrency: 3,
         requestSeconds: 2.4,
         peakMemoryMb: 120,
+        warnings: [],
         timeouts: 2,
         serverCostRequested: true,
         serverCost: {
@@ -509,6 +510,7 @@ describe("pull and integrate", () => {
       peakConcurrency: 4,
       requestSeconds: 9,
       peakMemoryMb: 80,
+      warnings: [],
       timeouts: 0,
       serverCostRequested: false,
       serverCost: null,

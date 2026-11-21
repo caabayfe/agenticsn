@@ -3,7 +3,7 @@ import { InvalidInputError } from "../../kernel/errors";
 import { SysId } from "../../kernel/sys-id";
 import type { TableName } from "../../kernel/table-name";
 import { KeysetPager } from "../../sync/index";
-import { redactLiveRow, sensitiveLiveField } from "../domain/live-redaction";
+import { assertNoMaskedField, redactLiveRow } from "../domain/live-redaction";
 import {
   assertReadableTable,
   assertSelectiveQuery,
@@ -41,12 +41,14 @@ async function prepare(reader: InstanceReader, input: QueryInput, signal: AbortS
   const binding = queryBinding(input.table, input.query, input.fields, input.limit, input.source);
   const after = cursorAfter(input.cursor, binding);
   const schema = await readLiveSchema(reader, input.table, signal);
+  const predicates = groups.flat(2).map((term) => term.field);
   const resolved = await resolveLiveFields(
     reader,
     schema,
-    [...input.fields, ...groups.flat(2).map((term) => term.field)],
+    [...input.fields, ...predicates],
     signal,
   );
+  assertNoMaskedField(schema, predicates, resolved);
   assertSelectiveQuery(groups, schema.fields);
   const helpers = ["sys_id", "name", "type", "is_private"].filter((field) =>
     schema.fields.some((candidate) => candidate.name === field),
@@ -130,17 +132,8 @@ export async function aggregateLiveTable(
 ) {
   const field = input.groupBy ?? "sys_id";
   const ready = await prepare(reader, { ...input, fields: [field], limit: 1 }, signal);
-  const definition = ready.resolved.get(field);
-  const hidden =
-    redactLiveRow({ [field]: "probe" }, ready.schema, [field], ready.resolved).fields[field] ===
-    "[redacted]";
-  if (
-    field.includes(".") ||
-    definition === undefined ||
-    sensitiveLiveField(field, definition) ||
-    hidden
-  )
-    throw new InvalidInputError("cannot group by a dotted or sensitive field");
+  if (field.includes(".")) throw new InvalidInputError("cannot group by a dotted field");
+  assertNoMaskedField(ready.schema, [field], ready.resolved);
   if (input.groupBy === undefined)
     return {
       table: input.table,

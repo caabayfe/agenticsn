@@ -1,6 +1,6 @@
 # 0006. Governance validates any change source with three rule tiers
 
-- Status: Accepted
+- Status: Accepted (amended by 0058)
 - Date: 2026-10-05
 - Requirements: ASR-03, ASR-10, ASR-11, ASR-12, ASR-14
 
@@ -54,7 +54,7 @@ Governance takes a `ChangeSet`, produced by one of three `ChangeSource` adapters
   policy is missing.
 - **Waivers** in `waivers.yaml` cover one rule and one path glob, with a reason, an
   approver and an expiry of 366 days at most. Expired or malformed waivers waive nothing
-  (v1 semantics).
+  (v1 semantics). In team mode, only waivers on the reviewed branch apply (ADR-0058).
 - Governance reaches analyzers through the **`Validator` port**, so premium analysis
   plugs in without changes to the core (ADR-0008).
 

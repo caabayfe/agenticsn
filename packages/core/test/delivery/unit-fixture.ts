@@ -9,7 +9,7 @@ import {
   unitDigest,
   withEntries,
 } from "@snagentic/core";
-import { setup } from "../support/delivery-fixture";
+import { type State, setup } from "../support/delivery-fixture";
 import { memoryWriter } from "../support/fake-instance";
 import { memoryToolchain, memoryWorkspace } from "../support/memory-authoring";
 
@@ -150,8 +150,9 @@ function markPublished(tables: Record<string, Row[]>, sysId: string) {
 
 export function unitSetup(
   options: { instance?: string; source?: string; ledger?: Partial<LedgerEntry> | null } = {},
+  state: Partial<State> = {},
 ) {
-  const base = setup();
+  const base = setup(state);
   const source = scriptInclude(options.source ?? "Helpers.");
   base.tables["sys_script_include"] = [instanceRow(options.instance ?? "Helpers.")];
   base.tables["sys_user"] = [{ sys_id: "u1", user_name: "admin" }];

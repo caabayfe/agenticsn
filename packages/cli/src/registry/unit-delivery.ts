@@ -27,6 +27,11 @@ export function unitPlanDependencies(
     url: connection.profile.url,
     decodeCapture: context.decodeCapture,
     workspace: context.delivery(root, instance),
+    // Team mode is a profile with a shared mirror (ADR-0052): the gate then accepts only waivers
+    // on that remote's default branch (ADR-0058).
+    ...(connection.profile.sharedMirror === undefined
+      ? {}
+      : { reviewedRemote: connection.profile.sharedMirror.remote }),
     governance: context.governance(root, instance),
     packGate: (paths, units) =>
       packFindings(

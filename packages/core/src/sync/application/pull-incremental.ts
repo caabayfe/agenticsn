@@ -4,6 +4,7 @@ import { type SecretRedaction, sortSecretRedactions } from "../../metadata/domai
 import { changesSince, type FingerprintChange } from "../domain/fingerprint";
 import type { InventorySource } from "../domain/inventory";
 import { CHILD_TABLES } from "../domain/pull-scope";
+import type { UnstoredRecords } from "../domain/unstored-records";
 import type { Fingerprints, SyncState } from "../ports";
 import { detectChanges } from "./detect-changes";
 import { isIdle, refuseFutureWatermark, writesInstanceData } from "./incremental-checks";
@@ -45,6 +46,8 @@ export interface IncrementalSummary {
   readonly removedChildFiles: number;
   // Records gone from the instance without a deletion record; still in the mirror.
   readonly lostRecords: number;
+  // Changed records their table did not return to this user; the mirror may hold an older copy.
+  readonly unstored: UnstoredRecords;
   // Inventory files listed again because their source changed (or with verify).
   readonly inventoryRefreshed: readonly string[];
   // pull --verify only: what the count comparison found and repaired.
@@ -70,7 +73,7 @@ function summarize(
   reread: RedactionReread,
   children: ChildOutcome,
   unreadable: readonly string[],
-): Omit<IncrementalSummary, "watermark" | "next" | "inventoryRefreshed" | "idle"> {
+): Omit<IncrementalSummary, "watermark" | "next" | "inventoryRefreshed" | "idle" | "unstored"> {
   const { records } = step;
   const secretRedactions: SecretRedaction[] = [
     ...records.secretRedactions,
@@ -264,6 +267,7 @@ export async function pullIncremental(
   const rewritten = trusted.changed || migration.secretRedactions.length > 0;
   return {
     ...summary,
+    unstored: records.unstored,
     catalogRefreshed: summary.catalogRefreshed || trusted.changed,
     secretRedactions: sortSecretRedactions(
       [migration, trusted, summary, rest].flatMap((part) => part.secretRedactions),

@@ -11,6 +11,7 @@ import { serialQueue } from "../serial-queue";
 import { fromYamlStrings, toYaml } from "../yaml/own-style";
 import { childRowOwners, countChildRows } from "./child-row-files";
 import { FastImport, fastImportPath } from "./fast-import";
+import { compactMirror } from "./git-compaction";
 import { removeTemporaryPacks } from "./git-pack-cleanup";
 import { existingMirrorFiles } from "./git-tree-files";
 import { MirrorIndex } from "./mirror-index";
@@ -25,7 +26,8 @@ async function revParse(repository: string, ref: string): Promise<string | null>
 }
 
 // Streams a pull into git (spike S8). Progress is committed to refs/snagentic/pull/<name>
-// at every checkpoint; finish() commits the final tree on servicenow-remote/<name>.
+// at every checkpoint; finish() commits the final tree on servicenow-remote/<name>, and
+// compact() packs the repository afterwards, once nothing depends on it succeeding.
 // A fresh pull starts from an empty tree, a resumed one from its last progress commit, and an
 // incremental one from the remote branch, changing only what changed on the instance.
 export class GitMirror implements IncrementalMirror {
@@ -37,6 +39,8 @@ export class GitMirror implements IncrementalMirror {
   // Set once this session has committed: fast-import then continues the ref by itself.
   private committedThisSession = false;
   private loaded: MirrorIndex | null = null;
+  // Set once finish() has committed on the branch.
+  private committed = false;
 
   private constructor(
     private readonly repository: string,
@@ -259,7 +263,7 @@ export class GitMirror implements IncrementalMirror {
       expected: parent,
     });
     await runGit(["update-ref", "-d", ref], this.repository);
-    await this.compact();
+    this.committed = true;
     return { commit, created: true };
   }
 
@@ -267,17 +271,9 @@ export class GitMirror implements IncrementalMirror {
     return b !== null && (await runGit(["diff", "--quiet", a, b], this.repository)).exitCode === 0;
   }
 
-  // A full pull ends with one optimized pack; unreachable progress objects are dropped
-  // (reflog-reachable objects are kept, so local history is safe). Measured on the PDI:
-  // 585 MB -> 230 MB in 11 s. Incremental pulls add small packs that git consolidates
-  // when they pile up.
-  private async compact(): Promise<void> {
-    if (this.mode === "incremental") {
-      await runGitOrThrow(["gc", "--auto", "--quiet"], this.repository);
-      return;
-    }
-    await runGitOrThrow(["repack", "-a", "-d", "-q"], this.repository);
-    await runGitOrThrow(["prune-packed", "-q"], this.repository);
+  async compact(): Promise<string | null> {
+    // Only a pull that committed on the branch left anything to pack.
+    return this.committed ? compactMirror(this.repository, this.mode, this.openedAt) : null;
   }
 
   async abort(): Promise<void> {

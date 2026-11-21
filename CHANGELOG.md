@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Security
+
+- The advisory check fails when `bun audit` did not produce a valid report, with its own message
+  and exit code, and the release workflow runs the check before it builds a binary (SEC3-07).
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

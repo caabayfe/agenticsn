@@ -2,11 +2,15 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { withInstructions } from "../../packages/core/src/index";
-import type { Variant, WorkspaceChanges } from "./types";
+import type { Scenario, Variant, WorkspaceChanges } from "./types";
 
 // Where a slot's instances point: an address that can never resolve, so nothing an agent does
 // during an evaluation reaches a real instance (and no keychain entry matches it).
 const UNREACHABLE = "https://eval.invalid";
+
+// The branch a pull writes, and where the slot's copy of it stood when the slot was made.
+const mirrorBranch = (instance: string) => `servicenow-remote/${instance}`;
+const MIRROR_TAG = "eval-mirror";
 
 async function run(command: readonly string[], cwd: string, env: Record<string, string> = {}) {
   const child = Bun.spawn([...command], {
@@ -53,9 +57,15 @@ export async function ensureSlot(source: string, slot: string): Promise<void> {
     const text = await readFile(profile, "utf8");
     await writeFile(profile, text.replace(/^url: .*$/m, `url: ${UNREACHABLE}`));
   }
+  // The copy has no file-system monitor of its own: without this, every git call in the slot
+  // first fails to reach the source's.
+  await git(slot, "config", "core.fsmonitor", "false");
   await git(slot, "add", "-A", "--", "instances", "snagentic.yaml", ".gitignore");
   await git(slot, "commit", "-q", "--no-verify", "-m", "eval: unreachable instances");
   await git(slot, "tag", "-f", "eval-root");
+  for (const name of await readdir(join(slot, "instances"))) {
+    await git(slot, "tag", "-f", `${MIRROR_TAG}/${name}`, mirrorBranch(name));
+  }
   await writeFile(marker, sourceHead);
 }
 
@@ -68,7 +78,13 @@ export async function prepareVariant(
 ): Promise<string> {
   await git(slot, "reset", "-q", "--hard", "eval-root");
   await git(slot, "clean", "-q", "-fd");
-  const install = await run([binary, "agent", "install"], slot, { SNAGENTIC_WORKSPACE: slot });
+  // Skills go into the slot (.claude/skills): a run reads the project's settings only, and the
+  // developer's own skills must neither be read nor rewritten by an evaluation.
+  const install = await run(
+    [binary, "agent", "install", "--host", "claude", "--scope", "workspace"],
+    slot,
+    { SNAGENTIC_WORKSPACE: slot },
+  );
   if (install.code !== 0) {
     throw new Error(`agent install: ${install.stderr}`);
   }
@@ -97,6 +113,35 @@ export async function prepareVariant(
 export async function resetTo(slot: string, base: string): Promise<void> {
   await git(slot, "reset", "-q", "--hard", base);
   await git(slot, "clean", "-q", "-fd");
+}
+
+// Resets the slot to the variant's commit and lays out the scenario: its fixture, committed (the
+// workspace as the user's work found it), then the user's uncommitted work. Returns the commit
+// the run's changes are measured against.
+export async function prepareScenario(
+  slot: string,
+  variantBase: string,
+  scenario: Pick<Scenario, "fixture" | "prepare">,
+): Promise<string> {
+  await resetTo(slot, variantBase);
+  const [instance] = (await readdir(join(slot, "instances"))).sort();
+  if (instance === undefined) {
+    throw new Error(`${slot} has no instance`);
+  }
+  // validate takes the mirror as edited where it differs from what the mirror branch brought in
+  // (SN-MNT-013). A fixture's mirror records are the instance's, so the branch moves with them,
+  // as after a pull and integrate; it goes back for the next scenario.
+  await git(slot, "branch", "-f", mirrorBranch(instance), `${MIRROR_TAG}/${instance}`);
+  let base = variantBase;
+  if (scenario.fixture !== undefined) {
+    await scenario.fixture(slot, { instance });
+    await git(slot, "add", "-A");
+    await git(slot, "commit", "-q", "--no-verify", "-m", "eval: scenario fixture");
+    base = await git(slot, "rev-parse", "HEAD");
+    await git(slot, "branch", "-f", mirrorBranch(instance), base);
+  }
+  await scenario.prepare?.(slot, { instance });
+  return base;
 }
 
 // What the run left behind, against its base: edits, commits the agent made, new files.

@@ -6,7 +6,7 @@ import {
   recordOmissions,
   takesConnectionAlias,
 } from "../domain/omissions";
-import { baseOfFile, recordBaseOfPath } from "../domain/paths";
+import { baseOfFile } from "../domain/paths";
 import { freshness } from "./freshness";
 import type { Freshness, KnowledgeDependencies, NextCall } from "./knowledge-dependencies";
 
@@ -19,7 +19,9 @@ export class RecordNotFoundError extends SnagenticError {
       "record-not-found",
       "precondition",
       `no mirrored record matches ${target}`,
-      "search for it with find, or pull if it was created recently",
+      "name it by its sys_id or by the path of one of its files: as find prints it " +
+        "(<scope>/<class>/<name>--<sys_id>.yaml), under instances/<instance>/metadata/, or " +
+        "absolute inside the workspace. Search for it with find, or pull if it was created recently",
     );
   }
 }
@@ -52,8 +54,8 @@ export interface RecordDescription extends Freshness {
 }
 
 async function locate(deps: KnowledgeDependencies, target: string): Promise<IndexedRecord> {
-  const base = recordBaseOfPath(target.endsWith(".yaml") ? target : `${target}.yaml`);
-  const [byPath] = base === null ? [] : await deps.store.byBases([base]);
+  // Any of the record's files names it: its .yaml, or a script or child file beside it.
+  const [byPath] = await deps.store.byBases([baseOfFile(target)]);
   const record = byPath ?? (await deps.store.bySysId(target));
   if (record === null) {
     throw new RecordNotFoundError(target);

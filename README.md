@@ -14,7 +14,7 @@ ServiceNow instance ──pull──▶ read-only mirror ──▶ adopt ──�
         └──── push: fluent/load (development only) ◀── plan ◀── validate (platform rules)
 ```
 
-> Status: **v2.21.0**. Sync, knowledge, guardrails, Fluent authoring delivered to development instances, verified documentation, and accelerators installed by plan.
+> Status: **v2.22.3**. Sync, knowledge, guardrails, Fluent authoring delivered to development instances, verified documentation, and accelerators installed by plan.
 > See the [changelog](CHANGELOG.md) and the [roadmap](docs/product/overview.md#roadmap).
 
 ## Why
@@ -33,7 +33,7 @@ advice, and enforces checks in code instead of trusting prompts.
 |---|---|---|
 | **Develop** | Mirror every metadata record into git and keep it fresh with almost no instance load; adopt records into Fluent source with the ServiceNow SDK; push a reviewed plan to a development update set, recorded as the platform records it | `pull`, `integrate`, `adopt`, `status`, `plan-push`, `push` |
 | **Understand and audit** | Find anything in the instance in milliseconds; explain a table's behavior in execution order (client scripts, UI policies, business rules, notifications, ACLs); show who uses a record | `find`, `describe`, `update-sets`, `plugins` |
-| **Guardrails** | Advice before building (least custom option first); 41 platform rules for security, performance, upgradability, manageability and UX, reporting only what a change introduced; checks after each agent edit, at commit and inside `push` | `advise`, `validate`, `check`, hooks |
+| **Guardrails** | Advice before building (least custom option first); 41 platform rules for security, performance, upgradability, manageability and UX (22 script rules; 7 record, ACL, role and flow checks; 6 Fluent build and workspace checks; 5 documentation and accelerator checks; 1 listed but not checked yet), reporting only what a change introduced; checks after each agent edit, at commit and inside `push` | `advise`, `validate`, `check`, hooks |
 | **Agents** | Bundled investigate/develop MCP profiles (legacy interface: 13 tools), eight workflow skills at user level, workspace instructions and host hooks, installed with one command | `mcp`, `agent install` |
 
 ## Safe by design
@@ -41,8 +41,8 @@ advice, and enforces checks in code instead of trusting prompts.
 - **Production is read-only by construction.** For test and production instances, write
   commands are not registered at all, and the credential must hold `snc_read_only`, checked
   before every connection.
-- **Every push is gated.** It needs a plan id, passing validation (or a reviewed, expiring
-  waiver), user confirmation and unchanged records on the instance. It loads only into its own
+- **Every push is gated.** It needs a plan id, passing validation (or a committed, expiring
+  waiver), the confirm flag and unchanged records on the instance. It loads only into its own
   update set, verifies each load was captured and reads it back; an edit someone made on the
   instance is never overwritten silently.
 - **The SDK never holds a credential.** It runs inside snagentic and reads the instance through
@@ -118,7 +118,7 @@ MCP tool is in the [command reference](docs/reference/commands.md).
 | Building a change | [Build a new capability: a worked example](docs/guides/build-a-capability.md), [with spec-driven development](docs/guides/spec-driven-development.md), [recipes for everything else](docs/guides/recipes.md) |
 | Documenting | [Generate verified documentation](docs/guides/generate-documentation.md) |
 | Teams | [Team mode: one pull per instance](docs/guides/team-mode.md), with a scheduled CI pull template |
-| Contributors | [AGENTS.md](AGENTS.md), [extending snagentic: use case, rule, skill](docs/guides/extend-snagentic.md), [requirements](docs/architecture/significant-requirements.md), [decisions (ADRs)](docs/adr/README.md) |
+| Contributors | [AGENTS.md](AGENTS.md), [extending snagentic: use case, rule, skill](docs/guides/extend-snagentic.md), [the live tests and their nightly run](docs/guides/live-tests.md), [requirements](docs/architecture/significant-requirements.md), [decisions (ADRs)](docs/adr/README.md) |
 | Evidence | [Pull baseline](docs/reports/pull-baseline-pdi.md), [performance targets](docs/reports/v1.0-targets.md), [agent evaluation baseline](docs/reports/agent-eval-baseline-2026-10-06.md) |
 
 ## Build from source

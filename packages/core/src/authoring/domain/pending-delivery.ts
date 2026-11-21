@@ -5,6 +5,10 @@ import { planUnit, type UnitDecision } from "./plan-unit";
 import { type BuiltUnit, type InstanceCopy, isDeletion } from "./unit";
 import { unitSpec } from "./unit-specs";
 
+export const RECOVERY_GUIDE = "docs/guides/recover-interrupted-delivery.md";
+// Said wherever nothing the product has today finishes or drops an unfinished delivery.
+export const NO_PENDING_EXIT = `no command can finish or abandon this delivery yet: keep the push journal and ask for help (${RECOVERY_GUIDE})`;
+
 export function isKeyedDeletion(unit: BuiltUnit): boolean {
   return (
     isDeletion(unit) && Object.keys(unit.head.fields).some((field) => !field.startsWith("sys_"))
@@ -34,12 +38,15 @@ export function pendingDecision(
   pending: PendingDelivery,
   entry: LedgerEntry | undefined,
 ): UnitDecision {
-  const unsafe = (reason: string): UnitDecision => ({
+  const unsafe = (reason: string, next: string): UnitDecision => ({
     kind: "unsafe",
-    reason: `unfinished delivery: ${reason}; inspect the journal and target update set before reconciling`,
+    reason: `unfinished delivery: ${reason}; ${next}`,
   });
   if (digest !== pending.digest)
-    return unsafe("source changed before its previous delivery was completed");
+    return unsafe(
+      "source changed before its previous delivery was completed",
+      `if the instance already holds this build, review snagentic plan-push --recover-pending; otherwise restore the source that was pushed and plan again (${RECOVERY_GUIDE})`,
+    );
   const version = copy?.version ?? null;
   const expected = pending.observed === undefined ? pending.before : pending.observed;
   if (version !== expected) {
@@ -48,7 +55,11 @@ export function pendingDecision(
       copy !== null &&
       unitSpec(unit.head.table).comparable &&
       compareUnit(unit, copy).length === 0;
-    if (!proven) return unsafe("the instance changed after the last known delivery version");
+    if (!proven)
+      return unsafe(
+        "the instance changed after the last known delivery version",
+        `snagentic plan-push --recover-pending finishes it only if the instance holds exactly this build with its original capture; if that refuses, ${NO_PENDING_EXIT}`,
+      );
   }
   if (pending.verified === true) return { kind: "record" };
   if (isDeletion(unit)) return { kind: "delete" };

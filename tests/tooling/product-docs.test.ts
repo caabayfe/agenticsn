@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { SKILLS } from "../../packages/agent-packs/src/index";
 import { USE_CASES } from "../../packages/cli/src/registry/registry";
 import { mcpToolName } from "../../packages/cli/src/registry/use-case";
-import { RULES } from "../../packages/core/src/index";
+import { RULES, VERSION } from "../../packages/core/src/index";
 
 // The counts the product documents quote, taken from code so they can't go stale again.
 const ROOT = join(import.meta.dir, "../..");
@@ -55,5 +55,12 @@ describe("product documents (spec 014, F9)", () => {
     expect(counts(all, "(?:platform )?rules")).toContain(RULES.length);
     expect(counts(all, "tools")).toContain(tools);
     expect(counts(all, "workflow skills")).toContain(SKILLS.length);
+  });
+
+  it("README states the version the binary reports (update the status line when releasing)", () => {
+    const status = /^> Status: \*\*v([^*]+)\*\*/m.exec(
+      readFileSync(join(ROOT, "README.md"), "utf8"),
+    );
+    expect(status?.[1]).toBe(VERSION);
   });
 });

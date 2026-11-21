@@ -100,13 +100,16 @@ const OMITTED_DEFAULTS: Readonly<Record<string, Readonly<Record<string, string>>
   sys_hub_trigger_instance_v2: { category: "" },
 };
 
-export function exportedDefaultsAgree(wanted: UnitRecord, actual: UnitRecord): boolean {
-  return Object.entries(OMITTED_DEFAULTS[wanted.table] ?? {}).every(
-    ([field, value]) =>
-      wanted.fields[field] !== value ||
-      actual.fields[field] === undefined ||
-      sameValue(value, actual.fields[field]),
-  );
+// The SDK defaults a capture holds with another value, by field name.
+export function exportedDefaultDifferences(wanted: UnitRecord, actual: UnitRecord): string[] {
+  return Object.entries(OMITTED_DEFAULTS[wanted.table] ?? {})
+    .filter(
+      ([field, value]) =>
+        wanted.fields[field] === value &&
+        actual.fields[field] !== undefined &&
+        !sameValue(value, actual.fields[field]),
+    )
+    .map(([field]) => field);
 }
 
 // Recorded Brazil exports omit these SDK defaults. A non-default authored value still

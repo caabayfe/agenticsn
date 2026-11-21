@@ -38,5 +38,16 @@ live record agree with source. Recovery proves that agreement without adding sch
 capture verification. If the instance needs another write, receipt-only recovery refuses; restore
 the original source and use the normal reviewed delivery path, or investigate the mismatch.
 
+## When nothing finishes the delivery
+
+Some plans are refused with no command that settles them yet: the record changed on the instance
+after the delivery, the original update set is closed or gone, or the journal is a legacy one without
+per-unit evidence. The message then says so: *no command can finish or abandon this delivery
+yet*. Keep the journal, do not edit the ledgers, and ask for help. A reviewed way to abandon an
+unfinished delivery is planned (spec 016, step R3) and not built.
+
+Where an action does exist, the message names it: restore the source that was pushed, or plan with
+the original instance and `--label`.
+
 This supports the ledger agreement and reviewed-plan requirements of
 [ADR-0033](../adr/0033-plans-compare-the-build-with-the-instance.md), ASR-02 and ASR-10.

@@ -313,4 +313,67 @@ describe("GitIntegrator", () => {
     expect(String((error as Error).message)).toContain("SN-SEC-001");
     expect(await Bun.file(join(root, ".git", "MERGE_HEAD")).exists()).toBe(true);
   });
+
+  it("tells the user how to abort an interrupted merge", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await pullScript(root, "two();");
+    // What an integrate stopped between its merge and its commit leaves: MERGE_HEAD, and the
+    // instance's copies staged.
+    await git(root, "merge", "--no-ff", "--no-commit", "servicenow-remote/pdi");
+    expect((await git(root, "status", "--porcelain", "--", "instances")).trim()).not.toBe("");
+    const error = await integrator.integrate(root, "pdi").catch((e: unknown) => e);
+    expect(error).toMatchObject({
+      code: "merge-in-progress",
+      hint: expect.stringContaining("git merge --abort"),
+    });
+    expect(String((error as { hint: string }).hint)).not.toContain("git checkout -- instances");
+    // Restoring the files does not leave that state; the named command does.
+    await git(root, "checkout", "--", "instances");
+    expect(await Bun.file(join(root, ".git", "MERGE_HEAD")).exists()).toBe(true);
+    expect((await git(root, "status", "--porcelain", "--", "instances")).trim()).not.toBe("");
+    await git(root, "merge", "--abort");
+    expect((await integrator.integrate(root, "pdi")).commit).not.toBeNull();
+    expect(await readFile(join(root, SCRIPT_PATH), "utf8")).toBe("two();\n");
+  });
+
+  it("keeps the restore hint for edits to synced files outside a merge", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await writeFile(join(root, SCRIPT_PATH), "local edit();\n");
+    await expect(integrator.integrate(root, "pdi")).rejects.toMatchObject({
+      code: "uncommitted-changes",
+      hint: expect.stringContaining("git checkout -- instances"),
+    });
+    await git(root, "checkout", "--", "instances");
+    expect(await readFile(join(root, SCRIPT_PATH), "utf8")).toBe("one();\n");
+  });
+
+  it("leaves a merge of the user's own alone", async () => {
+    const root = await workspace();
+    await pullScript(root, "one();");
+    await integrator.integrate(root, "pdi");
+    await writeFile(join(root, "notes.md"), "base\n");
+    await git(root, "add", "notes.md");
+    await git(root, "commit", "-q", "-m", "notes");
+    await git(root, "switch", "-q", "-c", "other");
+    await writeFile(join(root, "notes.md"), "theirs\n");
+    await git(root, "commit", "-q", "-am", "theirs");
+    await git(root, "switch", "-q", "-");
+    await writeFile(join(root, "notes.md"), "ours\n");
+    await git(root, "commit", "-q", "-am", "ours");
+    // The merge stops on the conflict (a non-zero exit); it needs an identity to start at all.
+    await runGit(["-c", "user.name=t", "-c", "user.email=t@t", "merge", "other"], root);
+    expect(await Bun.file(join(root, ".git", "MERGE_HEAD")).exists()).toBe(true);
+    await pullScript(root, "two();");
+    const before = (await git(root, "rev-parse", "HEAD")).trim();
+    await expect(integrator.integrate(root, "pdi")).rejects.toMatchObject({
+      code: "merge-in-progress",
+    });
+    expect((await git(root, "rev-parse", "HEAD")).trim()).toBe(before);
+    expect(await readFile(join(root, "notes.md"), "utf8")).toContain("<<<<<<<");
+    expect((await git(root, "status", "--porcelain", "--", "notes.md")).trim()).toBe("UU notes.md");
+  });
 });

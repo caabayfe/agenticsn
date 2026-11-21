@@ -29,7 +29,7 @@ export async function knowledgeSession(
   context: UseCaseContext,
   name: string | undefined,
   progress: (event: ProgressEvent) => void,
-): Promise<KnowledgeDependencies & { readonly instance: string }> {
+): Promise<KnowledgeDependencies & { readonly instance: InstanceName }> {
   const root = await workspaceRoot(context);
   const instance = await instanceFor(root, context, name);
   const { store, files } = context.knowledge(root, instance);
@@ -56,7 +56,7 @@ export async function withKnowledge<T>(
   context: UseCaseContext,
   name: string | undefined,
   progress: (event: ProgressEvent) => void,
-  use: (deps: KnowledgeDependencies & { readonly instance: string }) => Promise<T>,
+  use: (deps: KnowledgeDependencies & { readonly instance: InstanceName }) => Promise<T>,
 ): Promise<T> {
   const deps = await knowledgeSession(context, name, progress);
   try {

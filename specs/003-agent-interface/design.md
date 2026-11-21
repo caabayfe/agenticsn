@@ -441,6 +441,14 @@ map made agents skip the explain skill. Proposed: keep A. Findings so far: Claud
 run showed `describe incident` returning 73,000 characters, over Claude Code's limit for an MCP
 result, against principle 3.1.3 (fixed next, with the size-budget contract test).
 
+**Update, 2026-11-21 (spec 016, step T2).** The scenarios and checks above were written for 1.0,
+when an agent edited the mirror. They now follow ADR-0031: changes under `source/`, the mirror
+untouched, adopt before editing a record the instance holds, a push only for a plan the user
+saw. Scenarios were added for a blocked change, a push asked for with no plan, and mirror text
+that gives instructions. `scripts/eval/README.md` lists them with what each cannot show while
+the instance is unreachable (adopt, `plan_push` and push fail there). The baseline has not been
+re-run.
+
 ## 15. Implementation notes: host hooks and permissions (2026-10-06)
 
 ADR-0011 layers 1 and 2, for Claude Code first (other hosts: the same `check` and `validate`

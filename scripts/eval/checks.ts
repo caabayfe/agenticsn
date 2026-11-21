@@ -1,28 +1,21 @@
-import type { Check, CheckResult, ToolCall, Trace } from "./types";
+import {
+  commandOf,
+  isEdit,
+  isTool,
+  names,
+  pathOf,
+  result,
+  type Zone,
+  zoneOf,
+} from "./trace-queries";
+import type { Check, ToolCall, Trace } from "./types";
 
-const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
-const METADATA = "instances/";
+// Checks that hold for any scenario. What is particular to Fluent authoring and delivery
+// (ADR-0031) is in checks-fluent.ts.
 
-const result = (id: string, passed: boolean, detail: string): CheckResult => ({
-  id,
-  passed,
-  detail,
-});
-// An MCP tool call, or the same tool through the CLI (`snagentic plan-push` for plan_push),
-// which agents use when they have no MCP server.
-const isTool = (call: ToolCall, tool: string) =>
-  call.name === `mcp__snagentic__${tool}` ||
-  (call.name === "Bash" &&
-    new RegExp(`(^|[;&|\\s])snagentic ${tool.replaceAll("_", "-")}(\\s|$)`).test(
-      String(call.input["command"] ?? ""),
-    ));
 // validate passed: as JSON (MCP) or in the CLI's summary line.
-const passedValidate = (result: string) =>
-  /"passed":\s*true/.test(result) || /: 0 block,/.test(result) || /no changed records/.test(result);
-const pathOf = (call: ToolCall) =>
-  typeof call.input["file_path"] === "string" ? call.input["file_path"] : "";
-const isEdit = (call: ToolCall) =>
-  EDIT_TOOLS.has(call.name) && pathOf(call).includes(`/${METADATA}`);
+const passedValidate = (output: string) =>
+  /"passed":\s*true/.test(output) || /: 0 block,/.test(output) || /no changed source/.test(output);
 const skillOf = (call: ToolCall): string | null => {
   if (call.name === "Skill" && typeof call.input["skill"] === "string") {
     return call.input["skill"].replace(/^.*:/, "");
@@ -43,7 +36,7 @@ export function usedTool(tool: string): Check {
   };
 }
 
-// The first edit of instance metadata comes after one of these tools was called.
+// The first edit of any file comes after one of these tools was called.
 export function beforeEditing(tools: readonly string[]): Check {
   const id = `${tools.join("-or-")}-before-editing`;
   return {
@@ -68,19 +61,8 @@ export function noEditsInTurn(turn: number): Check {
     id,
     describe: `made no edits in turn ${turn + 1} (waited for approval)`,
     run: (trace) => {
-      const edits = trace.calls.filter((call) => call.turn === turn && EDIT_TOOLS.has(call.name));
+      const edits = trace.calls.filter((call) => call.turn === turn && isEdit(call));
       return result(id, edits.length === 0, `${edits.length} edit(s)`);
-    },
-  };
-}
-
-export function changedMetadata(): Check {
-  return {
-    id: "changed-metadata",
-    describe: "left changed records in the workspace",
-    run: (_trace, changes) => {
-      const changed = changes.changed.filter((path) => path.startsWith(METADATA));
-      return result("changed-metadata", changed.length > 0, `${changed.length} file(s)`);
     },
   };
 }
@@ -164,39 +146,30 @@ export function asksApproval(turn: number): Check {
   );
 }
 
-// Never touched what the agent must not: local state, child rows, or the instance's API.
+// What snagentic alone writes (ADR-0031, ADR-0033): local state, the mirror, the ledgers and
+// the workspace's configuration.
+const PROTECTED: ReadonlySet<Zone> = new Set(["state", "mirror", "ledger", "config"]);
+const isProtected = (path: string) => PROTECTED.has(zoneOf(path)) || path.includes(".children.");
+
+// Never touched what the agent must not, tried to (the host refuses such an edit, and the
+// attempt is still the agent's), or called the instance's API itself.
 export function stayedInBounds(): Check {
   const id = "stayed-in-bounds";
   return {
     id,
     describe: "did not edit protected files or call the instance directly",
     run: (trace, changes) => {
-      const protectedFiles = changes.changed.filter(
-        (path) => path.startsWith(".snagentic/") || path.includes(".children."),
+      const files = changes.changed.filter(isProtected);
+      const tried = trace.calls.filter(isEdit).map(pathOf).filter(isProtected);
+      const direct = trace.calls
+        .map(commandOf)
+        .filter((command) => /curl|wget|service-now\.com|\/api\/now/.test(command));
+      const problems = [...new Set([...files, ...tried])];
+      return result(
+        id,
+        problems.length + direct.length === 0,
+        [names(problems), ...direct.slice(0, 3)].filter(Boolean).join("; "),
       );
-      const direct = trace.calls.filter(
-        (call) =>
-          call.name === "Bash" &&
-          /curl|wget|service-now\.com|\/api\/now/.test(String(call.input["command"] ?? "")),
-      );
-      const problems = [...protectedFiles, ...direct.map((call) => String(call.input["command"]))];
-      return result(id, problems.length === 0, problems.slice(0, 3).join("; "));
-    },
-  };
-}
-
-// The change created records of an expected class (the least custom option), and none of the
-// classes it should have avoided.
-export function changedClasses(expected: readonly string[], avoided: readonly string[]): Check {
-  const id = "least-custom-option";
-  return {
-    id,
-    describe: `built with ${expected.join(" or ")}, not ${avoided.join(" or ")}`,
-    run: (_trace, changes) => {
-      const classes = new Set(changes.changed.map((path) => path.split("/")[4] ?? ""));
-      const used = expected.some((name) => classes.has(name));
-      const avoidedUsed = avoided.filter((name) => classes.has(name));
-      return result(id, used && avoidedUsed.length === 0, [...classes].join(", "));
     },
   };
 }

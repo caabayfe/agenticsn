@@ -2,6 +2,7 @@ import type { Catalog } from "../../metadata/domain/catalog";
 import type { SecretRedaction } from "../../metadata/domain/secret-scan";
 import type { FingerprintChange } from "../domain/fingerprint";
 import { unexplainedLoss } from "../domain/record-changes";
+import { markInMirror, unstoredReport } from "../domain/unstored-records";
 import type { Fingerprints, SyncState } from "../ports";
 import { applyWithCatalog } from "./apply-with-catalog";
 import type { IncrementalDependencies } from "./incremental-dependencies";
@@ -21,6 +22,7 @@ const NO_RECORD_CHANGES: RecordOutcome = {
   malformedValues: 0,
   unreadable: [],
   unwritten: [],
+  unreturned: [],
   secretRedactions: [],
 };
 
@@ -107,16 +109,25 @@ export async function recordPhase(
   );
   const reread = await rereadForRedaction(deps, state, step.catalog, signal);
   const previous = { unreadable: state.unreadable ?? [], hidden: state.hiddenCounts ?? {} };
+  const inMirror = (sysId: string) => deps.records.baseOf(deps.metadataRoot, sysId) !== undefined;
+  const unreturned = markInMirror(step.records.unreturned, inMirror);
   // Records that left without a deletion record (an update-set load deletes without one, pdi2
   // 2026-10-26) are found by the counts, as pull --verify does: only on such a pull.
   const verified =
     verify || step.lostRecords > 0
       ? await verifyAndRepairRecords(deps, step.catalog, previous, signal, progress)
       : null;
+  // A verification accounts for those the mirror lacked (it stores them, or counts them as not
+  // mirrorable or hidden) and removes those gone from the instance: what is left is reported.
+  const unstored = unstoredReport(
+    verified === null
+      ? unreturned
+      : unreturned.filter((record) => record.inMirror && inMirror(record.sysId)),
+  );
   const unreadable = [
     ...step.records.unreadable,
     ...(verified?.records.unreadable ?? []),
     ...reread.unreadable,
   ];
-  return { step, reread, verified, unreadable };
+  return { step, reread, verified, unreadable, unstored };
 }

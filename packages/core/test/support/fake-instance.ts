@@ -218,9 +218,11 @@ export function fakeInstance(
       // domains unless the query asks for every domain (sysparm_query_no_domain).
       // A `__broken` row fails every page it falls in, as a row whose read ACL throws does
       // (pdi3 and pdi4, scope sn_kmf: HTTP 500 ClassCastException), whether or not it is hidden.
+      // A `__hidden_in_class` row is listed by sys_metadata and hidden by its own table's ACL.
       const visible = rowsOf(query.table).filter(
         (row) =>
           (row["__hidden"] !== "true" || row["__broken"] === "true") &&
+          (row["__hidden_in_class"] !== "true" || String(query.table) === "sys_metadata") &&
           (row["__other_domain"] !== "true" || query.allDomains === true),
       );
       const page = evaluate(visible, query.query, query.limit);

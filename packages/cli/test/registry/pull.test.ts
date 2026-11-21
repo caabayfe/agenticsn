@@ -524,6 +524,7 @@ describe("pull and integrate", () => {
       childFiles: 3,
       removedChildFiles: 0,
       lostRecords: 0,
+      unstored: { count: 0, inMirror: 0, records: [] as UnstoredView[] },
       inventoryRefreshed: ["plugins"],
       verification: null,
     };
@@ -594,6 +595,103 @@ describe("pull and integrate", () => {
     expect(verified).toContain(
       "warning: the instance fails to list sn_kmf ids starting 83d7 (server error, typically a record whose read ACL throws); its 1 records were not verified",
     );
+  });
+});
+
+type UnstoredView = { table: string; sysId: string; inMirror: boolean };
+
+describe("a pull's records their table did not return", () => {
+  const output = (unstored: { count: number; inMirror: number; records: UnstoredView[] }) => ({
+    instance: "pdi",
+    mode: "incremental" as const,
+    resumed: false,
+    commit: "abcdef1234567",
+    changed: false,
+    records: 0,
+    unreadable: [],
+    secretRedactions: [],
+    watermark: "w",
+    requests: 24,
+    retries: 0,
+    semaphoreWaitMs: 0,
+    seconds: 3.2,
+    peakConcurrency: 4,
+    requestSeconds: 9,
+    peakMemoryMb: 80,
+    timeouts: 0,
+    serverCostRequested: false,
+    serverCost: null,
+    incremental: {
+      changedSources: ["sys_metadata"],
+      catalogRefreshed: false,
+      renamed: 0,
+      deleted: 0,
+      skippedRows: 0,
+      malformedValues: 0,
+      rereadForRedaction: [],
+      childFiles: 0,
+      removedChildFiles: 0,
+      lostRecords: 0,
+      unstored,
+      inventoryRefreshed: [],
+      verification: null,
+    },
+  });
+  const records = [
+    { table: "sys_script", sysId: "a1", inMirror: true },
+    { table: "sys_script", sysId: "b2", inMirror: false },
+  ];
+
+  it("names them, says which the mirror holds as they were, and gives the next step", () => {
+    expect(pull.render(output({ count: 3, inMirror: 1, records }), "text")).toBe(
+      [
+        "pdi has no new changes to mirror (3.2 s)",
+        "  warning: 3 changed records were not returned by their table to this user (a read ACL or the domain hides them, or they were deleted since); the mirror holds 1 of them as they were before the change",
+        "    sys_script a1 (in the mirror, not updated)",
+        "    sys_script b2",
+        "    and 1 more",
+        "  to compare the mirror with the instance: snagentic pull pdi --verify",
+        "  instance load: 24 requests, 0 retries, semaphore wait 0 ms, peak concurrency 4",
+        "  not readable by this user: none",
+      ].join("\n"),
+    );
+  });
+
+  it("does not warn when the mirror holds none of them", () => {
+    const text = pull.render(output({ count: 1, inMirror: 0, records: records.slice(1) }), "agent");
+    expect(text).toContain(
+      "  1 changed records were not returned by their table to this user (a read ACL or the domain hides them, or they were deleted since); the mirror holds none of them",
+    );
+    expect(text).not.toContain("warning");
+    expect(text).toContain("snagentic pull pdi --verify");
+  });
+
+  it("does not send to pull --verify the pull that just verified", () => {
+    const verification = {
+      scopes: 1,
+      scopesDiffering: 0,
+      countRequests: 1,
+      listedRows: 0,
+      hiddenRows: 0,
+      unverifiable: 0,
+      unmirrorable: 0,
+      unlisted: [],
+      recovered: 0,
+      removed: 0,
+    };
+    const verified = output({ count: 1, inMirror: 1, records: records.slice(0, 1) });
+    const text = pull.render(
+      { ...verified, incremental: { ...verified.incremental, verification } },
+      "text",
+    );
+    expect(text).toContain("the mirror holds 1 of them as they were before the change");
+    expect(text).not.toContain("--verify");
+  });
+
+  it("says nothing when every changed record was stored", () => {
+    const text = pull.render(output({ count: 0, inMirror: 0, records: [] }), "text");
+    expect(text).toStartWith("pdi is up to date");
+    expect(text).not.toContain("returned");
   });
 });
 

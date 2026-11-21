@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- An incremental `pull` reports the changed records it could not store: those the change feed
+  named and their own table did not return to the pulling user. It counts them, names the first
+  twenty, says which the mirror still holds as they were, and points to `pull --verify`. The
+  JSON output carries them as `incremental.unstored`.
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

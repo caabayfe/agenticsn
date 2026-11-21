@@ -63,6 +63,31 @@ function lostWarning(output: PullOutput, lost: number): string[] {
       ];
 }
 
+// Changed records the pull could not store are named, not passed over: the mirror keeps the
+// earlier copy of those it holds. A pull that verified has already compared the two.
+function unstoredLines(
+  output: PullOutput,
+  changes: NonNullable<PullOutput["incremental"]>,
+): string[] {
+  const { count, inMirror, records } = changes.unstored;
+  if (count === 0) return [];
+  const held =
+    inMirror === 0
+      ? "the mirror holds none of them"
+      : `the mirror holds ${inMirror} of them as they were before the change`;
+  return [
+    `  ${inMirror > 0 ? "warning: " : ""}${count} changed records were not returned by their table to this user (a read ACL or the domain hides them, or they were deleted since); ${held}`,
+    ...records.map(
+      (record) =>
+        `    ${record.table} ${record.sysId}${record.inMirror ? " (in the mirror, not updated)" : ""}`,
+    ),
+    ...(count > records.length ? [`    and ${count - records.length} more`] : []),
+    ...(changes.verification === null
+      ? [`  to compare the mirror with the instance: snagentic pull ${output.instance} --verify`]
+      : []),
+  ];
+}
+
 function verificationLines(changes: NonNullable<PullOutput["incremental"]>): string[] {
   const v = changes.verification;
   if (v === null) {
@@ -85,6 +110,7 @@ function renderIncremental(
   const warning = [
     ...verificationLines(changes),
     ...(changes.verification === null ? lostWarning(output, changes.lostRecords) : []),
+    ...unstoredLines(output, changes),
   ];
   if (!output.changed) {
     const status = warning.length === 0 ? "is up to date" : "has no new changes to mirror";

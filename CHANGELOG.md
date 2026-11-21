@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Security
+
+- The live query commands (`query table`, `query record`, `query aggregate`) refuse a field whose
+  values are masked in output wherever it could influence the result: in a filter condition
+  (including `^OR` and `^NQ` branches and reference paths) and as the group field. The refusal has
+  the code `masked-field`. (SEC3-03)
 ### Changed
 
 - Documentation matches the code (spec 016, P0): the README states the released version and a

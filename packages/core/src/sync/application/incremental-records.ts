@@ -28,6 +28,8 @@ export interface RecordOutcome {
   readonly unwritten: readonly string[];
   // Of those, the records a readable class table did not return (see unreturnedRecords).
   readonly unreturned: readonly UnreturnedRecord[];
+  // sys_ids of the rows the class tables returned, stored or skipped.
+  readonly returned: readonly string[];
   // Records new to the mirror (base and class): their child rows may predate them (B4).
   readonly created: readonly { readonly base: string; readonly className: string }[];
   readonly secretRedactions: readonly SecretRedaction[];
@@ -273,6 +275,7 @@ export async function applyRecordChanges(
     unreadable: unreadable.sort(),
     unwritten,
     unreturned: unreturnedRecords(changes, { classes, unreadable, received }),
+    returned: [...received],
     created,
     secretRedactions: sortSecretRedactions(secretRedactions),
   };

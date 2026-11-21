@@ -21,6 +21,7 @@ const BASE = {
   remoteCommit: "abc",
   unintegratedPulls: 0,
   localChanges: [],
+  unstoredRecords: 0,
   sharedMirror: null,
   unfinishedPush: null,
   domains: [],
@@ -65,6 +66,14 @@ describe("status rendering", () => {
     expect(status.render({ instances: [{ ...BASE, sharedMirror: stale }] }, "text")).toContain(
       "shared mirror on origin: 0123456789, pulled 45 min ago; stale: svc_ci's scheduled pull looks late",
     );
+  });
+
+  it("counts the changed records a pull could not store, with the command that reads them again", () => {
+    const text = status.render({ instances: [{ ...BASE, unstoredRecords: 3 }] }, "text");
+    expect(text).toContain(
+      "  3 changed record(s) not stored: their table did not return them to the pulling user; to read them again: snagentic pull pdi --verify",
+    );
+    expect(status.render({ instances: [BASE] }, "text")).not.toContain("not stored");
   });
 
   it("shows freshness, pending pulls and the next step", () => {

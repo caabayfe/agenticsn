@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation matches the code (spec 016, P0): the README states the released version and a
+  test keeps it so; the rule count is broken down by kind; the security document says what the
+  code enforces for waivers and push confirmation and what depends on the agent host, and
+  describes the live `query` commands; `AGENTS.md` lists the real contexts and test practice.
 ### Fixed
 
 - An incremental `pull` reports the changed records it could not store: those the change feed

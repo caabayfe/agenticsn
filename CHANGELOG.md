@@ -6,6 +6,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Fixed
 
+- Delivery messages name what the developer can do. A record that moved between plan and load
+  names `adopt --refresh` and counts the projects already loaded; a flow or action that fails
+  verification says whether its capture is missing, unpublished or different, and names the
+  rows and fields that differ; unfinished-delivery refusals name `--recover-pending` or say that
+  no command settles them yet, instead of a "reconcile" step that does not exist.
 - `integrate` refuses to run while a merge is in progress and names the command that leaves that
   state (`git merge --abort`), instead of a file restore that does not. It no longer concludes a
   merge of the user's own.

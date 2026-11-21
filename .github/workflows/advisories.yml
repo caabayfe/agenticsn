@@ -1,8 +1,9 @@
 name: advisories
 
 # Fails when `bun audit` reports an advisory without a dated decision in
-# docs/security/advisories.md (spec 012, step 2). Weekly, because advisories appear without any
-# change here, and on pull requests that change dependencies or the register.
+# docs/security/advisories.md (spec 012, step 2), or when the audit did not run. Weekly, because
+# advisories appear without any change here, and on pull requests that change dependencies or
+# the register.
 on:
   schedule:
     - cron: "17 6 * * 1"
@@ -12,6 +13,7 @@ on:
       - "**/package.json"
       - docs/security/advisories.md
       - scripts/advisories.ts
+      - scripts/advisory-gate.ts
       - scripts/check-advisories.ts
       - scripts/lockfile.ts
   workflow_dispatch:

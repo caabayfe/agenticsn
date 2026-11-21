@@ -6,6 +6,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Security
 
+- The advisory check fails when `bun audit` did not produce a valid report, with its own message
+  and exit code, and the release workflow runs the check before it builds a binary (SEC3-07).
 - `doctor --instance` and `onboard` check that a test or production credential holds
   `snc_read_only` before asking the instance anything else, as every other command does. A
   credential that does not is reported as the failed `roles` check (or stops onboarding at

@@ -66,6 +66,12 @@ are committed and start snagentic's server for everyone who clones the workspace
 entry there must not set a proxy, certificate or runtime variable. `doctor` fails when it does;
 remove the variable from the entry and set it in your own environment.
 
+The same line checks the `env` block of `.claude/settings.json` and `.claude/settings.local.json`
+for runtime variables (`BUN_BE_BUN`, `BUN_OPTIONS`, `NODE_OPTIONS`,
+`NODE_TLS_REJECT_UNAUTHORIZED`): the host gives that block to every command it starts. snagentic
+itself refuses to start while `BUN_OPTIONS` is set
+([the runtime inside the binary](../product/security-and-governance.md#the-runtime-inside-the-binary)).
+
 ## Coding agents
 
 The agent pack's shell hook refuses commands that set any of these variables, as it refuses

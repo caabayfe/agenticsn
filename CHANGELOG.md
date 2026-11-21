@@ -6,6 +6,10 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Security
 
+- snagentic refuses to start while `BUN_OPTIONS` is set (`runtime-options-set`), and `doctor`
+  fails when the `env` block of `.claude/settings.json` or `.claude/settings.local.json` sets a
+  runtime variable. The limits of both checks are in `docs/product/security-and-governance.md`,
+  "The runtime inside the binary" (SEC3-05).
 - The advisory check fails when `bun audit` did not produce a valid report, with its own message
   and exit code, and the release workflow runs the check before it builds a binary (SEC3-07).
 - `doctor --instance` and `onboard` check that a test or production credential holds

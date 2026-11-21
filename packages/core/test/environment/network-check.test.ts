@@ -104,6 +104,28 @@ describe("the MCP config check", () => {
     expect(check.hint).toContain("docs/guides/network.md");
   });
 
+  it("fails when the host's settings give every command a runtime variable (SEC3-05)", async () => {
+    const files = filesWith({
+      "/w/.claude/settings.json": JSON.stringify({
+        // A proxy here is the person's own network choice; a runtime variable never is.
+        env: { BUN_BE_BUN: "1", HTTPS_PROXY: "http://p:1", EDITOR: "vi" },
+      }),
+      "/w/.claude/settings.local.json": JSON.stringify({ env: { BUN_OPTIONS: "--smol" } }),
+    });
+    const check = await checkMcpConfigs(files, "/w", CONFIGS);
+    expect(check.status).toBe("fail");
+    expect(check.detail).toBe(
+      ".claude/settings.json sets BUN_BE_BUN; .claude/settings.local.json sets BUN_OPTIONS",
+    );
+  });
+
+  it("accepts host settings without an environment, or that cannot be read", async () => {
+    for (const text of ["{ not json", "[]", JSON.stringify({ env: "x" }), JSON.stringify({})]) {
+      const files = filesWith({ "/w/.claude/settings.json": text });
+      expect((await checkMcpConfigs(files, "/w", CONFIGS)).status).toBe("ok");
+    }
+  });
+
   it("ignores missing or unreadable configs", async () => {
     const files = filesWith({ "/w/.mcp.json": "{ not json" });
     expect((await checkMcpConfigs(files, "/w", CONFIGS)).status).toBe("ok");

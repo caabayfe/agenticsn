@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  ABANDON_PENDING_EXIT,
   computeUnitPlan,
   type PendingDelivery,
   pendingDecision,
@@ -15,8 +16,8 @@ import { QUERY, SI_ID, SI_UNIT, scriptInclude, unitSetup } from "./unit-fixture"
 // The messages a developer acts on when a delivery stops (spec 016, R4). They name only
 // commands that exist, and count what they say they count.
 
-const NO_EXIT =
-  "no command can finish or abandon this delivery yet: keep the push journal and ask for help (docs/guides/recover-interrupted-delivery.md)";
+const EXIT =
+  "snagentic push --abandon-pending --plan <the unfinished push in snagentic status> drops this delivery without changing the instance, and lists what stays there (docs/guides/recover-interrupted-delivery.md)";
 
 describe("a record that moved between plan and load", () => {
   it("names the drift remedy the plan names: pull, then adopt --refresh", () => {
@@ -185,20 +186,20 @@ describe("an unfinished delivery that blocks a plan", () => {
       pendingDecision(unit, "digest", copy, { ...receipt, observed: "2|now" }, undefined),
     ).toEqual({
       kind: "unsafe",
-      reason: `unfinished delivery: the instance changed after the last known delivery version; snagentic plan-push --recover-pending finishes it only if the instance holds exactly this build with its original capture; if that refuses, ${NO_EXIT}`,
+      reason: `unfinished delivery: the instance changed after the last known delivery version; snagentic plan-push --recover-pending finishes it only if the instance holds exactly this build with its original capture; if that refuses, ${EXIT}`,
     });
   });
 
   it("says no command finishes a delivery whose update set is closed or gone", async () => {
     expect(await reasons(journal([receipt]), "complete")).toEqual([
-      `unfinished delivery's update set set1 is missing or closed: ${NO_EXIT}`,
+      `unfinished delivery's update set set1 is missing or closed: ${EXIT}`,
     ]);
-    expect((await reasons(journal([receipt]), null))[0]).toContain(NO_EXIT);
+    expect((await reasons(journal([receipt]), null))[0]).toContain(EXIT);
   });
 
   it("says no command clears a legacy journal", async () => {
     expect(await reasons(journal(undefined, 1), "in progress")).toEqual([
-      `legacy interrupted push has no per-unit delivery evidence: check on the instance what its update sets hold; ${NO_EXIT}`,
+      `legacy interrupted push has no per-unit delivery evidence: check on the instance what its update sets hold; ${EXIT}`,
     ]);
   });
 
@@ -215,8 +216,8 @@ describe("an unfinished delivery that blocks a plan", () => {
   });
 
   it("names recovery for a delivery left in another update set", () => {
-    expect(new PendingDeliveryTargetError(SI_UNIT, "dev").hint).toBe(
-      'finish it in its original update set first: snagentic plan-push --instance dev --recover-pending; if that refuses, keep the push journal and see "When nothing finishes the delivery" in docs/guides/recover-interrupted-delivery.md',
+    expect(new PendingDeliveryTargetError(SI_UNIT, "dev", ABANDON_PENDING_EXIT).hint).toBe(
+      `finish it in its original update set first: snagentic plan-push --instance dev --recover-pending; if that refuses, ${EXIT}`,
     );
   });
 
@@ -226,7 +227,7 @@ describe("an unfinished delivery that blocks a plan", () => {
       ...(await reasons(journal(undefined, 1), "in progress")),
       ...(await reasons(journal([receipt]), "in progress", "other")),
       ...orphanedPending(journal([receipt]), []).map((p) => p.reason),
-      new PendingDeliveryTargetError(SI_UNIT, "dev").hint,
+      new PendingDeliveryTargetError(SI_UNIT, "dev", ABANDON_PENDING_EXIT).hint,
     ];
     for (const text of all) expect(text).not.toMatch(/reconcil/i);
   });

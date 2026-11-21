@@ -2,6 +2,7 @@ import { actingAs, InstanceName, pushUnits } from "@snagentic/core";
 import { z } from "zod";
 import { connectForWrite } from "./connect";
 import { NextCalls } from "./knowledge-schemas";
+import { AbandonedUnits, abandon, abandonedText } from "./push-abandon";
 import { installerOf, unitPlanDependencies } from "./unit-delivery";
 import { defineUseCase } from "./use-case";
 
@@ -32,14 +33,19 @@ export const push = defineUseCase({
       "Recheck the workspace and instance against the plan from snagentic plan-push, then " +
       "deliver the approved changes to development update sets. Stops if the plan no longer " +
       "matches. Pass --confirm only after the user approved the plan. Reuse any planning " +
-      "overrides.",
+      "overrides. With --abandon-pending it delivers nothing: it drops an unfinished delivery " +
+      "that recovery refuses, lists what stays on the instance, and rolls nothing back.",
     effects:
       "Writes to the development instance and commits delivery ledgers locally; --draft-pr " +
-      "may also create a pull request.",
-    examples: [["push", "--instance", "dev", "--plan", "PLAN_ID", "--confirm"]],
+      "may also create a pull request. --abandon-pending sends the instance nothing: it commits " +
+      "a record of what stays there and clears the push journal.",
+    examples: [
+      ["push", "--instance", "dev", "--plan", "PLAN_ID", "--confirm"],
+      ["push", "--instance", "dev", "--abandon-pending", "--plan", "UNFINISHED_PUSH_ID"],
+    ],
     options: {
-      plan: "Plan ID returned by snagentic plan-push",
-      confirm: "Confirm that the user approved the plan",
+      plan: "Plan ID returned by snagentic plan-push; with --abandon-pending, the unfinished push shown by snagentic status",
+      confirm: "Confirm that the user approved the plan, or what an abandoned delivery leaves",
       label: "Update-set label; reuse the value used for planning (default: git branch)",
       allowCollisions: "Accept ownership collisions; also use this override when planning",
     },
@@ -54,7 +60,12 @@ export const push = defineUseCase({
     "to name the branch's pull request; otherwise its open one is linked when the GitHub CLI " +
     "is signed in. draftPr opens a draft pull request first when there is none (the planned " +
     "changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved " +
-    "the plan. Refuses if anything changed since the plan, on the instance or in the workspace.",
+    "the plan. Refuses if anything changed since the plan, on the instance or in the workspace. " +
+    "abandonPending=true delivers nothing: for an unfinished delivery that recoverPending refuses, " +
+    "it lists what the stopped push left on the instance and in which update set (without confirm, " +
+    "as the refusal to show the user), then with confirm=true records that list in a commit and " +
+    "clears the pending journal so the workspace can plan again. It sends the instance nothing and " +
+    "rolls nothing back; plan is then the unfinished push's id, from status.",
   input: z.object({
     instance: z.string().describe("the development instance"),
     plan: z.string().describe("the planId from plan_push"),
@@ -75,6 +86,12 @@ export const push = defineUseCase({
       .default(false)
       .describe(
         "confirm a receipt-only recovery plan; rechecks original captures and live content without loading metadata",
+      ),
+    abandonPending: z
+      .boolean()
+      .default(false)
+      .describe(
+        "drop the unfinished delivery named by plan instead of delivering: lists what stays on the instance, rolls nothing back, sends the instance nothing",
       ),
   }),
   output: z.object({
@@ -146,12 +163,14 @@ export const push = defineUseCase({
       .describe(
         "what the push could not finish after reaching the instance, with the command to do it",
       ),
+    abandoned: AbandonedUnits,
     next: NextCalls,
   }),
   flags: { readOnly: false, destructive: true, requiresDevelopmentInstance: true },
   mcp: true,
   mcpProfiles: ["develop"],
   async handle(input, context, run) {
+    if (input.abandonPending) return abandon(input, context);
     const connection = await connectForWrite(context, input.instance, run.signal);
     const { root, profile, reader } = connection;
     run.progress({ message: `pushing plan ${input.plan} as ${actingAs(profile)}` });
@@ -182,6 +201,7 @@ export const push = defineUseCase({
     );
   },
   render(output) {
+    if (output.abandoned !== undefined) return abandonedText(output);
     return [
       `batch ${output.batch.created ? "created" : "reused"}: ${output.batch.name}  ${output.batch.link}`,
       pullRequestLine(output.pullRequest),

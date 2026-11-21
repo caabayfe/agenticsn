@@ -1,6 +1,6 @@
 # 0050. Push requires content and durable capture evidence
 
-- Status: Accepted implementation plan (product owner approval in this session)
+- Status: Accepted; amendment A1 accepted (2026-11-21)
 - Date: 2026-11-14
 - Requirements: G1, G3, ASR-02, ASR-08, ASR-10
 - Amends: ADR-0033 items 3, 4 and 6; implements ADR-0028's published-capture requirement
@@ -162,3 +162,35 @@ authored/captured values and missing ordinary fields still fail. Known omitted d
 refuse conflicting captured values, including where reference-name compatibility would otherwise
 lack evidence. Catalog-item names, active flags, descriptions and fulfilment flow bindings
 remain compared. No capture, live-base, receipt or target check is skipped.
+
+## Amendments
+
+### A1. An unfinished delivery can be abandoned (Accepted, 2026-11-21)
+
+Evidence: spec 016, product audit of 2026-11-21, step R3; owner decision D3. Items 5 and 7 block
+delivery while a receipt is unfinished, and recovery refuses once the instance version moved, the
+update set closed or the journal is a legacy one. Nothing then finished or dropped the delivery,
+and the guide forbade removing the journal: the workspace could not push again.
+
+`push --abandon-pending` is the exit. It is a flag of the existing `push` use case, not a new
+command or MCP tool, so it exists only where `push` does (development instances, ADR-0012) and
+holds the same workspace lock.
+
+1. It takes confirmation as `push` does: `--plan` and `--confirm`. The plan id is the unfinished
+   push's, which `status` shows; another id refuses. Without `--confirm` it refuses and lists
+   what would stay.
+2. The list comes from the journal alone: each receipt's record, operation, update set and
+   whether it was verified, written without verification, or of unknown outcome. A legacy
+   journal lists its steps, without update set.
+3. It sends the instance nothing: no read, no write, no credential. It rolls nothing back and
+   says so. Preferences a stopped push switched and did not restore stay journaled for the next
+   push, since restoring them is a write.
+4. The list is recorded in a commit on the branch, made before the receipts are cleared; a
+   failed commit leaves the journal. No ledger changes: item 6 stands, a ledger advances only
+   for a unit both applied and captured. The commit therefore changes no file.
+5. Nothing is abandoned automatically, and nothing else clears a receipt. Items 5 and 7 now
+   read "until recovered, or abandoned by the user"; item 7's "manually reconciled" is this
+   command. The scope line's "no new command or MCP tool" still holds.
+
+After abandoning, a normal plan compares source, ledger and instance as for any record: what the
+stopped push left appears as already equal, changed on the instance, or to load.

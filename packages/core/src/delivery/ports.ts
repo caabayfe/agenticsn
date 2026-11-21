@@ -19,6 +19,9 @@ export interface DeliveryWorkspace {
   uncommittedSource(): Promise<string[]>;
   // Commits exactly these workspace-relative files, whatever else is staged; returns the commit.
   commitFiles(paths: readonly string[], message: string): Promise<string>;
+  // A commit on the branch that changes no file, and leaves the index and working tree as they
+  // are: a decision recorded in history (an abandoned delivery). Returns the commit.
+  commitRecord(message: string): Promise<string>;
 }
 
 // A branch's pull request as the git platform reports it (ADR-0022). `unavailable`: the

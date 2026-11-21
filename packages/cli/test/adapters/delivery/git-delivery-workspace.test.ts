@@ -57,6 +57,22 @@ describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
     );
   });
 
+  it("records a decision as a commit that changes no file and leaves staged and unstaged work", async () => {
+    const { root, write, workspace } = await repository();
+    const head = (await git(root, "rev-parse", "HEAD")).trim();
+    await write("staged.txt", "staged\n");
+    await git(root, "add", "staged.txt");
+    await write("README.md", "unstaged\n");
+    const status = await git(root, "status", "--porcelain");
+    const commit = await workspace.commitRecord("chore(snagentic): a decision\n\n- what stays");
+    expect((await git(root, "rev-parse", "HEAD")).trim()).toBe(commit);
+    expect((await git(root, "rev-parse", "HEAD~1")).trim()).toBe(head);
+    expect((await git(root, "rev-parse", "--abbrev-ref", "HEAD")).trim()).toBe("main");
+    expect(await git(root, "log", "-1", "--format=%B")).toContain("- what stays");
+    expect(await git(root, "diff", "--stat", head, commit)).toBe("");
+    expect(await git(root, "status", "--porcelain")).toBe(status);
+  });
+
   it.each(["new", "existing"])(
     "keeps %s hook-generated keys clean while preserving unrelated partial staging",
     async (kind) => {

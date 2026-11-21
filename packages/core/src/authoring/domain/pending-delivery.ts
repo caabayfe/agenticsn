@@ -6,8 +6,9 @@ import { type BuiltUnit, type InstanceCopy, isDeletion } from "./unit";
 import { unitSpec } from "./unit-specs";
 
 export const RECOVERY_GUIDE = "docs/guides/recover-interrupted-delivery.md";
-// Said wherever nothing the product has today finishes or drops an unfinished delivery.
-export const NO_PENDING_EXIT = `no command can finish or abandon this delivery yet: keep the push journal and ask for help (${RECOVERY_GUIDE})`;
+// Said wherever recovery cannot finish an unfinished delivery: the reviewed way to drop it
+// (ADR-0050, amendment A1).
+export const ABANDON_PENDING_EXIT = `snagentic push --abandon-pending --plan <the unfinished push in snagentic status> drops this delivery without changing the instance, and lists what stays there (${RECOVERY_GUIDE})`;
 
 export function isKeyedDeletion(unit: BuiltUnit): boolean {
   return (
@@ -58,7 +59,7 @@ export function pendingDecision(
     if (!proven)
       return unsafe(
         "the instance changed after the last known delivery version",
-        `snagentic plan-push --recover-pending finishes it only if the instance holds exactly this build with its original capture; if that refuses, ${NO_PENDING_EXIT}`,
+        `snagentic plan-push --recover-pending finishes it only if the instance holds exactly this build with its original capture; if that refuses, ${ABANDON_PENDING_EXIT}`,
       );
   }
   if (pending.verified === true) return { kind: "record" };

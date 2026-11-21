@@ -1,7 +1,7 @@
 import type { BuiltUnit } from "../../authoring/index";
 import {
+  ABANDON_PENDING_EXIT,
   isKeyedDeletion,
-  NO_PENDING_EXIT,
   RECOVERY_GUIDE,
   unitDigest,
 } from "../../authoring/index";
@@ -73,7 +73,9 @@ async function pendingSets(
     );
     if (sets[0]?.["state"] !== "in progress")
       problems.push(
-        unsafe(`unfinished delivery's update set ${id} is missing or closed: ${NO_PENDING_EXIT}`),
+        unsafe(
+          `unfinished delivery's update set ${id} is missing or closed: ${ABANDON_PENDING_EXIT}`,
+        ),
       );
     else if (recoverPending && !inBatch(label, sets[0]?.["name"] ?? ""))
       problems.push(
@@ -105,7 +107,7 @@ export async function pendingJournal(
   if (journal.pending === undefined && journal.steps.length > 0)
     return result([
       unsafe(
-        `legacy interrupted push has no per-unit delivery evidence: check on the instance what its update sets hold; ${NO_PENDING_EXIT}`,
+        `legacy interrupted push has no per-unit delivery evidence: check on the instance what its update sets hold; ${ABANDON_PENDING_EXIT}`,
       ),
     ]);
   if ((journal.pending ?? []).length === 0) return result([]);

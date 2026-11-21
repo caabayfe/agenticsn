@@ -40,3 +40,11 @@ export async function connectForWrite(
   await verifyReadOnlyCredential(profile, reader, signal);
   return { root, name, profile, reader, pager: new KeysetPager(reader) };
 }
+
+// A development instance's workspace and profile, with no credential read and no connection:
+// for the one write use case that sends the instance nothing (push --abandon-pending).
+export async function developmentTarget(context: UseCaseContext, instance: string) {
+  const { root, name, profile } = await target(context, instance);
+  ensureDevelopmentInstance(profile, `changing ${name}`);
+  return { root, name, profile };
+}

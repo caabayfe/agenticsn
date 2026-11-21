@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- `push --abandon-pending` is the way out of an unfinished delivery that `--recover-pending`
+  refuses. With the unfinished push's id as `--plan` (from `status`) it lists what the stopped
+  push left on the instance and in which update set; with `--confirm` it records that list in a
+  commit and clears the pending receipts, so the workspace can plan and push again. It sends the
+  instance nothing and rolls nothing back. Refusals that had no exit now name it (ADR-0050,
+  amendment A1).
+
 ### Fixed
 
 - Delivery messages name what the developer can do. A record that moved between plan and load

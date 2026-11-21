@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import { doctor } from "../../src/registry/doctor";
 import { executeUseCase } from "../../src/registry/execute";
-import { FAKE_CONTEXT, fakeProbe } from "../support/fakes";
+import { connectionsTo, FAKE_CONTEXT, fakeProbe } from "../support/fakes";
 import { instanceWorkspace } from "../support/instance-workspace";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -118,6 +118,32 @@ describe("doctor use case", () => {
     await expect(executeUseCase(doctor, { instance: "pdi" }, FAKE_CONTEXT)).rejects.toMatchObject({
       code: "workspace-not-found",
     });
+  });
+
+  // ADR-0012 layer 4: the failed check is doctor's finding, and nothing else is asked.
+  it("doctor stops calling a production instance whose credential is not read-only", async () => {
+    const ws = await instanceWorkspace({}, "production");
+    cleanups.push(ws.cleanup);
+    const asked: string[] = [];
+    const connections = connectionsTo({
+      query: async (query: { table: unknown }) => {
+        asked.push(String(query.table));
+        return String(query.table) === "sys_user_has_role"
+          ? []
+          : [{ sys_id: "u1", user_name: "admin", sys_updated_on: "2026-09-23 20:12:26" }];
+      },
+    } as never);
+    const context = { ...ws.context, connections, environmentProbes: [fakeProbe("git", "ok")] };
+    const { output, exitCode } = await executeUseCase(doctor, { instance: "pdi" }, context);
+    expect(output["checks"]).toContainEqual(
+      expect.objectContaining({
+        name: "roles",
+        status: "fail",
+        detail: expect.stringContaining("does not hold snc_read_only"),
+      }),
+    );
+    expect(asked).toEqual(["sys_user_has_role"]);
+    expect(exitCode).toBe(3);
   });
 
   it("renders warnings with their hint and does not count them as failures", () => {

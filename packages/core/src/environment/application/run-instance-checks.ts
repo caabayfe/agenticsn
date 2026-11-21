@@ -1,4 +1,5 @@
 import type { InstanceReader, Row } from "../../connection/ports";
+import { ReadOnlyCredentialRequiredError, verifyReadOnlyCredential } from "../../instance";
 import { actingAs, identityMismatch } from "../../instance/domain/identity";
 import {
   credentialAccount,
@@ -76,12 +77,7 @@ async function connect(
 // the answer past the page limit.
 const RELEVANT_ROLES = ["admin", "snc_read_only"] as const;
 
-async function roles(
-  profile: InstanceProfile,
-  user: Row,
-  reader: InstanceReader,
-  signal: AbortSignal,
-): Promise<Check> {
+async function roles(user: Row, reader: InstanceReader, signal: AbortSignal): Promise<Check> {
   try {
     const rows = await reader.query(
       {
@@ -94,14 +90,6 @@ async function roles(
     );
     const held = new Set(rows.map((row) => row["role.name"] ?? ""));
     const detail = `has ${RELEVANT_ROLES.filter((role) => held.has(role)).join(" and ") || `neither ${RELEVANT_ROLES.join(" nor ")}`}`;
-    if (profile.kind !== "development" && !held.has("snc_read_only")) {
-      return check(
-        "roles",
-        "warn",
-        detail,
-        "a test or production credential should have snc_read_only (ADR-0012)",
-      );
-    }
     return held.has("admin")
       ? check("roles", "ok", detail)
       : check(
@@ -140,6 +128,28 @@ async function timestamps(user: Row, reader: InstanceReader, signal: AbortSignal
   }
 }
 
+// ADR-0012 layer 4: a test or production credential proves it is read-only before anything
+// else is asked. One that does not is the finding, and the instance is not called again.
+async function refusedAccess(
+  profile: InstanceProfile,
+  reader: InstanceReader,
+  signal: AbortSignal,
+): Promise<Check[] | null> {
+  try {
+    await verifyReadOnlyCredential(profile, reader, signal);
+    return null;
+  } catch (error) {
+    if (error instanceof ReadOnlyCredentialRequiredError) {
+      return [
+        check("connection", "unavailable", "not checked: the credential is not read-only"),
+        check("roles", "fail", error.message, error.hint),
+        ...skipped(3),
+      ];
+    }
+    return [failure("connection", error), ...skipped(2)];
+  }
+}
+
 export async function runInstanceChecks(
   profile: InstanceProfile,
   credential: StoredCredential | null,
@@ -160,6 +170,10 @@ export async function runInstanceChecks(
     return [check("credentials", "fail", problems.join("; "), hint), ...skipped(1)];
   }
   const credentials = check("credentials", "ok", `found for ${credentialAccount(profile)}`);
+  const refused = await refusedAccess(profile, reader, signal);
+  if (refused !== null) {
+    return [credentials, ...refused];
+  }
   const user = await connect(profile, reader, signal);
   if ("status" in user) {
     return [credentials, user as Check, ...skipped(2)];
@@ -168,7 +182,7 @@ export async function runInstanceChecks(
   const results = [
     credentials,
     connection,
-    await roles(profile, user, reader, signal),
+    await roles(user, reader, signal),
     await timestamps(user, reader, signal),
   ];
   const stats = reader.stats();

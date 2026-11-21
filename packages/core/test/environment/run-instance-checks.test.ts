@@ -190,19 +190,59 @@ describe("runInstanceChecks", () => {
     expect(checks["roles"]?.detail).toBe("has neither admin nor snc_read_only");
   });
 
-  it("warns when a production credential lacks snc_read_only", async () => {
+  // ADR-0012 layer 4: the credential proves it is read-only before anything else is asked.
+  it("stops calling a production instance whose credential is not read-only", async () => {
+    const fake = reader({ ...HEALTHY, sys_user_has_role: [] });
+    const checks = await runInstanceChecks(
+      profile("production"),
+      credentialFor(profile("production")),
+      fake,
+      LIVE,
+    );
+    expect(checks.map((check) => [check.name, check.status])).toEqual([
+      ["credentials", "ok"],
+      ["connection", "unavailable"],
+      ["roles", "fail"],
+      ["timestamps", "unavailable"],
+      ["load", "unavailable"],
+    ]);
+    expect(byName(checks)["roles"]).toMatchObject({
+      detail: expect.stringContaining("does not hold snc_read_only"),
+      hint: expect.stringContaining("snc_read_only"),
+    });
+    expect(fake.queries.map((query) => [String(query.table), query.query])).toEqual([
+      ["sys_user_has_role", "user=javascript:gs.getUserID()^state=active^role.name=snc_read_only"],
+    ]);
+  });
+
+  it("checks a production credential is read-only first, then runs every check", async () => {
+    const fake = reader({ ...HEALTHY, sys_user_has_role: [{ "role.name": "snc_read_only" }] });
+    const checks = await runInstanceChecks(
+      profile("production"),
+      credentialFor(profile("production")),
+      fake,
+      LIVE,
+    );
+    expect(fake.queries.map((query) => String(query.table))).toEqual([
+      "sys_user_has_role",
+      "sys_user",
+      "sys_user_has_role",
+      "sys_user",
+    ]);
+    expect(checks.map((check) => check.status)).toEqual(["ok", "ok", "warn", "ok", "ok"]);
+  });
+
+  it("fails the connection check when a production instance refuses the first request", async () => {
     const checks = byName(
       await runInstanceChecks(
         profile("production"),
         credentialFor(profile("production")),
-        reader(HEALTHY),
+        reader({ sys_user_has_role: new AuthenticationFailedError("pdi") }),
         LIVE,
       ),
     );
-    expect(checks["roles"]).toMatchObject({
-      status: "warn",
-      hint: expect.stringContaining("snc_read_only"),
-    });
+    expect(checks["connection"]).toMatchObject({ status: "fail" });
+    expect(checks["roles"]?.status).toBe("unavailable");
   });
 
   it("fails when the instance does not read query timestamps as UTC", async () => {

@@ -84,6 +84,7 @@ function skippedOutput(
     timeouts: 0,
     serverCostRequested: false,
     serverCost: null,
+    warnings: [],
     shared: sharedView(shared, now),
   };
 }

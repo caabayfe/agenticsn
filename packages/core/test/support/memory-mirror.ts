@@ -70,6 +70,7 @@ export function memoryMirror() {
       }
     },
     finish: async () => ({ commit: "commit", created: true }),
+    compact: async () => null,
     abort: async () => {},
     baseOf: (_root, sysId) => baseById.get(sysId),
     filesOf: (_root, base) => [...(byBase.get(base) ?? [])],

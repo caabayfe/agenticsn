@@ -4,6 +4,11 @@ Every advisory `bun audit` reports must have a row here with a decision and a re
 `scripts/check-advisories.ts` fails CI on an advisory missing from this table, or one past its
 review date (spec 012, step 2). Remove a row once the audit no longer reports it.
 
+The check also fails, with its own message and exit code 2, when `bun audit` did not produce a
+valid report (no output, output that is not a report, or a failure with no advisory reported):
+an audit that did not run says nothing about advisories. The release workflow runs the same
+check before it builds anything.
+
 A decision holds for the copies it was made about (spec 014, F2). Each row names the installed
 versions the advisory hits (**Versions**) and the direct dependencies of the workspaces that
 bring those copies in (**Through**); the check reads both from `bun.lock`. When the advisory is

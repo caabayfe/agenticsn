@@ -110,7 +110,8 @@ function instance(extra: Record<string, Row[]> = {}, denied: string[] = []) {
 }
 
 // Both fakes append to one timeline, so tests can check the order of durable steps.
-function memoryRecords(timeline: string[] = []) {
+// `progress`: record bases an interrupted earlier run left in the mirror.
+function memoryRecords(timeline: string[] = [], progress: readonly string[] = []) {
   const written = new Map<string, RenderedRecord>();
   const documents = new Map<string, unknown>();
   const store: MirrorWriter = {
@@ -126,6 +127,7 @@ function memoryRecords(timeline: string[] = []) {
     existingFiles: async function* () {},
     move: async () => {},
     bases: async function* () {
+      yield* progress;
       yield* written.keys();
     },
     checkpoint: async () => {
@@ -282,7 +284,8 @@ describe("pullFull", () => {
       completedClasses: ["sys_script"],
       records: 2,
     });
-    const summary = await run(reader, state).result;
+    const progress = memoryRecords([], ["global/sys_script/one--1", "global/sys_script/two--2"]);
+    const summary = await run(reader, state, progress).result;
     expect(queries.some((query) => query.table === "sys_script")).toBe(false);
     expect(summary).toMatchObject({ resumedClasses: 1, watermark: "2026-10-05 11:00:00" });
     // The checkpoint stands until the caller has committed the mirror.
@@ -298,6 +301,27 @@ describe("pullFull", () => {
       unreadable: [],
       redactionVersion: 1,
       secretScanVersion: SECRET_SCAN_VERSION,
+    });
+  });
+
+  it("starts over when the mirror holds none of the records its checkpoint counts as done", async () => {
+    const { reader, queries } = instance();
+    const state = memoryState({
+      startedAt: "2026-10-05 11:00:00",
+      completedClasses: ["sys_script"],
+      records: 2,
+    });
+    const { result, records } = run(reader, state);
+    const summary = await result;
+    expect(queries.some((query) => query.table === "sys_script")).toBe(true);
+    expect([...records.written.keys()].filter((base) => base.includes("sys_script/"))).toHaveLength(
+      2,
+    );
+    // A new pull, with its own start: nothing of the lost one is trusted.
+    expect(summary).toMatchObject({
+      resumedClasses: 0,
+      records: 3,
+      watermark: "2026-10-05 12:00:00",
     });
   });
 

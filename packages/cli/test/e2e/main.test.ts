@@ -6,7 +6,11 @@ import { VERSION } from "@snagentic/core";
 const MAIN = "packages/cli/src/main.ts";
 
 async function snagentic(...args: string[]) {
-  const child = Bun.spawn(["bun", MAIN, ...args], { stdout: "pipe", stderr: "pipe" });
+  return run(args, process.env);
+}
+
+async function run(args: readonly string[], env: Record<string, string | undefined>) {
+  const child = Bun.spawn(["bun", MAIN, ...args], { stdout: "pipe", stderr: "pipe", env });
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
@@ -21,6 +25,14 @@ describe("snagentic entry point (real adapters)", () => {
       exitCode: 0,
       stdout: `snagentic ${VERSION}\n`,
     });
+  });
+
+  it("refuses to start with runtime options from the environment (SEC3-05)", async () => {
+    const result = await run(["--version"], { ...process.env, BUN_OPTIONS: "--smol" });
+    expect(result.exitCode).toBe(5);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toStartWith("error[runtime-options-set]: BUN_OPTIONS is set");
+    expect(result.stderr).toContain("\nhint: ");
   });
 
   // doctor builds a test flow with the embedded SDK (ADR-0028): about 4 s on a CI runner.

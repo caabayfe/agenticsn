@@ -84,8 +84,11 @@ describe("a secret is released only for the settings it was stored for (ADR-0020
 
 // The signed-in user is `session`; the profile's username is "svc".
 function instance(roles: string[] | Error, session = "svc") {
-  const reader: InstanceReader = {
+  const asked: string[] = [];
+  const reader: InstanceReader & { asked: string[] } = {
+    asked,
     query: async (query) => {
+      asked.push(String(query.table));
       if (roles instanceof Error) {
         throw roles;
       }
@@ -134,6 +137,16 @@ describe("login stores nothing unless the typed password works and matches the k
       code: "read-only-credential-required",
     });
     expect(stored).toEqual([]);
+  });
+
+  // ADR-0012 layer 4: nothing else is asked of a production instance before the role check.
+  it("asks a production instance nothing else once the credential proves not read-only", async () => {
+    const { store } = recording();
+    const reader = instance(["admin"]);
+    await expect(login(PROD, "pw", store, reader, LIVE)).rejects.toMatchObject({
+      code: "read-only-credential-required",
+    });
+    expect(reader.asked).toEqual(["sys_user_has_role"]);
   });
 
   it("refuses a password the instance rejects", async () => {

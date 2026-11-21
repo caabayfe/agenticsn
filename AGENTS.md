@@ -19,8 +19,9 @@ This is a clean rebuild of `../snagentic` (v1). v1 is a **reference for algorith
 fixtures and ServiceNow behavior, not code to copy**. v1 failed through scope creep and
 mixed layers; don't repeat that.
 
-**Status:** v1.0.0 was released on 2026-10-06; 2.0 moved authoring to Fluent (ADR-0031). Each
-release since is in `CHANGELOG.md`; the decisions and their status are in `docs/adr/README.md`.
+**Status:** the 2.x line is current; the version is `VERSION` in `packages/core/src/version.ts`.
+v1.0.0 was released on 2026-10-06; 2.0 moved authoring to Fluent (ADR-0031). Each release
+since is in `CHANGELOG.md`; the decisions and their status are in `docs/adr/README.md`.
 The product story is in `README.md` and `docs/product/`. User documentation:
 `docs/getting-started.md` and the generated `docs/reference/commands.md`. `bun run docs`
 regenerates the command reference and the ADR index; a test fails when either is stale.
@@ -68,15 +69,25 @@ bun scripts/eval/run.ts --variants A,B --reps 2   # opt-in agent evaluations (re
 
 ```
 packages/
-  core/src/            one folder per bounded context, each with domain/ application/ ports.ts
-    kernel/ metadata/  SysId, TableName, Scope, canonical text + hash; Artifact, ArtifactType, Snapshot
+  core/src/            one folder per bounded context: domain/ application/, ports.ts where it has ports
+    kernel/            SysId, TableName, scope and instance names, canonical text + hash, base errors
+    metadata/          artifacts, the record catalog, field rules, redaction, secret scan
     sync/              pull, integrate, shared mirror
-    knowledge/ advice/ model, graph, search; the rule catalogue and `advise`
-    governance/        rules, gate, waivers, reports
+    knowledge/         model, graph, search (`find`, `describe`)
+    advice/            the rule catalogue, script fields and `advise`
+    governance/        `validate` and `check`: record, ACL, flow, Fluent and documentation checks
     authoring/         adopt, Fluent projects, ledgers
-    delivery/          plan-push, push, update-set batches
-    accelerators/ documentation/ updatesets/ plugins/ instance/ connection/
-    environment/ upgrade/ workspace/
+    delivery/          plan-push, the gate and waivers, push, update-set batches
+    investigation/     bounded live reads (`query`): query policy, redaction
+    accelerators/      packs, install plans, data loads, the pack gate
+    documentation/     verified documentation sites
+    updatesets/        list, show, collisions, export
+    plugins/           plugin and store app inventory, activation
+    instance/          instance profiles, kinds and trust; credentials; the read-only check
+    connection/        reader ports, load limits, retry policy
+    environment/       `doctor` checks
+    upgrade/           self-upgrade of the binary
+    workspace/         workspace layout, protected paths, agent install
   rules-basic/src/     the script rules (ESLint rule API), one file per category in rules/
   agent-packs/src/     skills/ (one file per skill), instructions, hooks, rendered per host
   cli/src/
@@ -84,7 +95,8 @@ packages/
     cli/ mcp/ hooks/   generated interfaces, no logic
     adapters/          implement the ports: servicenow/ git/ fs/ credentials/ yaml/ fluent/ ...
 docs/adr/  docs/architecture/  docs/guides/
-tests/fixtures/        hash vectors, sample artifacts, Fluent projects, recorded HTTP
+tests/                 architecture/ quality/ tooling/ (repository checks), live/ and eval/ (opt-in)
+tests/fixtures/        hash vectors, Fluent projects, SDK and layout samples, captured delivery records
 ```
 
 ## Architecture rules (enforced by `bun run arch`)
@@ -119,7 +131,7 @@ Choosing the test:
 |---|---|
 | Domain logic | Unit tests; `fast-check` for properties (round-trips, hashing, diffs) |
 | Use cases | In-memory fake ports in `packages/core/test/support/` |
-| Adapters | The shared contract suite for that port; HTTP via `msw`; git against temporary repositories |
+| Adapters | Tests in `packages/cli/test/adapters/`: HTTP through a hand-written fake `Transport` (no HTTP mocking library); git against temporary repositories; files in temporary folders |
 | Disk format, agent output, SARIF | Golden files |
 | Never in default tests | Real network, real credentials, live instances |
 

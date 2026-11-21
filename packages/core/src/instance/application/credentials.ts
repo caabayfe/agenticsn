@@ -18,8 +18,10 @@ export async function login(
   if (secret === "") {
     throw new InvalidInputError(`the ${secretName(profile)} must not be empty`);
   }
-  await verifySessionIdentity(profile, reader, signal);
+  // The role check comes first: a test or production instance is asked nothing else until the
+  // credential has proved to be read-only (ADR-0012 layer 4).
   await verifyCredentialMatchesKind(profile, reader, signal);
+  await verifySessionIdentity(profile, reader, signal);
   await store.write(profile, secret);
 }
 

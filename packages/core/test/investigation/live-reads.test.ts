@@ -288,7 +288,7 @@ describe("bounded live investigation", () => {
         { table: request.table, query: request.query, groupBy: "password" },
         signal(),
       ),
-    ).rejects.toThrow("sensitive");
+    ).rejects.toMatchObject({ code: "masked-field" });
     const many = {
       ...reader,
       countBy: async () => new Map(Array.from({ length: 101 }, (_, n) => [`group-${n}`, 1])),

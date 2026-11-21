@@ -1,88 +1,14 @@
-import { canonicalJson } from "../../kernel/canonical-json";
+import { instanceFields, recordAgrees, recordDifferences, rowLabel } from "./capture-record";
 import { compareUnit, isComparedField } from "./compare";
 import { authoredCaptureRows } from "./compiled-graph";
-import {
-  compiledFields,
-  exportedDefaults,
-  exportedDefaultsAgree,
-  orderedAttributes,
-} from "./compiled-values";
 import { normalizeEmptySlaInputs } from "./empty-sla-input";
 import { normalizeNativeDefaults } from "./native-input-defaults";
 import { type NativeTriggerContract, withNativeTriggerInputs } from "./native-trigger-capture";
 import type { BuiltUnit, Fields, InstanceCopy, UnitRecord } from "./unit";
 import { unitSpec } from "./unit-specs";
-import { comparedValue, keyedReference, namedField, sameValue } from "./values";
+import { comparedValue, sameValue } from "./values";
 
-// Publish changes lifecycle fields, not the authored trigger, actions or inputs.
-const PUBLISH_FIELDS = new Set(["active", "status", "version", "state", "label_cache"]);
 const SNAPSHOTS = new Set(["sys_hub_flow_snapshot", "sys_hub_action_type_snapshot"]);
-
-function jsonValue(value: string): string {
-  if (!/^[\s]*[[{]/.test(value)) return value;
-  try {
-    return canonicalJson(JSON.parse(value));
-  } catch {
-    return value;
-  }
-}
-
-function normalized(record: UnitRecord, publishedHead: boolean): UnitRecord {
-  const lifecycle =
-    publishedHead &&
-    (record.table === "sys_hub_flow" || record.table === "sys_hub_action_type_definition");
-  const fields = Object.fromEntries(
-    Object.entries(record.fields)
-      .filter(([field]) => !lifecycle || !PUBLISH_FIELDS.has(field))
-      .map(([field, value]) => [
-        field,
-        field === "attributes" && record.table.startsWith("sys_hub_")
-          ? orderedAttributes(value)
-          : jsonValue(value),
-      ]),
-  );
-  return { ...record, fields };
-}
-
-function instanceFields(record: UnitRecord): Readonly<Record<string, string>> {
-  const fields: Record<string, string> = { ...record.fields };
-  for (const [field, name] of Object.entries(record.referenceNames)) {
-    fields[namedField(record.table, field)] = name === "NULL" ? "" : name;
-  }
-  for (const [field, value] of Object.entries(record.fields)) {
-    for (const [key, held] of keyedReference(value) ?? []) fields[`${field}.${key}`] = held;
-  }
-  return fields;
-}
-
-function recordAgrees(
-  wanted: UnitRecord,
-  actual: UnitRecord,
-  head: boolean,
-  references: ReadonlyMap<string, string> = new Map(),
-): boolean {
-  if (wanted.table !== actual.table || wanted.action !== actual.action) return false;
-  if (!exportedDefaultsAgree(wanted, actual)) return false;
-  const built = normalized(exportedDefaults(wanted, actual), head);
-  const captured = normalized(
-    { ...actual, fields: compiledFields(wanted, actual, references) },
-    head,
-  );
-  // A missing payload field is missing evidence, unlike a live Table API column absent on an
-  // older release. Never let compareUnit's compatibility handling turn it into agreement.
-  if (
-    Object.keys(built.fields).some(
-      (field) => isComparedField(built.table, field) && captured.fields[field] === undefined,
-    )
-  )
-    return false;
-  return (
-    compareUnit(
-      { updateName: "", file: "", head: built, children: [] },
-      { head: instanceFields(captured), children: [], version: "", foreignRows: 0 },
-    ).length === 0
-  );
-}
 
 function completeChildren(built: BuiltUnit, actual: BuiltUnit): boolean {
   const spec = unitSpec(built.head.table).children;
@@ -117,58 +43,95 @@ function sameIdentity(built: BuiltUnit, actual: BuiltUnit): boolean {
   );
 }
 
-// The captured authored graph must agree, even though the platform adds compiled snapshots.
-// Empty-ID child records are the SDK's delete_multiple instructions: their table is still
-// checked, so old rows left behind cannot silently survive in a captured flow.
-export function capturedContentAgrees(
+// A comparable unit's captured rows against the built ones.
+function comparableDifferences(expected: BuiltUnit, held: BuiltUnit): string[] {
+  if (!completeChildren(expected, held)) return ["rows or fields of the build are absent"];
+  return compareUnit(expected, {
+    head: instanceFields(held.head),
+    children: held.children.map(instanceFields),
+    version: "",
+    foreignRows: 0,
+  }).map((d) =>
+    d.kind === "field"
+      ? `${d.table}${d.row === "" ? "" : ` [${d.row}]`}.${d.field}`
+      : `${d.table} rows`,
+  );
+}
+
+// A compiled unit's captured authored graph, table by table. Empty-ID child records are the
+// SDK's delete_multiple instructions: their table is still checked, so old rows left behind
+// cannot silently survive in a captured flow.
+function graphDifferences(
+  expected: BuiltUnit,
+  held: BuiltUnit,
+  references: ReadonlyMap<string, string>,
+): string[] {
+  const authoredTables = [...new Set(expected.children.map((record) => record.table))];
+  const rows = authoredCaptureRows(expected, held);
+  const unexpected = new Set(
+    rows
+      .filter((record) => !authoredTables.includes(record.table) && !SNAPSHOTS.has(record.table))
+      .map((record) => `${record.table} rows (not in the build)`),
+  );
+  if (unexpected.size > 0) return [...unexpected];
+  return authoredTables.flatMap((table) => {
+    const wanted = expected.children.filter(
+      (record) => record.table === table && record.sysId !== "",
+    );
+    const captured = rows.filter((record) => record.table === table);
+    const counts =
+      wanted.length === captured.length
+        ? []
+        : [`${table} rows (built ${wanted.length}, captured ${captured.length})`];
+    return [
+      ...counts,
+      ...wanted.flatMap((record) => {
+        const found = captured.find((candidate) => candidate.sysId === record.sysId);
+        return found === undefined
+          ? [`${rowLabel(record, false)} (absent)`]
+          : recordDifferences(record, found, false, references);
+      }),
+    ];
+  });
+}
+
+// Where a decoded capture disagrees with the reviewed build, as names (tables, rows, fields),
+// never values. Empty when the captured authored graph agrees, even though the platform adds
+// compiled snapshots.
+export function capturedContentDifferences(
   built: BuiltUnit,
   actual: BuiltUnit,
   references: ReadonlyMap<string, string> = new Map(),
   nativeTriggers: readonly NativeTriggerContract[] = [],
   logicInputs: readonly Fields[] = [],
-): boolean {
+): string[] {
   const expected = withNativeTriggerInputs(built, actual, nativeTriggers);
-  if (expected === null) return false;
+  if (expected === null) return ["its trigger could not be checked against a native definition"];
   const held = normalizeNativeDefaults(
     built,
     normalizeEmptySlaInputs(built, actual, nativeTriggers),
     [...nativeTriggers, { logicInputs }],
   );
-  if (expected.head.table !== held.head.table) return false;
-  if (expected.head.action !== held.head.action) return false;
-  if (!sameIdentity(built, held)) return false;
-  if (expected.head.action === "DELETE") return recordAgrees(expected.head, held.head, false);
+  if (expected.head.table !== held.head.table || expected.head.action !== held.head.action)
+    return [`${expected.head.table}: held as ${held.head.action} of ${held.head.table}`];
+  if (!sameIdentity(built, held)) return [`${expected.head.table}: another record's capture`];
+  if (expected.head.action === "DELETE") return recordDifferences(expected.head, held.head, false);
   const compiled = !unitSpec(expected.head.table).comparable;
-  if (!recordAgrees(expected.head, held.head, compiled)) return false;
-  if (!compiled) {
-    return (
-      completeChildren(expected, held) &&
-      compareUnit(expected, {
-        head: instanceFields(held.head),
-        children: held.children.map(instanceFields),
-        version: "",
-        foreignRows: 0,
-      }).length === 0
-    );
-  }
-  const authoredTables = new Set(expected.children.map((record) => record.table));
-  const rows = authoredCaptureRows(expected, held);
-  if (rows.some((record) => !authoredTables.has(record.table) && !SNAPSHOTS.has(record.table)))
-    return false;
-  return [...new Set(expected.children.map((record) => record.table))].every((table) => {
-    const wanted = expected.children.filter(
-      (record) => record.table === table && record.sysId !== "",
-    );
-    const held = rows.filter((record) => record.table === table);
-    return (
-      wanted.length === held.length &&
-      wanted.every((record) => {
-        const found = held.find((candidate) => candidate.sysId === record.sysId);
-        return found !== undefined && recordAgrees(record, found, false, references);
-      })
-    );
-  });
+  const head = recordDifferences(expected.head, held.head, compiled);
+  if (head.length > 0) return head;
+  return compiled
+    ? graphDifferences(expected, held, references)
+    : comparableDifferences(expected, held);
 }
+
+export const capturedContentAgrees = (
+  built: BuiltUnit,
+  actual: BuiltUnit,
+  references: ReadonlyMap<string, string> = new Map(),
+  nativeTriggers: readonly NativeTriggerContract[] = [],
+  logicInputs: readonly Fields[] = [],
+): boolean =>
+  capturedContentDifferences(built, actual, references, nativeTriggers, logicInputs).length === 0;
 
 // A raw inactive draft has no publication-generated rows. This proves only the authored
 // pre-publication graph for a reviewed reload; it cannot certify published delivery.
@@ -198,22 +161,35 @@ export function draftContentAgrees(
   );
 }
 
-// Capture proves the authored graph; live head fields and the master snapshot must still
-// agree. A stale capture cannot certify another published version on the instance.
-export function compiledCopyAgrees(
+// Where the live definition disagrees with the reviewed build and its capture. Capture proves
+// the authored graph; live head fields and the master snapshot must still agree. A stale
+// capture cannot certify another published version on the instance.
+export function compiledCopyDifferences(
   built: BuiltUnit,
   captured: BuiltUnit,
   copy: InstanceCopy | null,
-): boolean {
-  if (copy === null) return false;
-  if (built.head.table === "sys_hub_flow" && copy.head["status"] !== "published") return false;
-  if (built.head.table === "sys_hub_action_type_definition" && copy.head["state"] !== "published")
-    return false;
+): string[] {
+  const table = built.head.table;
+  if (copy === null) return [`${table}: not on the instance`];
+  if (table === "sys_hub_flow" && copy.head["status"] !== "published")
+    return [`${table}.status (not published)`];
+  if (table === "sys_hub_action_type_definition" && copy.head["state"] !== "published")
+    return [`${table}.state (not published)`];
   const snapshot = captured.head.fields["master_snapshot"];
   if (snapshot !== undefined && snapshot !== "" && copy.head["master_snapshot"] !== snapshot)
-    return false;
-  return recordAgrees(built.head, { ...built.head, fields: copy.head, referenceNames: {} }, true);
+    return [`${table}.master_snapshot (not the captured snapshot)`];
+  return recordDifferences(
+    built.head,
+    { ...built.head, fields: copy.head, referenceNames: {} },
+    true,
+  );
 }
+
+export const compiledCopyAgrees = (
+  built: BuiltUnit,
+  captured: BuiltUnit,
+  copy: InstanceCopy | null,
+): boolean => compiledCopyDifferences(built, captured, copy).length === 0;
 
 // A snapshot must belong to this definition, not merely appear somewhere in the payload.
 function snapshotOwner(snapshot: UnitRecord, unit: BuiltUnit): boolean {

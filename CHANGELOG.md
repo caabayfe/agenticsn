@@ -4,6 +4,13 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- `describe` accepts a record's path as the workspace shows it (`instances/<instance>/metadata/...`,
+  relative or absolute) and the path of any of the record's files, not only the path `find`
+  prints. A path into another instance's mirror than the one asked for is refused, and the
+  `record-not-found` hint names the accepted forms (spec 016, U6).
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

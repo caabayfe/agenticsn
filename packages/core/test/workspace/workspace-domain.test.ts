@@ -98,6 +98,25 @@ describe("workspace layout", () => {
     expect(metadataPath(dev, "/w", "./global/x--1.yaml")).toBe("global/x--1.yaml");
   });
 
+  it("reads a Windows path to a record as the mirror names it", () => {
+    const dev = InstanceName.parse("dev");
+    expect(metadataPath(dev, "C:\\w", "C:\\w\\instances\\dev\\metadata\\global\\x--1.yaml")).toBe(
+      "global/x--1.yaml",
+    );
+  });
+
+  it("refuses a path into another instance's metadata", () => {
+    const dev = InstanceName.parse("dev");
+    for (const path of [
+      "instances/test/metadata/global/x--1.yaml",
+      "/w/instances/test/metadata/global/x--1.yaml",
+    ]) {
+      expect(() => metadataPath(dev, "/w", path)).toThrow(
+        expect.objectContaining({ code: "path-names-other-instance" }),
+      );
+    }
+  });
+
   it("keeps local state and secrets out of git", () => {
     expect(GITIGNORE).toContain(".snagentic/");
     expect(GITIGNORE).toContain(".env");

@@ -375,7 +375,7 @@ snagentic describe <target> [options]
 
 Explain a table or record from the mirror
 
-Describe a table's fields and supported behavior in execution order, including inheritance. A record path or sys_id shows its files and references. Table-triggered flows, workflows and global-table business rules are not covered.
+Describe a table's fields and supported behavior in execution order, including inheritance. A record path or sys_id shows its files and references; the path is the one find prints, or the file's path in the workspace. Table-triggered flows, workflows and global-table business rules are not covered.
 
 **Effects:** Queries the local mirror and search index; does not call the instance.
 
@@ -1252,7 +1252,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `scope` (string, optional): only records of this application scope
   - `limit` (integer, optional)
 - `describe`: Describe a table or a record of the mirrored instance. A table: its fields and everything that runs on it, in execution order (client scripts, UI policies, business rules before/after/async, notifications, ACLs), including what it inherits. A record (path or sys_id): its files and what refers to it. Reads the workspace only.
-  - `target` (string, required): a table name, a record path, or a sys_id
+  - `target` (string, required): a table name, a sys_id, or a record's path: as find prints it, or the path of one of its files in the workspace (instances/<instance>/metadata/...)
   - `instance` (string, optional): default: the workspace's only instance
   - `inactive` (boolean, optional): tables: also list inactive behavior
   - `phase` (client | action | query | display | before | after | async | notify | policy | access, optional): tables: list only this phase, in full (as next suggests when items were left out)

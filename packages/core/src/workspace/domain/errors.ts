@@ -77,3 +77,14 @@ export class WorkspaceLockedError extends SnagenticError {
     );
   }
 }
+
+export class OtherInstancePathError extends SnagenticError {
+  constructor(path: string, named: string, asked: string) {
+    super(
+      "path-names-other-instance",
+      "usage",
+      `${path} is in the mirror of ${named}, but the command is about ${asked}`,
+      `pass --instance ${named} to read that mirror, or name the record by its path under instances/${asked}/metadata/`,
+    );
+  }
+}

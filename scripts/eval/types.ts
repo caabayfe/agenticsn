@@ -43,13 +43,27 @@ export interface Check {
   run(trace: Trace, changes: WorkspaceChanges): CheckResult;
 }
 
+// What a scenario's fixtures know about the slot they write into.
+export interface FixtureContext {
+  // The slot's instance (the first under instances/): mirror paths and ledgers name it.
+  readonly instance: string;
+}
+
+export type Fixture = (workspace: string, context: FixtureContext) => Promise<void>;
+
 export interface Scenario {
   readonly id: string;
   readonly kind: "task" | "trigger";
   // What the user says, one entry per turn.
   readonly turns: readonly string[];
-  // Writes files into the workspace before the agent starts (for example, a change to review).
-  readonly prepare?: (workspace: string) => Promise<void>;
+  // Files the workspace holds before the user's work: committed, and the base the run's
+  // changes are measured against (an adopted project, a record in the mirror).
+  readonly fixture?: Fixture;
+  // The user's work in progress, written after the fixture and left uncommitted (for example,
+  // a change to review).
+  readonly prepare?: Fixture;
+  // What the scenario cannot show with the instance unreachable.
+  readonly limit?: string;
   readonly checks: readonly Check[];
   // Caps the agent's turns per user message (trigger evaluations stop early).
   readonly maxTurns?: number;

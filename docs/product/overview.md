@@ -54,7 +54,9 @@ flowchart LR
    developer edit them. New work is written there too.
 5. **Validate.** `validate` checks a change against 41 platform rules for security,
    performance, upgradability, manageability and user experience. It reports only what the
-   change introduced, so legacy findings don't drown real ones.
+   change introduced, so legacy findings don't drown real ones. By kind: 22 script rules; 7
+   record, ACL, role and flow checks; 6 Fluent build and workspace checks; 5 documentation and
+   accelerator checks; and 1 that is listed but not checked yet.
 6. **Deliver.** `plan-push` shows exactly what would change, runs the gate and detects
    records held in someone else's open update set. `push` loads that reviewed plan, and only
    that plan, the way the platform records it, into an update set on a **development**
@@ -110,7 +112,7 @@ Measured on a ServiceNow developer instance (PDI) from Europe to the US:
 | `describe` a table (fields + 500 behavior records in order) | about 1 s |
 | `find` by name | 4 ms |
 | Rule calibration | 17,026 out-of-box scripts checked in 92 s |
-| Agent evaluation (Claude Code, 110 scripted runs) | 95% pass rate on behavior checks with the shipped instructions |
+| Agent evaluation (Claude Code, 110 scripted runs, 2026-10-06, release 1.0) | 95% pass rate on behavior checks with the instructions shipped then, before changes were written in Fluent (2.0) |
 
 Sources: [pull baseline](../reports/pull-baseline-pdi.md),
 [performance targets](../reports/v1.0-targets.md),

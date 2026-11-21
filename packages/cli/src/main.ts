@@ -5,10 +5,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { INSTRUCTIONS, PROMPTS, RESULT_NOTE } from "@snagentic/agent-packs";
 import {
   documentationLookup,
+  exitCodeFor,
   InstanceName,
   instancePaths,
   LOCAL_STATE_DIR,
   noticeAllowed,
+  runtimeOptionsRefusal,
   updateNotice,
   usernameResolvingProfiles,
   VERSION,
@@ -75,6 +77,13 @@ import { developmentInstances } from "./registry/development-instances";
 import { USE_CASES } from "./registry/registry";
 import type { UseCaseContext } from "./registry/use-case";
 import { versionLine } from "./version-line";
+
+// Before anything else, the worker included: runtime options come only from the build (SEC3-05).
+const refusal = runtimeOptionsRefusal(process.env);
+if (refusal !== null) {
+  process.stderr.write(`error[${refusal.code}]: ${refusal.message}\nhint: ${refusal.hint}\n`);
+  process.exit(exitCodeFor(refusal));
+}
 
 // The Fluent SDK worker (ADR-0044): this binary started again by itself to run one build, before
 // anything else is set up. It never reads a credential.

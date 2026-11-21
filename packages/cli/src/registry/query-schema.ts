@@ -1,6 +1,6 @@
-import { readLiveSchema, TableName } from "@snagentic/core";
+import { queryLiveSchema, TableName } from "@snagentic/core";
 import { z } from "zod";
-import { connect } from "./connect";
+import { liveQueryAccess } from "./live-query-access";
 import { liveFlags, liveTarget } from "./live-query-schemas";
 import { defineUseCase } from "./use-case";
 
@@ -18,7 +18,8 @@ export const querySchema = defineUseCase({
     group: "Read live ServiceNow data",
     details:
       "Read the live dictionary through the parent chain. Pages fields instead of silently truncating at 1000. Does not list descendants.",
-    effects: "Reads table definitions and dictionary fields; writes nothing.",
+    effects:
+      "Reads table definitions and dictionary fields; writes no records. Adds one line to the local query log.",
     examples: [["query", "schema", "--instance", "dev", "--table", "incident"]],
   },
   input: z.object(liveTarget),
@@ -40,8 +41,8 @@ export const querySchema = defineUseCase({
   }),
   flags: liveFlags,
   async handle(input, context, run) {
-    const { reader } = await connect(context, input.instance, run.signal);
-    return readLiveSchema(reader, TableName.parse(input.table), run.signal);
+    const access = await liveQueryAccess(context, input.instance, run.signal);
+    return queryLiveSchema(access, TableName.parse(input.table), run.signal);
   },
   render: (output) => JSON.stringify(output, null, 2),
   exitCode: () => 0,

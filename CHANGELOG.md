@@ -6,6 +6,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Security
 
+- `doctor --instance` and `onboard` check that a test or production credential holds
+  `snc_read_only` before asking the instance anything else, as every other command does. A
+  credential that does not is reported as the failed `roles` check (or stops onboarding at
+  sign-in), and the instance is not called again. `auth login` makes the same check before it
+  reads the signed-in user (SEC3-08, ADR-0012).
 - The live query commands (`query table`, `query record`, `query aggregate`) refuse a field whose
   values are masked in output wherever it could influence the result: in a filter condition
   (including `^OR` and `^NQ` branches and reference paths) and as the group field. The refusal has

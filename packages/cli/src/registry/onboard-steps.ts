@@ -13,6 +13,7 @@ import {
   rememberIdentity,
   secretName,
   trustedSecret,
+  verifyReadOnlyCredential,
   verifySessionIdentity,
   WorkspaceNotFoundError,
 } from "@snagentic/core";
@@ -121,7 +122,8 @@ async function profileStep(session: Session): Promise<"done" | "already"> {
   return "already";
 }
 
-// A stored credential is checked with one read; otherwise the secret is asked for, and kept
+// A stored credential is checked with one read, after the read-only check of a test or
+// production instance (ADR-0012); otherwise the secret is asked for, and kept
 // only once the instance accepted it (the same login `auth login` does).
 async function signInStep(session: Session): Promise<InstanceAnswer> {
   const { name, context, run } = session;
@@ -131,7 +133,10 @@ async function signInStep(session: Session): Promise<InstanceAnswer> {
   const stored = trustedSecret(profile, await context.credentials.read(profile));
   if (stored !== null) {
     const reader = context.connections.open(profile, stored);
-    return answerOf(name, () => verifySessionIdentity(profile, reader, run.signal));
+    return answerOf(name, async () => {
+      await verifyReadOnlyCredential(profile, reader, run.signal);
+      await verifySessionIdentity(profile, reader, run.signal);
+    });
   }
   const secret = await context.secrets.read(
     `${secretName(profile)} for ${profile.auth.username}: `,

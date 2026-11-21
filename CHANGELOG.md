@@ -4,6 +4,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Added
+
+- A nightly workflow runs the live tests against a dedicated developer instance, from a
+  protected GitHub environment, and reports a failure in an issue. A sleeping instance ends the
+  run with a notice, not a failure ([guide](docs/guides/live-tests.md); spec 016, T1).
 ### Fixed
 
 - `describe` accepts a record's path as the workspace shows it (`instances/<instance>/metadata/...`,

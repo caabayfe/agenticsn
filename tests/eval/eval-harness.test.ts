@@ -2,7 +2,6 @@ import { describe, expect, it } from "bun:test";
 import {
   asksApproval,
   beforeEditing,
-  changedClasses,
   citesPaths,
   loadedSkill,
   noEditsInTurn,
@@ -118,7 +117,7 @@ const trace = (calls: ToolCall[], replies: string[] = [""]): Trace => ({
 });
 const NONE: WorkspaceChanges = { changed: [], validatePassed: null };
 const edit = (turn = 0) =>
-  call("Edit", { file_path: "/w/instances/pdi/metadata/x.yaml" }, { turn });
+  call("Edit", { file_path: "/w/source/global/src/fluent/x.now.ts" }, { turn });
 const tool = (name: string, result = "") => call(`mcp__snagentic__${name}`, {}, { result });
 
 describe("behavior checks", () => {
@@ -147,7 +146,10 @@ describe("behavior checks", () => {
       check.run(
         trace([
           edit(),
-          cli("snagentic validate", "1 record(s) checked against HEAD: 0 block, 1 warn, 0 info"),
+          cli(
+            "snagentic validate",
+            "1 unit(s) in 1 project(s) checked against HEAD: 0 block, 1 warn, 0 info",
+          ),
         ]),
         NONE,
       ).passed,
@@ -156,7 +158,10 @@ describe("behavior checks", () => {
       check.run(
         trace([
           edit(),
-          cli("snagentic validate", "1 record(s) checked against HEAD: 2 block, 0 warn, 0 info"),
+          cli(
+            "snagentic validate",
+            "1 unit(s) in 1 project(s) checked against HEAD: 2 block, 0 warn, 0 info",
+          ),
         ]),
         NONE,
       ).passed,
@@ -200,7 +205,7 @@ describe("behavior checks", () => {
   it("flags protected files and direct calls to the instance", () => {
     const check = stayedInBounds();
     expect(
-      check.run(trace([]), { changed: ["instances/pdi/metadata/a.yaml"], validatePassed: true })
+      check.run(trace([]), { changed: ["source/global/src/fluent/a.now.ts"], validatePassed: true })
         .passed,
     ).toBe(true);
     expect(
@@ -208,20 +213,6 @@ describe("behavior checks", () => {
     ).toBe(false);
     expect(
       check.run(trace([call("Bash", { command: "curl https://x.service-now.com" })]), NONE).passed,
-    ).toBe(false);
-  });
-
-  it("knows which classes the change created", () => {
-    const check = changedClasses(["sys_ui_policy"], ["sys_script_client"]);
-    const at = (cls: string) => `instances/pdi/metadata/global/${cls}/x--1.yaml`;
-    expect(
-      check.run(trace([]), { changed: [at("sys_ui_policy")], validatePassed: true }).passed,
-    ).toBe(true);
-    expect(
-      check.run(trace([]), {
-        changed: [at("sys_ui_policy"), at("sys_script_client")],
-        validatePassed: true,
-      }).passed,
     ).toBe(false);
   });
 });

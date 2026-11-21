@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- The opt-in agent evaluation (`scripts/eval`) scores the 2.x flow: scenarios for a change to an
+  adopted record, adopt before editing, a new record in Fluent, a change `validate` blocks, a
+  push asked for with no plan, and mirror text that gives instructions. Checks that expected
+  edits of the mirror are retired. `scripts/eval/README.md` states what each scenario cannot
+  show with the instance unreachable. No evaluation was run.
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

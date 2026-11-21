@@ -1,9 +1,9 @@
 // Runs agent evaluations (spec 003, section 7). Opt-in: real agents, real cost.
 //
 //   bun run build
-//   bun scripts/eval/run.ts --source ~/snagentic/pdi --variants A,B --reps 2
+//   bun scripts/eval/run.ts --source <a pulled workspace> --variants A,A-cli --reps 2
 //
-// Raw transcripts stay in .eval-results/ (they quote the instance's code: never commit them);
+// scripts/eval/README.md says what the scenarios cover and what they cannot. Raw transcripts stay in .eval-results/ (they quote the instance's code: never commit them);
 // the Markdown summary is printed and written next to them.
 import { mkdir, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
@@ -16,7 +16,7 @@ import { SCENARIOS } from "./scenarios";
 import { parseClaudeStreams } from "./trace";
 import type { RunResult, Scenario, Variant } from "./types";
 import { VARIANTS } from "./variants";
-import { changesSince, ensureSlot, prepareVariant, resetTo } from "./workspace";
+import { changesSince, ensureSlot, prepareScenario, prepareVariant } from "./workspace";
 
 const { values } = parseArgs({
   options: {
@@ -47,11 +47,10 @@ await mkdir(outDir, { recursive: true });
 async function runOne(
   scenario: Scenario,
   variant: Variant,
-  base: string,
+  variantBase: string,
   rep: number,
 ): Promise<RunResult> {
-  await resetTo(values.slot, base);
-  await scenario.prepare?.(values.slot);
+  const base = await prepareScenario(values.slot, variantBase, scenario);
   const trigger = scenario.kind === "trigger";
   const streams = await runClaude(values.slot, scenario.turns, variant, {
     model: values.model,

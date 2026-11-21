@@ -120,6 +120,7 @@ export function renderPull(output: PullOutput): string {
   return [
     ...lines,
     `  not readable by this user: ${unreadable}`,
+    ...output.warnings.map((warning) => `  warning: ${warning}`),
     ...sharedLines(output.shared),
     ...(output.changed ? [`next: snagentic integrate ${output.instance}`] : []),
   ].join("\n");

@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- A full pull that stops after committing the mirror (while packing the repository, or a moment
+  before) no longer makes the next pull replace the mirror with a nearly empty one. Packing runs
+  after the pull is complete and a failure is reported as a warning (`warnings` in the pull
+  output); a checkpoint the mirror already holds is dropped, and a resumed pull whose progress
+  is gone reads every class again.
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

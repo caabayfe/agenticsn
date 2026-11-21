@@ -189,9 +189,9 @@ describe("an unfinished delivery that blocks a plan", () => {
     });
   });
 
-  it("names reopening a closed update set, and no command when it is gone", async () => {
+  it("says no command finishes a delivery whose update set is closed or gone", async () => {
     expect(await reasons(journal([receipt]), "complete")).toEqual([
-      `unfinished delivery's update set set1 is missing or closed: if it was closed, set its state back to In progress on the instance and plan again; otherwise ${NO_EXIT}`,
+      `unfinished delivery's update set set1 is missing or closed: ${NO_EXIT}`,
     ]);
     expect((await reasons(journal([receipt]), null))[0]).toContain(NO_EXIT);
   });

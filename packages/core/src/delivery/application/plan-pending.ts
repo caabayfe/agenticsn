@@ -73,9 +73,7 @@ async function pendingSets(
     );
     if (sets[0]?.["state"] !== "in progress")
       problems.push(
-        unsafe(
-          `unfinished delivery's update set ${id} is missing or closed: if it was closed, set its state back to In progress on the instance and plan again; otherwise ${NO_PENDING_EXIT}`,
-        ),
+        unsafe(`unfinished delivery's update set ${id} is missing or closed: ${NO_PENDING_EXIT}`),
       );
     else if (recoverPending && !inBatch(label, sets[0]?.["name"] ?? ""))
       problems.push(

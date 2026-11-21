@@ -364,7 +364,9 @@ describe("GitIntegrator", () => {
     await git(root, "switch", "-q", "-");
     await writeFile(join(root, "notes.md"), "ours\n");
     await git(root, "commit", "-q", "-am", "ours");
-    await runGit(["merge", "other"], root);
+    // The merge stops on the conflict (a non-zero exit); it needs an identity to start at all.
+    await runGit(["-c", "user.name=t", "-c", "user.email=t@t", "merge", "other"], root);
+    expect(await Bun.file(join(root, ".git", "MERGE_HEAD")).exists()).toBe(true);
     await pullScript(root, "two();");
     const before = (await git(root, "rev-parse", "HEAD")).trim();
     await expect(integrator.integrate(root, "pdi")).rejects.toMatchObject({

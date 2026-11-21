@@ -52,6 +52,8 @@ export const PullOutput = z.object({
       semaphoreWaitMs: z.number(),
     })
     .nullable(),
+  // Housekeeping that failed after the mirror commit; the mirror itself is complete.
+  warnings: z.array(z.string()),
   full: z
     .object({
       classes: z.number(),
@@ -142,6 +144,7 @@ function common(
     timeouts: facts.stats.timeouts,
     serverCostRequested: facts.serverCostRequested,
     serverCost: facts.serverCost,
+    warnings: [...facts.warnings],
   };
 }
 

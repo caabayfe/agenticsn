@@ -114,6 +114,42 @@ describe("GitMirror", () => {
     ]);
   });
 
+  it("commits the pull before any packing, and reports failed packing instead of throwing", async () => {
+    const repo = await repository();
+    const mirror = await GitMirror.open(repo, PDI, "fresh");
+    await mirror.write(ROOT, record(1, "One"));
+    const commit = (await mirror.finish("full")).commit;
+    // finish() alone leaves the pull durable: the branch moved and no progress is left over.
+    expect((await runGitOrThrow(["rev-parse", "servicenow-remote/pdi"], repo)).trim()).toBe(commit);
+    expect(
+      (await runGit(["rev-parse", "--verify", "--quiet", "refs/snagentic/pull/pdi"], repo))
+        .exitCode,
+    ).not.toBe(0);
+    // Only git repack reads this setting: it fails, as it would on a full disk.
+    await runGitOrThrow(["config", "repack.writeBitmaps", "not-a-boolean"], repo);
+    const warning = await mirror.compact();
+    expect(warning).toContain("the mirror is committed, but git repack could not pack");
+    expect(await files(repo, "servicenow-remote/pdi")).toHaveLength(2);
+    await runGitOrThrow(["config", "--unset", "repack.writeBitmaps"], repo);
+    expect(await mirror.compact()).toBeNull();
+    expect(await files(repo, "servicenow-remote/pdi")).toHaveLength(2);
+  });
+
+  it("holds no record when a resume finds no progress, so the pull can tell it was lost", async () => {
+    const repo = await repository();
+    const finished = await GitMirror.open(repo, PDI, "fresh");
+    await finished.write(ROOT, record(1, "One"));
+    await finished.finish("full");
+    const resumed = await GitMirror.open(repo, PDI, "resume");
+    const known = [];
+    for await (const base of resumed.bases(ROOT)) {
+      known.push(base);
+    }
+    expect(known).toEqual([]);
+    await resumed.abort();
+    expect(await files(repo, "servicenow-remote/pdi")).toHaveLength(2);
+  });
+
   it("commits an empty tree when a pull wrote nothing", async () => {
     const repo = await repository();
     const commit = (await (await GitMirror.open(repo, PDI, "fresh")).finish("empty")).commit;
@@ -142,6 +178,7 @@ describe("GitMirror repository hygiene", () => {
       await mirror.checkpoint();
     }
     await mirror.finish("pull");
+    expect(await mirror.compact()).toBeNull();
     const counts = await runGitOrThrow(["count-objects", "-v"], repo);
     expect(counts).toContain("packs: 1\n");
     expect(counts).toContain("count: 0\n");

@@ -356,8 +356,10 @@ restricts, a deny ACL turned off or deleted, and admin overrides turned off.
 
 ### Waivers
 
-Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. Only committed waivers
-apply, agents cannot edit the file, and the path must name a scope's source:
+Accept a finding you cannot fix with a reviewed waiver in `waivers.yaml`. Only waivers committed
+on the current branch apply, and the path must start with `source/<scope>/`. Claude Code and
+Copilot CLI hooks refuse an agent's edit to the file; other hosts have no such protection, so
+review every change to `waivers.yaml` in the pull request:
 
 ```yaml
 waivers:

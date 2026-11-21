@@ -16,13 +16,14 @@ import type { InstanceName } from "../../kernel/instance-name";
 import { DEFAULT_REDACTION } from "../../metadata/domain/redaction";
 import { instancePaths } from "../../workspace/index";
 import { VerifyNeedsPullError } from "../domain/pull-errors";
-import { removesByAbsence } from "../domain/pull-state";
+import { isLater, removesByAbsence } from "../domain/pull-state";
 import type {
   FinishedPull,
   IncrementalMirror,
   MirrorMode,
   SharedMirror,
   SpillStore,
+  SyncState,
   SyncStateStore,
 } from "../ports";
 import type { IncrementalDependencies } from "./incremental-dependencies";
@@ -78,6 +79,8 @@ export interface RunFacts {
   readonly peakMemoryMb: number;
   readonly serverCostRequested: boolean;
   readonly serverCost: ServerCost | null;
+  // What went wrong after the mirror commit without costing it anything (housekeeping).
+  readonly warnings: readonly string[];
 }
 
 // One pull from the instance, as it ran.
@@ -102,6 +105,23 @@ function memorySampler(ports: PullPorts, run: PullRun) {
   return { sample, progress, peakMb: () => Math.round(peak / 1024 / 1024) };
 }
 
+// Whether an interrupted full pull is left to continue. A checkpoint that started no later than
+// the full pull the mirror already holds is that pull's own, left by a run that stopped between
+// committing the mirror and clearing it (or an older pull's the mirror has overtaken). Resuming it
+// would skip every class it lists as done on a tree that no longer holds its progress, so it is
+// dropped and the pull continues from the mirror.
+async function interrupted(state: SyncStateStore, pulled: SyncState | null): Promise<boolean> {
+  const checkpoint = await state.readCheckpoint();
+  if (checkpoint === null) {
+    return false;
+  }
+  if (pulled === null || isLater(checkpoint.startedAt, pulled.lastFullPull)) {
+    return true;
+  }
+  await state.clearCheckpoint();
+  return false;
+}
+
 // A pull continues an interrupted full pull, pulls changes once a full pull exists, or starts
 // from scratch when asked to (--full) or when nothing was pulled yet. The state it continues
 // from is the mirror tip's (ADR-0052).
@@ -112,8 +132,8 @@ async function openSession(
   signal: AbortSignal,
 ) {
   const name = profile.name;
-  const resumed = (await ports.state.readCheckpoint()) !== null;
   const pulled = await ports.state.readState();
+  const resumed = await interrupted(ports.state, pulled);
   const mode: MirrorMode = resumed
     ? "resume"
     : !input.full && pulled !== null
@@ -162,6 +182,8 @@ export async function pullFromInstance(
   const session = await openSession(ports, profile, input, run.signal);
   const memory = memorySampler(ports, run);
   const facts = async (finished: FinishedPull, committing: number): Promise<RunFacts> => {
+    // Last, with the checkpoint already cleared: a pull that stops while packing has finished.
+    const warning = await session.mirror.compact();
     memory.sample();
     // Read before measuring, so the measuring request is not counted as part of the pull.
     const stats = session.reader.stats();
@@ -180,6 +202,7 @@ export async function pullFromInstance(
       peakMemoryMb: memory.peakMb(),
       serverCostRequested: input.cost,
       serverCost,
+      warnings: warning === null ? [] : [warning],
     };
   };
   const { deps, mirror, name, puller } = session;

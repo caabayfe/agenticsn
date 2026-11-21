@@ -6,6 +6,7 @@ import {
   AuthenticationFailedError,
   type CredentialStore,
   InstanceHibernatingError,
+  InstanceName,
   type TrustedSettings,
 } from "@snagentic/core";
 import { fakeInstance } from "../../../core/test/support/fake-instance";
@@ -132,6 +133,35 @@ describe("onboard", () => {
     await expect(
       executeUseCase(onboard, { ...INPUT, kind: "production", path: root }, context),
     ).rejects.toThrow("read-only");
+  });
+
+  // ADR-0012 layer 4: a stored credential proves it is read-only before the instance is asked
+  // anything else, and onboarding stops there when it does not.
+  it("stops at sign-in, asking nothing else, when a stored production credential is not read-only", async () => {
+    const { context, root, credentials } = await setup(new InstanceHibernatingError("https://x"));
+    const input = { ...INPUT, kind: "production", acknowledgeReadOnly: true, path: root };
+    await executeUseCase(onboard, input, context);
+    const stored = await new YamlProfileStore().read(root, InstanceName.parse("pdi"));
+    if (stored === null) {
+      throw new Error("the first run writes the profile");
+    }
+    await credentials.write(stored, "kept-secret");
+    const asked: string[] = [];
+    const connections = connectionsTo({
+      query: async (query: { table: unknown }) => {
+        asked.push(String(query.table));
+        return String(query.table) === "sys_user_has_role"
+          ? []
+          : [{ sys_id: "u1", user_name: "admin", sys_updated_on: "2026-09-23 20:12:26" }];
+      },
+    } as never);
+    const { output, exitCode } = await executeUseCase(onboard, input, { ...context, connections });
+    expect(output).toMatchObject({
+      stoppedAt: "sign-in",
+      answer: { outcome: "refused", message: expect.stringContaining("snc_read_only") },
+    });
+    expect(asked).toEqual(["sys_user_has_role"]);
+    expect(exitCode).not.toBe(0);
   });
 
   it("says which doctor checks failed and how to look at them", () => {

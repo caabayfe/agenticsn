@@ -18,6 +18,11 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   run with a notice, not a failure ([guide](docs/guides/live-tests.md); spec 016, T1).
 ### Fixed
 
+- A plan refuses a business rule condition longer than its field. The length check covered
+  `string`, `translated_field` and `translated_text` columns only; a rule's condition is a
+  `condition_string` column of 254 characters, so a longer one was loaded, stored cut and failed
+  to compile on every save (pdi15, 2026-11-21).
+
 - `describe` accepts a record's path as the workspace shows it (`instances/<instance>/metadata/...`,
   relative or absolute) and the path of any of the record's files, not only the path `find`
   prints. A path into another instance's mirror than the one asked for is refused, and the

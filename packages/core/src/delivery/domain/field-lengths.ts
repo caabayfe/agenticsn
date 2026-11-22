@@ -8,8 +8,16 @@ import type { BuiltUnit } from "../../authoring/domain/unit";
 export type FieldLengths = ReadonlyMap<string, ReadonlyMap<string, number>>;
 
 // The field types cut to their length. Scripts and long texts are left out: their lengths are
-// in the thousands, and the platform does not cut them on load.
-export const CUT_TYPES = ["string", "translated_field", "translated_text"] as const;
+// in the thousands, and the platform does not cut them on load. A type joins the list on
+// evidence of a cut, not by its length: shipped records hold more than short user_roles and
+// string list columns declare (pdi15 mirror, 2026-11-22). condition_string is a business rule's
+// condition, cut at 254 on pdi15.
+export const CUT_TYPES = [
+  "string",
+  "translated_field",
+  "translated_text",
+  "condition_string",
+] as const;
 
 // The longest declared length the platform cuts to. Every cut seen was a short name (40, 100
 // characters); a longer string field is a text column that keeps more than it declares (pdi2:

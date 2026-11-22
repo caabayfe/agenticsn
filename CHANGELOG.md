@@ -14,7 +14,6 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   unknown outcome, a record changed on the instance and a deletion stay blocked (ADR-0050,
   amendment A2; [guide](docs/guides/recover-interrupted-delivery.md)).
 
-
 - `push --abandon-pending` is the way out of an unfinished delivery that `--recover-pending`
   refuses. With the unfinished push's id as `--plan` (from `status`) it lists what the stopped
   push left on the instance and in which update set; with `--confirm` it records that list in a

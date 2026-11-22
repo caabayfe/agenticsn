@@ -192,7 +192,7 @@ describe("push (ADR-0031 item 4)", () => {
       '         sc_cat_item.version: built "1", instance "3"',
       "refused: 1 t record(s), permission denied: do x",
       "ledger committed: 0123456789",
-      "0 load(s) not captured, 2 not applied as built: check them on the instance before moving the update set",
+      "0 load(s) not captured, 2 not applied as built: check them on the instance before moving the update set; to change what was sent, correct the source and plan again: the plan replaces a write the instance kept unchanged",
     ]);
   });
 

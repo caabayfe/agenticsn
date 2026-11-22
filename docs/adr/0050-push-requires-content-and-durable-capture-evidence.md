@@ -1,6 +1,6 @@
 # 0050. Push requires content and durable capture evidence
 
-- Status: Accepted; amendment A1 accepted (2026-11-21)
+- Status: Accepted; amendments A1 (2026-11-21) and A2 (2026-11-22) accepted
 - Date: 2026-11-14
 - Requirements: G1, G3, ASR-02, ASR-08, ASR-10
 - Amends: ADR-0033 items 3, 4 and 6; implements ADR-0028's published-capture requirement
@@ -194,3 +194,37 @@ holds the same workspace lock.
 
 After abandoning, a normal plan compares source, ledger and instance as for any record: what the
 stopped push left appears as already equal, changed on the instance, or to load.
+
+### A2. Corrected source may replace the push's own unverified write (Accepted, 2026-11-22)
+
+Evidence: pdi15, 2026-11-21. An accelerator install loaded a business rule whose condition was
+longer than its field. The instance kept a cut value, the read-back found it "not applied as
+built", and the receipt stayed unverified at the version the push had written. Correcting the
+source was the only fix, and item 5 blocked it: "changed source ... blocks delivery". Restoring
+the pushed source cut the value again. Abandoning (A1) left the ledger one version behind the
+instance, so the next plan reported drift and asked for `adopt --refresh`, which would have
+copied the cut value into source. Owner decision of 2026-11-22.
+
+Item 5 blocks changed source because a load could then overwrite a write nobody verified. That
+does not hold while the record is at the version the push itself read back: no one saved it
+since, so the load overwrites only the push's own write.
+
+1. A unit with an unfinished receipt and changed source is planned as a `load` when all of
+   these hold: the receipt has an observed version (the read-back ran and found the record);
+   the instance holds the record at exactly that version; the receipt is for a create or a load;
+   and the target checks of item 5 pass (same instance, URL and batch, original update set open).
+2. The plan marks that load (`replacesUnfinished`) and prints it as replacing what an unfinished
+   delivery wrote and did not verify. Its changes are the differences between the instance and
+   the corrected build; its ledger version is the older one, beside the instance's.
+3. Nothing else is relaxed. The plan id binds the receipt, the corrected source and the live
+   version; the gate, confirmation, capture, read-back and ledger commit are those of any load.
+   The new push replaces the receipt with one for the corrected build, in the same update set.
+4. It stays blocked, with the earlier exits, when the outcome is unknown (no read-back), the
+   record is absent, the version moved, the receipt is for a deletion, or the corrected source
+   already equals the instance (that is receipt-only recovery, `--recover-pending`).
+5. An accelerator install plans and pushes each module as its admin approved it, so a resumed
+   install applies this without a separate review: it replaces only what its own earlier run
+   wrote. The install report does not yet name the replaced records.
+
+Item 5 now reads "changed source blocks delivery unless the instance still holds the push's own
+observed write (A2)". No new command, flag or MCP tool.

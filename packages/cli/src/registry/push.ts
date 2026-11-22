@@ -223,7 +223,7 @@ export const push = defineUseCase({
       ...output.warnings.map((w) => `warning: ${w}`),
       output.notCaptured + output.notApplied === 0
         ? `pushed ${output.units.length} unit(s)`
-        : `${output.notCaptured} load(s) not captured, ${output.notApplied} not applied as built: check them on the instance before moving the update set`,
+        : `${output.notCaptured} load(s) not captured, ${output.notApplied} not applied as built: check them on the instance before moving the update set; to change what was sent, correct the source and plan again: the plan replaces a write the instance kept unchanged`,
     ].join("\n");
   },
   exitCode: (output) => (output.notCaptured + output.notApplied === 0 ? 0 : 1),

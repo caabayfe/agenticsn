@@ -6,6 +6,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ### Added
 
+- Corrected source replaces a write the push could not verify. When a push wrote a record and
+  found it "not applied as built" (a value the instance cut, for example), a plan with corrected
+  source was refused until the receipt was dealt with by hand. While the record on the instance
+  is unchanged since that write, `plan-push` now plans the corrected build as a `load` marked as
+  replacing what the unfinished delivery wrote; the push verifies it and clears the receipt. An
+  unknown outcome, a record changed on the instance and a deletion stay blocked (ADR-0050,
+  amendment A2; [guide](docs/guides/recover-interrupted-delivery.md)).
+
+
 - `push --abandon-pending` is the way out of an unfinished delivery that `--recover-pending`
   refuses. With the unfinished push's id as `--plan` (from `status`) it lists what the stopped
   push left on the instance and in which update set; with `--confirm` it records that list in a

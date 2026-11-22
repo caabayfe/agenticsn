@@ -53,6 +53,12 @@ export const PlanOutput = z.object({
           .describe(
             "what those losses set, as table.field = value: the load sets it beyond source",
           ),
+        replacesUnfinished: z
+          .literal(true)
+          .optional()
+          .describe(
+            "the load replaces what an unfinished delivery wrote and did not verify; the record is unchanged since that write",
+          ),
       }),
     )
     .readonly(),
@@ -102,15 +108,20 @@ const NOTES = {
   again: "  (deleted on the instance since it last agreed with source: created again)",
   forget:
     "  (gone from source, and from the instance or shipped by a plugin: only its ledger entry is dropped)",
+  replaces:
+    "  (replaces what an unfinished delivery wrote and did not verify; unchanged on the instance since)",
   none: "",
 } as const;
 
-const noteOf = (u: { operation: string; ledger?: string | null | undefined }) =>
-  u.operation === "forget"
-    ? "forget"
-    : u.operation === "create" && u.ledger !== undefined && u.ledger !== null
-      ? "again"
-      : "none";
+function noteOf(u: {
+  operation: string;
+  ledger?: string | null | undefined;
+  replacesUnfinished?: true | undefined;
+}): keyof typeof NOTES {
+  if (u.operation === "forget") return "forget";
+  if (u.replacesUnfinished) return "replaces";
+  return u.operation === "create" && u.ledger !== undefined && u.ledger !== null ? "again" : "none";
+}
 
 export const planPush = defineUseCase({
   help: {

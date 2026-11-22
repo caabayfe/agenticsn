@@ -150,7 +150,7 @@ describe("GitDeliveryWorkspace", () => {
 });
 
 describe("plan-push rendering", () => {
-  it("says which units are created again and which are only forgotten", () => {
+  it("says which units are created again, only forgotten, or replace an unverified write", () => {
     const unit = {
       project: "source/global",
       scope: "global",
@@ -176,6 +176,13 @@ describe("plan-push rendering", () => {
           },
           { ...unit, updateName: "sys_ui_related_list_b", operation: "forget", ledger: "0|t" },
           { ...unit, updateName: "sys_ui_related_list_entry_c", operation: "create", ledger: null },
+          {
+            ...unit,
+            updateName: "sys_script_d",
+            operation: "load",
+            ledger: "2|t",
+            replacesUnfinished: true,
+          },
         ],
         problems: [],
         gate: { passed: true, blocking: [], waived: [], warnings: 0, waiverProblems: [] },
@@ -192,6 +199,9 @@ describe("plan-push rendering", () => {
       "forget sys_ui_related_list_b  source/global  (gone from source, and from the instance or shipped by a plugin: only its ledger entry is dropped)",
     );
     expect(text).toContain("create sys_ui_related_list_entry_c  source/global\n");
+    expect(text).toContain(
+      "load   sys_script_d  source/global  (replaces what an unfinished delivery wrote and did not verify; unchanged on the instance since)",
+    );
   });
 
   it("shows units, what they also set, waived findings, waiver problems and records held elsewhere", () => {

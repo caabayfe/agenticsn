@@ -1,10 +1,31 @@
 # Recover an interrupted delivery
 
 A failed push keeps its per-unit receipts in `.snagentic/<instance>/push-journal.json` until
-verified delivery and the ledger commit both finish. Normal planning refuses changed source
-while a receipt is unfinished. Do not remove that journal or edit the ledgers to bypass it:
-recover the delivery as below or, when recovery refuses, abandon it with
-`push --abandon-pending`.
+verified delivery and the ledger commit both finish. While a receipt is unfinished, normal
+planning accepts changed source only over the push's own unchanged write (first section below).
+Do not remove that journal or edit the ledgers to bypass it: recover the delivery as below or,
+when recovery refuses, abandon it with `push --abandon-pending`.
+
+## The instance kept something else than the build: correct the source
+
+A push can write a record and then find, reading it back, that the instance holds something
+else: a value cut to its field, for example. The push reports it as "not applied as built" and
+keeps its receipt. Correct the source and plan again:
+
+```sh
+snagentic plan-push --instance pdi
+```
+
+While the record on the instance is unchanged since that write, the plan shows a `load` marked
+as replacing what the unfinished delivery wrote and did not verify. Review its changes and push
+it as any plan; the push verifies the corrected build and clears the receipt. Nothing is
+restored or edited by hand.
+
+The plan refuses instead when the record changed on the instance after the write, when the
+outcome of the write is unknown (the push stopped before reading the record back), or when the
+receipt is for a deletion. Use the sections below.
+
+## The instance already holds the corrected build: record it
 
 If source needed correcting, but the instance already holds the corrected build, use an
 explicit receipt-only recovery plan:
@@ -80,4 +101,4 @@ plan with the original instance and `--label`.
 This supports the ledger agreement and reviewed-plan requirements of
 [ADR-0033](../adr/0033-plans-compare-the-build-with-the-instance.md), ASR-02 and ASR-10;
 abandoning is [ADR-0050](../adr/0050-push-requires-content-and-durable-capture-evidence.md),
-amendment A1.
+amendment A1; replacing an unverified write with corrected source is amendment A2.

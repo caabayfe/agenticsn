@@ -30,6 +30,41 @@ export function pendingFor(
     : undefined;
 }
 
+const SOURCE_CHANGED = "source changed before its previous delivery was completed";
+const SOURCE_CHANGED_NEXT = `if the instance already holds this build, review snagentic plan-push --recover-pending; otherwise restore the source that was pushed and plan again (${RECOVERY_GUIDE})`;
+const INSTANCE_CHANGED = "the instance changed after the last known delivery version";
+const INSTANCE_CHANGED_NEXT = `snagentic plan-push --recover-pending finishes it only if the instance holds exactly this build with its original capture; if that refuses, ${ABANDON_PENDING_EXIT}`;
+
+const unsafe = (reason: string, next: string): UnitDecision => ({
+  kind: "unsafe",
+  reason: `unfinished delivery: ${reason}; ${next}`,
+});
+
+// Changed source may replace what the unfinished delivery wrote only while the record is at the
+// version that delivery read back: nobody saved it since, so the load overwrites nothing but the
+// push's own write (ADR-0050, amendment A2). A deletion, or a write whose outcome was never
+// read, proves no such ownership.
+function correctedDecision(
+  unit: BuiltUnit,
+  digest: string,
+  copy: InstanceCopy | null,
+  pending: PendingDelivery,
+  entry: LedgerEntry | undefined,
+): UnitDecision {
+  const observed = pending.observed ?? null;
+  if (pending.operation === "delete" || isDeletion(unit) || observed === null || copy === null)
+    return unsafe(SOURCE_CHANGED, SOURCE_CHANGED_NEXT);
+  if (copy.version !== observed) return unsafe(INSTANCE_CHANGED, INSTANCE_CHANGED_NEXT);
+  const decision = planUnit(unit, digest, copy, {
+    build: "",
+    instance: observed,
+    losses: entry?.losses ?? [],
+  });
+  // The instance already holds the corrected build: that is receipt-only recovery, not a load.
+  if (decision.kind === "record") return unsafe(SOURCE_CHANGED, SOURCE_CHANGED_NEXT);
+  return decision.kind === "load" ? { ...decision, replacesUnfinished: true } : decision;
+}
+
 // An observed write is owned only while its version is unchanged. With no read-back (a
 // timeout/crash), comparable content can reconcile the outcome; compiled content cannot.
 export function pendingDecision(
@@ -39,15 +74,7 @@ export function pendingDecision(
   pending: PendingDelivery,
   entry: LedgerEntry | undefined,
 ): UnitDecision {
-  const unsafe = (reason: string, next: string): UnitDecision => ({
-    kind: "unsafe",
-    reason: `unfinished delivery: ${reason}; ${next}`,
-  });
-  if (digest !== pending.digest)
-    return unsafe(
-      "source changed before its previous delivery was completed",
-      `if the instance already holds this build, review snagentic plan-push --recover-pending; otherwise restore the source that was pushed and plan again (${RECOVERY_GUIDE})`,
-    );
+  if (digest !== pending.digest) return correctedDecision(unit, digest, copy, pending, entry);
   const version = copy?.version ?? null;
   const expected = pending.observed === undefined ? pending.before : pending.observed;
   if (version !== expected) {
@@ -56,11 +83,7 @@ export function pendingDecision(
       copy !== null &&
       unitSpec(unit.head.table).comparable &&
       compareUnit(unit, copy).length === 0;
-    if (!proven)
-      return unsafe(
-        "the instance changed after the last known delivery version",
-        `snagentic plan-push --recover-pending finishes it only if the instance holds exactly this build with its original capture; if that refuses, ${ABANDON_PENDING_EXIT}`,
-      );
+    if (!proven) return unsafe(INSTANCE_CHANGED, INSTANCE_CHANGED_NEXT);
   }
   if (pending.verified === true) return { kind: "record" };
   if (isDeletion(unit)) return { kind: "delete" };

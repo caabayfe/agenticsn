@@ -6,7 +6,7 @@ import {
   withEntries,
 } from "@snagentic/core";
 import { FLOW_NAME, flowSetup } from "./flow-fixture";
-import { QUERY, SI_UNIT, saveOnInstance, unitSetup } from "./unit-fixture";
+import { QUERY, SI_UNIT, saveOnInstance, scriptInclude, unitSetup } from "./unit-fixture";
 
 async function push(deps: UnitPushDependencies) {
   const { plan } = await computeUnitPlan(deps, QUERY);
@@ -28,6 +28,106 @@ async function uncaptured() {
   });
   return context;
 }
+
+// The instance keeps less than the build sent (a value cut to its field): the push reads the
+// record back, finds it differs and leaves an unverified receipt at the version it wrote.
+async function cutOnLoad() {
+  const context = unitSetup({ source: "A description the instance cuts." });
+  const load = context.deps.installer.load;
+  const result = await push({
+    ...context.deps,
+    installer: {
+      ...context.deps.installer,
+      load: async (...args) => {
+        await load(...args);
+        saveOnInstance(context.tables, { description: "A descr" });
+      },
+    },
+  });
+  return { context, result };
+}
+
+const withSource = (context: ReturnType<typeof unitSetup>, description: string) =>
+  context.builds.set(context.project.path, [scriptInclude(description)]);
+
+describe("corrected source after a write that was not verified (ADR-0050, A2)", () => {
+  it("plans a load that replaces the unverified write, and says so", async () => {
+    const { context, result } = await cutOnLoad();
+    expect(result).toMatchObject({ notApplied: 1, ledgerCommit: null });
+    expect((await context.journal.read())?.pending).toMatchObject([
+      { observed: "2|2026-10-16 12:00:00", verified: false },
+    ]);
+    withSource(context, "Shorter.");
+    const { plan } = await computeUnitPlan(context.deps, QUERY);
+    expect(plan.problems).toEqual([]);
+    expect(plan.units).toMatchObject([
+      {
+        updateName: SI_UNIT,
+        operation: "load",
+        replacesUnfinished: true,
+        changes: ["sys_script_include.description"],
+        version: "2|2026-10-16 12:00:00",
+      },
+    ]);
+    expect(plan.ready).toBe(true);
+  });
+
+  it("delivers the corrected source, advances the ledger and clears the receipt", async () => {
+    const { context } = await cutOnLoad();
+    withSource(context, "Shorter.");
+    const pushed = await push(context.deps);
+    expect(pushed).toMatchObject({ notApplied: 0, notCaptured: 0 });
+    expect(await context.journal.read()).toBeNull();
+    expect(
+      context.authoring.ledgers.get(context.project.path)?.get("dev")?.get(SI_UNIT)?.instance,
+    ).toBe("3|2026-10-16 12:00:00");
+    expect((await computeUnitPlan(context.deps, QUERY)).plan.units).toEqual([]);
+  });
+
+  it("still blocks when the record changed on the instance after the write", async () => {
+    const { context } = await cutOnLoad();
+    saveOnInstance(context.tables, { description: "Someone else's edit", sys_mod_count: "3" });
+    withSource(context, "Shorter.");
+    const { plan } = await computeUnitPlan(context.deps, QUERY);
+    expect(plan.ready).toBe(false);
+    expect(plan.problems.map((p) => p.reason)).toEqual([
+      expect.stringContaining("the instance changed after the last known delivery version"),
+    ]);
+  });
+
+  it("still blocks when the outcome of the write is unknown", async () => {
+    const context = unitSetup({ source: "Changed" });
+    const load = context.deps.installer.load;
+    await expect(
+      push({
+        ...context.deps,
+        installer: {
+          ...context.deps.installer,
+          load: async (...args) => {
+            await load(...args);
+            throw new Error("timeout");
+          },
+        },
+      }),
+    ).rejects.toThrow("timeout");
+    withSource(context, "Changed again.");
+    const { plan } = await computeUnitPlan(context.deps, QUERY);
+    expect(plan.ready).toBe(false);
+    expect(plan.problems.map((p) => p.reason)).toEqual([
+      expect.stringContaining("source changed before its previous delivery was completed"),
+    ]);
+  });
+
+  it("leaves a corrected source the instance already holds to receipt-only recovery", async () => {
+    const { context } = await cutOnLoad();
+    withSource(context, "A descr");
+    const { plan } = await computeUnitPlan(context.deps, QUERY);
+    expect(plan.ready).toBe(false);
+    expect(plan.problems.map((p) => p.reason)).toEqual([
+      expect.stringContaining("review snagentic plan-push --recover-pending"),
+    ]);
+  });
+});
 
 describe("unfinished delivery", () => {
   it("reconciles a verified deletion even when the SDK regenerates its synthetic update name", async () => {
@@ -172,7 +272,7 @@ describe("unfinished delivery", () => {
     expect(plan.units).toMatchObject([{ updateName: SI_UNIT, operation: "load" }]);
   });
 
-  it("blocks changed source, missing definitions and a different instance URL or batch", async () => {
+  it("blocks missing definitions and a different instance URL or batch", async () => {
     const context = await uncaptured();
     for (const [deps, query] of [
       [{ ...context.deps, url: "https://other.example.com" }, QUERY],
@@ -191,11 +291,10 @@ describe("unfinished delivery", () => {
         head: { ...unit.head, fields: { ...unit.head.fields, description: "Changed again" } },
       },
     ]);
-    expect(
-      (await computeUnitPlan(context.deps, QUERY)).plan.problems.some((p) =>
-        p.reason.includes("source changed"),
-      ),
-    ).toBe(true);
+    // Changed source over the push's own unchanged write is a reviewed load (amendment A2).
+    expect((await computeUnitPlan(context.deps, QUERY)).plan.units).toMatchObject([
+      { operation: "load", replacesUnfinished: true },
+    ]);
     context.builds.set(context.project.path, []);
     expect(
       (await computeUnitPlan(context.deps, QUERY)).plan.problems.some((p) =>

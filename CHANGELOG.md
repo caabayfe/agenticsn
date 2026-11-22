@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-11-22
+
 ### Added
 
 - Corrected source replaces a write the push could not verify. When a push wrote a record and
@@ -24,6 +26,7 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - A nightly workflow runs the live tests against a dedicated developer instance, from a
   protected GitHub environment, and reports a failure in an issue. A sleeping instance ends the
   run with a notice, not a failure ([guide](docs/guides/live-tests.md); spec 016, T1).
+
 ### Fixed
 
 - A plan refuses a business rule condition longer than its field. The length check covered
@@ -43,6 +46,17 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 - `integrate` refuses to run while a merge is in progress and names the command that leaves that
   state (`git merge --abort`), instead of a file restore that does not. It no longer concludes a
   merge of the user's own.
+
+- An incremental `pull` reports the changed records it could not store: those the change feed
+  named and their own table did not return to the pulling user. It counts them, names the first
+  twenty, says which the mirror still holds as they were, and points to `pull --verify`. The
+  JSON output carries them as `incremental.unstored`.
+- A full pull that stops after committing the mirror (while packing the repository, or a moment
+  before) no longer makes the next pull replace the mirror with a nearly empty one. Packing runs
+  after the pull is complete and a failure is reported as a warning (`warnings` in the pull
+  output); a checkpoint the mirror already holds is dropped, and a resumed pull whose progress
+  is gone reads every class again.
+
 ### Changed
 
 - The opt-in agent evaluation (`scripts/eval`) scores the 2.x flow: scenarios for a change to an
@@ -50,6 +64,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   push asked for with no plan, and mirror text that gives instructions. Checks that expected
   edits of the mirror are retired. `scripts/eval/README.md` states what each scenario cannot
   show with the instance unreachable. No evaluation was run.
+
+- Documentation matches the code (spec 016, P0): the README states the released version and a
+  test keeps it so; the rule count is broken down by kind; the security document says what the
+  code enforces for waivers and push confirmation and what depends on the agent host, and
+  describes the live `query` commands; `AGENTS.md` lists the real contexts and test practice.
+
 ### Security
 
 - In team mode (a profile with a shared mirror), the push gate accepts only waivers on the
@@ -80,23 +100,6 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   field names and operators; never values or results), and is refused when that line cannot be
   written. `docs/product/security-and-governance.md`, "Live queries", states the limits
   (SEC3-04, ADR-0057 amendment A1).
-### Changed
-
-- Documentation matches the code (spec 016, P0): the README states the released version and a
-  test keeps it so; the rule count is broken down by kind; the security document says what the
-  code enforces for waivers and push confirmation and what depends on the agent host, and
-  describes the live `query` commands; `AGENTS.md` lists the real contexts and test practice.
-### Fixed
-
-- An incremental `pull` reports the changed records it could not store: those the change feed
-  named and their own table did not return to the pulling user. It counts them, names the first
-  twenty, says which the mirror still holds as they were, and points to `pull --verify`. The
-  JSON output carries them as `incremental.unstored`.
-- A full pull that stops after committing the mirror (while packing the repository, or a moment
-  before) no longer makes the next pull replace the mirror with a nearly empty one. Packing runs
-  after the pull is complete and a failure is reported as a warning (`warnings` in the pull
-  output); a checkpoint the mirror already holds is dropped, and a resumed pull whose progress
-  is gone reads every class again.
 
 ## [2.22.3] - 2026-11-17
 

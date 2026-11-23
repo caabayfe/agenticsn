@@ -9,6 +9,8 @@ import { dirname, join, relative, sep } from "node:path";
 // Reviewed for 4.13.6 (2026-10-23) and again for 4.14.0 (2026-11-01): the list is unchanged, and
 // of its files only util/resolve-aiux-sdk.js changed (it adds a capability list and still resolves
 // from the SDK's location).
+// Reviewed for 4.14.3 (2026-11-23): the list is unchanged and each of its files is byte-identical
+// to 4.14.0.
 // - prettier/config-loader.js: the project's Prettier config; refused before the SDK runs
 //   (project-refusals.ts), and the worker holds no credential.
 // - external-plugins/loader.js: the SDK's own bundled plugins, from its install folder.

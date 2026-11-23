@@ -75,7 +75,7 @@ async function project(workspace: string, { instance }: FixtureContext): Promise
     '    "version": "0.0.1",',
     '    "private": true,',
     '    "devDependencies": {',
-    '        "@servicenow/sdk": "4.14.0"',
+    '        "@servicenow/sdk": "4.14.3"',
     "    }",
     "}",
   ]);

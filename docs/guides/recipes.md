@@ -5,7 +5,7 @@ names the command, shows the result you should see, and links where it is explai
 in a workspace with a pulled, integrated development instance (`dev`); see [sync](sync.md).
 
 Fluent snippets below follow the projects and fixtures the test suite uses
-(`tests/fixtures/fluent/kitchen-sink`, `tests/fixtures/accelerators`), written for the shipped SDK (4.14.0). Names
+(`tests/fixtures/fluent/kitchen-sink`, `tests/fixtures/accelerators`), written for the shipped SDK (4.14.3). Names
 are examples: let `validate` and `plan-push` confirm yours.
 
 ## Understand and audit

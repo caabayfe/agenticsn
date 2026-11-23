@@ -47,7 +47,7 @@ export async function dependencies(root: string) {
     "snagentic-p1-acceptance",
   );
   const runtime = workerRuntime({
-    sdkVersion: "4.14.0",
+    sdkVersion: "4.14.3",
     command: [resolve(import.meta.dir, "../../../dist/snagentic"), FLUENT_WORKER_COMMAND],
     sandbox: osSandbox(),
     warn: (line) => console.error(line),

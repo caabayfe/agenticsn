@@ -22,7 +22,7 @@ const output = join(root, "acceptance");
 const client = await liveClient("pdi11", root);
 const signal = AbortSignal.timeout(60000);
 const runtime = workerRuntime({
-  sdkVersion: "4.14.0",
+  sdkVersion: "4.14.2",
   command: [resolve(import.meta.dir, "../../../dist/snagentic"), FLUENT_WORKER_COMMAND],
   sandbox: osSandbox(),
   warn: (line) => console.error(line),

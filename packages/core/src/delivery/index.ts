@@ -1,6 +1,11 @@
 // Public API of the delivery context: plan and push to development update sets (spec 004).
 
 export {
+  type AbandonPendingDependencies,
+  type AbandonPendingQuery,
+  abandonPending,
+} from "./application/abandon-pending";
+export {
   type AppliedSettings,
   applyDevelopmentSettings,
   DEMO_SETTINGS_SET,
@@ -25,9 +30,12 @@ export {
   type UnitPushQuery,
   type UnitPushResult,
 } from "./application/push-units";
+export type { AbandonedOutcome, AbandonedUnit } from "./domain/abandoned-delivery";
 export {
   BranchNotPublishedError,
   IntegrationUserNotFoundError,
+  NoPendingDeliveryError,
+  PendingDeliveryPlanError,
   PlanChangedError,
   PlanNotReadyError,
   PullRequestFromDefaultBranchError,
@@ -65,7 +73,10 @@ export {
 } from "./domain/unit-plan";
 export { nextCount, stampedXml } from "./domain/unit-stamp";
 export {
+  acceptedWaivers,
+  type BranchWaivers,
   globMatches,
+  type ReviewedWaivers,
   readWaivers,
   type Waiver,
   type WaiverProblem,

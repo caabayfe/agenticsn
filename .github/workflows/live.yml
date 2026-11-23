@@ -1,0 +1,98 @@
+name: live
+
+# The live tests (tests/live), nightly, against a ServiceNow developer instance kept for this
+# (spec 016, T1). They write to that instance, with a credential held by the GitHub environment
+# live-pdi. So this workflow starts only on a schedule or by hand, never from a pull request, and
+# its job runs only in this repository, on main. Guide: docs/guides/live-tests.md.
+on:
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+
+# Nothing by default; the job asks for what it needs.
+permissions: {}
+
+# One writer of the instance at a time: a push switches the user's current application and update
+# set, and two runs would overwrite each other's. A run that starts while another runs waits; it
+# is not cancelled halfway through a delivery.
+concurrency:
+  group: live-pdi
+  cancel-in-progress: false
+
+jobs:
+  live:
+    if: github.repository == 'caabayfe/agenticsn' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: live-pdi
+    permissions:
+      contents: read
+      # Opens, or comments on, the issue that reports a failed run.
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      # Without the credential: dependencies' install scripts run here.
+      - run: bun install --frozen-lockfile
+      # Developer instances hibernate when idle and are reclaimed when unused. An instance that
+      # does not answer, or an environment nobody set up, ends the run with a notice and nothing
+      # tested: not a failure, and not a silent pass. A refused sign-in fails.
+      - name: the instance answers
+        id: instance
+        env:
+          SNAGENTIC_PDI_PASSWORD: ${{ secrets.SNAGENTIC_PDI_PASSWORD }}
+          SNAGENTIC_PDI_URL: ${{ vars.SNAGENTIC_PDI_URL }}
+          SNAGENTIC_PDI_USERNAME: ${{ vars.SNAGENTIC_PDI_USERNAME }}
+          SNAGENTIC_PDI_KIND: development
+        run: bun scripts/check-live-instance.ts "$RUNNER_TEMP/live-workspace"
+      - name: live tests
+        id: tests
+        if: steps.instance.outputs.state == 'ready'
+        env:
+          SNAGENTIC_PDI_PASSWORD: ${{ secrets.SNAGENTIC_PDI_PASSWORD }}
+          SNAGENTIC_PDI_URL: ${{ vars.SNAGENTIC_PDI_URL }}
+          SNAGENTIC_PDI_USERNAME: ${{ vars.SNAGENTIC_PDI_USERNAME }}
+          SNAGENTIC_PDI_KIND: development
+          SNAGENTIC_LIVE_INSTANCE: pdi
+          # Optional: <class>:<sys_id> of a record outside the user's domain (domains.test.ts).
+          SNAGENTIC_LIVE_OTHER_DOMAIN_RECORD: ${{ vars.SNAGENTIC_LIVE_OTHER_DOMAIN_RECORD }}
+        run: |
+          set -o pipefail
+          export SNAGENTIC_LIVE_WORKSPACE="$RUNNER_TEMP/live-workspace"
+          # An unset variable arrives as empty text, which the test would take for a record.
+          if [[ -z "$SNAGENTIC_LIVE_OTHER_DOMAIN_RECORD" ]]; then
+            unset SNAGENTIC_LIVE_OTHER_DOMAIN_RECORD
+          fi
+          # A runner is farther from the instance than a workstation: a minute for each test
+          # that sets no limit of its own.
+          bun test tests/live --timeout 60000 2>&1 | tee "$RUNNER_TEMP/live.log"
+          # Fail if the tests were skipped away rather than run.
+          grep -Eq '^ *[1-9][0-9]* pass$' "$RUNNER_TEMP/live.log"
+          {
+            echo "### Live tests passed"
+            echo
+            grep -E '^ *[0-9]+ (pass|skip|fail)$' "$RUNNER_TEMP/live.log"
+          } >> "$GITHUB_STEP_SUMMARY"
+      # One open issue for the failures: a later failed run comments on it.
+      - name: report the failure in an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Nightly live run failed"
+          body="The live run against the developer instance failed at commit ${GITHUB_SHA}: ${RUN_URL}
+
+          What to check: docs/guides/live-tests.md. Close this issue when a run passes."
+          number=$(gh issue list --state open --search "\"$title\" in:title" \
+            --json number,title --jq "[.[] | select(.title == \"$title\")][0].number // empty")
+          if [[ -n "$number" ]]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

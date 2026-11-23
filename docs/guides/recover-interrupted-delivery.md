@@ -1,8 +1,31 @@
 # Recover an interrupted delivery
 
 A failed push keeps its per-unit receipts in `.snagentic/<instance>/push-journal.json` until
-verified delivery and the ledger commit both finish. Normal planning refuses changed source
-while a receipt is unfinished. Do not remove that journal or edit the ledgers to bypass it.
+verified delivery and the ledger commit both finish. While a receipt is unfinished, normal
+planning accepts changed source only over the push's own unchanged write (first section below).
+Do not remove that journal or edit the ledgers to bypass it: recover the delivery as below or,
+when recovery refuses, abandon it with `push --abandon-pending`.
+
+## The instance kept something else than the build: correct the source
+
+A push can write a record and then find, reading it back, that the instance holds something
+else: a value cut to its field, for example. The push reports it as "not applied as built" and
+keeps its receipt. Correct the source and plan again:
+
+```sh
+snagentic plan-push --instance pdi
+```
+
+While the record on the instance is unchanged since that write, the plan shows a `load` marked
+as replacing what the unfinished delivery wrote and did not verify. Review its changes and push
+it as any plan; the push verifies the corrected build and clears the receipt. Nothing is
+restored or edited by hand.
+
+The plan refuses instead when the record changed on the instance after the write, when the
+outcome of the write is unknown (the push stopped before reading the record back), or when the
+receipt is for a deletion. Use the sections below.
+
+## The instance already holds the corrected build: record it
 
 If source needed correcting, but the instance already holds the corrected build, use an
 explicit receipt-only recovery plan:
@@ -38,5 +61,44 @@ live record agree with source. Recovery proves that agreement without adding sch
 capture verification. If the instance needs another write, receipt-only recovery refuses; restore
 the original source and use the normal reviewed delivery path, or investigate the mismatch.
 
+## When recovery refuses: abandon the delivery
+
+Some unfinished deliveries cannot be finished: the record changed on the instance after the
+delivery, the original update set is closed or gone, or the journal is a legacy one without
+per-unit evidence. The refusal then names the exit, `push --abandon-pending`. It is the only
+supported way to drop the journal; still do not remove the file or edit the ledgers by hand.
+
+```sh
+snagentic status --instance pdi                                    # shows the unfinished push's id
+snagentic push --instance pdi --abandon-pending --plan <unfinished-push-id>
+snagentic push --instance pdi --abandon-pending --plan <unfinished-push-id> --confirm
+```
+
+The second command refuses, as every push without `--confirm` does, and lists what the stopped
+push left on the instance: each record, whether it was applied and captured, written without
+being verified, or of unknown outcome, and its update set. Review that list; with `--confirm`
+the same command:
+
+- sends **nothing** to the instance. It rolls nothing back: what the stopped push wrote stays
+  there, in the update sets listed. Revert a record on the instance yourself if you do not
+  want it;
+- records the list in a commit on your branch (`chore(snagentic): abandon pending delivery of
+  push <id> to <instance>`). The commit changes no file and no ledger;
+- clears the pending receipts, so the workspace can plan and push again.
+
+It exists only where `push` does (development instances), holds the instance's workspace lock,
+needs no sign-in, and refuses when nothing is pending or when `--plan` is not the unfinished
+push. If the stopped push had switched your current application or update set and not restored
+them, they stay journaled and the next push restores them.
+
+Then plan again. The ledgers still describe the last verified agreement, so a record the
+abandoned push changed appears in the new plan as an ordinary difference: already equal (only
+recorded), changed on the instance (pull, then `adopt --refresh`), or to be loaded again.
+
+Where another action exists, the message names it first: restore the source that was pushed, or
+plan with the original instance and `--label`.
+
 This supports the ledger agreement and reviewed-plan requirements of
-[ADR-0033](../adr/0033-plans-compare-the-build-with-the-instance.md), ASR-02 and ASR-10.
+[ADR-0033](../adr/0033-plans-compare-the-build-with-the-instance.md), ASR-02 and ASR-10;
+abandoning is [ADR-0050](../adr/0050-push-requires-content-and-durable-capture-evidence.md),
+amendment A1; replacing an unverified write with corrected source is amendment A2.

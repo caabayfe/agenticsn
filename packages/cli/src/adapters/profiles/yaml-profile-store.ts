@@ -78,6 +78,8 @@ const ProfileFile = z.object({
     })
     .optional(),
   load: LoadFile.optional(),
+  // Spec 016, D4: live queries on a test or production instance run only when this is true.
+  live_queries: z.object({ enabled: z.boolean() }).optional(),
 });
 
 type AuthFile = z.infer<typeof ProfileFile>["auth"];
@@ -151,6 +153,7 @@ export class YamlProfileStore implements ProfileStore {
             },
           }),
       ...(file.data.load === undefined ? {} : { load: loadFrom(file.data.load) }),
+      ...(file.data.live_queries === undefined ? {} : { liveQueries: file.data.live_queries }),
     };
   }
 
@@ -171,6 +174,9 @@ export class YamlProfileStore implements ProfileStore {
             },
           }),
       ...(profile.load === undefined ? {} : { load: loadFile(profile.load) }),
+      ...(profile.liveQueries === undefined
+        ? {}
+        : { live_queries: { enabled: profile.liveQueries.enabled } }),
     };
     await writeFile(join(root, paths.profile), stringify(file, { sortMapEntries: true }));
   }

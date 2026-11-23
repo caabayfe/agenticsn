@@ -16,7 +16,7 @@ when the table is stale.
 | [0003](0003-use-case-registry.md) | One use-case registry generates CLI, MCP and hook interfaces | Accepted (amended by 0012) |
 | [0004](0004-deployment-topology.md) | One binary, git as the distribution layer, three operating modes | Accepted (amended by 0011, 0012, 0022, 0052, 0054) |
 | [0005](0005-typescript-and-bun.md) | TypeScript compiled to a single binary with Bun | Accepted |
-| [0006](0006-governance-model.md) | Governance validates any change source with three rule tiers | Accepted |
+| [0006](0006-governance-model.md) | Governance validates any change source with three rule tiers | Accepted (amended by 0058) |
 | [0007](0007-disk-format-and-hash-contract.md) | Keep the v1 disk format, mirror branch and hash contract | Accepted (amended by 0014, 0015, 0017) |
 | [0008](0008-commercial-boundary.md) | Open core with a sealed premium engine behind the `Validator` port | Proposed |
 | [0009](0009-engineering-practices.md) | Engineering practices: TDD, strict typing, enforced boundaries | Accepted |
@@ -60,13 +60,14 @@ when the table is stale.
 | [0047](0047-installs-turn-on-test-execution-on-development.md) | An install turns on ATF test execution on a development instance, in an update set that is never promoted | Accepted |
 | [0048](0048-store-application-demo-data-on-request.md) | `--demo` is the one demo switch: demo data, demo modules and store applications' demo data | Accepted (amended by 0049) |
 | [0049](0049-demo-modules-turned-on-with-demo.md) | `--demo` turns on the demo modules it installs, on development only, never promoted | Accepted |
-| [0050](0050-push-requires-content-and-durable-capture-evidence.md) | Push requires content and durable capture evidence | Accepted implementation plan |
+| [0050](0050-push-requires-content-and-durable-capture-evidence.md) | Push requires content and durable capture evidence | Accepted |
 | [0052](0052-the-mirror-carries-its-pull-state.md) | The mirror carries its pull state, so any clone continues a pull from git | Accepted |
 | [0053](0053-instance-owners-set-load-limits.md) | Instance owners set load limits; one scheduler per instance; the cost report is opt-in | Accepted |
 | [0054](0054-each-developer-signs-in-as-themselves.md) | Each developer signs in as themselves, whatever user the committed profile names | Accepted |
 | [0055](0055-the-sdk-worker-on-windows-runs-at-low-integrity.md) | The SDK worker on Windows: a sandbox in two steps, low integrity first | Accepted |
 | [0056](0056-onboard-an-instance-with-one-command.md) | Onboard an instance with one command, built into the binary | Accepted |
 | [0057](0057-bundled-user-skills-and-mcp-profiles.md) | Bundled user skills and workspace MCP profiles | Accepted |
+| [0058](0058-team-waivers-come-from-the-reviewed-branch.md) | In team mode, the gate accepts only waivers on the reviewed branch | Accepted |
 <!-- adr-index:end -->
 
 Requirements referenced as `ASR-nn` are in

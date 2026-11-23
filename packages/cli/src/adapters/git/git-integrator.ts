@@ -30,6 +30,15 @@ async function ensureIntegrable(root: string, instance: string) {
   if (resolved.exitCode !== 0) {
     throw new NothingPulledError(instance);
   }
+  // A merge already in progress (an integrate stopped before its commit, or the user's own) is
+  // not restored by checking files out, and merging into it would conclude it.
+  if ((await runGit(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], root)).exitCode === 0) {
+    throw new IntegrationBlockedError(
+      "merge-in-progress",
+      "a merge is in progress in this repository, so the pull cannot be merged",
+      "abort it (git merge --abort) or finish it (git commit), then integrate again",
+    );
+  }
   // Only tracked changes in what the mirror owns block a merge. Untracked files (such as
   // the instance profile) are kept; git itself refuses to overwrite one on a collision. The pull
   // state is the mirror's too (ADR-0052): the instance's copy wins there as well.

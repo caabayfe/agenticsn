@@ -1,4 +1,9 @@
-import { type DeliveryWorkspace, KeysetPager, type Row } from "@snagentic/core";
+import {
+  type DeliveryWorkspace,
+  KeysetPager,
+  type ReviewedWaivers,
+  type Row,
+} from "@snagentic/core";
 import { governanceOf } from "./fake-governance";
 import { fakeInstance } from "./fake-instance";
 
@@ -8,6 +13,8 @@ import { fakeInstance } from "./fake-instance";
 export interface State {
   waivers: unknown | null;
   waiversUncommitted: boolean;
+  // waivers.yaml on the remote's default branch as last fetched; absent: the clone can't tell.
+  reviewed?: ReviewedWaivers;
   // Branches published to the remote.
   published: string[];
   // Source files not committed, workspace-relative.
@@ -24,6 +31,7 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
     mirrorCommit: async () => "c0ffee",
     branch: async () => "feature/p1",
     waivers: async () => ({ committed: state.waivers, uncommitted: state.waiversUncommitted }),
+    reviewedWaivers: async (remote) => state.reviewed ?? { kind: "unresolved", remote },
     publishBranch: async (branch) => {
       state.published.push(branch);
     },
@@ -31,6 +39,11 @@ function fakeWorkspace(state: State): DeliveryWorkspace {
     commitFiles: async (paths, message) => {
       if (state.commitFailure !== undefined) throw new Error(state.commitFailure);
       state.commits = [...(state.commits ?? []), { paths: [...paths], message }];
+      return `commit-${state.commits.length}`;
+    },
+    commitRecord: async (message) => {
+      if (state.commitFailure !== undefined) throw new Error(state.commitFailure);
+      state.commits = [...(state.commits ?? []), { paths: [], message }];
       return `commit-${state.commits.length}`;
     },
   };

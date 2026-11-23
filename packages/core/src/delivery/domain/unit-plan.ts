@@ -35,6 +35,9 @@ export interface PlannedUnit {
   readonly version: string | null;
   // For a deletion: the update name of the record it deletes, whose ledger entry push removes.
   readonly removes: string | null;
+  // The load replaces what an unfinished delivery wrote and never verified: the ledger's version
+  // is then older than the instance's (ADR-0050, amendment A2).
+  readonly replacesUnfinished?: true;
 }
 
 export type UnitProblemKind = "drift" | "not-adopted" | "unsafe" | "removed" | "build";
@@ -123,6 +126,7 @@ export function plannedOrProblem(
     | "changes"
     | "losses"
     | "alsoSets"
+    | "replacesUnfinished"
   >,
 ): PlannedUnit | UnitProblem | null {
   const problem = (kind: UnitProblemKind, reason: string): UnitProblem => ({
@@ -148,6 +152,9 @@ export function plannedOrProblem(
       decision.kind === "load" ? changesOf(authored(decision.differences, scopeOf(unit))) : [],
     losses: decision.kind === "load" ? decision.losses : [],
     alsoSets: decision.kind === "load" ? lossSets(decision.differences, scopeOf(unit)) : [],
+    ...(decision.kind === "load" && decision.replacesUnfinished
+      ? { replacesUnfinished: true }
+      : {}),
   };
 }
 

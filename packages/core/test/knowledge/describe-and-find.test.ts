@@ -178,6 +178,26 @@ describe("describeRecord", () => {
     expect(record.next).toEqual([{ tool: "describe", args: { target: "incident" } }]);
   });
 
+  it("describes a record named by one of its other files", async () => {
+    const record = await describeRecord(
+      await deps(),
+      "global/sys_script_include/prioritizer--s1.script.js",
+    );
+    expect(record.path).toBe("global/sys_script_include/prioritizer--s1.yaml");
+  });
+
+  it("describes a record of a domain by its path", async () => {
+    const path = "domains/d0main/global/sys_script/domain-rule--b9.yaml";
+    const { mirror } = memoryMirror({
+      ...FILES,
+      [path]: record("sys_script", "b9", { name: "Domain rule", collection: "incident" }),
+    });
+    const store = memoryStore();
+    await refreshIndex(store, mirror);
+    const described = await describeRecord({ ...(await deps()), store, files: mirror }, path);
+    expect(described).toMatchObject({ path, sysId: "b9", name: "Domain rule" });
+  });
+
   it("explains a target it cannot find", async () => {
     await expect(describeRecord(await deps(), "zzz")).rejects.toMatchObject({
       code: "record-not-found",

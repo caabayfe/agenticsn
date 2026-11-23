@@ -8,8 +8,12 @@ export interface HostOptions {
   readonly binary: string;
 }
 
+// The MCP servers a workspace's .mcp.json names since ADR-0057: one per profile.
+const PROFILES = ["investigate", "develop"] as const;
+
 // Tools the agent may use without asking: files, the snagentic MCP tools and CLI, and git.
-// Anything else is denied, as a headless run has nobody to ask.
+// Anything else is denied, as a headless run has nobody to ask: that includes what the installed
+// settings make the host ask a person for (adopt, push), whose attempts stay in the trace.
 const ALLOWED = [
   "Read",
   "Edit",
@@ -19,7 +23,7 @@ const ALLOWED = [
   "Grep",
   "Skill",
   "TodoWrite",
-  "mcp__snagentic",
+  ...PROFILES.map((profile) => `mcp__snagentic-${profile}`),
   "Bash(snagentic:*)",
   "Bash(git:*)",
   "Bash(ls:*)",
@@ -69,9 +73,16 @@ export async function runClaude(
   await Bun.write(
     mcpConfig,
     JSON.stringify({
-      mcpServers: {
-        snagentic: { command: options.binary, args: ["mcp"], env: { SNAGENTIC_WORKSPACE: slot } },
-      },
+      mcpServers: Object.fromEntries(
+        PROFILES.map((profile) => [
+          `snagentic-${profile}`,
+          {
+            command: options.binary,
+            args: ["mcp", "--profile", profile],
+            env: { SNAGENTIC_WORKSPACE: slot },
+          },
+        ]),
+      ),
     }),
   );
   const streams: string[] = [];

@@ -1,6 +1,6 @@
 # 0005. TypeScript compiled to a single binary with Bun
 
-- Status: Accepted
+- Status: Accepted; amendment A1 accepted (2026-11-21)
 - Date: 2026-10-05
 - Requirements: ASR-04, ASR-05, ASR-10, ASR-11
 
@@ -86,3 +86,13 @@ Node or Deno later is contained.
 - **Rust.** Rejected for the core. Best protection and the oxc parser, but slower
   development and a barrier to community contribution. Kept as an option for the sealed
   premium engine (ADR-0008).
+
+## Amendments
+
+### A1. HTTP is faked with hand-written transports, not msw (Accepted, 2026-11-21)
+
+Evidence: spec 016, product audit of 2026-11-21. The table above names msw for HTTP fakes. It
+was never added: the ServiceNow adapters take a transport, and their tests pass a hand-written
+fake one. That needs no dependency and keeps the tests off the network stack. The row now
+reads "HTTP fakes: hand-written fake transports". ADR-0009, amendment A1, says how the real
+contract is checked.

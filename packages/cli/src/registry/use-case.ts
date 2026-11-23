@@ -23,6 +23,7 @@ import type {
   InstanceWriter,
   InventoryReader,
   KnowledgeStore,
+  LiveQueryLog,
   ManagedAgentFiles,
   MarkdownRenderer,
   MediaTools,
@@ -165,6 +166,8 @@ export interface UseCaseContext {
   readonly pullRequests: (root: string) => PullRequests;
   // Where push journals its progress (.snagentic/<name>/push-journal.json).
   readonly pushJournal: (root: string, instance: InstanceName) => PushJournalStore;
+  // Where live queries are recorded (.snagentic/<name>/live-queries.jsonl; spec 016, D4).
+  readonly liveQueryLog: (root: string, instance: InstanceName) => LiveQueryLog;
   readonly decodeCapture: CaptureDecoder;
   readonly installJournal: (root: string, instance: InstanceName) => InstallJournal;
   // The instance's workspace lock (.snagentic/<name>/workspace.lock), or with null the

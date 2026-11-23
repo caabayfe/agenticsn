@@ -38,22 +38,37 @@ export interface PullSummary {
   };
 }
 
+// Completed classes are skipped on a resume because the mirror holds their records. A mirror
+// that holds no record at all has lost that progress (its progress commit is gone): skipping
+// would commit a mirror without those classes, and the next integrate would delete them.
+async function progressLost(deps: PullDependencies, checkpoint: PullCheckpoint): Promise<boolean> {
+  if (checkpoint.records === 0) {
+    return false;
+  }
+  for await (const _base of deps.records.bases(deps.metadataRoot)) {
+    return false;
+  }
+  return true;
+}
+
 // The checkpoint to continue from, or a new one taken before listing anything.
 async function startCheckpoint(
   deps: PullDependencies,
   signal: AbortSignal,
 ): Promise<PullCheckpoint> {
-  return (
-    (await deps.state.readCheckpoint()) ?? {
-      startedAt: rawTimestamp(deps.now()),
-      completedClasses: [],
-      records: 0,
-      fingerprints: (await fetchFingerprints(deps.statistics, signal)).fingerprints,
-      inventory: await inventorySignatures(deps.statistics, signal),
-      redactionVersion: deps.policy.version,
-      secretScanVersion: SECRET_SCAN_VERSION,
-    }
-  );
+  const interrupted = await deps.state.readCheckpoint();
+  if (interrupted !== null && !(await progressLost(deps, interrupted))) {
+    return interrupted;
+  }
+  return {
+    startedAt: rawTimestamp(deps.now()),
+    completedClasses: [],
+    records: 0,
+    fingerprints: (await fetchFingerprints(deps.statistics, signal)).fingerprints,
+    inventory: await inventorySignatures(deps.statistics, signal),
+    redactionVersion: deps.policy.version,
+    secretScanVersion: SECRET_SCAN_VERSION,
+  };
 }
 
 function fullNextState(

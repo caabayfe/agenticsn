@@ -4,6 +4,34 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.24.0] - 2026-11-23
+
+### Changed
+
+- ServiceNow SDK 4.14.3 (was 4.14.0). The binary builds Fluent source with 4.14.3; the test
+  fixtures build to the same records, apart from the version the SDK stamps. A project whose
+  `package.json` still names 4.14.0 gets the warning `SN-UPG-003` from `validate` until it names
+  4.14.3.
+
+### Fixed
+
+- A plain `git commit` no longer fails in the workspace's pre-commit hook. git gives a hook the
+  index as a path relative to the repository, and the build of the staged project looked for it
+  in its scratch folder (`Unable to create '.../index.lock'`); the commit then needed
+  `--no-verify`, which skips the guardrail. `git commit -a` was not affected.
+
+- `adopt --refresh` renews the ledger entry of a record that builds the same as before. A record
+  changed on the instance and changed back kept its old instance version in the ledger, so the
+  plan refused it as "changed on the instance" after every refresh. A record asked for whose
+  build does not reproduce the instance now stops the refresh with the difference, where it was
+  skipped without a word.
+
+- `pull --verify` reads again, by table and sys_id, the changed records earlier pulls could not
+  store. It stores those their table returns now and reports the rest with what the instance
+  answered: listed and not returned by its table, its table not readable, or no longer listed
+  (deleted, or hidden there too). The pull state carries the list (`unstored`), `status` counts
+  it, and a pull without `--verify` asks nothing more (spec 016, R2).
+
 ## [2.23.0] - 2026-11-22
 
 ### Added
@@ -43,11 +71,6 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
   verification says whether its capture is missing, unpublished or different, and names the
   rows and fields that differ; unfinished-delivery refusals name `--recover-pending` or say that
   no command settles them yet, instead of a "reconcile" step that does not exist.
-- `pull --verify` reads again, by table and sys_id, the changed records earlier pulls could not
-  store. It stores those their table returns now and reports the rest with what the instance
-  answered: listed and not returned by its table, its table not readable, or no longer listed
-  (deleted, or hidden there too). The pull state carries the list (`unstored`), `status` counts
-  it, and a pull without `--verify` asks nothing more (spec 016, R2).
 - `integrate` refuses to run while a merge is in progress and names the command that leaves that
   state (`git merge --abort`), instead of a file restore that does not. It no longer concludes a
   merge of the user's own.

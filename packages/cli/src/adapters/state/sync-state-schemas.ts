@@ -50,6 +50,7 @@ export const SyncStateFile: z.ZodType<SyncState> = z.looseObject({
   inventory: TextMap.exactOptional(),
   unreadable: z.array(z.string()).exactOptional(),
   hiddenCounts: z.record(z.string(), z.number()).exactOptional(),
+  unstored: z.array(z.object({ table: z.string(), sysId: z.string() })).exactOptional(),
   redactionVersion: z.number().exactOptional(),
   secretScanVersion: z.number().exactOptional(),
   pulledBy: z.string().exactOptional(),

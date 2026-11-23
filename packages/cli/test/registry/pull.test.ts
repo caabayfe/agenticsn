@@ -526,7 +526,7 @@ describe("pull and integrate", () => {
       childFiles: 3,
       removedChildFiles: 0,
       lostRecords: 0,
-      unstored: { count: 0, inMirror: 0, records: [] as UnstoredView[] },
+      unstored: { count: 0, inMirror: 0, recovered: 0, records: [] as UnstoredView[] },
       inventoryRefreshed: ["plugins"],
       verification: null,
     };
@@ -600,10 +600,15 @@ describe("pull and integrate", () => {
   });
 });
 
-type UnstoredView = { table: string; sysId: string; inMirror: boolean };
+type UnstoredView = {
+  table: string;
+  sysId: string;
+  inMirror: boolean;
+  reason: "not-returned" | "hidden" | "table-unreadable" | "not-listed";
+};
 
 describe("a pull's records their table did not return", () => {
-  const output = (unstored: { count: number; inMirror: number; records: UnstoredView[] }) => ({
+  const output = (found: { count: number; inMirror: number; records: UnstoredView[] }) => ({
     instance: "pdi",
     mode: "incremental" as const,
     resumed: false,
@@ -635,14 +640,14 @@ describe("a pull's records their table did not return", () => {
       childFiles: 0,
       removedChildFiles: 0,
       lostRecords: 0,
-      unstored,
+      unstored: { recovered: 0, ...found },
       inventoryRefreshed: [],
       verification: null,
     },
   });
   const records = [
-    { table: "sys_script", sysId: "a1", inMirror: true },
-    { table: "sys_script", sysId: "b2", inMirror: false },
+    { table: "sys_script", sysId: "a1", inMirror: true, reason: "not-returned" as const },
+    { table: "sys_script", sysId: "b2", inMirror: false, reason: "not-returned" as const },
   ];
 
   it("names them, says which the mirror holds as they were, and gives the next step", () => {
@@ -653,7 +658,7 @@ describe("a pull's records their table did not return", () => {
         "    sys_script a1 (in the mirror, not updated)",
         "    sys_script b2",
         "    and 1 more",
-        "  to compare the mirror with the instance: snagentic pull pdi --verify",
+        "  to read them again: snagentic pull pdi --verify",
         "  instance load: 24 requests, 0 retries, semaphore wait 0 ms, peak concurrency 4",
         "  not readable by this user: none",
       ].join("\n"),
@@ -689,6 +694,35 @@ describe("a pull's records their table did not return", () => {
     );
     expect(text).toContain("the mirror holds 1 of them as they were before the change");
     expect(text).not.toContain("--verify");
+  });
+
+  it("after pull --verify read them again, says what it stored and what each one was answered", () => {
+    const base = output({
+      count: 3,
+      inMirror: 2,
+      records: [
+        { table: "sys_script", sysId: "a1", inMirror: true, reason: "hidden" },
+        { table: "sys_script", sysId: "b2", inMirror: false, reason: "table-unreadable" },
+        { table: "sys_script", sysId: "c3", inMirror: true, reason: "not-listed" },
+      ],
+    });
+    const incremental = {
+      ...base.incremental,
+      unstored: { ...base.incremental.unstored, recovered: 2 },
+    };
+    expect(
+      pull
+        .render({ ...base, incremental }, "text")
+        .split("\n")
+        .slice(1, 7),
+    ).toEqual([
+      "  2 records an earlier pull could not store were read again and stored",
+      "  warning: 3 records are still not stored after reading them again; the mirror holds 2 of them as they were before the change",
+      "    sys_script a1: the instance lists it and its table does not return it to this user (a read ACL or the domain hides it) (in the mirror, not updated)",
+      "    sys_script b2: this user cannot read its table",
+      "    sys_script c3: the instance no longer lists it for this user (deleted, or hidden there too) (in the mirror, not updated)",
+      "  once this user can read them: snagentic pull pdi --verify",
+    ]);
   });
 
   it("says nothing when every changed record was stored", () => {

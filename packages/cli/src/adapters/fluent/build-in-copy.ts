@@ -56,6 +56,8 @@ export async function buildInCopy<T>(
 // workspace's index and working tree untouched. Not `git archive` and tar: tar read a Windows
 // path ("C:\...") as a remote host, and piping one into the other failed now and then (pdi2,
 // 2026-10-19). No fsmonitor daemon is started for the scratch folder, which would hold it open.
+// The restore gets an index of its own: git commit hands its hooks GIT_INDEX_FILE=.git/index,
+// which git then looked for under the scratch work tree and failed to lock (pdi15, 2026-11-20).
 export const fromCommit =
   (workspace: string, project: string, commit: string): ProjectSource =>
   async (copy) => {
@@ -76,6 +78,7 @@ export const fromCommit =
         `:(top,literal)${path}`,
       ],
       workspace,
+      { GIT_INDEX_FILE: join(copy, "..", "commit-index") },
     );
     await cp(join(scratch, path), copy, { recursive: true });
   };

@@ -13,7 +13,7 @@ import { unitDigest } from "../domain/digest";
 import { type LedgerEntry, withEntries } from "../domain/ledger";
 import { knownLoss, type LossId, lossSets } from "../domain/losses";
 import { conversionRefusal, knownRefusal } from "../domain/refusals";
-import type { BuiltUnit, InstanceCopy } from "../domain/unit";
+import { type BuiltUnit, type InstanceCopy, isDeletion } from "../domain/unit";
 import { draftFileSecrets, unitSecrets } from "../domain/unit-secrets";
 import { unitSpec } from "../domain/unit-specs";
 import type {
@@ -63,10 +63,17 @@ export interface AdoptResult {
   readonly conflicts: readonly string[];
 }
 
-// Units the transform added or changed.
-function adoptedUnits(draft: SourceDraft): BuiltUnit[] {
+// Units the transform added or changed, and the units of the records asked for. A record saved
+// on the instance without a lasting change (set inactive and active again) builds as it did, but
+// its version moved: only a new ledger entry tells the plan they agree again (pdi15, 2026-11-20).
+function adoptedUnits(draft: SourceDraft, targets: readonly TransformTarget[]): BuiltUnit[] {
   const before = new Map(draft.before.map((unit) => [unit.updateName, unitDigest(unit)]));
-  return draft.after.filter((unit) => before.get(unit.updateName) !== unitDigest(unit));
+  const asked = new Set(targets.map((target) => target.sysId));
+  const askedFor = (unit: BuiltUnit) =>
+    !isDeletion(unit) && [unit.head, ...unit.children].some((r) => asked.has(r.sysId));
+  return draft.after.filter(
+    (unit) => before.get(unit.updateName) !== unitDigest(unit) || askedFor(unit),
+  );
 }
 
 const shown = (value: string) =>
@@ -181,7 +188,7 @@ async function adoptInto(
     if (refusal !== null) throw new AdoptRefusedError([`${project.scope}: ${refusal}`]);
     throw new AdoptTransformFailedError(project.scope, outcome.message);
   }
-  const units = adoptedUnits(outcome.draft);
+  const units = adoptedUnits(outcome.draft, targets);
   const catalog = await unitCatalog(dependencies, units);
   const secrets = unitSecrets(units, catalog, DEFAULT_REDACTION);
   const draftSecrets = draftFileSecrets(outcome.draft.files);

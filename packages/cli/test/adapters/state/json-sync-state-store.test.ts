@@ -40,7 +40,12 @@ describe("JsonSyncStateStore", () => {
     await state.writeCheckpoint(checkpoint);
     const note = {
       commit: "abc",
-      state: { watermark: "2026-10-05 12:00:00", lastFullPull: "x", pulledBy: "admin" },
+      state: {
+        watermark: "2026-10-05 12:00:00",
+        lastFullPull: "x",
+        pulledBy: "admin",
+        unstored: [{ table: "sys_script", sysId: "a1" }],
+      },
     };
     await state.writeNote(note);
     expect(await state.readCheckpoint()).toEqual(checkpoint);

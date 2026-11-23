@@ -192,7 +192,12 @@ export {
   type SyncPhase,
   syncPhase,
 } from "./sync/domain/sync-phase";
-export type { UnstoredRecord, UnstoredRecords } from "./sync/domain/unstored-records";
+export type {
+  UnstoredReason,
+  UnstoredRecord,
+  UnstoredRecords,
+} from "./sync/domain/unstored-records";
+export { UNSTORED_REASONS } from "./sync/domain/unstored-records";
 export {
   childPrefixes,
   compareListing,

@@ -3,6 +3,7 @@ import {
   type PullSummary,
   type RunFacts,
   SECRET_PATTERN_IDS,
+  UNSTORED_REASONS,
 } from "@snagentic/core";
 import { z } from "zod";
 import { SharedPullOutput } from "./pull-shared-output";
@@ -84,11 +85,20 @@ export const PullOutput = z.object({
       lostRecords: z.number(),
       // Changed records their own table did not return to this user (a read ACL or the domain
       // hides them, or they were deleted since): all counted, the first of them named. inMirror:
-      // the mirror holds the record as it was before the change.
+      // the mirror holds the record as it was before the change. With --verify: the records
+      // earlier pulls recorded, read again; recovered were stored, the rest say what was answered.
       unstored: z.object({
         count: z.number(),
         inMirror: z.number(),
-        records: z.array(z.object({ table: z.string(), sysId: z.string(), inMirror: z.boolean() })),
+        recovered: z.number(),
+        records: z.array(
+          z.object({
+            table: z.string(),
+            sysId: z.string(),
+            inMirror: z.boolean(),
+            reason: z.enum(UNSTORED_REASONS),
+          }),
+        ),
       }),
       inventoryRefreshed: z.array(z.string()),
       verification: z

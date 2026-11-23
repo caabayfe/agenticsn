@@ -24,7 +24,7 @@ snagentic, and look again by the review date.
 
 ## How the packages reach snagentic (2026-10-22, updated 2026-11-17)
 
-Most of them come in through the ServiceNow SDK (4.14.0 since 2026-11-02), which the binary
+Most of them come in through the ServiceNow SDK (4.14.2 since 2026-11-23; 4.14.0 since 2026-11-02), which the binary
 embeds (ADR-0032); the others through the MCP server or ESLint, as noted. snagentic calls only `Orchestrator.build` and `Orchestrator.transform`, on
 the developer's own project.
 

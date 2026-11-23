@@ -17,7 +17,7 @@
           "type": "library",
           "name": "sdk-build-plugins",
           "group": "@servicenow",
-          "version": "4.14.2",
+          "version": "4.14.3",
           "author": "ServiceNow"
         }
       ]

@@ -21,6 +21,8 @@ export interface InstanceStatus {
   readonly remoteCommit: string | null;
   readonly unintegratedPulls: number;
   readonly localChanges: readonly string[];
+  // Changed records the pulls since the last full one could not store (see SyncState.unstored).
+  readonly unstoredRecords: number;
   readonly sharedMirror: SharedMirrorStatus | null;
   readonly next: string;
 }
@@ -54,6 +56,7 @@ export async function instanceStatus(
     remoteCommit: view.remoteCommit,
     unintegratedPulls: view.unintegratedPulls,
     localChanges: view.localChanges,
+    unstoredRecords: state?.unstored?.length ?? 0,
     sharedMirror: deps.shared ?? null,
     next: nextCommand(phase, instance, deps.shared),
   };

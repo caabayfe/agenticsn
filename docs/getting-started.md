@@ -145,6 +145,9 @@ doubt, compare the mirror with the instance by counts and repair what differs:
 snagentic pull dev --verify
 ```
 
+It also reads again the changed records an earlier pull could not store, the ones `pull` and
+`status` count as not stored, and says for each one still missing what the instance answered.
+
 On a development instance, `snagentic pull dev --cost` also reads the server time the run
 used from the instance's transaction log. That read is itself expensive on a busy instance,
 so it runs only when asked, and never on test or production (ADR-0053).

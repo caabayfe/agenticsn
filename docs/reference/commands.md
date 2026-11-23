@@ -170,7 +170,7 @@ MCP tool: `pull`.
 Options:
 
 - `--full`: Recovery: pull all metadata again instead of incrementally
-- `--verify`: Recovery: compare mirror counts with the instance and repair differences
+- `--verify`: Recovery: compare mirror counts with the instance and repair differences; read again the records earlier pulls could not store
 - `--now`: Team sync: contact the instance even when a shared mirror would be reused
 - `--publish`: Team sync: publish the mirror to its git remote (designated puller; fast-forward only)
 - `--cost`: Diagnostics: measure server cost from transaction logs (development only)
@@ -1239,7 +1239,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
 - `pull`: Mirror an instance's metadata into the workspace's servicenow-remote/<name> branch. The first pull is complete and resumable; later pulls fetch only what changed. With a shared mirror, a pull continues from the newest of it and this clone's branch, and asks the instance nothing while that mirror is younger than its max age, or, unless --now, while it is older and another user publishes it (mode stale). Then run integrate to bring it into the working branch.
   - `instance` (string, required)
   - `full` (boolean, optional): pull everything again
-  - `verify` (boolean, optional): also compare the mirror with the instance by counts and repair differences
+  - `verify` (boolean, optional): also compare the mirror with the instance by counts and repair differences, and read again the records earlier pulls could not store
   - `now` (boolean, optional): pull from the instance even when the shared mirror is younger than its max age, or stale and published by another user
   - `publish` (boolean, optional): push the mirror branch to the shared mirror after the pull (the designated puller; fast-forward only)
   - `cost` (boolean, optional): also measure the run's server cost from the instance's transaction log (development instances only)

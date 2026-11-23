@@ -271,9 +271,10 @@ describe("pullIncremental: records its table does not return", () => {
     expect(summary.unstored).toEqual({
       count: 2,
       inMirror: 1,
+      recovered: 0,
       records: [
-        { table: "sys_script", sysId: sid(1), inMirror: true },
-        { table: "sys_script", sysId: sid(9), inMirror: false },
+        { table: "sys_script", sysId: sid(1), inMirror: true, reason: "not-returned" },
+        { table: "sys_script", sysId: sid(9), inMirror: false, reason: "not-returned" },
       ],
     });
     // Reported from what the pull already read: one download for the class, as before.
@@ -313,27 +314,47 @@ describe("pullIncremental: records its table does not return", () => {
     expect(summary.unreadable).toContain("sys_hub_flow");
     expect(summary.skippedRows).toBe(1);
     expect(summary.deleted).toBe(1);
-    expect(summary.unstored).toEqual({ count: 0, inMirror: 0, records: [] });
+    expect(summary.unstored).toEqual({ count: 0, inMirror: 0, recovered: 0, records: [] });
   });
 
   it("reports none when nothing changed", async () => {
     const { incremental } = await pulledInstance();
     const { summary } = await incremental();
-    expect(summary.unstored).toEqual({ count: 0, inMirror: 0, records: [] });
+    expect(summary.unstored).toEqual({ count: 0, inMirror: 0, recovered: 0, records: [] });
   });
 
-  it("with verify, reports only those the verification does not account for", async () => {
+  it("with verify, asks for them again and reports each with what the instance answered", async () => {
     const { incremental, tables } = await pulledInstance();
     touch(tables["sys_script"]?.[0], { script: "changed();", __hidden_in_class: "true" });
     tables["sys_script"]?.push(hiddenNew(9));
     const { summary } = await incremental({ verify: true });
-    // The record missing from the mirror is the verification's: it cannot be mirrored.
+    // The count comparison also finds the record missing from the mirror: it cannot be mirrored.
     expect(summary.verification?.unmirrorable).toBe(1);
+    expect(summary.unstored).toEqual({
+      count: 2,
+      inMirror: 1,
+      recovered: 0,
+      records: [
+        { table: "sys_script", sysId: sid(1), inMirror: true, reason: "hidden" },
+        { table: "sys_script", sysId: sid(9), inMirror: false, reason: "hidden" },
+      ],
+    });
+  });
+  it("on a pull that verifies for lost records, reports those the verification does not account for", async () => {
+    const { incremental, tables } = await pulledInstance();
+    touch(tables["sys_script"]?.[0], { script: "changed();", __hidden_in_class: "true" });
+    tables["wf_workflow"] = [];
+    const { summary } = await incremental();
+    expect(summary.lostRecords).toBe(1);
+    expect(summary.verification?.removed).toBe(1);
     expect(summary.unstored).toEqual({
       count: 1,
       inMirror: 1,
-      records: [{ table: "sys_script", sysId: sid(1), inMirror: true }],
+      recovered: 0,
+      records: [{ table: "sys_script", sysId: sid(1), inMirror: true, reason: "not-returned" }],
     });
+    // It stays recorded for pull --verify, which asks for it again.
+    expect(summary.next.unstored).toEqual([{ table: "sys_script", sysId: sid(1) }]);
   });
 });
 

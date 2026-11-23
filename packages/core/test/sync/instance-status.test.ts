@@ -52,6 +52,16 @@ describe("instanceStatus", () => {
     });
   });
 
+  it("counts the changed records the pulls could not store", async () => {
+    const unstored = [
+      { table: "sys_script", sysId: "a1" },
+      { table: "sys_script", sysId: "b2" },
+    ];
+    const status = await instanceStatus("/w", "pdi", deps({ ...PULLED, unstored }, null));
+    expect(status.unstoredRecords).toBe(2);
+    expect((await instanceStatus("/w", "pdi", deps(PULLED, null))).unstoredRecords).toBe(0);
+  });
+
   it("reports an interrupted full pull, which the next pull resumes", async () => {
     const checkpoint = {
       startedAt: "2026-10-06 08:00:00",

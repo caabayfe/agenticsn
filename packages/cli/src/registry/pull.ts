@@ -21,7 +21,10 @@ const PullInput = z.object({
   verify: z
     .boolean()
     .default(false)
-    .describe("also compare the mirror with the instance by counts and repair differences"),
+    .describe(
+      "also compare the mirror with the instance by counts and repair differences, and read " +
+        "again the records earlier pulls could not store",
+    ),
   now: z
     .boolean()
     .default(false)
@@ -142,7 +145,9 @@ export const pull = defineUseCase({
     ],
     options: {
       full: "Recovery: pull all metadata again instead of incrementally",
-      verify: "Recovery: compare mirror counts with the instance and repair differences",
+      verify:
+        "Recovery: compare mirror counts with the instance and repair differences; read again " +
+        "the records earlier pulls could not store",
       now: "Team sync: contact the instance even when a shared mirror would be reused",
       publish:
         "Team sync: publish the mirror to its git remote (designated puller; fast-forward only)",

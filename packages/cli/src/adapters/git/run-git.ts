@@ -21,13 +21,18 @@ export interface GitResult {
   readonly stderr: string;
 }
 
-// Runs git without ever prompting (no terminal, no credential helper dialogs).
-export async function runGit(args: readonly string[], cwd: string): Promise<GitResult> {
+// Runs git without ever prompting (no terminal, no credential helper dialogs). `env` adds to or
+// replaces what git inherits.
+export async function runGit(
+  args: readonly string[],
+  cwd: string,
+  env: Readonly<Record<string, string>> = {},
+): Promise<GitResult> {
   const child = Bun.spawn(["git", ...args], {
     cwd,
     stdout: "pipe",
     stderr: "pipe",
-    env: childEnvironment({ GIT_TERMINAL_PROMPT: "0" }),
+    env: childEnvironment({ GIT_TERMINAL_PROMPT: "0", ...env }),
   });
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(child.stdout).text(),
@@ -37,8 +42,12 @@ export async function runGit(args: readonly string[], cwd: string): Promise<GitR
   return { exitCode, stdout, stderr };
 }
 
-export async function runGitOrThrow(args: readonly string[], cwd: string): Promise<string> {
-  const result = await runGit(args, cwd);
+export async function runGitOrThrow(
+  args: readonly string[],
+  cwd: string,
+  env: Readonly<Record<string, string>> = {},
+): Promise<string> {
+  const result = await runGit(args, cwd, env);
   if (result.exitCode !== 0) {
     throw new GitCommandFailedError(args, result.stderr);
   }

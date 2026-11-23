@@ -132,9 +132,11 @@ function nextState(
   inventory: Readonly<Record<string, string>>,
   unreadable: readonly string[],
   verified: VerifiedRecords | null,
+  stillUnstored: NonNullable<SyncState["unstored"]>,
 ): SyncState {
+  const { unstored: _earlier, ...kept } = state;
   return {
-    ...state,
+    ...kept,
     redactionVersion,
     secretScanVersion: SECRET_SCAN_VERSION,
     watermark: startedAt,
@@ -143,6 +145,8 @@ function nextState(
     inventory: { ...state.inventory, ...inventory },
     unreadable: [...new Set([...(state.unreadable ?? []), ...unreadable])].sort(),
     ...(verified === null ? {} : { hiddenCounts: verified.hidden }),
+    // Absent when there are none, as in the state of a pull before the list existed.
+    ...(stillUnstored.length === 0 ? {} : { unstored: stillUnstored }),
   };
 }
 
@@ -286,6 +290,7 @@ export async function pullIncremental(
       inventory,
       records.unreadable,
       verified,
+      records.stillUnstored,
     ),
   };
 }

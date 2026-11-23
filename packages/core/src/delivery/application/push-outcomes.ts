@@ -1,26 +1,55 @@
-import { type BuiltUnit, compiledCopyAgrees, isDeletion, unitSpec } from "../../authoring/index";
+import {
+  type BuiltUnit,
+  compiledCopyDifferences,
+  isDeletion,
+  unitSpec,
+} from "../../authoring/index";
 import { carrierOf } from "../domain/carried";
 import type { PlannedUnit } from "../domain/unit-plan";
-import type { CaptureContent } from "../ports";
-import { captureEvidence } from "./capture-evidence";
+import { type CaptureEvidence, captureEvidence } from "./capture-evidence";
 import type { ProjectLoad } from "./plan-units";
 import type { readBack } from "./push-read-back";
 import type { ProjectRun, PushedUnit } from "./push-types";
 
 type ReadBack = Awaited<ReturnType<typeof readBack>>;
-const CAPTURE_MISMATCH =
-  "captured definition does not match the reviewed build, or lacks its published snapshot";
+const SHOWN = 5;
 
-function compiledAgrees(unit: BuiltUnit, captured: CaptureContent | null, back: ReadBack): boolean {
-  return (
-    captured !== null &&
-    compiledCopyAgrees(
-      unit,
-      captured.unit,
-      captured.live ?? back.copies.get(unit.updateName) ?? null,
-    )
-  );
+const listed = (places: readonly string[]): string =>
+  places.length > SHOWN
+    ? `${places.slice(0, SHOWN).join(", ")} and ${places.length - SHOWN} more`
+    : places.join(", ");
+
+const GAPS = {
+  absent: "no capture of this definition was found in the update set",
+  unreadable: "the capture of this definition in the update set could not be read",
+  unpublished:
+    "the capture in the update set is not a published definition: it lacks its published snapshot",
+} as const;
+
+// Why a flow or action is not delivered as reviewed: which check failed, and where the
+// definitions differ (names only). Empty when its capture and live copy both agree.
+function compiledMismatches(
+  unit: BuiltUnit,
+  evidence: CaptureEvidence | null,
+  back: ReadBack,
+): string[] {
+  if (evidence === null) return ["no capture was read for this definition"];
+  if (evidence.content === null) {
+    const { gap } = evidence;
+    return gap.kind === "content"
+      ? [`the captured definition does not match the reviewed build: ${listed(gap.differences)}`]
+      : [GAPS[gap.kind]];
+  }
+  const { content } = evidence;
+  const live = content.live ?? back.copies.get(unit.updateName) ?? null;
+  const differences = compiledCopyDifferences(unit, content.unit, live);
+  return differences.length === 0
+    ? []
+    : [`the definition on the instance does not match the reviewed build: ${listed(differences)}`];
 }
+
+const comparedMismatches = (updateName: string, back: ReadBack): readonly string[] =>
+  (back.applied.get(updateName) ?? true) ? [] : (back.mismatches.get(updateName) ?? []);
 
 async function outcome(
   run: ProjectRun,
@@ -50,16 +79,12 @@ async function outcome(
           back.copies.get(updateName) ?? null,
         )
       : null;
-  const captured = !needsCapture || evidence !== null;
+  const captured = !needsCapture || (evidence !== null && evidence.content !== null);
   const compiled = built !== undefined && !isDeletion(built) && !unitSpec(table).comparable;
-  const applied = compiled
-    ? compiledAgrees(built, evidence, back)
-    : (back.applied.get(updateName) ?? true);
-  const mismatches = applied
-    ? []
-    : compiled
-      ? [CAPTURE_MISMATCH]
-      : (back.mismatches.get(updateName) ?? []);
+  const mismatches = compiled
+    ? compiledMismatches(built, evidence, back)
+    : comparedMismatches(updateName, back);
+  const applied = mismatches.length === 0 && (compiled || (back.applied.get(updateName) ?? true));
   return {
     project,
     updateName,

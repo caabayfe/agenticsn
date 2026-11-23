@@ -2,17 +2,20 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   BranchNotPublishedError,
+  type BranchWaivers,
   type DeliveryWorkspace,
   FLUENT_SOURCE_DIR,
   type InstanceName,
   instancePaths,
+  type ReviewedWaivers,
 } from "@snagentic/core";
 import { runGit, runGitOrThrow } from "../git/run-git";
 import { fromYamlStrings } from "../yaml/own-style";
 import { readCommitIndex, reconcileCommitIndex } from "./commit-index";
 
 // What plan and push need of git (ADR-0031): the mirror branch as validate's base, the branch,
-// committed waivers, uncommitted source, and the ledger commit.
+// committed waivers, the reviewed branch's waivers (ADR-0058), uncommitted source, and the ledger
+// commit.
 const WAIVERS = "waivers.yaml";
 
 export class GitDeliveryWorkspace implements DeliveryWorkspace {
@@ -43,13 +46,32 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
       : name;
   }
 
-  async waivers(): Promise<{ committed: unknown | null; uncommitted: boolean }> {
+  async waivers(): Promise<BranchWaivers> {
     const working = await readFile(join(this.root, WAIVERS), "utf8").catch(() => null);
     const head = await runGit(["show", `HEAD:${WAIVERS}`], this.root);
     const committed = head.exitCode === 0 ? head.stdout : null;
     return {
       committed: committed === null ? null : fromYamlStrings(committed),
       uncommitted: working !== committed,
+    };
+  }
+
+  // The remote's default branch is what the clone recorded as <remote>/HEAD: nothing is fetched.
+  async reviewedWaivers(remote: string): Promise<ReviewedWaivers> {
+    const prefix = `refs/remotes/${remote}/`;
+    const head = await runGit(["symbolic-ref", "--quiet", `${prefix}HEAD`], this.root);
+    const ref = head.stdout.trim();
+    const known =
+      head.exitCode === 0 &&
+      ref.startsWith(prefix) &&
+      (await runGit(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], this.root))
+        .exitCode === 0;
+    if (!known) return { kind: "unresolved", remote };
+    const shown = await runGit(["show", `${ref}:${WAIVERS}`], this.root);
+    return {
+      kind: "found",
+      branch: `${remote}/${ref.slice(prefix.length)}`,
+      document: shown.exitCode === 0 ? fromYamlStrings(shown.stdout) : null,
     };
   }
 
@@ -72,11 +94,7 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
     const staged = await runGit(["diff", "--cached", "--quiet", "--", ...paths], this.root);
     if (staged.exitCode === 0)
       return (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
-    // A machine (or CI runner) with no git identity still records the ledger, as integrate does.
-    const configured = (await runGit(["config", "user.email"], this.root)).stdout.trim() !== "";
-    const identity = configured
-      ? []
-      : ["-c", "user.name=snagentic", "-c", "user.email=snagentic@localhost"];
+    const identity = await this.identity();
     await runGitOrThrow(
       [...identity, "commit", "--quiet", "-m", message, "--", ...paths],
       this.root,
@@ -84,6 +102,26 @@ export class GitDeliveryWorkspace implements DeliveryWorkspace {
     const committed = (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
     await reconcileCommitIndex(this.root, index, committed);
     return committed;
+  }
+
+  // Plumbing, as the mirror's commits are: the same tree on top of HEAD, so neither the index
+  // nor the working tree (staged or unstaged work of the user's) is read or changed.
+  async commitRecord(message: string): Promise<string> {
+    const head = (await runGitOrThrow(["rev-parse", "HEAD"], this.root)).trim();
+    const commit = (
+      await runGitOrThrow(
+        [...(await this.identity()), "commit-tree", `${head}^{tree}`, "-p", head, "-m", message],
+        this.root,
+      )
+    ).trim();
+    await runGitOrThrow(["update-ref", "-m", "snagentic: record", "HEAD", commit, head], this.root);
+    return commit;
+  }
+
+  // A machine (or CI runner) with no git identity still records the ledger, as integrate does.
+  private async identity(): Promise<string[]> {
+    const configured = (await runGit(["config", "user.email"], this.root)).stdout.trim() !== "";
+    return configured ? [] : ["-c", "user.name=snagentic", "-c", "user.email=snagentic@localhost"];
   }
 
   async publishBranch(branch: string): Promise<void> {

@@ -57,6 +57,22 @@ describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
     );
   });
 
+  it("records a decision as a commit that changes no file and leaves staged and unstaged work", async () => {
+    const { root, write, workspace } = await repository();
+    const head = (await git(root, "rev-parse", "HEAD")).trim();
+    await write("staged.txt", "staged\n");
+    await git(root, "add", "staged.txt");
+    await write("README.md", "unstaged\n");
+    const status = await git(root, "status", "--porcelain");
+    const commit = await workspace.commitRecord("chore(snagentic): a decision\n\n- what stays");
+    expect((await git(root, "rev-parse", "HEAD")).trim()).toBe(commit);
+    expect((await git(root, "rev-parse", "HEAD~1")).trim()).toBe(head);
+    expect((await git(root, "rev-parse", "--abbrev-ref", "HEAD")).trim()).toBe("main");
+    expect(await git(root, "log", "-1", "--format=%B")).toContain("- what stays");
+    expect(await git(root, "diff", "--stat", head, commit)).toBe("");
+    expect(await git(root, "status", "--porcelain")).toBe(status);
+  });
+
   it.each(["new", "existing"])(
     "keeps %s hook-generated keys clean while preserving unrelated partial staging",
     async (kind) => {
@@ -185,6 +201,65 @@ describe("GitDeliveryWorkspace and the branch's commits (ADR-0022)", () => {
     const { workspace } = await repository();
     await expect(workspace.publishBranch("main")).rejects.toMatchObject({
       code: "branch-not-published",
+    });
+  });
+});
+
+// ADR-0058: in team mode the gate reads waivers.yaml from the remote's default branch, as this
+// clone last fetched it.
+describe("GitDeliveryWorkspace and the reviewed branch's waivers (ADR-0058)", () => {
+  const WAIVERS = "waivers:\n  - rule: SN-SEC-001\n";
+
+  async function clone() {
+    const upstream = await repository();
+    const root = await mkdtemp(join(tmpdir(), "snagentic-clone-"));
+    cleanups.push(root);
+    await git(root, "clone", "-q", upstream.root, ".");
+    return { upstream, root, workspace: new GitDeliveryWorkspace(root, InstanceName.parse("pdi")) };
+  }
+
+  it("reads no waiver from a reviewed branch that has no waivers.yaml", async () => {
+    const { workspace } = await clone();
+    expect(await workspace.reviewedWaivers("origin")).toEqual({
+      kind: "found",
+      branch: "origin/main",
+      document: null,
+    });
+  });
+
+  it("does not read a waiver committed only on the local branch", async () => {
+    const { root, workspace } = await clone();
+    await writeFile(join(root, "waivers.yaml"), WAIVERS);
+    await git(root, "add", "waivers.yaml");
+    await git(root, "commit", "-qm", "waive");
+    expect((await workspace.waivers()).committed).toEqual({ waivers: [{ rule: "SN-SEC-001" }] });
+    expect(await workspace.reviewedWaivers("origin")).toMatchObject({ document: null });
+  });
+
+  it("reads the waivers merged to the reviewed branch once they are fetched, never fetching itself", async () => {
+    const { upstream, root, workspace } = await clone();
+    await upstream.write("waivers.yaml", WAIVERS);
+    await git(upstream.root, "add", "waivers.yaml");
+    await git(upstream.root, "commit", "-qm", "waive");
+    expect(await workspace.reviewedWaivers("origin")).toMatchObject({ document: null });
+    await git(root, "fetch", "-q", "origin");
+    expect(await workspace.reviewedWaivers("origin")).toEqual({
+      kind: "found",
+      branch: "origin/main",
+      document: { waivers: [{ rule: "SN-SEC-001" }] },
+    });
+  });
+
+  it("cannot name the reviewed branch when the clone has no record of the remote's default branch", async () => {
+    const { root, workspace } = await clone();
+    await git(root, "remote", "set-head", "origin", "--delete");
+    expect(await workspace.reviewedWaivers("origin")).toEqual({
+      kind: "unresolved",
+      remote: "origin",
+    });
+    expect(await workspace.reviewedWaivers("nowhere")).toEqual({
+      kind: "unresolved",
+      remote: "nowhere",
     });
   });
 });

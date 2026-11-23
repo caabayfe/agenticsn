@@ -1,6 +1,6 @@
 import { queryLiveTable, TableName } from "@snagentic/core";
 import { z } from "zod";
-import { connect } from "./connect";
+import { liveQueryAccess } from "./live-query-access";
 import { liveFields, liveFlags, livePredicate, liveRow, liveTarget } from "./live-query-schemas";
 import { defineUseCase } from "./use-case";
 
@@ -18,7 +18,8 @@ export const queryTable = defineUseCase({
     group: "Read live ServiceNow data",
     details:
       "Read explicit fields with a selective literal filter. Use the returned cursor with the same query, fields and limit for another page. No mirror pull is required.",
-    effects: "Reads live schema and records; masks secrets; writes no records or local files.",
+    effects:
+      "Reads live schema and records; masks secrets; writes no records. Adds one line to the local query log.",
     examples: [
       [
         "query",
@@ -56,13 +57,13 @@ export const queryTable = defineUseCase({
   }),
   flags: liveFlags,
   async handle(input, context, run) {
-    const { reader, profile } = await connect(context, input.instance, run.signal);
+    const access = await liveQueryAccess(context, input.instance, run.signal);
     return queryLiveTable(
-      reader,
+      access,
       {
         ...input,
         table: TableName.parse(input.table),
-        source: JSON.stringify([profile.url, profile.auth.username]),
+        source: JSON.stringify([access.profile.url, access.profile.auth.username]),
       },
       run.signal,
     );

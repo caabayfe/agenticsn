@@ -19,6 +19,7 @@ import { GitMirrorFiles } from "../../src/adapters/knowledge/git-mirror-files";
 import { SqliteKnowledgeStore } from "../../src/adapters/knowledge/sqlite-knowledge-store";
 import { YamlProfileStore } from "../../src/adapters/profiles/yaml-profile-store";
 import { JsonPushJournalStore } from "../../src/adapters/state/json-push-journal-store";
+import { JsonlLiveQueryLog } from "../../src/adapters/state/jsonl-live-query-log";
 import { syncStateStore } from "../../src/adapters/state/mirror-sync-state-store";
 import { FsWorkspaceStore } from "../../src/adapters/workspace/fs-workspace-store";
 import type { UseCaseContext } from "../../src/registry/use-case";
@@ -93,6 +94,7 @@ export async function instanceWorkspace(
       files: new GitMirrorFiles(r, instancePaths(name).metadata),
     }),
     pushJournal: (r, name) => new JsonPushJournalStore(join(r, instancePaths(name).localState)),
+    liveQueryLog: (r, name) => new JsonlLiveQueryLog(join(r, instancePaths(name).localState)),
     ...DELIVERY_ADAPTERS,
     agentFiles: managedAgentFiles,
     files: {

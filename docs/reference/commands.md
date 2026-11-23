@@ -263,13 +263,13 @@ Read a bounded live table page
 
 Read explicit fields with a selective literal filter. Use the returned cursor with the same query, fields and limit for another page. No mirror pull is required.
 
-**Effects:** Reads live schema and records; masks secrets; writes no records or local files.
+**Effects:** Reads live schema and records; masks secrets; writes no records. Adds one line to the local query log.
 
 MCP tool: none.
 
 Required:
 
-- `--instance <instance>`: configured instance profile; test/production require a verified read-only credential
+- `--instance <instance>`: configured instance profile; test/production require live_queries enabled in instance.yaml and a verified read-only credential
 - `--table <table>`: table name, validated against the live dictionary
 - `--fields <fields...>`: explicit field names; at most two reference hops, no wildcard
 - `--query <query>`: literal encoded query: each NQ branch needs sys_id/unique equality or IN, or explicit UTC sys_updated_on bounds within 31 days; no JavaScript/dynamic filters
@@ -295,13 +295,13 @@ Read one live record
 
 Read explicit fields by table and sys_id. A missing or ACL-hidden record returns null.
 
-**Effects:** Reads live schema and one record; writes nothing.
+**Effects:** Reads live schema and one record; writes no records. Adds one line to the local query log.
 
 MCP tool: none.
 
 Required:
 
-- `--instance <instance>`: configured instance profile; test/production require a verified read-only credential
+- `--instance <instance>`: configured instance profile; test/production require live_queries enabled in instance.yaml and a verified read-only credential
 - `--table <table>`: table name, validated against the live dictionary
 - `--fields <fields...>`: explicit field names; at most two reference hops, no wildcard
 - `--sys-id <sys-id>`: record sys_id
@@ -322,13 +322,13 @@ Count live records or groups
 
 Count matches, optionally grouped by one non-sensitive field. Supports count only; refuses more than 100 groups.
 
-**Effects:** Reads live schema and aggregate counts; writes nothing.
+**Effects:** Reads live schema and aggregate counts; writes no records. Adds one line to the local query log.
 
 MCP tool: none.
 
 Required:
 
-- `--instance <instance>`: configured instance profile; test/production require a verified read-only credential
+- `--instance <instance>`: configured instance profile; test/production require live_queries enabled in instance.yaml and a verified read-only credential
 - `--table <table>`: table name, validated against the live dictionary
 - `--query <query>`: literal encoded query: each NQ branch needs sys_id/unique equality or IN, or explicit UTC sys_updated_on bounds within 31 days; no JavaScript/dynamic filters
 
@@ -352,13 +352,13 @@ Inspect live inherited table fields
 
 Read the live dictionary through the parent chain. Pages fields instead of silently truncating at 1000. Does not list descendants.
 
-**Effects:** Reads table definitions and dictionary fields; writes nothing.
+**Effects:** Reads table definitions and dictionary fields; writes no records. Adds one line to the local query log.
 
 MCP tool: none.
 
 Required:
 
-- `--instance <instance>`: configured instance profile; test/production require a verified read-only credential
+- `--instance <instance>`: configured instance profile; test/production require live_queries enabled in instance.yaml and a verified read-only credential
 - `--table <table>`: table name, validated against the live dictionary
 
 Examples:
@@ -375,7 +375,7 @@ snagentic describe <target> [options]
 
 Explain a table or record from the mirror
 
-Describe a table's fields and supported behavior in execution order, including inheritance. A record path or sys_id shows its files and references. Table-triggered flows, workflows and global-table business rules are not covered.
+Describe a table's fields and supported behavior in execution order, including inheritance. A record path or sys_id shows its files and references; the path is the one find prints, or the file's path in the workspace. Table-triggered flows, workflows and global-table business rules are not covered.
 
 **Effects:** Queries the local mirror and search index; does not call the instance.
 
@@ -586,29 +586,31 @@ snagentic push [options]
 
 Deliver an approved plan to development
 
-Recheck the workspace and instance against the plan from snagentic plan-push, then deliver the approved changes to development update sets. Stops if the plan no longer matches. Pass --confirm only after the user approved the plan. Reuse any planning overrides.
+Recheck the workspace and instance against the plan from snagentic plan-push, then deliver the approved changes to development update sets. Stops if the plan no longer matches. Pass --confirm only after the user approved the plan. Reuse any planning overrides. With --abandon-pending it delivers nothing: it drops an unfinished delivery that recovery refuses, lists what stays on the instance, and rolls nothing back.
 
-**Effects:** Writes to the development instance and commits delivery ledgers locally; --draft-pr may also create a pull request.
+**Effects:** Writes to the development instance and commits delivery ledgers locally; --draft-pr may also create a pull request. --abandon-pending sends the instance nothing: it commits a record of what stays there and clears the push journal.
 
 MCP tool: `push`.
 
 Required:
 
 - `--instance <instance>`: the development instance
-- `--plan <plan>`: Plan ID returned by snagentic plan-push
+- `--plan <plan>`: Plan ID returned by snagentic plan-push; with --abandon-pending, the unfinished push shown by snagentic status
 
 Options:
 
-- `--confirm`: Confirm that the user approved the plan
+- `--confirm`: Confirm that the user approved the plan, or what an abandoned delivery leaves
 - `--label <label>`: Update-set label; reuse the value used for planning (default: git branch)
 - `--pr <pr>`: the branch's pull request (default: found with the GitHub CLI)
 - `--draft-pr`: open a draft pull request when the branch has none (needs committed changes)
 - `--allow-collisions`: Accept ownership collisions; also use this override when planning
 - `--recover-pending`: confirm a receipt-only recovery plan; rechecks original captures and live content without loading metadata
+- `--abandon-pending`: drop the unfinished delivery named by plan instead of delivering: lists what stays on the instance, rolls nothing back, sends the instance nothing
 
 Examples:
 
 - `snagentic push --instance dev --plan PLAN_ID --confirm`
+- `snagentic push --instance dev --abandon-pending --plan UNFINISHED_PUSH_ID`
 
 All commands also take `--format agent|json|text` and `--workspace <path>`.
 
@@ -1252,7 +1254,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `scope` (string, optional): only records of this application scope
   - `limit` (integer, optional)
 - `describe`: Describe a table or a record of the mirrored instance. A table: its fields and everything that runs on it, in execution order (client scripts, UI policies, business rules before/after/async, notifications, ACLs), including what it inherits. A record (path or sys_id): its files and what refers to it. Reads the workspace only.
-  - `target` (string, required): a table name, a record path, or a sys_id
+  - `target` (string, required): a table name, a sys_id, or a record's path: as find prints it, or the path of one of its files in the workspace (instances/<instance>/metadata/...)
   - `instance` (string, optional): default: the workspace's only instance
   - `inactive` (boolean, optional): tables: also list inactive behavior
   - `phase` (client | action | query | display | before | after | async | notify | policy | access, optional): tables: list only this phase, in full (as next suggests when items were left out)
@@ -1276,7 +1278,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `label` (string, optional): names the update sets (default: the git branch)
   - `allowCollisions` (boolean, optional): accept records already held in someone else's open update set
   - `recoverPending` (boolean, optional): recover only pending receipts proven by original captures and live content; loads nothing and uses the original batch
-- `push`: Deliver a reviewed plan to the development instance: loads the planned units of the Fluent source (fluent/load) into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, checks each was captured and reads it back, then commits the ledgers. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. Destructive: hosts ask before running it.
+- `push`: Deliver a reviewed plan to the development instance: loads the planned units of the Fluent source (fluent/load) into the branch's update set batch, 'snagentic: <label>' (global changes) with a child 'snagentic: <label> [<scope>]' per other scope, checks each was captured and reads it back, then commits the ledgers. Pass pr to name the branch's pull request; otherwise its open one is linked when the GitHub CLI is signed in. draftPr opens a draft pull request first when there is none (the planned changes must be committed). Only with the planId from plan_push and confirm=true, after the user approved the plan. Refuses if anything changed since the plan, on the instance or in the workspace. abandonPending=true delivers nothing: for an unfinished delivery that recoverPending refuses, it lists what the stopped push left on the instance and in which update set (without confirm, as the refusal to show the user), then with confirm=true records that list in a commit and clears the pending journal so the workspace can plan again. It sends the instance nothing and rolls nothing back; plan is then the unfinished push's id, from status. Destructive: hosts ask before running it.
   - `instance` (string, required): the development instance
   - `plan` (string, required): the planId from plan_push
   - `confirm` (boolean, optional): true once the user approved the plan
@@ -1285,6 +1287,7 @@ when the workspace has a development instance, and can only name those (ADR-0012
   - `draftPr` (boolean, optional): open a draft pull request when the branch has none (needs committed changes)
   - `allowCollisions` (boolean, optional)
   - `recoverPending` (boolean, optional): confirm a receipt-only recovery plan; rechecks original captures and live content without loading metadata
+  - `abandonPending` (boolean, optional): drop the unfinished delivery named by plan instead of delivering: lists what stays on the instance, rolls nothing back, sends the instance nothing
 - `update_sets`: Read a ServiceNow instance's update sets. action=list: open and recently changed sets with update counts. show: one set's updates (needs id). collisions: records held by more than one open set. export: write a set as ServiceNow XML (needs id). Never changes the instance.
   - `instance` (string, required)
   - `action` (list | show | collisions | export, required)

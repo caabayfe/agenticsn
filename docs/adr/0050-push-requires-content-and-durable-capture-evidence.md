@@ -1,6 +1,6 @@
 # 0050. Push requires content and durable capture evidence
 
-- Status: Accepted implementation plan (product owner approval in this session)
+- Status: Accepted; amendments A1 (2026-11-21) and A2 (2026-11-22) accepted
 - Date: 2026-11-14
 - Requirements: G1, G3, ASR-02, ASR-08, ASR-10
 - Amends: ADR-0033 items 3, 4 and 6; implements ADR-0028's published-capture requirement
@@ -162,3 +162,69 @@ authored/captured values and missing ordinary fields still fail. Known omitted d
 refuse conflicting captured values, including where reference-name compatibility would otherwise
 lack evidence. Catalog-item names, active flags, descriptions and fulfilment flow bindings
 remain compared. No capture, live-base, receipt or target check is skipped.
+
+## Amendments
+
+### A1. An unfinished delivery can be abandoned (Accepted, 2026-11-21)
+
+Evidence: spec 016, product audit of 2026-11-21, step R3; owner decision D3. Items 5 and 7 block
+delivery while a receipt is unfinished, and recovery refuses once the instance version moved, the
+update set closed or the journal is a legacy one. Nothing then finished or dropped the delivery,
+and the guide forbade removing the journal: the workspace could not push again.
+
+`push --abandon-pending` is the exit. It is a flag of the existing `push` use case, not a new
+command or MCP tool, so it exists only where `push` does (development instances, ADR-0012) and
+holds the same workspace lock.
+
+1. It takes confirmation as `push` does: `--plan` and `--confirm`. The plan id is the unfinished
+   push's, which `status` shows; another id refuses. Without `--confirm` it refuses and lists
+   what would stay.
+2. The list comes from the journal alone: each receipt's record, operation, update set and
+   whether it was verified, written without verification, or of unknown outcome. A legacy
+   journal lists its steps, without update set.
+3. It sends the instance nothing: no read, no write, no credential. It rolls nothing back and
+   says so. Preferences a stopped push switched and did not restore stay journaled for the next
+   push, since restoring them is a write.
+4. The list is recorded in a commit on the branch, made before the receipts are cleared; a
+   failed commit leaves the journal. No ledger changes: item 6 stands, a ledger advances only
+   for a unit both applied and captured. The commit therefore changes no file.
+5. Nothing is abandoned automatically, and nothing else clears a receipt. Items 5 and 7 now
+   read "until recovered, or abandoned by the user"; item 7's "manually reconciled" is this
+   command. The scope line's "no new command or MCP tool" still holds.
+
+After abandoning, a normal plan compares source, ledger and instance as for any record: what the
+stopped push left appears as already equal, changed on the instance, or to load.
+
+### A2. Corrected source may replace the push's own unverified write (Accepted, 2026-11-22)
+
+Evidence: pdi15, 2026-11-21. An accelerator install loaded a business rule whose condition was
+longer than its field. The instance kept a cut value, the read-back found it "not applied as
+built", and the receipt stayed unverified at the version the push had written. Correcting the
+source was the only fix, and item 5 blocked it: "changed source ... blocks delivery". Restoring
+the pushed source cut the value again. Abandoning (A1) left the ledger one version behind the
+instance, so the next plan reported drift and asked for `adopt --refresh`, which would have
+copied the cut value into source. Owner decision of 2026-11-22.
+
+Item 5 blocks changed source because a load could then overwrite a write nobody verified. That
+does not hold while the record is at the version the push itself read back: no one saved it
+since, so the load overwrites only the push's own write.
+
+1. A unit with an unfinished receipt and changed source is planned as a `load` when all of
+   these hold: the receipt has an observed version (the read-back ran and found the record);
+   the instance holds the record at exactly that version; the receipt is for a create or a load;
+   and the target checks of item 5 pass (same instance, URL and batch, original update set open).
+2. The plan marks that load (`replacesUnfinished`) and prints it as replacing what an unfinished
+   delivery wrote and did not verify. Its changes are the differences between the instance and
+   the corrected build; its ledger version is the older one, beside the instance's.
+3. Nothing else is relaxed. The plan id binds the receipt, the corrected source and the live
+   version; the gate, confirmation, capture, read-back and ledger commit are those of any load.
+   The new push replaces the receipt with one for the corrected build, in the same update set.
+4. It stays blocked, with the earlier exits, when the outcome is unknown (no read-back), the
+   record is absent, the version moved, the receipt is for a deletion, or the corrected source
+   already equals the instance (that is receipt-only recovery, `--recover-pending`).
+5. An accelerator install plans and pushes each module as its admin approved it, so a resumed
+   install applies this without a separate review: it replaces only what its own earlier run
+   wrote. The install report does not yet name the replaced records.
+
+Item 5 now reads "changed source blocks delivery unless the instance still holds the push's own
+observed write (A2)". No new command, flag or MCP tool.

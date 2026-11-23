@@ -4,6 +4,103 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-11-22
+
+### Added
+
+- Corrected source replaces a write the push could not verify. When a push wrote a record and
+  found it "not applied as built" (a value the instance cut, for example), a plan with corrected
+  source was refused until the receipt was dealt with by hand. While the record on the instance
+  is unchanged since that write, `plan-push` now plans the corrected build as a `load` marked as
+  replacing what the unfinished delivery wrote; the push verifies it and clears the receipt. An
+  unknown outcome, a record changed on the instance and a deletion stay blocked (ADR-0050,
+  amendment A2; [guide](docs/guides/recover-interrupted-delivery.md)).
+
+- `push --abandon-pending` is the way out of an unfinished delivery that `--recover-pending`
+  refuses. With the unfinished push's id as `--plan` (from `status`) it lists what the stopped
+  push left on the instance and in which update set; with `--confirm` it records that list in a
+  commit and clears the pending receipts, so the workspace can plan and push again. It sends the
+  instance nothing and rolls nothing back. Refusals that had no exit now name it (ADR-0050,
+  amendment A1).
+
+- A nightly workflow runs the live tests against a dedicated developer instance, from a
+  protected GitHub environment, and reports a failure in an issue. A sleeping instance ends the
+  run with a notice, not a failure ([guide](docs/guides/live-tests.md); spec 016, T1).
+
+### Fixed
+
+- A plan refuses a business rule condition longer than its field. The length check covered
+  `string`, `translated_field` and `translated_text` columns only; a rule's condition is a
+  `condition_string` column of 254 characters, so a longer one was loaded, stored cut and failed
+  to compile on every save (pdi15, 2026-11-21).
+
+- `describe` accepts a record's path as the workspace shows it (`instances/<instance>/metadata/...`,
+  relative or absolute) and the path of any of the record's files, not only the path `find`
+  prints. A path into another instance's mirror than the one asked for is refused, and the
+  `record-not-found` hint names the accepted forms (spec 016, U6).
+- Delivery messages name what the developer can do. A record that moved between plan and load
+  names `adopt --refresh` and counts the projects already loaded; a flow or action that fails
+  verification says whether its capture is missing, unpublished or different, and names the
+  rows and fields that differ; unfinished-delivery refusals name `--recover-pending` or say that
+  no command settles them yet, instead of a "reconcile" step that does not exist.
+- `integrate` refuses to run while a merge is in progress and names the command that leaves that
+  state (`git merge --abort`), instead of a file restore that does not. It no longer concludes a
+  merge of the user's own.
+
+- An incremental `pull` reports the changed records it could not store: those the change feed
+  named and their own table did not return to the pulling user. It counts them, names the first
+  twenty, says which the mirror still holds as they were, and points to `pull --verify`. The
+  JSON output carries them as `incremental.unstored`.
+- A full pull that stops after committing the mirror (while packing the repository, or a moment
+  before) no longer makes the next pull replace the mirror with a nearly empty one. Packing runs
+  after the pull is complete and a failure is reported as a warning (`warnings` in the pull
+  output); a checkpoint the mirror already holds is dropped, and a resumed pull whose progress
+  is gone reads every class again.
+
+### Changed
+
+- The opt-in agent evaluation (`scripts/eval`) scores the 2.x flow: scenarios for a change to an
+  adopted record, adopt before editing, a new record in Fluent, a change `validate` blocks, a
+  push asked for with no plan, and mirror text that gives instructions. Checks that expected
+  edits of the mirror are retired. `scripts/eval/README.md` states what each scenario cannot
+  show with the instance unreachable. No evaluation was run.
+
+- Documentation matches the code (spec 016, P0): the README states the released version and a
+  test keeps it so; the rule count is broken down by kind; the security document says what the
+  code enforces for waivers and push confirmation and what depends on the agent host, and
+  describes the live `query` commands; `AGENTS.md` lists the real contexts and test practice.
+
+### Security
+
+- In team mode (a profile with a shared mirror), the push gate accepts only waivers on the
+  remote's default branch, as the clone last fetched it, so every accepted waiver has passed a
+  pull request. A waiver that is only on the developer's branch waives nothing, and the plan
+  says to open a pull request for it. Solo mode keeps reading the waivers committed on the
+  branch. ADR-0058 amends ADR-0006 (SEC3-01).
+- snagentic refuses to start while `BUN_OPTIONS` is set (`runtime-options-set`), and `doctor`
+  fails when the `env` block of `.claude/settings.json` or `.claude/settings.local.json` sets a
+  runtime variable. The limits of both checks are in `docs/product/security-and-governance.md`,
+  "The runtime inside the binary" (SEC3-05).
+- The advisory check fails when `bun audit` did not produce a valid report, with its own message
+  and exit code, and the release workflow runs the check before it builds a binary (SEC3-07).
+- `doctor --instance` and `onboard` check that a test or production credential holds
+  `snc_read_only` before asking the instance anything else, as every other command does. A
+  credential that does not is reported as the failed `roles` check (or stops onboarding at
+  sign-in), and the instance is not called again. `auth login` makes the same check before it
+  reads the signed-in user (SEC3-08, ADR-0012).
+- The live query commands (`query table`, `query record`, `query aggregate`) refuse a field whose
+  values are masked in output wherever it could influence the result: in a filter condition
+  (including `^OR` and `^NQ` branches and reference paths) and as the group field. The refusal has
+  the code `masked-field`. (SEC3-03)
+- Live queries (`query table`, `query record`, `query aggregate`, `query schema`) are off on
+  test and production instances unless the instance's `instance.yaml` has
+  `live_queries: { enabled: true }`; the refusal has the code `live-queries-disabled`.
+  Development instances are unchanged. Every live query that runs adds a line to
+  `.snagentic/<name>/live-queries.jsonl` (time, instance, user name, command, table, the filter's
+  field names and operators; never values or results), and is refused when that line cannot be
+  written. `docs/product/security-and-governance.md`, "Live queries", states the limits
+  (SEC3-04, ADR-0057 amendment A1).
+
 ## [2.22.3] - 2026-11-17
 
 ### Fixed

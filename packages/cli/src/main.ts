@@ -5,10 +5,12 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { INSTRUCTIONS, PROMPTS, RESULT_NOTE } from "@snagentic/agent-packs";
 import {
   documentationLookup,
+  exitCodeFor,
   InstanceName,
   instancePaths,
   LOCAL_STATE_DIR,
   noticeAllowed,
+  runtimeOptionsRefusal,
   updateNotice,
   usernameResolvingProfiles,
   VERSION,
@@ -62,6 +64,7 @@ import { InstanceConnections } from "./adapters/servicenow/instance-connections"
 import { FileWorkspaceLock } from "./adapters/state/file-workspace-lock";
 import { JsonInstallJournal } from "./adapters/state/json-install-journal";
 import { JsonPushJournalStore } from "./adapters/state/json-push-journal-store";
+import { JsonlLiveQueryLog } from "./adapters/state/jsonl-live-query-log";
 import { syncStateStore } from "./adapters/state/mirror-sync-state-store";
 import { TerminalSecretReader } from "./adapters/terminal/terminal-secret-reader";
 import { ExecutableBinary, installedPath } from "./adapters/upgrade/executable-binary";
@@ -75,6 +78,13 @@ import { developmentInstances } from "./registry/development-instances";
 import { USE_CASES } from "./registry/registry";
 import type { UseCaseContext } from "./registry/use-case";
 import { versionLine } from "./version-line";
+
+// Before anything else, the worker included: runtime options come only from the build (SEC3-05).
+const refusal = runtimeOptionsRefusal(process.env);
+if (refusal !== null) {
+  process.stderr.write(`error[${refusal.code}]: ${refusal.message}\nhint: ${refusal.hint}\n`);
+  process.exit(exitCodeFor(refusal));
+}
 
 // The Fluent SDK worker (ADR-0044): this binary started again by itself to run one build, before
 // anything else is set up. It never reads a credential.
@@ -188,6 +198,8 @@ const context: UseCaseContext = {
   pullRequests: (root) => new GhPullRequests(root),
   pushJournal: (root, instance) =>
     new JsonPushJournalStore(join(root, instancePaths(instance).localState)),
+  liveQueryLog: (root, instance) =>
+    new JsonlLiveQueryLog(join(root, instancePaths(instance).localState)),
   installJournal: (root, instance) =>
     new JsonInstallJournal(join(root, instancePaths(instance).localState)),
   workspaceLock: (root, instance) =>

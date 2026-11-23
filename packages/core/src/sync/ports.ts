@@ -109,6 +109,10 @@ export interface FinishedPull {
 export interface MirrorSession extends MirrorWriter {
   // Commits the finished pull to the instance's remote branch.
   finish(message: string): Promise<FinishedPull>;
+  // Housekeeping once the pull is finished and its checkpoint cleared: packs what it wrote.
+  // A failure costs disk space, never mirror content, so it comes back as a warning to show
+  // the user and is never thrown; null when all went well.
+  compact(): Promise<string | null>;
   // Stops writing; durable progress is kept for a resumed pull.
   abort(): Promise<void>;
 }

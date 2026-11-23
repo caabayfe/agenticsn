@@ -2,6 +2,7 @@ import type { LedgerEntry } from "../../authoring/domain/ledger";
 import { LEDGER_FILE, withEntries } from "../../authoring/domain/ledger";
 import type { InstanceReader } from "../../connection/ports";
 import type { NextCall } from "../../knowledge/index";
+import type { AbandonedUnit } from "../domain/abandoned-delivery";
 import { GLOBAL } from "../domain/batch";
 import {
   PlanChangedError,
@@ -81,6 +82,8 @@ export interface UnitPushResult {
   readonly ledgerCommit: string | null;
   // What the push could not finish after reaching the instance, with the command that does it.
   readonly warnings: readonly string[];
+  // Only after --abandon-pending: what the abandoned delivery left on the instance.
+  readonly abandoned?: readonly AbandonedUnit[];
   readonly next: readonly NextCall[];
 }
 

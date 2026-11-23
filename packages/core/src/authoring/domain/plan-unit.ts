@@ -19,6 +19,8 @@ export type UnitDecision =
       readonly differences: readonly Difference[];
       // Differences that are known SDK losses: what the load also sets.
       readonly losses: readonly LossId[];
+      // The load replaces what an unfinished delivery wrote and never verified (ADR-0050, A2).
+      readonly replacesUnfinished?: true;
     }
   | { readonly kind: "delete" }
   // Someone changed the unit on the instance since it last agreed with source.

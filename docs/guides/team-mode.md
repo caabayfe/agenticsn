@@ -184,6 +184,18 @@ history was rewritten rather than extended (a force push): each clone remembers 
 commit it last fetched, and stops if the new tip doesn't contain it. It can't detect a watermark
 someone moved back by hand. Branch protection is what stops that.
 
+### 5. Protect the default branch
+
+In team mode, a push accepts only the waivers in `waivers.yaml` on the remote's default branch
+(for example `origin/main`), so every accepted waiver has passed a pull request (ADR-0058).
+That is as strong as the review of that branch: add a ruleset that requires a pull request and
+a review to change it.
+
+A developer who needs a waiver opens a pull request for it. Once it is merged, `git fetch
+origin` makes it apply to every branch of that clone. A waiver that is only on the developer's
+branch waives nothing, and `plan-push` says so. A clone that wasn't made with `git clone` runs
+`git remote set-head origin --auto` once, so it knows which branch is the default.
+
 ## Daily developer flow
 
 Each developer clones the workspace repository and signs in once:

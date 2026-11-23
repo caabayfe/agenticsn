@@ -82,6 +82,27 @@ describe("plan refuses a value the instance would cut (spec 011, I11)", () => {
     expect(plan.problems).toEqual([]);
   });
 
+  it("refuses a condition longer than its field: a rule's condition is not a string column", async () => {
+    // pdi15, 2026-11-21: sys_script.condition (condition_string, 254) kept the first 254
+    // characters of a longer condition; the rule then failed to compile on every save.
+    const { deps, builds, project, tables } = unitSetup();
+    dictionary(tables, "100");
+    tables["sys_dictionary"]?.push({
+      sys_id: "d4",
+      name: "sys_script_include",
+      element: "condition",
+      internal_type: "condition_string",
+      max_length: "254",
+    });
+    const unit = created({ condition: "c".repeat(277) });
+    builds.set(project.path, [...(builds.get(project.path) ?? []), unit]);
+    const { plan } = await computeUnitPlan(deps, QUERY);
+    expect(plan.problems.map((p) => p.reason)).toEqual([
+      "sys_script_include.condition is 277 characters and the instance keeps 254: it would cut the value; shorten it",
+    ]);
+    expect(plan.ready).toBe(false);
+  });
+
   it("plans values within their fields, and leaves script fields unchecked", async () => {
     const { deps, builds, project, tables } = unitSetup();
     dictionary(tables, "10");

@@ -1,4 +1,5 @@
 import type { BuiltUnit, InstanceCopy, PendingDelivery } from "../authoring/index";
+import type { BranchWaivers, ReviewedWaivers } from "./domain/waivers";
 
 export type { PendingDelivery } from "../authoring/index";
 
@@ -12,13 +13,19 @@ export interface DeliveryWorkspace {
   branch(): Promise<string>;
   // waivers.yaml at the workspace root as committed (parsed, or null when there is none), and
   // whether the working tree differs. Only committed waivers apply: they are reviewed in git.
-  waivers(): Promise<{ readonly committed: unknown | null; readonly uncommitted: boolean }>;
+  waivers(): Promise<BranchWaivers>;
+  // waivers.yaml on the default branch of `remote`, read from this clone's remote-tracking refs
+  // (ADR-0058). Never fetches: the gate sends nothing over the network.
+  reviewedWaivers(remote: string): Promise<ReviewedWaivers>;
   // Pushes the branch to its remote (origin when it has none), setting it as upstream.
   publishBranch(branch: string): Promise<void>;
   // Files under source/ that differ from HEAD (edited, staged or new), workspace-relative.
   uncommittedSource(): Promise<string[]>;
   // Commits exactly these workspace-relative files, whatever else is staged; returns the commit.
   commitFiles(paths: readonly string[], message: string): Promise<string>;
+  // A commit on the branch that changes no file, and leaves the index and working tree as they
+  // are: a decision recorded in history (an abandoned delivery). Returns the commit.
+  commitRecord(message: string): Promise<string>;
 }
 
 // A branch's pull request as the git platform reports it (ADR-0022). `unavailable`: the

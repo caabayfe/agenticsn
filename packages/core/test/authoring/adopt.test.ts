@@ -7,8 +7,11 @@ import {
   AdoptUnexplainedDifferenceError,
   adopt,
   type BuiltUnit,
+  EMPTY_LEDGER,
   InvalidScopeNameError,
   NothingAdoptedError,
+  unitDigest,
+  withEntries,
 } from "@snagentic/core";
 import { fakeInstance } from "../support/fake-instance";
 import { memoryToolchain, memoryWorkspace } from "../support/memory-authoring";
@@ -218,6 +221,38 @@ describe("adopt (ADR-0031 item 3)", () => {
     ]);
     expect(written.size).toBe(0);
     expect(result.conflicts).toEqual([]);
+  });
+
+  // pdi15, 2026-11-20: a job set inactive and active again on the instance built as the ledger
+  // commit did, so the refresh named no unit, the ledger kept the old version and the plan
+  // refused the record as drift after every refresh.
+  it("renews the ledger entry of a refreshed record whose build did not move", async () => {
+    const { workspace, ledgers, add } = memoryWorkspace("c0ffee");
+    const project = add("x_2222332_s11", SCOPE_ID);
+    const name = `sys_script_include_${SCRIPT_INCLUDE_ID}`;
+    const agreed = scriptInclude("Helpers for the E2E probe.");
+    const stale = { build: unitDigest(agreed), instance: "0|2026-10-15 08:08:09", losses: [] };
+    ledgers.set(project.path, withEntries(EMPTY_LEDGER, "pdi2", new Map([[name, stale]])));
+    const fake = instance({ sys_mod_count: "2", sys_updated_on: "2026-10-16 13:45:26" });
+    const result = await adopt(
+      {
+        reader: fake.reader,
+        workspace,
+        toolchain: toolchain([agreed], [agreed]).chain,
+        access,
+        signal,
+      },
+      {
+        instance: "pdi2",
+        records: [{ table: "sys_script_include", sysId: SCRIPT_INCLUDE_ID }],
+        refresh: true,
+      },
+    );
+    expect(result.units.map((unit) => unit.updateName)).toEqual([name]);
+    expect(ledgers.get(project.path)?.get("pdi2")?.get(name)).toEqual({
+      ...stale,
+      instance: "2|2026-10-16 13:45:26",
+    });
   });
 
   it("refuses to refresh a project nothing was adopted into", async () => {

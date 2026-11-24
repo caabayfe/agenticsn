@@ -163,6 +163,33 @@ refuse conflicting captured values, including where reference-name compatibility
 lack evidence. Catalog-item names, active flags, descriptions and fulfilment flow bindings
 remain compared. No capture, live-base, receipt or target check is skipped.
 
+The recorded pdi15 on-call flows (Brazil patch 2, SDK 4.14.3, 2026-11-24) extend the known
+shapes to a flow that waits, sets its variables and calls a shipped action and a shipped subflow
+by ID. In every case the values and scripts that run were identical; publication writes
+descriptions and captions beside them.
+
+- Record Created or Updated takes the Record Updated path: the same generated Changed Fields
+  output, compared to the trigger's own native definition. Record Created alone has no recorded
+  capture and stays refused.
+- An input of an action the SDK holds only the ID of is built as a string; the captured type is
+  accepted when it is the type of that action's native input definition.
+- An input the build gives no description of (a scripted input, the inputs of Wait for a
+  duration) may carry the description publication copies in, when it is that input's native
+  definition (ID, name, type, mandatory flag, default, size, label, hint, order) and holds only
+  description keys, so no value or script.
+- A native optional switch the build leaves out is captured as off (`0`, `false`); on, mandatory
+  or with a default it is a mismatch.
+- A pill assigned to a declared flow variable is repeated as the assignment's caption. A caption
+  that is not the assigned value is a mismatch.
+- A duration caption has to read back to the stored duration (`30 Seconds`); a missing caption
+  agrees with an empty one only beside an empty value.
+- A subflow called with some of its inputs has the others captured as empty entries. They are
+  removed only against the subflow's own native input definitions, read with one more indexed,
+  bounded request, made only for a changed flow that calls a subflow.
+
+Missing native evidence, a changed value, script, assignment or description, and an input the
+definition does not have remain refused by the recorded negative cases.
+
 ## Amendments
 
 ### A1. An unfinished delivery can be abandoned (Accepted, 2026-11-21)

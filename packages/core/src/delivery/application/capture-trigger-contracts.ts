@@ -1,5 +1,6 @@
 import {
   type BuiltUnit,
+  NATIVE_TRIGGER_TYPES,
   type NativeTriggerContract,
   TRIGGER_OUTPUT_FIELDS,
 } from "../../authoring/index";
@@ -17,6 +18,9 @@ const PARAMETER_FIELDS = [
   "mandatory",
   "attributes",
   "max_length",
+  "label",
+  "hint",
+  "order",
 ];
 const attribute = (value: string, key: string) =>
   value
@@ -68,9 +72,7 @@ function triggerDefinitions(built: BuiltUnit): string[] {
           (row) =>
             row.table === "sys_hub_trigger_instance_v2" &&
             row.sysId !== "" &&
-            ["sla_task", "service_catalog", "record_update"].includes(
-              row.fields["trigger_type"] ?? "",
-            ),
+            NATIVE_TRIGGER_TYPES.includes(row.fields["trigger_type"] ?? ""),
         )
         .flatMap((row) => {
           const id = row.fields["trigger_definition"];
@@ -80,8 +82,33 @@ function triggerDefinitions(built: BuiltUnit): string[] {
   ];
 }
 
-// Additional indexed reads are confined to SLA Task, Service Catalog and Record Updated captures, whose compiler generates
-// executable input contracts absent from the SDK build. Missing/unreadable evidence cannot
+// The input definitions of what a flow's steps call. A subflow called with some of its inputs
+// has the others captured as empty entries, and only its own definitions say they are optional.
+// A table nothing refers to is not asked.
+async function inputDefinitions(reader: InstanceReader, built: BuiltUnit, signal: AbortSignal) {
+  const definitions = (table: string, step: string, field: string) =>
+    read(reader, table, "model", references(built, step, field), PARAMETER_FIELDS, signal);
+  return {
+    actionInputs: await definitions(
+      "sys_hub_action_input",
+      "sys_hub_action_instance_v2",
+      "action_type",
+    ),
+    logicInputs: await definitions(
+      "sys_hub_flow_logic_input",
+      "sys_hub_flow_logic_instance_v2",
+      "logic_definition",
+    ),
+    subflowInputs: await definitions(
+      "sys_hub_flow_input",
+      "sys_hub_sub_flow_instance_v2",
+      "subflow",
+    ),
+  };
+}
+
+// Additional indexed reads are confined to SLA Task, Service Catalog and record trigger
+// captures, whose compiler generates executable input contracts absent from the SDK build. Missing/unreadable evidence cannot
 // certify generated inputs or schemas. All I/O uses the shared reader/pager and scheduler.
 export async function captureTriggerContracts(
   reader: InstanceReader,
@@ -114,28 +141,12 @@ export async function captureTriggerContracts(
     signal,
     "^namespace=FlowDesigner",
   );
-  const actionInputs = await read(
-    reader,
-    "sys_hub_action_input",
-    "model",
-    references(built, "sys_hub_action_instance_v2", "action_type"),
-    PARAMETER_FIELDS,
-    signal,
-  );
-  const logicInputs = await read(
-    reader,
-    "sys_hub_flow_logic_input",
-    "model",
-    references(built, "sys_hub_flow_logic_instance_v2", "logic_definition"),
-    PARAMETER_FIELDS,
-    signal,
-  );
+  const inputs = await inputDefinitions(reader, built, signal);
   return definitions.map((definitionId) => ({
     definitionId,
     outputs: outputs.filter((output) => output["model"] === definitionId),
     schemas,
-    actionInputs,
-    logicInputs,
+    ...inputs,
   }));
 }
 

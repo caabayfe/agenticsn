@@ -64,7 +64,11 @@ export {
   LOSSES_SDK_VERSION,
   type LossId,
 } from "./domain/losses";
-export { type NativeTriggerContract, TRIGGER_OUTPUT_FIELDS } from "./domain/native-trigger-capture";
+export {
+  NATIVE_TRIGGER_TYPES,
+  type NativeTriggerContract,
+  TRIGGER_OUTPUT_FIELDS,
+} from "./domain/native-trigger-capture";
 export {
   ABANDON_PENDING_EXIT,
   isKeyedDeletion,

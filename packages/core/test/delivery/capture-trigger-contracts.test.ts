@@ -130,6 +130,64 @@ describe("native trigger capture evidence", () => {
     expect(fake.queries.every((query) => !/LIKE|CONTAINS|offset/i.test(query.query))).toBe(true);
   });
 
+  it("reads the same native definitions for a Record Created or Updated trigger", async () => {
+    const output = { sys_id: "1", model: ID, element: "changed_fields" };
+    const fake = fakeInstance({ sys_hub_trigger_output: [output] });
+    const built = {
+      ...unit(),
+      children: unit().children.map((row) =>
+        row.table === "sys_hub_trigger_instance_v2"
+          ? { ...row, fields: { ...row.fields, trigger_type: "record_create_or_update" } }
+          : row,
+      ),
+    };
+    expect((await captureTriggerContracts(fake.reader, built, signal))[0]?.outputs).toEqual([
+      output,
+    ]);
+  });
+
+  it("reads nothing for a Record Created trigger, which no capture has recorded", async () => {
+    const fake = fakeInstance({});
+    const built = {
+      ...unit(),
+      children: unit().children.map((row) =>
+        row.table === "sys_hub_trigger_instance_v2"
+          ? { ...row, fields: { ...row.fields, trigger_type: "record_create" } }
+          : row,
+      ),
+    };
+    expect(await captureTriggerContracts(fake.reader, built, signal)).toEqual([]);
+    expect(fake.queries).toEqual([]);
+  });
+
+  it("reads the input definitions of a called subflow, and asks nothing when none is called", async () => {
+    const subflow = "e".repeat(32);
+    const input = { sys_id: "6", model: subflow, element: "optional", mandatory: "false" };
+    const rows = { sys_hub_flow_input: [input, { ...input, sys_id: "7", model: ID }] };
+    const without = fakeInstance(rows);
+    expect(
+      (await captureTriggerContracts(without.reader, unit(), signal))[0]?.subflowInputs,
+    ).toEqual([]);
+    expect(without.queries.some((query) => String(query.table) === "sys_hub_flow_input")).toBe(
+      false,
+    );
+    const calling = fakeInstance(rows);
+    const built = {
+      ...unit(),
+      children: [...unit().children, record("sys_hub_sub_flow_instance_v2", "call", { subflow })],
+    };
+    expect(
+      (await captureTriggerContracts(calling.reader, built, signal))[0]?.subflowInputs,
+    ).toEqual([input]);
+    const asked = calling.queries.filter((query) => String(query.table) === "sys_hub_flow_input");
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((query) => query.query.includes(`modelIN${subflow}`))).toBe(true);
+    expect(asked.every((query) => query.fields !== "all" && query.fields.includes("label"))).toBe(
+      true,
+    );
+    expect(calling.writes).toEqual([]);
+  });
+
   it("reads the native Changed Fields projection for a Record Updated trigger", async () => {
     const output = { sys_id: "1", model: ID, element: "changed_fields" };
     const fake = fakeInstance({ sys_hub_trigger_output: [output] });

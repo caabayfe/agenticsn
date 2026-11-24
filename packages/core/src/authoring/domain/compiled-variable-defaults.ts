@@ -96,22 +96,34 @@ function descriptor(value: unknown, definition: Fields): boolean {
   );
 }
 
+// Brazil repeats the pill assigned to a declared variable as the assignment's caption, which
+// the SDK builds empty. The assignment itself still has to be that pill.
+function assignedCaption(wanted: Record<string, unknown>, held: Record<string, unknown>) {
+  const value = wanted["value"];
+  if (
+    wanted["displayValue"] !== "" ||
+    typeof value !== "string" ||
+    !/^\{\{[^{}]+\}\}$/.test(value) ||
+    held["value"] !== value ||
+    held["displayValue"] !== value
+  )
+    return held;
+  return { ...held, displayValue: "" };
+}
+
 function entries(wanted: unknown, held: unknown, definitions: readonly Fields[]): unknown {
   if (!Array.isArray(wanted) || !Array.isArray(held) || wanted.length !== held.length) return held;
   return held.map((entry, index) => {
     const before: unknown = wanted[index];
-    if (!object(before) || !object(entry) || Object.hasOwn(before, "parameter")) return entry;
+    if (!object(before) || !object(entry)) return entry;
     if (before["id"] !== entry["id"] || before["name"] !== entry["name"]) return entry;
     const matching = definitions.filter(
       (row) => row["sys_id"] === before["id"] && row["element"] === before["name"],
     );
     const definition = matching[0];
-    if (
-      matching.length !== 1 ||
-      definition === undefined ||
-      !descriptor(entry["parameter"], definition)
-    )
-      return entry;
+    if (matching.length !== 1 || definition === undefined) return entry;
+    if (Object.hasOwn(before, "parameter")) return assignedCaption(before, entry);
+    if (!descriptor(entry["parameter"], definition)) return entry;
     return Object.fromEntries(Object.entries(entry).filter(([key]) => key !== "parameter"));
   });
 }

@@ -4,6 +4,12 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- CI and release binaries are built and verified with Bun 1.4.5 (was 1.4.4), the version
+  Homebrew installs today, so `bun run verify` runs on a developer's machine again. `.bun-version`
+  stays the one place that names it.
+
 ## [2.24.0] - 2026-11-23
 
 ### Changed

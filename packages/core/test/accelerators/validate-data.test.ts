@@ -27,6 +27,43 @@ const packs = memoryPacks({
   }),
 });
 
+// The same pack with a demo module that has data of its own.
+const withStory = memoryPacks({
+  minimal: packFiles({
+    pack: { id: "minimal", version: "1.0.0", requires: { snagentic: ">=1.6.0" } },
+    modules: {
+      base: {
+        label: "base",
+        data: [
+          {
+            entity: "group",
+            table: "x_t_group",
+            key: ["name"],
+            columns: { name: { required: true } },
+          },
+        ],
+      },
+      story: {
+        label: "story",
+        demo: true,
+        dependsOn: ["base"],
+        data: [
+          {
+            entity: "rota",
+            table: "x_t_rota",
+            key: ["name"],
+            columns: { name: { required: true } },
+          },
+        ],
+      },
+    },
+    files: {
+      "modules/base/data/demo/group.csv": "name\nDemo desk\nDemo field\n",
+      "modules/story/data/demo/rota.csv": "name\nNight\n",
+    },
+  }),
+});
+
 const parseCsv = (text: string) => {
   const [head = "", ...rows] = text.trim().split("\n");
   return { columns: head.split(","), rows: rows.map((r) => r.split(",")) };
@@ -90,6 +127,39 @@ describe("accelerator data validation", () => {
     );
     expect(report.passed).toBe(true);
     expect(asked).toEqual([]);
+  });
+
+  it("with a directory, leaves the demo modules out, as an install with --data does (ADR-0048)", async () => {
+    const report = await validateData(
+      { packs: withStory, templates: templates(false).port },
+      { pack: "minimal", source: directory("/d") },
+    );
+    expect(report).toEqual({
+      selected: ["base"],
+      entities: [{ entity: "group", rows: 1, problems: [] }],
+      passed: true,
+    });
+  });
+
+  it("with the demo data, checks the demo modules' data too", async () => {
+    const report = await validateData(
+      { packs: withStory, templates: templates(false).port },
+      { pack: "minimal", source: { kind: "demo" } },
+    );
+    expect(report.selected).toEqual(["base", "story"]);
+    expect(report.entities.map((e) => [e.entity, e.rows])).toEqual([
+      ["group", 2],
+      ["rota", 1],
+    ]);
+  });
+
+  it("checks only the modules its caller keeps, when it names them", async () => {
+    const report = await validateData(
+      { packs: withStory, templates: templates(false).port },
+      { pack: "minimal", source: { kind: "demo" }, kept: ["base"] },
+    );
+    expect(report.selected).toEqual(["base"]);
+    expect(report.entities.map((e) => e.entity)).toEqual(["group"]);
   });
 
   it("refuses an unknown pack", async () => {

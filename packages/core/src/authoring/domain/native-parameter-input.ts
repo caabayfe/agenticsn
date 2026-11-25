@@ -1,5 +1,6 @@
 import { normalizeScalarInput } from "./compiled-scalar-defaults";
 import { emptyParameterMetadata, PARAMETER_DESCRIPTOR_KEYS } from "./compiled-variable-defaults";
+import { durationCaptionAgrees } from "./duration-caption";
 import type { Fields } from "./unit";
 
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -39,6 +40,14 @@ function caption(wanted: Record<string, unknown>, held: Record<string, unknown>,
   if (wanted["displayValue"] !== wanted["value"]) return held;
   const value = wanted["value"];
   if (
+    type === "glide_duration" &&
+    typeof value === "string" &&
+    held["value"] === value &&
+    typeof held["displayValue"] === "string" &&
+    durationCaptionAgrees(value, held["displayValue"])
+  )
+    return { ...held, displayValue: value };
+  if (
     type === "boolean" &&
     typeof value === "boolean" &&
     held["value"] === (value ? "1" : "0") &&
@@ -69,8 +78,53 @@ function caption(wanted: Record<string, unknown>, held: Record<string, unknown>,
     : held;
 }
 
-// Native input identity/type/default is independent evidence. Only implicit SDK captions
-// and recorded scalar encodings normalize; explicit captions and execution values stay exact.
+// The SDK knows no input types of an action or subflow it holds only the ID of, and builds each
+// as a string. The native definition already proved the captured type; a type is not authored.
+function nativeType(wanted: Record<string, unknown>, held: Record<string, unknown>) {
+  const authored = wanted["parameter"];
+  const parameter = held["parameter"];
+  if (!object(authored) || !object(parameter)) return held;
+  if (Object.keys(authored).length !== 1 || authored["type"] !== "string") return held;
+  return { ...held, parameter: { ...parameter, type: "string" } };
+}
+
+// Brazil writes no caption for an empty optional input that has a default.
+function emptyCaption(wanted: Record<string, unknown>, held: Record<string, unknown>) {
+  const blank = (value: unknown) => value === undefined || value === "";
+  if (wanted["displayValue"] !== "" || !blank(wanted["value"]) || !blank(held["value"]))
+    return held;
+  return Object.hasOwn(held, "displayValue") ? held : { ...held, displayValue: "" };
+}
+
+// A choice with a default carries that default's caption, a reference its search field.
+const CAPTION_KEYS = new Set(["defaultDisplayValue", "fSearchField"]);
+
+// An input the build gives no description of: publication copies the native definition in.
+// Only description keys may be there, so it can carry no value or script, and it has to be
+// that definition. A list of records has no label to compare; its other metadata is empty.
+function nativeDescription(parameter: unknown, definition: Fields): boolean {
+  if (!object(parameter)) return false;
+  if (parameter["maxsize"] !== Number(definition["max_length"])) return false;
+  if (definition["internal_type"] === "records")
+    return (
+      Object.keys(parameter).every((key) => PARAMETER_DESCRIPTOR_KEYS.has(key)) &&
+      emptyParameterMetadata(parameter) &&
+      attributesAgree(parameter["attributes"], definition["attributes"])
+    );
+  const known = (key: string) =>
+    PARAMETER_DESCRIPTOR_KEYS.has(key) ||
+    (CAPTION_KEYS.has(key) && typeof parameter[key] === "string");
+  return (
+    Object.keys(parameter).every(known) &&
+    parameter["label"] === definition["label"] &&
+    parameter["hint"] === definition["hint"] &&
+    parameter["order"] === Number(definition["order"])
+  );
+}
+
+// Native input identity/type/default is independent evidence. Only implicit SDK captions,
+// recorded scalar encodings and the description publication adds normalize; explicit
+// captions and execution values stay exact.
 export function normalizeContractInput(
   wanted: unknown,
   held: unknown,
@@ -78,18 +132,9 @@ export function normalizeContractInput(
 ): unknown {
   const definition = definitionOf(wanted, held, definitions);
   if (!definition || !object(wanted) || !object(held)) return held;
-  const actual = caption(wanted, held, definition["internal_type"] ?? "");
-  if (
-    wanted["parameter"] === undefined &&
-    definition["internal_type"] === "records" &&
-    object(held["parameter"]) &&
-    emptyParameterMetadata(held["parameter"]) &&
-    held["parameter"]["maxsize"] === Number(definition["max_length"]) &&
-    attributesAgree(held["parameter"]["attributes"], definition["attributes"]) &&
-    Object.keys(held["parameter"]).every((key) => PARAMETER_DESCRIPTOR_KEYS.has(key)) &&
-    held["parameter"]["scriptActive"] !== true &&
-    held["parameter"]["script"] === undefined
-  )
+  const captioned = caption(wanted, held, definition["internal_type"] ?? "");
+  const actual = emptyCaption(wanted, nativeType(wanted, captioned));
+  if (wanted["parameter"] === undefined && nativeDescription(held["parameter"], definition))
     return Object.fromEntries(Object.entries(actual).filter(([key]) => key !== "parameter"));
   return normalizeScalarInput(wanted, actual);
 }

@@ -7,7 +7,18 @@ export interface NativeTriggerContract {
   readonly schemas: readonly Fields[];
   readonly actionInputs?: readonly Fields[];
   readonly logicInputs?: readonly Fields[];
+  readonly subflowInputs?: readonly Fields[];
 }
+
+// The triggers whose compiler generates inputs absent from the SDK build. Each kind is here
+// because a published capture of it was recorded; Record Created alone has none.
+export const NATIVE_TRIGGER_TYPES: readonly string[] = [
+  "sla_task",
+  "service_catalog",
+  "record_update",
+  "record_create_or_update",
+];
+const RECORD_TRIGGERS = new Set(["record_update", "record_create_or_update"]);
 
 // SLA Task publication projects the native trigger's output contract onto the flow. These
 // fields affect execution; timestamps, labels and other generated dictionary defaults do not.
@@ -169,8 +180,8 @@ function documentationRows(
     );
 }
 
-// Record Updated already has its runtime-row check. Compare the compiler's
-// built-in collection output using the published native trigger definition.
+// Record Updated and Record Created or Updated already have their runtime-row check. Compare
+// the compiler's built-in collection output using the published native trigger definition.
 function withChangedFields(
   built: BuiltUnit,
   actual: BuiltUnit,
@@ -210,7 +221,7 @@ export function withNativeTriggerInputs(
     (row) =>
       row.table === "sys_hub_trigger_instance_v2" &&
       row.sysId !== "" &&
-      ["sla_task", "service_catalog", "record_update"].includes(row.fields["trigger_type"] ?? ""),
+      NATIVE_TRIGGER_TYPES.includes(row.fields["trigger_type"] ?? ""),
   );
   if (triggers.length === 0) return built;
   const trigger = triggers[0];
@@ -220,7 +231,7 @@ export function withNativeTriggerInputs(
   );
   const contract = matching[0];
   if (matching.length !== 1 || contract === undefined) return null;
-  if (trigger.fields["trigger_type"] === "record_update")
+  if (RECORD_TRIGGERS.has(trigger.fields["trigger_type"] ?? ""))
     return withChangedFields(built, actual, contract);
   const row = nativeRuntimeTrigger(actual, trigger);
   const projected =

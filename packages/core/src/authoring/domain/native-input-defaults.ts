@@ -9,6 +9,16 @@ const blank = (value: unknown) => value === undefined || value === "";
 const empty = (value: unknown) =>
   value === undefined || (object(value) && Object.keys(value).length === 0);
 
+// An input nobody assigned is exported empty; a switch nobody assigned is exported as off.
+function unassigned(entry: Record<string, unknown>, definition: Fields): boolean {
+  if (blank(entry["value"]) && entry["displayValue"] === "") return true;
+  return (
+    definition["internal_type"] === "boolean" &&
+    entry["value"] === "0" &&
+    entry["displayValue"] === "false"
+  );
+}
+
 function optional(entry: Record<string, unknown>, definition: Fields, owner: string): boolean {
   const parameter = entry["parameter"];
   return (
@@ -20,8 +30,7 @@ function optional(entry: Record<string, unknown>, definition: Fields, owner: str
     parameter["type"] === definition["internal_type"] &&
     parameter["defaultValue"] === "" &&
     entry["scriptActive"] === false &&
-    blank(entry["value"]) &&
-    entry["displayValue"] === "" &&
+    unassigned(entry, definition) &&
     blank(parameter["value"]) &&
     blank(parameter["displayValue"]) &&
     parameter["scriptActive"] !== true &&
@@ -69,25 +78,48 @@ function array(
   return kept.map((entry, index) => normalizeContractInput(wanted[index], entry, definitions));
 }
 
+type InputContracts = Pick<NativeTriggerContract, "actionInputs" | "logicInputs" | "subflowInputs">;
+
+// Where each kind of step keeps its inputs, what it calls, and the native definitions of those.
+const STEPS: Readonly<
+  Record<
+    string,
+    { readonly field: string; readonly model: string; readonly list: keyof InputContracts }
+  >
+> = {
+  sys_hub_action_instance_v2: { field: "values", model: "action_type", list: "actionInputs" },
+  sys_hub_flow_logic_instance_v2: {
+    field: "values",
+    model: "logic_definition",
+    list: "logicInputs",
+  },
+  sys_hub_sub_flow_instance_v2: {
+    field: "subflow_inputs",
+    model: "subflow",
+    list: "subflowInputs",
+  },
+};
+
 function row(
   wanted: UnitRecord,
   actual: UnitRecord,
-  contracts: readonly Pick<NativeTriggerContract, "actionInputs" | "logicInputs">[],
+  contracts: readonly InputContracts[],
 ): UnitRecord {
+  const step = STEPS[wanted.table];
+  if (step === undefined) return actual;
   try {
-    const before: unknown = JSON.parse(wanted.fields["values"] ?? "");
-    const after: unknown = JSON.parse(actual.fields["values"] ?? "");
-    const action = wanted.table === "sys_hub_action_instance_v2";
-    const model = wanted.fields[action ? "action_type" : "logic_definition"];
+    const before: unknown = JSON.parse(wanted.fields[step.field] ?? "");
+    const after: unknown = JSON.parse(actual.fields[step.field] ?? "");
+    const model = wanted.fields[step.model];
     const definitions = contracts
-      .flatMap((contract) => (action ? contract.actionInputs : contract.logicInputs) ?? [])
+      .flatMap((contract) => contract[step.list] ?? [])
       .filter((input) => input["model"] === model);
     if (Array.isArray(before) && Array.isArray(after))
       return {
         ...actual,
         fields: {
           ...actual.fields,
-          values: JSON.stringify(array(before, after, definitions, actual.sysId)),
+          [step.field]: JSON.stringify(array(before, after, definitions, actual.sysId)),
         },
       };
     if (
@@ -117,16 +149,14 @@ function row(
 export function normalizeNativeDefaults(
   built: BuiltUnit,
   actual: BuiltUnit,
-  contracts: readonly Pick<NativeTriggerContract, "actionInputs" | "logicInputs">[],
+  contracts: readonly InputContracts[],
 ): BuiltUnit {
   return {
     ...actual,
     children: actual.children.map((held) => {
       const wanted = built.children.find(
         (candidate) =>
-          ["sys_hub_action_instance_v2", "sys_hub_flow_logic_instance_v2"].includes(
-            candidate.table,
-          ) &&
+          Object.hasOwn(STEPS, candidate.table) &&
           candidate.table === held.table &&
           candidate.sysId === held.sysId &&
           candidate.sysId !== "",

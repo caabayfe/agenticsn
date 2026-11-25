@@ -4,6 +4,22 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Changed
+
+- CI and release binaries are built and verified with Bun 1.4.5 (was 1.4.4), the version
+  Homebrew installs today, so `bun run verify` runs on a developer's machine again. `.bun-version`
+  stays the one place that names it.
+
+### Fixed
+
+- A push or an install no longer ends "not captured" for a published flow that waits for a
+  condition or a duration, sets flow variables, uses the Record Created or Updated trigger, or
+  calls a shipped action or subflow by its ID. The flow was created and published, but the check
+  of what the instance captured did not know what publication writes beside those steps, so the
+  delivery stayed unfinished and the flow could not be changed afterwards. The check now accepts
+  those descriptions and captions against the definitions read from the instance; values,
+  scripts and assignments are compared as before (ADR-0050).
+
 ## [2.24.0] - 2026-11-23
 
 ### Changed

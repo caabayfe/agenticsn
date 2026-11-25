@@ -1,0 +1,129 @@
+{
+ "updateName": "sys_hub_flow_78a3a99e58b24697b96a631421d6d827",
+ "file": "sys_hub_flow_78a3a99e58b24697b96a631421d6d827.xml",
+ "head": {
+  "table": "sys_hub_flow",
+  "sysId": "78a3a99e58b24697b96a631421d6d827",
+  "action": "INSERT_OR_UPDATE",
+  "fields": {
+   "sys_id": "78a3a99e58b24697b96a631421d6d827",
+   "sys_scope": "global",
+   "sys_update_name": "sys_hub_flow_78a3a99e58b24697b96a631421d6d827",
+   "access": "public",
+   "active": "false",
+   "allow_high_security_roles": "false",
+   "annotation": "",
+   "category": "",
+   "description": "Spike cleanup: closing or cancelling a probe incident (SPIKE-) cancels its paging runs and spike flow runs.",
+   "flow_priority": "MEDIUM",
+   "generation_source": "fluent",
+   "label_cache": "[{\"name\":\"Updated_1.current.sys_id\",\"label\":\"Trigger - Record Updated➛incident Record➛Sys Id\",\"type\":\"string\",\"base_type\":\"string\",\"usedInstances\":{\"c50c7fec-88b5-46c4-bcf1-c604e566e144\":[\"record\"],\"f9762995-eb2e-4c3f-a610-25c28add5013\":[\"sysid\"]},\"attributes\":{}},{\"name\":\"c50c7fec-88b5-46c4-bcf1-c604e566e144.detail\",\"label\":\"c50c7fec-88b5-46c4-bcf1-c604e566e144➛detail\",\"type\":\"string\",\"base_type\":\"string\",\"usedInstances\":{\"f9762995-eb2e-4c3f-a610-25c28add5013\":[\"journal_value\"]},\"attributes\":{}}]",
+   "name": "ACC spike D2: closing a probe cancels what runs for it",
+   "run_as": "system",
+   "run_with_roles": "",
+   "show_draft_actions": "false",
+   "status": "draft",
+   "sys_policy": "",
+   "type": "flow",
+   "version": "2"
+  },
+  "referenceNames": {}
+ },
+ "children": [
+  {
+   "table": "sys_hub_trigger_instance_v2",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_trigger_instance_v2",
+   "sysId": "7d9519b395604ac0b548b871f969681a",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "7d9519b395604ac0b548b871f969681a",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_trigger_instance_v2_7d9519b395604ac0b548b871f969681a",
+    "category": "",
+    "comment": "",
+    "flow": "78a3a99e58b24697b96a631421d6d827",
+    "name": "Updated",
+    "trigger_definition": "bb695e60c31322002841b63b12d3aea5",
+    "trigger_inputs": "[{\"triggerInstanceSysId\":\"\",\"label\":\"Table\",\"internalType\":\"table_name\",\"dependent\":\"\",\"choiceList\":[],\"mandatory\":true,\"order\":100,\"name\":\"table\",\"value\":\"incident\",\"displayValue\":\"incident\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"table_name\",\"name\":\"table\",\"label\":\"Table\"}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run When User List\",\"internalType\":\"glide_list\",\"dependent\":\"\",\"choiceList\":[],\"mandatory\":false,\"order\":100,\"name\":\"run_when_user_list\",\"value\":\"\",\"displayValue\":\"\",\"displayField\":\"\",\"scriptActive\":false,\"valueSysId\":\"\",\"children\":[],\"parameter\":{\"type\":\"glide_list\",\"name\":\"run_when_user_list\",\"label\":\"Run When User List\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run When Session Setting\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"interactive\",\"fLabel\":\"Only Run for User Interactive Session\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"non_interactive\",\"fLabel\":\"Only Run for Non-Interactive Session\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"both\",\"fLabel\":\"Run for Both Interactive and Non-Interactive Sessions\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"run_when_setting\",\"value\":\"both\",\"displayValue\":\"both\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"run_when_setting\",\"label\":\"Run When Session Setting\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run flow In\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"any\",\"fLabel\":\"Run flow in any context\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"foreground\",\"fLabel\":\"Run flow in foreground\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"background\",\"fLabel\":\"Run flow in background (default)\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"run_flow_in\",\"value\":\"background\",\"displayValue\":\"background\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"run_flow_in\",\"label\":\"Run flow In\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run On Extended Tables\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"true\",\"fLabel\":\"Run on current and extended tables\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"false\",\"fLabel\":\"Run only on current table\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"run_on_extended\",\"value\":\"false\",\"displayValue\":\"false\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"run_on_extended\",\"label\":\"Run On Extended Tables\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Condition\",\"internalType\":\"conditions\",\"dependent\":\"\",\"choiceList\":[],\"mandatory\":false,\"order\":100,\"name\":\"condition\",\"value\":\"short_descriptionSTARTSWITHSPIKE-^active=false^activeVALCHANGES\",\"displayValue\":\"short_descriptionSTARTSWITHSPIKE-^active=false^activeVALCHANGES\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"conditions\",\"name\":\"condition\",\"label\":\"Condition\",\"attributes\":{\"wants_to_add_conditions\":\"true\",\"modelDependent\":\"trigger_inputs\"},\"dependent_on\":\"table\",\"use_dependent\":true}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run When User Setting\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"any\",\"fLabel\":\"Run for any user\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"one_of\",\"fLabel\":\"Only Run if triggered by the following users\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"not_one_of\",\"fLabel\":\"Do not run if triggered by the following users\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"run_when_user_setting\",\"value\":\"any\",\"displayValue\":\"any\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"run_when_user_setting\",\"label\":\"Run When User Setting\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run Trigger\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"unique_changes\",\"fLabel\":\"For each unique change\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"once\",\"fLabel\":\"Once\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"every\",\"fLabel\":\"For every update\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"always\",\"fLabel\":\"Only if not currently running\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"trigger_strategy\",\"value\":\"every\",\"displayValue\":\"every\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"trigger_strategy\",\"label\":\"Run Trigger\"}}]",
+    "trigger_outputs": "",
+    "trigger_type": "record_update"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "c50c7fec88b546c4bcf1c604e566e144",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "c50c7fec88b546c4bcf1c604e566e144",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_action_instance_v2_c50c7fec88b546c4bcf1c604e566e144",
+    "action_type": "7ebda1bf3ac045ecbb16bdcca2231193",
+    "action_type_parent": "7ebda1bf3ac045ecbb16bdcca2231193",
+    "active": "true",
+    "comment": "",
+    "display_text": "",
+    "flow": "78a3a99e58b24697b96a631421d6d827",
+    "generation_source": "",
+    "order": "1",
+    "parent_ui_id": "",
+    "sys_class_name": "sys_hub_action_instance_v2",
+    "ui_id": "c50c7fec-88b5-46c4-bcf1-c604e566e144",
+    "updation_source": "",
+    "values": "[{\"name\":\"table\",\"value\":\"incident\",\"displayValue\":\"incident\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"record\",\"value\":\"{{Updated_1.current.sys_id}}\",\"displayValue\":\"{{Updated_1.current.sys_id}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"flow_name\",\"value\":\"ACC spike D2: closing a probe cancels what runs for it\",\"displayValue\":\"ACC spike D2: closing a probe cancels what runs for it\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"id\":\"\",\"name\":\"own_context\",\"value\":\"\",\"displayValue\":\"\",\"children\":[],\"scriptActive\":true,\"script\":{\"own_context\":{\"scriptActive\":true,\"script\":\"return FlowScriptAPI.getContextID();\"}}}]"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "f9762995eb2e4c3fa61025c28add5013",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "f9762995eb2e4c3fa61025c28add5013",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_action_instance_v2_f9762995eb2e4c3fa61025c28add5013",
+    "action_type": "2932b4777f2552106e8c7769ac866537",
+    "action_type_parent": "2932b4777f2552106e8c7769ac866537",
+    "active": "true",
+    "comment": "",
+    "display_text": "",
+    "flow": "78a3a99e58b24697b96a631421d6d827",
+    "generation_source": "",
+    "order": "2",
+    "parent_ui_id": "",
+    "sys_class_name": "sys_hub_action_instance_v2",
+    "ui_id": "f9762995-eb2e-4c3f-a610-25c28add5013",
+    "updation_source": "",
+    "values": "[{\"name\":\"table\",\"value\":\"incident\",\"displayValue\":\"incident\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"sysid\",\"value\":\"{{Updated_1.current.sys_id}}\",\"displayValue\":\"{{Updated_1.current.sys_id}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"journal_field\",\"value\":\"work_notes\",\"displayValue\":\"work_notes\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"journal_value\",\"value\":\"ACC spike D2 | {{c50c7fec-88b5-46c4-bcf1-c604e566e144.detail}}\",\"displayValue\":\"ACC spike D2 | {{c50c7fec-88b5-46c4-bcf1-c604e566e144.detail}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}}]"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_alias_mapping",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_alias_mapping",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  }
+ ]
+}

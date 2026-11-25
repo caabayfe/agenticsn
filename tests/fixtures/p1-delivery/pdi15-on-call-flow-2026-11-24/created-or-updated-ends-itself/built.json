@@ -1,0 +1,512 @@
+{
+ "updateName": "sys_hub_flow_6bf32575236a47a5bd5f91efc8c1eb88",
+ "file": "sys_hub_flow_6bf32575236a47a5bd5f91efc8c1eb88.xml",
+ "head": {
+  "table": "sys_hub_flow",
+  "sysId": "6bf32575236a47a5bd5f91efc8c1eb88",
+  "action": "INSERT_OR_UPDATE",
+  "fields": {
+   "sys_id": "6bf32575236a47a5bd5f91efc8c1eb88",
+   "sys_scope": "global",
+   "sys_update_name": "sys_hub_flow_6bf32575236a47a5bd5f91efc8c1eb88",
+   "access": "public",
+   "active": "false",
+   "allow_high_security_roles": "false",
+   "annotation": "",
+   "category": "",
+   "description": "Spike: a probe incident (SPIKE-B) pages the on-call person of its group; the run ends itself when the incident leaves the group.",
+   "flow_priority": "HIGH",
+   "generation_source": "fluent",
+   "label_cache": "[{\"name\":\"Created or Updated_1.current.assignment_group.sys_id\",\"label\":\"Trigger - Record Created or Updated➛incident Record➛Assignment Group➛Sys Id\",\"type\":\"string\",\"base_type\":\"string\",\"usedInstances\":{\"64dd1761-f5eb-41d9-b162-eea204383662\":[\"start_group\"]},\"attributes\":{}},{\"name\":\"Created or Updated_1.current.assignment_group.name\",\"label\":\"Trigger - Record Created or Updated➛incident Record➛Assignment Group➛Name\",\"type\":\"string\",\"base_type\":\"string\",\"usedInstances\":{\"64dd1761-f5eb-41d9-b162-eea204383662\":[\"start_group_name\"],\"2d82f1c7-776a-4589-914f-8263086b243d\":[\"journal_value\"]},\"attributes\":{}},{\"name\":\"Created or Updated_1.current.sys_id\",\"label\":\"Trigger - Record Created or Updated➛incident Record➛Sys Id\",\"type\":\"string\",\"base_type\":\"string\",\"usedInstances\":{\"d2a3bdf9-eb47-4cca-bed4-22844b9ae594\":[\"sysid\"],\"3c8ee7de-9125-4fe3-a472-44eb933b63d6\":[\"source_sys_id\"],\"6fadd1b9-712b-446d-9c7c-a51868964ba6\":[\"conditions\"],\"2d82f1c7-776a-4589-914f-8263086b243d\":[\"sysid\"]},\"attributes\":{}},{\"name\":\"flow_variable.start_group_name\",\"label\":\"Flow Variables➛Group name at the start\",\"type\":\"string\",\"base_type\":\"string\",\"usedInstances\":{\"d2a3bdf9-eb47-4cca-bed4-22844b9ae594\":[\"journal_value\"],\"2d82f1c7-776a-4589-914f-8263086b243d\":[\"journal_value\"]},\"attributes\":{},\"reference_table\":null,\"reference_display\":null},{\"name\":\"flow_variable.start_group\",\"label\":\"Flow Variables➛Group at the start\",\"type\":\"string\",\"base_type\":\"string\",\"usedInstances\":{\"3c8ee7de-9125-4fe3-a472-44eb933b63d6\":[\"trigger_group_sys_id\"],\"edd4578f-f037-4f2d-87d2-734b9dc2eda1\":[\"conditions\"],\"6fadd1b9-712b-446d-9c7c-a51868964ba6\":[\"conditions\"]},\"attributes\":{},\"reference_table\":null,\"reference_display\":null},{\"name\":\"Created or Updated_1.current\",\"label\":\"Trigger - Record Created or Updated➛incident Record\",\"type\":\"reference\",\"base_type\":\"reference\",\"usedInstances\":{\"edd4578f-f037-4f2d-87d2-734b9dc2eda1\":[\"record\"]},\"attributes\":{}},{\"name\":\"6fadd1b9-712b-446d-9c7c-a51868964ba6.Record.sys_id\",\"label\":\"6fadd1b9-712b-446d-9c7c-a51868964ba6➛Record➛sys_id\",\"type\":\"string\",\"base_type\":\"string\",\"usedInstances\":{\"591113e1-f618-4bd7-8b19-48c052d93b73\":[\"condition\"],\"14e32892-c52b-41fb-8721-f21b8e3e2e44\":[\"escalation_sys_id\"]},\"attributes\":{}},{\"name\":\"6fadd1b9-712b-446d-9c7c-a51868964ba6.Record\",\"label\":\"6fadd1b9-712b-446d-9c7c-a51868964ba6➛Record\",\"type\":\"reference\",\"base_type\":\"reference\",\"usedInstances\":{\"4f1fbae5-c334-4b74-bf9d-4ec01122819d\":[\"record\"]},\"attributes\":{}}]",
+   "name": "ACC spike B: page on call, run ends itself",
+   "run_as": "system",
+   "run_with_roles": "",
+   "show_draft_actions": "false",
+   "status": "draft",
+   "sys_policy": "",
+   "type": "flow",
+   "version": "2"
+  },
+  "referenceNames": {}
+ },
+ "children": [
+  {
+   "table": "sys_hub_flow_variable",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_variable",
+   "sysId": "a9ce6044ab2443b6ba0a7ff82c45d19d",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "a9ce6044ab2443b6ba0a7ff82c45d19d",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_flow_variable_a9ce6044ab2443b6ba0a7ff82c45d19d",
+    "active": "true",
+    "attributes": "",
+    "default_value": "",
+    "element": "start_group",
+    "hint": "",
+    "internal_type": "string",
+    "label": "Group at the start",
+    "mandatory": "false",
+    "max_length": "40",
+    "model": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "model_id": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "model_table": "sys_hub_flow",
+    "name": "var__m_sys_hub_flow_variable_6bf32575236a47a5bd5f91efc8c1eb88",
+    "order": "1"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_variable",
+   "sysId": "d5ff27dace8e4cb28cd457e9f506c991",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "d5ff27dace8e4cb28cd457e9f506c991",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_flow_variable_d5ff27dace8e4cb28cd457e9f506c991",
+    "active": "true",
+    "attributes": "",
+    "default_value": "",
+    "element": "start_group_name",
+    "hint": "",
+    "internal_type": "string",
+    "label": "Group name at the start",
+    "mandatory": "false",
+    "max_length": "40",
+    "model": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "model_id": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "model_table": "sys_hub_flow",
+    "name": "var__m_sys_hub_flow_variable_6bf32575236a47a5bd5f91efc8c1eb88",
+    "order": "2"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_documentation",
+   "sysId": "079417ae5d11407083427d439da5dcf2",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "079417ae5d11407083427d439da5dcf2",
+    "sys_scope": "global",
+    "sys_update_name": "sys_documentation_var__m_sys_hub_flow_variable_6bf32575236a47a5bd5f91efc8c1eb88_start_group_en",
+    "element": "start_group",
+    "hint": "",
+    "label": "Group at the start",
+    "language": "en",
+    "name": "var__m_sys_hub_flow_variable_6bf32575236a47a5bd5f91efc8c1eb88",
+    "plural": "Group at the starts"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_documentation",
+   "sysId": "a422f8851f0e450587eda53ffd7c6ab8",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "a422f8851f0e450587eda53ffd7c6ab8",
+    "sys_scope": "global",
+    "sys_update_name": "sys_documentation_var__m_sys_hub_flow_variable_6bf32575236a47a5bd5f91efc8c1eb88_start_group_name_en",
+    "element": "start_group_name",
+    "hint": "",
+    "label": "Group name at the start",
+    "language": "en",
+    "name": "var__m_sys_hub_flow_variable_6bf32575236a47a5bd5f91efc8c1eb88",
+    "plural": "Group name at the starts"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_trigger_instance_v2",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_trigger_instance_v2",
+   "sysId": "d4b65a6c08c94404841c3f0e9d6cc54f",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "d4b65a6c08c94404841c3f0e9d6cc54f",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_trigger_instance_v2_d4b65a6c08c94404841c3f0e9d6cc54f",
+    "category": "",
+    "comment": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "name": "Created or Updated",
+    "trigger_definition": "a45d9180c32222002841b63b12d3aea7",
+    "trigger_inputs": "[{\"triggerInstanceSysId\":\"\",\"label\":\"Table\",\"internalType\":\"table_name\",\"dependent\":\"\",\"choiceList\":[],\"mandatory\":true,\"order\":100,\"name\":\"table\",\"value\":\"incident\",\"displayValue\":\"incident\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"table_name\",\"name\":\"table\",\"label\":\"Table\"}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run On Extended Tables\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"true\",\"fLabel\":\"Run on current and extended tables\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"false\",\"fLabel\":\"Run only on current table\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"run_on_extended\",\"value\":\"false\",\"displayValue\":\"false\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"run_on_extended\",\"label\":\"Run On Extended Tables\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run flow In\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"any\",\"fLabel\":\"Run flow in any context\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"background\",\"fLabel\":\"Run flow in background (default)\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"foreground\",\"fLabel\":\"Run flow in foreground\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"run_flow_in\",\"value\":\"background\",\"displayValue\":\"background\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"run_flow_in\",\"label\":\"Run flow In\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Condition\",\"internalType\":\"conditions\",\"dependent\":\"\",\"choiceList\":[],\"mandatory\":false,\"order\":100,\"name\":\"condition\",\"value\":\"short_descriptionSTARTSWITHSPIKE-B^active=true^assignment_groupISNOTEMPTY^assignment_groupVALCHANGES\",\"displayValue\":\"short_descriptionSTARTSWITHSPIKE-B^active=true^assignment_groupISNOTEMPTY^assignment_groupVALCHANGES\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"conditions\",\"name\":\"condition\",\"label\":\"Condition\",\"attributes\":{\"wants_to_add_conditions\":\"true\",\"modelDependent\":\"trigger_inputs\"},\"dependent_on\":\"table\",\"use_dependent\":true}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run When Session Setting\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"interactive\",\"fLabel\":\"Only Run for User Interactive Session\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"non_interactive\",\"fLabel\":\"Only Run for Non-Interactive Session\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"both\",\"fLabel\":\"Run for Both Interactive and Non-Interactive Sessions\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"run_when_setting\",\"value\":\"both\",\"displayValue\":\"both\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"run_when_setting\",\"label\":\"Run When Session Setting\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run When User List\",\"internalType\":\"glide_list\",\"dependent\":\"\",\"choiceList\":[],\"mandatory\":false,\"order\":100,\"name\":\"run_when_user_list\",\"value\":\"\",\"displayValue\":\"\",\"displayField\":\"\",\"scriptActive\":false,\"valueSysId\":\"\",\"children\":[],\"parameter\":{\"type\":\"glide_list\",\"name\":\"run_when_user_list\",\"label\":\"Run When User List\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run When User Setting\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"any\",\"fLabel\":\"Run for any user\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"one_of\",\"fLabel\":\"Only Run if triggered by the following users\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"not_one_of\",\"fLabel\":\"Do not run if triggered by the following users\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"run_when_user_setting\",\"value\":\"any\",\"displayValue\":\"any\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"run_when_user_setting\",\"label\":\"Run When User Setting\",\"attributes\":{\"advanced\":\"true\"}}},{\"triggerInstanceSysId\":\"\",\"label\":\"Run Trigger\",\"internalType\":\"choice\",\"dependent\":\"\",\"choiceList\":[{\"fValue\":\"once\",\"fLabel\":\"Once\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"always\",\"fLabel\":\"Only if not currently running\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"every\",\"fLabel\":\"For every update\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false},{\"fValue\":\"unique_changes\",\"fLabel\":\"For each unique change\",\"fImage\":\"\",\"fSelected\":false,\"fUsed\":false,\"fMissing\":false}],\"mandatory\":false,\"order\":100,\"name\":\"trigger_strategy\",\"value\":\"every\",\"displayValue\":\"every\",\"displayField\":\"\",\"scriptActive\":false,\"children\":[],\"parameter\":{\"type\":\"choice\",\"name\":\"trigger_strategy\",\"label\":\"Run Trigger\"}}]",
+    "trigger_outputs": "",
+    "trigger_type": "record_create_or_update"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "d2a3bdf9eb474ccabed422844b9ae594",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "d2a3bdf9eb474ccabed422844b9ae594",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_action_instance_v2_d2a3bdf9eb474ccabed422844b9ae594",
+    "action_type": "2932b4777f2552106e8c7769ac866537",
+    "action_type_parent": "2932b4777f2552106e8c7769ac866537",
+    "active": "true",
+    "comment": "",
+    "display_text": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "generation_source": "",
+    "order": "2",
+    "parent_ui_id": "",
+    "sys_class_name": "sys_hub_action_instance_v2",
+    "ui_id": "d2a3bdf9-eb47-4cca-bed4-22844b9ae594",
+    "updation_source": "",
+    "values": "[{\"name\":\"table\",\"value\":\"incident\",\"displayValue\":\"incident\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"sysid\",\"value\":\"{{Created or Updated_1.current.sys_id}}\",\"displayValue\":\"{{Created or Updated_1.current.sys_id}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"journal_field\",\"value\":\"work_notes\",\"displayValue\":\"work_notes\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"journal_value\",\"value\":\"{{flow_variable.start_group_name}}\",\"displayValue\":\"{{flow_variable.start_group_name}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}}]"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "edd4578ff0374f2d87d2734b9dc2eda1",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "edd4578ff0374f2d87d2734b9dc2eda1",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_action_instance_v2_edd4578ff0374f2d87d2734b9dc2eda1",
+    "action_type": "89ce8a4187120010663ca1bb36cb0be3",
+    "action_type_parent": "89ce8a4187120010663ca1bb36cb0be3",
+    "active": "true",
+    "comment": "",
+    "display_text": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "generation_source": "",
+    "order": "7➛8",
+    "parent_ui_id": "bb3cfe35-2bc1-4f15-9b79-32b9975251ed",
+    "sys_class_name": "sys_hub_action_instance_v2",
+    "ui_id": "edd4578f-f037-4f2d-87d2-734b9dc2eda1",
+    "updation_source": "",
+    "values": "[{\"name\":\"timeout_duration\",\"value\":\"1970-01-02 00:00:00\",\"displayValue\":\"1970-01-02 00:00:00\",\"scriptActive\":false,\"parameter\":{\"type\":\"glide_duration\"}},{\"name\":\"table_name\",\"value\":\"incident\",\"displayValue\":\"incident\",\"scriptActive\":false,\"parameter\":{\"type\":\"table_name\"}},{\"name\":\"timeout_flag\",\"value\":true,\"displayValue\":true,\"scriptActive\":false,\"parameter\":{\"type\":\"boolean\"}},{\"name\":\"record\",\"value\":\"{{Created or Updated_1.current}}\",\"displayValue\":\"{{Created or Updated_1.current}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"document_id\"}},{\"name\":\"conditions\",\"value\":\"assignment_group!={{flow_variable.start_group}}^ORactive=false\",\"displayValue\":\"assignment_group!={{flow_variable.start_group}}^ORactive=false\",\"scriptActive\":false,\"parameter\":{\"type\":\"conditions\"}}]"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "6fadd1b9712b446d9c7ca51868964ba6",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "6fadd1b9712b446d9c7ca51868964ba6",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_action_instance_v2_6fadd1b9712b446d9c7ca51868964ba6",
+    "action_type": "9d09f99587003300663ca1bb36cb0ba3",
+    "action_type_parent": "9d09f99587003300663ca1bb36cb0ba3",
+    "active": "true",
+    "comment": "",
+    "display_text": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "generation_source": "",
+    "order": "9",
+    "parent_ui_id": "bb3cfe35-2bc1-4f15-9b79-32b9975251ed",
+    "sys_class_name": "sys_hub_action_instance_v2",
+    "ui_id": "6fadd1b9-712b-446d-9c7c-a51868964ba6",
+    "updation_source": "",
+    "values": "[{\"name\":\"sort_type\",\"value\":\"sort_asc\",\"displayValue\":\"sort_asc\",\"scriptActive\":false,\"parameter\":{\"type\":\"choice\"}},{\"name\":\"conditions\",\"value\":\"source={{Created or Updated_1.current.sys_id}}^active=true^group={{flow_variable.start_group}}\",\"displayValue\":\"source={{Created or Updated_1.current.sys_id}}^active=true^group={{flow_variable.start_group}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"conditions\"}},{\"name\":\"__snc_dont_fail_on_error\",\"value\":true,\"displayValue\":true,\"scriptActive\":false,\"parameter\":{\"type\":\"boolean\"}},{\"name\":\"table\",\"value\":\"on_call_escalation\",\"displayValue\":\"on_call_escalation\",\"scriptActive\":false,\"parameter\":{\"type\":\"table_name\"}},{\"name\":\"if_multiple_records_are_found_action\",\"value\":\"use_first_record\",\"displayValue\":\"use_first_record\",\"scriptActive\":false,\"parameter\":{\"type\":\"choice\"}}]"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "14e32892c52b41fb8721f21b8e3e2e44",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "14e32892c52b41fb8721f21b8e3e2e44",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_action_instance_v2_14e32892c52b41fb8721f21b8e3e2e44",
+    "action_type": "fd7162634308121033871e0e85b8f212",
+    "action_type_parent": "fd7162634308121033871e0e85b8f212",
+    "active": "true",
+    "comment": "",
+    "display_text": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "generation_source": "",
+    "order": "11",
+    "parent_ui_id": "591113e1-f618-4bd7-8b19-48c052d93b73",
+    "sys_class_name": "sys_hub_action_instance_v2",
+    "ui_id": "14e32892-c52b-41fb-8721-f21b8e3e2e44",
+    "updation_source": "",
+    "values": "[{\"name\":\"escalation_sys_id\",\"value\":\"{{6fadd1b9-712b-446d-9c7c-a51868964ba6.Record.sys_id}}\",\"displayValue\":\"{{6fadd1b9-712b-446d-9c7c-a51868964ba6.Record.sys_id}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}}]"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "4f1fbae5c3344b74bf9d4ec01122819d",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "4f1fbae5c3344b74bf9d4ec01122819d",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_action_instance_v2_4f1fbae5c3344b74bf9d4ec01122819d",
+    "action_type": "f9d01dd2c31332002841b63b12d3aea1",
+    "action_type_parent": "f9d01dd2c31332002841b63b12d3aea1",
+    "active": "true",
+    "comment": "",
+    "display_text": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "generation_source": "",
+    "order": "12",
+    "parent_ui_id": "591113e1-f618-4bd7-8b19-48c052d93b73",
+    "sys_class_name": "sys_hub_action_instance_v2",
+    "ui_id": "4f1fbae5-c334-4b74-bf9d-4ec01122819d",
+    "updation_source": "",
+    "values": "[{\"name\":\"table_name\",\"value\":\"on_call_escalation\",\"displayValue\":\"on_call_escalation\",\"scriptActive\":false,\"parameter\":{\"type\":\"table_name\"}},{\"name\":\"record\",\"value\":\"{{6fadd1b9-712b-446d-9c7c-a51868964ba6.Record}}\",\"displayValue\":\"{{6fadd1b9-712b-446d-9c7c-a51868964ba6.Record}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"document_id\"}},{\"name\":\"values\",\"value\":\"status=cancelled^EQ\",\"displayValue\":\"status=cancelled^EQ\",\"scriptActive\":false,\"parameter\":{\"type\":\"template_value\"}}]"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_action_instance_v2",
+   "sysId": "2d82f1c7776a4589914f8263086b243d",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "2d82f1c7776a4589914f8263086b243d",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_action_instance_v2_2d82f1c7776a4589914f8263086b243d",
+    "action_type": "2932b4777f2552106e8c7769ac866537",
+    "action_type_parent": "2932b4777f2552106e8c7769ac866537",
+    "active": "true",
+    "comment": "",
+    "display_text": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "generation_source": "",
+    "order": "13",
+    "parent_ui_id": "bb3cfe35-2bc1-4f15-9b79-32b9975251ed",
+    "sys_class_name": "sys_hub_action_instance_v2",
+    "ui_id": "2d82f1c7-776a-4589-914f-8263086b243d",
+    "updation_source": "",
+    "values": "[{\"name\":\"table\",\"value\":\"incident\",\"displayValue\":\"incident\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"sysid\",\"value\":\"{{Created or Updated_1.current.sys_id}}\",\"displayValue\":\"{{Created or Updated_1.current.sys_id}}\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"journal_field\",\"value\":\"work_notes\",\"displayValue\":\"work_notes\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}},{\"name\":\"journal_value\",\"value\":\"{{flow_variable.start_group_name}} (the trigger record now says {{Created or Updated_1.current.assignment_group.name}}): this run ends itself\",\"displayValue\":\"{{flow_variable.start_group_name}} (the trigger record now says {{Created or Updated_1.current.assignment_group.name}}): this run ends itself\",\"scriptActive\":false,\"parameter\":{\"type\":\"string\"}}]"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_alias_mapping",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_alias_mapping",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_alias_mapping",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_alias_mapping",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_alias_mapping",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_alias_mapping",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_logic_instance_v2",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_logic_instance_v2",
+   "sysId": "64dd1761f5eb41d9b162eea204383662",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "64dd1761f5eb41d9b162eea204383662",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_flow_logic_instance_v2_64dd1761f5eb41d9b162eea204383662",
+    "comment": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "flow_variables_assigned": "start_group,start_group_name",
+    "logic_definition": "4f787d1e0f9b0010ecf0cc52ff767ea0",
+    "order": "1",
+    "ui_id": "64dd1761-f5eb-41d9-b162-eea204383662",
+    "values": "{\"outputsToAssign\":[],\"variables\":[{\"id\":\"a9ce6044ab2443b6ba0a7ff82c45d19d\",\"name\":\"start_group\",\"value\":\"{{Created or Updated_1.current.assignment_group.sys_id}}\",\"displayValue\":\"{{Created or Updated_1.current.assignment_group.sys_id}}\",\"children\":[],\"parameter\":{},\"scriptActive\":false},{\"id\":\"d5ff27dace8e4cb28cd457e9f506c991\",\"name\":\"start_group_name\",\"value\":\"{{Created or Updated_1.current.assignment_group.name}}\",\"displayValue\":\"{{Created or Updated_1.current.assignment_group.name}}\",\"children\":[],\"parameter\":{},\"scriptActive\":false}],\"decisionTableInputs\":[],\"dynamicInputs\":[],\"workflowInputs\":[],\"inputs\":[{\"id\":\"a9ce6044ab2443b6ba0a7ff82c45d19d\",\"name\":\"start_group\",\"value\":\"{{Created or Updated_1.current.assignment_group.sys_id}}\",\"displayValue\":\"\",\"children\":[],\"parameter\":{},\"scriptActive\":false},{\"id\":\"d5ff27dace8e4cb28cd457e9f506c991\",\"name\":\"start_group_name\",\"value\":\"{{Created or Updated_1.current.assignment_group.name}}\",\"displayValue\":\"\",\"children\":[],\"parameter\":{},\"scriptActive\":false}]}"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_logic_instance_v2",
+   "sysId": "57ddc732bd5e45939efeda69d585555f",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "57ddc732bd5e45939efeda69d585555f",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_flow_logic_instance_v2_57ddc732bd5e45939efeda69d585555f",
+    "comment": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "logic_definition": "5d31e5dedfe50300b61ecae83df26326",
+    "order": "3",
+    "ui_id": "57ddc732-bd5e-4593-9efe-da69d585555f",
+    "values": "{\"outputsToAssign\":[],\"variables\":[],\"decisionTableInputs\":[],\"dynamicInputs\":[],\"workflowInputs\":[],\"inputs\":[]}"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_logic_instance_v2",
+   "sysId": "b5dd69e816104ce88d92cc04620fcf75",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "b5dd69e816104ce88d92cc04620fcf75",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_flow_logic_instance_v2_b5dd69e816104ce88d92cc04620fcf75",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "logic_definition": "a1168de173311300b61e66476bf6a7d0",
+    "order": "4",
+    "parent_ui_id": "57ddc732-bd5e-4593-9efe-da69d585555f",
+    "ui_id": "b5dd69e8-1610-4ce8-8d92-cc04620fcf75",
+    "values": "{\"inputs\":[],\"outputsToAssign\":[],\"variables\":[],\"decisionTableInputs\":[],\"dynamicInputs\":[],\"workflowInputs\":[]}"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_logic_instance_v2",
+   "sysId": "0b532518f02449b4942efb2a84b886ed",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "0b532518f02449b4942efb2a84b886ed",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_flow_logic_instance_v2_0b532518f02449b4942efb2a84b886ed",
+    "comment": "The paging ended: stop watching",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "logic_definition": "d176605ea76103004f27b0d2187901c7",
+    "order": "6",
+    "parent_ui_id": "b5dd69e8-1610-4ce8-8d92-cc04620fcf75",
+    "ui_id": "0b532518-f024-49b4-942e-fb2a84b886ed",
+    "values": "{\"outputsToAssign\":[],\"variables\":[],\"decisionTableInputs\":[],\"dynamicInputs\":[],\"workflowInputs\":[],\"inputs\":[]}"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_logic_instance_v2",
+   "sysId": "bb3cfe352bc14f159b7932b9975251ed",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "bb3cfe352bc14f159b7932b9975251ed",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_flow_logic_instance_v2_bb3cfe352bc14f159b7932b9975251ed",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "logic_definition": "a1168de173311300b61e66476bf6a7d0",
+    "order": "7",
+    "parent_ui_id": "57ddc732-bd5e-4593-9efe-da69d585555f",
+    "ui_id": "bb3cfe35-2bc1-4f15-9b79-32b9975251ed",
+    "values": "{\"inputs\":[],\"outputsToAssign\":[],\"variables\":[],\"decisionTableInputs\":[],\"dynamicInputs\":[],\"workflowInputs\":[]}"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_logic_instance_v2",
+   "sysId": "591113e1f6184bd78b1948c052d93b73",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "591113e1f6184bd78b1948c052d93b73",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_flow_logic_instance_v2_591113e1f6184bd78b1948c052d93b73",
+    "comment": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "logic_definition": "af4e1945c3e232002841b63b12d3ae3e",
+    "order": "10",
+    "parent_ui_id": "bb3cfe35-2bc1-4f15-9b79-32b9975251ed",
+    "ui_id": "591113e1-f618-4bd7-8b19-48c052d93b73",
+    "values": "{\"outputsToAssign\":[],\"variables\":[],\"decisionTableInputs\":[],\"dynamicInputs\":[],\"workflowInputs\":[],\"inputs\":[{\"id\":\"\",\"name\":\"condition\",\"value\":\"{{6fadd1b9-712b-446d-9c7c-a51868964ba6.Record.sys_id}}ISNOTEMPTY\",\"displayValue\":\"{{6fadd1b9-712b-446d-9c7c-a51868964ba6.Record.sys_id}}ISNOTEMPTY\",\"children\":[],\"parameter\":{},\"scriptActive\":false}]}"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_flow_logic_instance_v2",
+   "sysId": "53eff62f5d6a4cefa9ec2b4320acb982",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "53eff62f5d6a4cefa9ec2b4320acb982",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_flow_logic_instance_v2_53eff62f5d6a4cefa9ec2b4320acb982",
+    "comment": "The incident left the group: stop paging it",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "logic_definition": "d176605ea76103004f27b0d2187901c7",
+    "order": "14",
+    "parent_ui_id": "bb3cfe35-2bc1-4f15-9b79-32b9975251ed",
+    "ui_id": "53eff62f-5d6a-4cef-a9ec-2b4320acb982",
+    "values": "{\"outputsToAssign\":[],\"variables\":[],\"decisionTableInputs\":[],\"dynamicInputs\":[],\"workflowInputs\":[],\"inputs\":[]}"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_sub_flow_instance_v2",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_sub_flow_instance_v2",
+   "sysId": "3c8ee7de91254fe3a47244eb933b63d6",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {
+    "sys_id": "3c8ee7de91254fe3a47244eb933b63d6",
+    "sys_scope": "global",
+    "sys_update_name": "sys_hub_sub_flow_instance_v2_3c8ee7de91254fe3a47244eb933b63d6",
+    "attributes": "",
+    "comment": "",
+    "display_text": "",
+    "flow": "6bf32575236a47a5bd5f91efc8c1eb88",
+    "generation_source": "",
+    "order": "4➛5",
+    "parent_ui_id": "b5dd69e8-1610-4ce8-8d92-cc04620fcf75",
+    "show_stages": "false",
+    "subflow": "60fa2e547f8ed6108a8976977c866584",
+    "subflow_inputs": "[{\"name\":\"source_table\",\"value\":\"incident\",\"displayValue\":\"incident\",\"parameter\":{}},{\"name\":\"source_sys_id\",\"value\":\"{{Created or Updated_1.current.sys_id}}\",\"displayValue\":\"{{Created or Updated_1.current.sys_id}}\",\"parameter\":{}},{\"name\":\"trigger_group_sys_id\",\"value\":\"{{flow_variable.start_group}}\",\"displayValue\":\"{{flow_variable.start_group}}\",\"parameter\":{}},{\"name\":\"trigger_group_field\",\"value\":\"assignment_group\",\"displayValue\":\"assignment_group\",\"parameter\":{}},{\"name\":\"trigger_user_field\",\"value\":\"assigned_to\",\"displayValue\":\"assigned_to\",\"parameter\":{}},{\"name\":\"journal_field\",\"value\":\"work_notes\",\"displayValue\":\"work_notes\",\"parameter\":{}}]",
+    "sys_class_name": "sys_hub_sub_flow_instance_v2",
+    "ui_id": "3c8ee7de-9125-4fe3-a472-44eb933b63d6",
+    "wait_for_completion": "true"
+   },
+   "referenceNames": {}
+  },
+  {
+   "table": "sys_hub_alias_mapping",
+   "sysId": "",
+   "action": "INSERT_OR_UPDATE",
+   "fields": {},
+   "referenceNames": {}
+  }
+ ]
+}

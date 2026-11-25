@@ -123,7 +123,7 @@ MCP tool is in the [command reference](docs/reference/commands.md).
 
 ## Build from source
 
-Requires [Bun](https://bun.sh) at the exact version in `.bun-version` (1.4.4) and git;
+Requires [Bun](https://bun.sh) at the exact version in `.bun-version` (1.4.5) and git;
 `bun run verify` fails on any other version.
 
 ```sh

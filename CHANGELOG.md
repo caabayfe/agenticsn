@@ -4,6 +4,8 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.24.1] - 2026-11-25
+
 ### Changed
 
 - CI and release binaries are built and verified with Bun 1.4.5 (was 1.4.4), the version

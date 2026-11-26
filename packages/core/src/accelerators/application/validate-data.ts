@@ -1,5 +1,6 @@
 import { dataOrder, type Selection, selectCapabilities } from "../domain/capability-graph";
 import { type DataDomain, domainEntity } from "../domain/data-domain";
+import { demoModules } from "../domain/demo-modules";
 import { TrackedDataError } from "../domain/errors";
 import type { DataEntity } from "../domain/manifest-types";
 import { demoPath } from "../domain/pack-layout";
@@ -19,6 +20,9 @@ export interface DataQuery extends Selection {
   // The instance's domains, when a load is planned for one: without it the templates are checked
   // as the pack declares them (spec 011, section 15).
   readonly domain?: DataDomain;
+  // The modules of the selection an install plan keeps, when the caller has chosen them: a
+  // module the plan leaves out or skips loads no data, so its file is not asked for.
+  readonly kept?: readonly string[];
 }
 
 // The templates of a selection's entities, by entity, from the query's source.
@@ -42,6 +46,11 @@ export async function readTemplates(
   return templates;
 }
 
+// A customer's directory holds no demo module's data: an install with --data leaves those
+// modules out (ADR-0048), so the check before it asks for the same files and no more.
+const withoutDemo = (source: DataSource, selected: readonly string[], demo: ReadonlySet<string>) =>
+  source.kind === "demo" ? selected : selected.filter((id) => !demo.has(id));
+
 // Checks a data set's templates against the pack's data entities, without an instance
 // (ADR-0026, item 3: the same check runs before any load, and stands alone for test and
 // production, which snagentic never loads).
@@ -53,7 +62,8 @@ export async function validateData(
   if (query.source.kind === "directory" && (await deps.templates.tracked(query.source.directory))) {
     throw new TrackedDataError(query.source.directory);
   }
-  const { capabilities: selected } = selectCapabilities(manifest, selectionOf(query));
+  const { capabilities } = selectCapabilities(manifest, selectionOf(query));
+  const selected = query.kept ?? withoutDemo(query.source, capabilities, demoModules(manifest));
   const domain = query.domain;
   const ordered = dataOrder(manifest, selected);
   const entities = domain === undefined ? ordered : ordered.map((e) => domainEntity(e, domain));

@@ -13,6 +13,10 @@ export interface DemoChoice {
   readonly problems: readonly string[];
 }
 
+// The pack's demo modules, by id.
+export const demoModules = (manifest: Manifest): ReadonlySet<string> =>
+  new Set(manifest.capabilities.filter((c) => c.demo === true).map((c) => c.id));
+
 export function demoChoice(input: {
   readonly manifest: Manifest;
   // Selected modules, dependencies first (selectCapabilities).
@@ -27,9 +31,7 @@ export function demoChoice(input: {
     const problems = input.development ? [] : ["--demo is for development instances only"];
     return { kept: input.selected, leftOut: [], problems };
   }
-  const isDemo = new Set(
-    input.manifest.capabilities.filter((c) => c.demo === true).map((c) => c.id),
-  );
+  const isDemo = demoModules(input.manifest);
   return {
     kept: input.selected.filter((id) => !isDemo.has(id)),
     leftOut: input.selected.filter((id) => isDemo.has(id)),

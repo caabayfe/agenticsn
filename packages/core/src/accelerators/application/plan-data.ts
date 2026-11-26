@@ -14,7 +14,7 @@ export async function plannedData(
   selected: readonly string[],
 ): Promise<{ readonly data: InstallPlan["data"]; readonly problems: readonly string[] }> {
   const domain = await plannedDomain(deps, query, manifest, selected);
-  const checked = await validateData(deps, { ...query, domain: domain.domain });
+  const checked = await validateData(deps, { ...query, domain: domain.domain, kept: selected });
   const entities = dataOrder(manifest, selected).map((e) => ({
     entity: e.entity,
     module: e.module,

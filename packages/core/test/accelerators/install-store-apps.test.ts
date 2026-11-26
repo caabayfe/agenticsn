@@ -204,6 +204,60 @@ describe("--demo: demo modules and store applications' demo data (ADR-0048)", ()
     expect(asked).toEqual([["sn_dex", "sn_ztsd", "sn_aia"]]);
   });
 
+  it("with --data, does not ask for the data file of a demo module it leaves out", async () => {
+    const pack: PackFixture = {
+      ...DEMO_PACK,
+      modules: {
+        ...DEMO_PACK.modules,
+        "dex-demo": {
+          label: "ZT: dex demo",
+          demo: true,
+          dependsOn: ["dex"],
+          components: [{ kind: "app", id: "sn_dex_demo_data" }],
+          data: [
+            {
+              entity: "rota",
+              table: "x_t_rota",
+              key: ["name"],
+              columns: { name: { required: true } },
+            },
+          ],
+        },
+      },
+    };
+    const plan = await planInstall(demoDeps({ pack }), CUSTOMER);
+    expect(plan.demoOnly).toEqual(["dex-demo"]);
+    expect(plan.data.entities).toEqual([]);
+    expect(plan.problems).toEqual([]);
+  });
+
+  it("with --data, does not ask for the data file of a module it skips", async () => {
+    const pack: PackFixture = {
+      ...PACK,
+      modules: {
+        ...PACK.modules,
+        specialist: {
+          label: "ZT: specialist",
+          dependsOn: ["foundation"],
+          components: [
+            { kind: "app", id: "sn_ztsd", minVersion: "3.0.0", entitlement: "licensed" },
+          ],
+          data: [
+            {
+              entity: "desk",
+              table: "x_t_desk",
+              key: ["name"],
+              columns: { name: { required: true } },
+            },
+          ],
+        },
+      },
+    };
+    const plan = await planInstall(deps({ pack, offer: [] }), CUSTOMER);
+    expect(plan.skipped.map((s) => s.id)).toEqual(["specialist"]);
+    expect(plan.problems.filter((p) => p.startsWith("data "))).toEqual([]);
+  });
+
   it("loads no application's demo data on an instance that is not development", async () => {
     const plan = await planInstall(demoDeps(), {
       ...QUERY,

@@ -4,6 +4,15 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- An install with `--data` no longer asks for the data file of a module it does not install. The
+  check of the client's directory took the whole selection, so a profile that holds a demo module
+  with data (left out without `--demo`, ADR-0048), or a module the plan skips because the store
+  does not offer its application, blocked the plan with "`<file>.csv` is missing".
+  `accelerator validate-data --data` and `accelerator load --data` leave the demo modules out the
+  same way.
+
 ## [2.24.1] - 2026-11-25
 
 ### Changed

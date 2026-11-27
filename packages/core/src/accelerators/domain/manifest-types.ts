@@ -9,6 +9,8 @@ export interface Component {
   // null: any version.
   readonly minVersion: string | null;
   readonly entitlement: "free" | "licensed";
+  // A licensed component's licence, one of the pack's (ADR-0059); absent: its own id names it.
+  readonly licence?: string;
   // A store application whose own demo data loads with --demo, on development only (ADR-0048).
   readonly demoData?: true;
 }
@@ -79,6 +81,8 @@ export interface Manifest {
   readonly requires: { readonly snagentic: string };
   // Platform releases the pack was tested on (lowercase family names); empty: none recorded.
   readonly tested: readonly string[];
+  // The licences its licensed components name, by id, with the subscription each stands for (ADR-0059).
+  readonly licences: Readonly<Record<string, string>>;
   // Named sets of modules, by profile id.
   readonly profiles: Readonly<Record<string, readonly string[]>>;
   // By id.

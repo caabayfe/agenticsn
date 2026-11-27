@@ -12,6 +12,7 @@ import {
   plannedComponents,
   skippedModules,
 } from "../domain/install-plan";
+import { licenceChoice } from "../domain/licences";
 import type { Manifest } from "../domain/manifest-types";
 import { materialize } from "../domain/materialize";
 import { deletionsOf } from "../domain/module-deletions";
@@ -214,7 +215,8 @@ async function plannedSelection(
     demo: query.source.kind === "demo",
     development: query.instance.kind === "development",
   });
-  const chosen = choice.kept;
+  const licensed = licenceChoice({ manifest, selected: choice.kept, stated: query.licences });
+  const chosen = licensed.kept;
   const check = await checkPack(
     deps,
     { ...selection, pack: query.pack, instance: query.instance, snagentic: query.snagentic },
@@ -231,8 +233,9 @@ async function plannedSelection(
       ? [`pull ${query.instance.name} first: the mirror has no component inventory`]
       : []),
     ...choice.problems,
+    ...licensed.problems,
   ];
-  return { selection, choice, chosen, report, problems };
+  return { selection, choice, licensed, chosen, report, problems };
 }
 
 // The install plan (ADR-0038, item 2.1): reads the pack, the mirror and the store's offer for
@@ -243,7 +246,7 @@ export async function planInstall(
 ): Promise<InstallPlan> {
   const manifest = await manifestOf(deps.packs, query.pack);
   const files = await deps.packs.files(query.pack);
-  const { selection, choice, chosen, report, ...picked } = await plannedSelection(
+  const { selection, choice, licensed, chosen, report, ...picked } = await plannedSelection(
     deps,
     query,
     manifest,
@@ -272,8 +275,9 @@ export async function planInstall(
     version: manifest.version,
     instance: { name: query.instance.name, kind: query.instance.kind },
     selection,
+    ...(query.licences === undefined ? {} : { licences: [...new Set(query.licences)].sort() }),
     modules: built.modules,
-    skipped,
+    skipped: [...licensed.leftOut, ...skipped],
     demoOnly: choice.leftOut,
     demoSettings: demo.settings,
     components: demo.components,
@@ -282,7 +286,7 @@ export async function planInstall(
     data: planned.data,
     leftovers,
     problems,
-    warnings: [...report.warnings, ...required.warnings, ...demo.warnings],
+    warnings: [...licensed.warnings, ...report.warnings, ...required.warnings, ...demo.warnings],
     basis: {
       mirrorCommit: (await deps.workspace.mirrorCommit()) ?? "",
       content: contentOf(files, selected),

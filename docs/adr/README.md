@@ -68,6 +68,7 @@ when the table is stale.
 | [0056](0056-onboard-an-instance-with-one-command.md) | Onboard an instance with one command, built into the binary | Accepted |
 | [0057](0057-bundled-user-skills-and-mcp-profiles.md) | Bundled user skills and workspace MCP profiles | Accepted |
 | [0058](0058-team-waivers-come-from-the-reviewed-branch.md) | In team mode, the gate accepts only waivers on the reviewed branch | Accepted |
+| [0059](0059-installs-state-the-clients-licences.md) | An install states the client's licences and installs only what they cover | Accepted |
 <!-- adr-index:end -->
 
 Requirements referenced as `ASR-nn` are in

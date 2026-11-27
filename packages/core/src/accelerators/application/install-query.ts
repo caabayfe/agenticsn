@@ -19,6 +19,8 @@ export interface InstallQuery extends Selection {
   readonly signal: AbortSignal;
   // --domain: the domain the data goes into, on an instance that separates data by domain.
   readonly domain?: string;
+  // --licences: the client's licences; the plan keeps the modules they cover (ADR-0059).
+  readonly licences?: readonly string[];
 }
 
 export interface InstallPlanDependencies {

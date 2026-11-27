@@ -28,7 +28,11 @@ const text = (value: unknown) => (typeof value === "string" ? value.trim() : "")
 const list = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
 const texts = (value: unknown) => list(value).map(text).filter(Boolean);
 
-function component(value: unknown, say: (problem: string) => void): Component | null {
+function component(
+  value: unknown,
+  say: (problem: string) => void,
+  licences: Readonly<Record<string, string>>,
+): Component | null {
   const fields = fieldsOf(value);
   const id = text(fields?.["id"]);
   if (fields === null || id === "") return null;
@@ -36,11 +40,18 @@ function component(value: unknown, say: (problem: string) => void): Component | 
   const kind = fields["kind"] === "app" ? "app" : "plugin";
   const demoData = fields["demoData"] === true;
   if (demoData && kind === "plugin") say("demoData is for store applications only");
+  const entitlement = fields["entitlement"] === "licensed" ? "licensed" : "free";
+  const licence = text(fields["licence"]);
+  if (licence !== "" && entitlement === "free") say("licence is for licensed components only");
+  else if (licence !== "" && licences[licence] === undefined) {
+    say(`licence ${licence} is not one of the pack's licences`);
+  }
   return {
     kind,
     id,
     minVersion: minVersion === "" ? null : minVersion,
-    entitlement: fields["entitlement"] === "licensed" ? "licensed" : "free",
+    entitlement,
+    ...(licence === "" ? {} : { licence }),
     ...(demoData && kind === "app" ? { demoData: true as const } : {}),
   };
 }
@@ -133,13 +144,18 @@ function demoSettingsOf(fields: Fields, say: (problem: string) => void) {
   return Object.keys(settings).length === 0 ? {} : { demoSettings: settings };
 }
 
-function capability(pack: string, id: string, value: unknown, problems: string[]): Capability {
+function capability(
+  pack: { readonly id: string; readonly licences: Readonly<Record<string, string>> },
+  id: string,
+  value: unknown,
+  problems: string[],
+): Capability {
   const fields = fieldsOf(value) ?? {};
   const say = (problem: string) => problems.push(`module ${id}: ${problem}`);
   if (!ID.test(id)) say("its folder name must be lowercase letters, digits, - or _");
   const components = list(fields["components"]).map(
     (p, i) =>
-      component(p, (problem) => say(`component ${i + 1}: ${problem}`)) ??
+      component(p, (problem) => say(`component ${i + 1}: ${problem}`), pack.licences) ??
       say(`component ${i + 1} needs an id`),
   );
   const data = list(fields["data"]).map(
@@ -150,7 +166,7 @@ function capability(pack: string, id: string, value: unknown, problems: string[]
   );
   return {
     id,
-    label: text(fields["label"]) || `${pack}/${id}`,
+    label: text(fields["label"]) || `${pack.id}/${id}`,
     dependsOn: texts(fields["dependsOn"]),
     components: components.filter((c): c is Component => typeof c === "object"),
     data: data.filter((d): d is DataEntity => typeof d === "object"),
@@ -172,6 +188,12 @@ function identity(fields: Fields, problems: string[]) {
     version,
     requires: { snagentic: text(requires?.["snagentic"]) },
     tested: texts(platform?.["tested"]).map((t) => t.toLowerCase()),
+    licences: Object.fromEntries(
+      Object.entries(fieldsOf(fields["licences"]) ?? {}).map(([licence, label]) => [
+        licence,
+        text(label),
+      ]),
+    ),
   };
 }
 
@@ -198,7 +220,7 @@ export function parseManifest(document: unknown): ManifestOutcome {
   const entries = Object.entries(fieldsOf(fields["modules"]) ?? {});
   if (entries.length === 0) problems.push("modules: at least one (modules/<module>/module.yaml)");
   const capabilities = entries
-    .map(([id, value]) => capability(head.id, id, value, problems))
+    .map(([id, value]) => capability(head, id, value, problems))
     .sort((a, b) => a.id.localeCompare(b.id));
   const profiles = profilesOf(fields["profiles"], new Set(entries.map(([id]) => id)), problems);
   problems.push(...demoDependencyProblems(capabilities));

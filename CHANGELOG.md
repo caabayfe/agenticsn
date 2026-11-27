@@ -4,6 +4,22 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+## [2.25.0] - 2026-11-27
+
+### Added
+
+- `accelerator install --licences <id>...` states the client's licences, and the install installs
+  only the modules they cover (ADR-0059). A pack declares its licences in `accelerator.yaml`
+  (`licences: { <id>: <label> }`), and a licensed component names the one that covers it
+  (`licence: <id>` in `module.yaml`); a licensed component without one is covered by its own id.
+  The plan leaves out each module that needs a licence the option does not state, and the modules
+  that depend on it, with the reason; a licence the pack does not know is a problem, so a typo
+  cannot install less than meant. Without the option nothing changes: the plan warns which
+  licences the selection needs. The stated licences are part of the plan id and of the approval
+  command.
+- The plan in the terminal lists the modules it leaves out and why ("Left out"), which until now
+  only `plan.md` showed.
+
 ### Fixed
 
 - An install with `--data` no longer asks for the data file of a module it does not install. The

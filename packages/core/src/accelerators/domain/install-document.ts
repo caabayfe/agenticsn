@@ -5,6 +5,8 @@ import {
   deletionsSection,
   demoSettingsNote,
   fieldsSection,
+  selectionFlags,
+  selectionText,
   table,
 } from "./install-document-sections";
 import type {
@@ -25,15 +27,6 @@ const ACTION: Readonly<Record<PlannedComponent["action"], string>> = {
   blocked: "**blocked**",
 };
 
-function selectionText(plan: InstallPlan): string {
-  const { profile, modules } = plan.selection;
-  const parts = [
-    ...(profile === undefined ? [] : [`profile \`${profile}\``]),
-    ...(modules === undefined ? [] : [`modules ${modules.map((m) => `\`${m}\``).join(", ")}`]),
-  ];
-  return parts.length === 0 ? "every module" : parts.join(" and ");
-}
-
 function summary(plan: InstallPlan): string[] {
   const activations = plan.components.filter((c) => c.action === "activate").length;
   const installs = plan.components.filter((c) => c.action === "install").length;
@@ -49,6 +42,9 @@ function summary(plan: InstallPlan): string[] {
     `- **Plan id:** \`${plan.planId}\``,
     `- **Instance:** ${plan.instance.name} (${plan.instance.kind})`,
     `- **Selection:** ${selectionText(plan)}: ${plan.modules.map((m) => m.id).join(", ")}`,
+    ...(plan.licences === undefined
+      ? []
+      : [`- **Licences stated:** ${plan.licences.join(", ")} (ADR-0059)`]),
     `- **Changes:** ${activations} component(s) activated${installed}; ${plan.modules.length} module(s) delivered from ${files} source file(s), each into its own update set; ${rows} ${plan.data.source === "demo" ? "fictional demo" : "customer"} data row(s) loaded`,
     "",
     `**It will not:** delete a record other than ${listed}the form element of a field a module no longer adds, change a record the plan does not list, write to a test or production instance, move, commit or cancel an update set, or complete an update set the plan does not list. Customizations are promoted with the platform's own update set process.`,
@@ -125,7 +121,7 @@ function skippedSection(plan: InstallPlan): string[] {
   if (plan.skipped.length === 0) return [];
   return [
     "",
-    "**Skipped modules** (each needs a component the install cannot install, or depends on such a module: nothing of theirs is pushed or loaded; install the component, pull, then run the install again):",
+    "**Skipped modules** (each needs a component the install cannot install or a licence `--licences` does not state, or depends on such a module: nothing of theirs is pushed or loaded):",
     "",
     ...table(
       ["Module", "Why"],
@@ -241,16 +237,6 @@ function risks(plan: InstallPlan): string[] {
     "",
     `Built from mirror commit \`${plan.basis.mirrorCommit.slice(0, 12)}\`; any change on the instance or in the pack makes a new plan id.`,
   ];
-}
-
-function selectionFlags(plan: InstallPlan): string {
-  const { profile, modules } = plan.selection;
-  return [
-    ...(profile === undefined ? [] : [`--profile ${profile} `]),
-    ...(modules === undefined ? [] : modules.map((m) => `--modules ${m} `)),
-    plan.data.source === "demo" ? "--demo " : "--data <directory> ",
-    ...(plan.data.domain.separated ? [`--domain ${plan.data.domain.name} `] : []),
-  ].join("");
 }
 
 export function installPlanDocument(plan: InstallPlan): string {

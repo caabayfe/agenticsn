@@ -316,6 +316,7 @@ describe("accelerator install (ADR-0038)", () => {
     activates: [{ id: "com.snc.pa.premium", modules: ["incident-analytics"] }],
     installs: [],
     demoOnly: [],
+    skipped: [],
     missingFields: [
       {
         field: "incident.problem_id",
@@ -391,6 +392,22 @@ describe("accelerator install (ADR-0038)", () => {
     ]);
     const left = lines.indexOf("Demo modules left out (2): install them with --demo");
     expect(lines[left + 1]).toBe("  zt-dex-demo, zt-demo-history");
+  });
+
+  it("shows the modules it leaves out and why, such as a licence --licences does not state (ADR-0059)", () => {
+    const reason =
+      "needs the licence itsm-pro (ITSM Professional), which --licences does not state";
+    const lines = acceleratorInstall
+      .render({ ...VIEW, skipped: [{ id: "incident-analytics", reason }] }, "text")
+      .split("\n");
+    const at = lines.indexOf("Left out (1)");
+    expect(
+      lines
+        .slice(at + 1, at + 3)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    ).toBe(`- incident-analytics: ${reason}`);
   });
 
   it("shows a blocked plan's problems and exits 1", () => {

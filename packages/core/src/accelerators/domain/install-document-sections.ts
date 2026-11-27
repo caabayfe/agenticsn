@@ -139,3 +139,24 @@ export function demoSettingsNote(plan: InstallPlan): string[] {
     "",
   ];
 }
+
+// The selection the plan was asked for, in words and as the flags that ask it again.
+export function selectionText(plan: InstallPlan): string {
+  const { profile, modules } = plan.selection;
+  const parts = [
+    ...(profile === undefined ? [] : [`profile \`${profile}\``]),
+    ...(modules === undefined ? [] : [`modules ${modules.map((m) => `\`${m}\``).join(", ")}`]),
+  ];
+  return parts.length === 0 ? "every module" : parts.join(" and ");
+}
+
+export function selectionFlags(plan: InstallPlan): string {
+  const { profile, modules } = plan.selection;
+  return [
+    ...(profile === undefined ? [] : [`--profile ${profile} `]),
+    ...(modules === undefined ? [] : modules.map((m) => `--modules ${m} `)),
+    plan.data.source === "demo" ? "--demo " : "--data <directory> ",
+    ...(plan.data.domain.separated ? [`--domain ${plan.data.domain.name} `] : []),
+    ...(plan.licences === undefined ? [] : [`--licences ${plan.licences.join(" ")} `]),
+  ].join("");
+}

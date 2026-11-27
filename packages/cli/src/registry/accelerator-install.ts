@@ -93,6 +93,10 @@ export const acceleratorInstall = defineUseCase({
     instance: z.string(),
     ...SelectionInput,
     ...DataSourceInput,
+    licences: z
+      .array(z.string())
+      .optional()
+      .describe("the client's licences: install only the modules they cover (ADR-0059)"),
     confirm: z.string().optional().describe("the plan id the admin approved"),
   }),
   output: z.object({
@@ -151,6 +155,7 @@ export const acceleratorInstall = defineUseCase({
           snagentic: VERSION,
           signal: run.signal,
           ...(input.domain === undefined ? {} : { domain: input.domain }),
+          ...(input.licences === undefined ? {} : { licences: input.licences }),
           ...(input.confirm === undefined ? {} : { confirm: input.confirm }),
         },
       );

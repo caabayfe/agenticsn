@@ -76,6 +76,8 @@ export interface InstallPlan {
   readonly version: string;
   readonly instance: { readonly name: string; readonly kind: string };
   readonly selection: Selection;
+  // The client's licences as --licences stated them, sorted; absent: not stated (ADR-0059).
+  readonly licences?: readonly string[];
   // Module ids, dependencies first.
   readonly modules: readonly PlannedModule[];
   // Selected modules the install leaves out: they need a component it cannot install, or
@@ -189,6 +191,7 @@ export function installPlanId(plan: Omit<InstallPlan, "planId">): string {
       modules: [...(plan.selection.modules ?? [])],
     },
     modules: plan.modules.map((m) => ({ id: m.id, label: m.label, files: [...m.files] })),
+    ...(plan.licences === undefined ? {} : { licences: [...plan.licences] }),
     // Absent when empty, so plans that skip nothing keep the ids they had.
     ...(plan.skipped.length === 0 ? {} : { skipped: plan.skipped.map((m) => m.id) }),
     // Absent when empty, so plans without demo modules keep the ids they had.

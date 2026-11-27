@@ -29,6 +29,12 @@ export const InstallViewOutput = {
     .array(z.string())
     .readonly()
     .describe("demo modules of the selection left out, because the install has no --demo"),
+  skipped: z
+    .array(z.object({ id: z.string(), reason: z.string() }))
+    .readonly()
+    .describe(
+      "selected modules left out: a component the install cannot install, or a licence not stated",
+    ),
   missingFields: z
     .array(
       z.object({
@@ -96,6 +102,7 @@ export function installView(plan: InstallPlan) {
     activates: activations(plan.components),
     installs: installations(plan.components),
     demoOnly: plan.demoOnly,
+    skipped: plan.skipped,
     missingFields: missingFields(plan.fields),
     notes: notesOf(plan),
   };

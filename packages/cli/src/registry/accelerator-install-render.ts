@@ -27,6 +27,7 @@ export interface InstallView {
     readonly modules: readonly string[];
   }[];
   readonly demoOnly: readonly string[];
+  readonly skipped: readonly { readonly id: string; readonly reason: string }[];
   readonly missingFields: readonly MissingFieldView[];
   // Warnings other than missing fields.
   readonly notes: readonly string[];
@@ -82,6 +83,10 @@ function fieldLines(fields: readonly MissingFieldView[]): string[] {
 
 const FIELD_FIX = "  fix: repair or activate the plugin that ships each field, then pull";
 
+// One bullet per sentence, its wrapped lines indented under the text.
+const bullets = (sentences: readonly string[]) =>
+  sentences.flatMap((s) => text(s, "  - ").map((l, i) => (i === 0 ? l : `    ${l.slice(4)}`)));
+
 export function renderPlan(view: InstallView): string {
   const blocking = view.missingFields.filter((f) => f.blocking);
   const lacking = view.missingFields.filter((f) => !f.blocking);
@@ -107,11 +112,15 @@ export function renderPlan(view: InstallView): string {
       `Demo modules left out (${view.demoOnly.length}): install them with --demo`,
       view.demoOnly.length === 0 ? [] : wrapped(view.demoOnly, "  ", ", "),
     ),
+    ...section(
+      `Left out (${view.skipped.length})`,
+      bullets(view.skipped.map((m) => `${m.id}: ${m.reason}`)),
+    ),
     ...section("Settings", [
       "  ATF test execution: turned on where it is off, in an update set set to ignore (ADR-0047)",
     ]),
     ...section(`Blocked (${view.problems.length})`, [
-      ...others.flatMap((p) => text(p, "  - ").map((l, i) => (i === 0 ? l : `    ${l.slice(4)}`))),
+      ...bullets(others),
       ...fieldLines(blocking),
       ...(blocking.length > 0 ? [FIELD_FIX] : []),
     ]),
@@ -119,10 +128,7 @@ export function renderPlan(view: InstallView): string {
       `Missing fields (${lacking.length}): the install goes on without them`,
       lacking.length === 0 ? [] : [...fieldLines(lacking), FIELD_FIX],
     ),
-    ...section(
-      `Warnings (${view.notes.length})`,
-      view.notes.flatMap((n) => text(n, "  - ").map((l, i) => (i === 0 ? l : `    ${l.slice(4)}`))),
-    ),
+    ...section(`Warnings (${view.notes.length})`, bullets(view.notes)),
     "",
     "Next",
     ...(ready

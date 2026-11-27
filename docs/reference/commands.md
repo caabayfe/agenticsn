@@ -954,6 +954,7 @@ Options:
 - `--data <data>`: the directory with the templates, outside the workspace
 - `--demo`: use the pack's fictional demo data
 - `--domain <domain>`: the domain the data goes into, on an instance that separates data by domain
+- `--licences <licences...>`: the client's licences: install only the modules they cover (ADR-0059)
 - `--confirm <confirm>`: the plan id the admin approved
 
 Examples:

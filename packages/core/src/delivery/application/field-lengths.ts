@@ -1,7 +1,5 @@
 import type { BuiltUnit } from "../../authoring/domain/unit";
 import type { InstanceReader } from "../../connection/ports";
-import type { Row } from "../../kernel/row";
-import { TableName } from "../../kernel/table-name";
 import { KeysetPager } from "../../sync/application/keyset-pager";
 import {
   CUT_TYPES,
@@ -12,45 +10,11 @@ import {
   inheritedLengths,
 } from "../domain/field-lengths";
 import type { PlannedUnit, UnitProblem } from "../domain/unit-plan";
+import { listRows, tableAncestry } from "./table-ancestry";
 
 // Reads, for the tables a plan would load, the lengths their text fields keep: the tables'
 // ancestry one level per request, then their dictionary entries. A plan that loads nothing
 // reads nothing (ADR-0016).
-
-async function list(
-  pager: KeysetPager,
-  table: string,
-  base: string,
-  fields: readonly string[],
-  signal: AbortSignal,
-): Promise<Row[]> {
-  const rows: Row[] = [];
-  const listing = { kind: "snapshot" as const, table: TableName.parse(table), base, fields };
-  for await (const row of pager.rows(listing, signal)) rows.push(row);
-  return rows;
-}
-
-async function ancestry(pager: KeysetPager, tables: readonly string[], signal: AbortSignal) {
-  const parents = new Map<string, string>();
-  let level = [...tables];
-  while (level.length > 0) {
-    const rows = await list(
-      pager,
-      "sys_db_object",
-      `nameIN${level.join(",")}`,
-      ["sys_id", "name", "super_class.name"],
-      signal,
-    );
-    level = [];
-    for (const row of rows) {
-      const parent = row["super_class.name"] ?? "";
-      if (parent === "" || parents.has(row["name"] ?? "")) continue;
-      parents.set(row["name"] ?? "", parent);
-      if (!parents.has(parent) && !tables.includes(parent)) level.push(parent);
-    }
-  }
-  return parents;
-}
 
 async function lengthsOf(
   reader: InstanceReader,
@@ -58,9 +22,9 @@ async function lengthsOf(
   signal: AbortSignal,
 ): Promise<FieldLengths> {
   const pager = new KeysetPager(reader);
-  const parents = await ancestry(pager, tables, signal);
+  const { parents } = await tableAncestry(pager, tables, signal);
   const all = [...new Set([...tables, ...parents.values()])];
-  const rows = await list(
+  const rows = await listRows(
     pager,
     "sys_dictionary",
     `nameIN${all.join(",")}^internal_typeIN${CUT_TYPES.join(",")}`,

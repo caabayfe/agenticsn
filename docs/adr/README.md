@@ -69,6 +69,7 @@ when the table is stale.
 | [0057](0057-bundled-user-skills-and-mcp-profiles.md) | Bundled user skills and workspace MCP profiles | Accepted |
 | [0058](0058-team-waivers-come-from-the-reviewed-branch.md) | In team mode, the gate accepts only waivers on the reviewed branch | Accepted |
 | [0059](0059-installs-state-the-clients-licences.md) | An install states the client's licences and installs only what they cover | Accepted |
+| [0060](0060-records-without-application-scope-change-as-data.md) | Records of tables without an application scope change as data | Accepted |
 <!-- adr-index:end -->
 
 Requirements referenced as `ASR-nn` are in

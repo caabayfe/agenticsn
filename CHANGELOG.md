@@ -4,6 +4,14 @@ All notable changes to snagentic. Versions follow [semantic versioning](https://
 
 ## [Unreleased]
 
+### Fixed
+
+- Plan refuses to update or delete a record whose table has no application scope, such as a
+  schedule span (`cmn_schedule_span`), naming the table and saying to change it as data
+  (ADR-0060). The platform's load creates such a record and refuses every later change to it with
+  "invalid scope", so a push used to stop part way, after other units were written. Creating one
+  is still planned.
+
 ## [2.25.0] - 2026-11-27
 
 ### Added

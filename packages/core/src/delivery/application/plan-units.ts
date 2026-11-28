@@ -18,6 +18,7 @@ import { withoutCutValues } from "./field-lengths";
 import { gateFor } from "./plan-gate";
 import { deliveryTarget, orphanedPending, pendingJournal } from "./plan-pending";
 import { type ProjectLoad, planProject } from "./plan-project";
+import { withoutUnscopedChanges } from "./unscoped-changes";
 
 export type { ProjectLoad } from "./plan-project";
 
@@ -189,7 +190,9 @@ export async function computeUnitPlan(
   const { built, problems } = await projectPlans(deps, query, pending.journal);
   problems.push(...(await uncommittedSource(deps)), ...pending.problems);
   problems.push(...orphanedPending(pending.journal, built));
-  const { loads, problems: cut } = await withoutCutValues(deps.reader, built, deps.signal);
+  const scoped = await withoutUnscopedChanges(deps.reader, built, deps.signal);
+  problems.push(...scoped.problems);
+  const { loads, problems: cut } = await withoutCutValues(deps.reader, scoped.loads, deps.signal);
   problems.push(...cut);
   const units = loads.flatMap((load) => load.units);
   const base = (await deps.workspace.mirrorCommit()) ?? "HEAD";
